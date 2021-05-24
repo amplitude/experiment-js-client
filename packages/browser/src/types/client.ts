@@ -1,5 +1,5 @@
 import { ContextProvider } from './context';
-import { SkylabUser } from './user';
+import { ExperimentUser } from './user';
 import { Variant, Variants } from './variant';
 
 /**
@@ -7,8 +7,8 @@ import { Variant, Variants } from './variant';
  * @category Core Usage
  */
 export interface Client {
-  start(user: SkylabUser): Promise<Client>;
-  setUser(user: SkylabUser): Promise<Client>;
+  start(user: ExperimentUser): Promise<Client>;
+  setUser(user: ExperimentUser): Promise<Client>;
   getVariant(flagKey: string, fallback?: string | Variant): Variant;
   getVariants(): Variants;
   setContextProvider(contextProvider: ContextProvider): Client;

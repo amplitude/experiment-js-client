@@ -1,10 +1,10 @@
 import './App.css';
 import React from 'react';
 
-import { Skylab } from '@amplitude/skylab-js-client';
-import { useSkylab, SkylabProvider } from './skylab';
+import { Experiment } from '@amplitude/experiment-js-client';
+import { useExperiment, ExperimentProvider } from './experiment';
 
-Skylab.init('client-IAxMYws9vVQESrrK88aTcToyqMxiiJoR', {
+Experiment.init('client-IAxMYws9vVQESrrK88aTcToyqMxiiJoR', {
   initialFlags: { 'js-browser-demo': 'initial' },
   preferInitialFlags: true,
   debugAssignmentRequests: true,
@@ -12,7 +12,7 @@ Skylab.init('client-IAxMYws9vVQESrrK88aTcToyqMxiiJoR', {
 });
 
 const Feature = (props) => {
-  const { client, ready, loaded } = useSkylab();
+  const { client, ready, loaded } = useExperiment();
 
   const feature = client.getVariant('js-browser-demo');
   console.log(
@@ -43,13 +43,13 @@ const Feature = (props) => {
 
 export default function App() {
   return (
-    <SkylabProvider skylabUser={{ user_id: 'user_id', device_family: 'device_family' }}>
+    <ExperimentProvider experimentUser={{ user_id: 'user_id', device_family: 'device_family' }}>
       <div className="container">
         <main className="main">
-          <h1 className="title">Browser demo for Skylab</h1>
+          <h1 className="title">Browser demo for Experiment</h1>
           <Feature />
         </main>
       </div>
-    </SkylabProvider>
+    </ExperimentProvider>
   );
 }

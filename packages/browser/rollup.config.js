@@ -11,10 +11,10 @@ const browserConfig = {
   input: 'src/index.ts',
   output: {
     dir: 'dist',
-    entryFileNames: 'skylab.umd.js',
+    entryFileNames: 'experiment.umd.js',
     exports: 'named',
     format: 'umd',
-    name: 'Skylab',
+    name: 'Experiment',
   },
   treeshake: {
     moduleSideEffects: 'no-external',

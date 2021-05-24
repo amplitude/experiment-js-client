@@ -25,7 +25,7 @@ type AmplitudeUAParser = {
 
 /**
  * An AmplitudeContextProvider injects information from the Amplitude SDK into
- * the {@link SkylabUser} object before sending a request to the server.
+ * the {@link ExperimentUser} object before sending a request to the server.
  * @category Context Provider
  */
 export class AmplitudeContextProvider implements ContextProvider {

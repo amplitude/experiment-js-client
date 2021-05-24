@@ -1,18 +1,18 @@
 /**
  * @packageDocumentation
- * @module skylab-js-client
+ * @module experiment-js-client
  */
 
 import { version as PACKAGE_VERSION } from '../package.json';
 
-import { SkylabConfig, Defaults } from './config';
+import { ExperimentConfig, Defaults } from './config';
 import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
 import { Client } from './types/client';
 import { ContextProvider } from './types/context';
 import { Storage } from './types/storage';
 import { HttpClient } from './types/transport';
-import { SkylabUser } from './types/user';
+import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
 import { Backoff } from './util/backoff';
 import { urlSafeBase64Encode } from './util/base64';
@@ -20,10 +20,10 @@ import { normalizeInstanceName } from './util/normalize';
 import { randomString } from './util/randomstring';
 
 /**
- * The default {@link Client} used to fetch variations from Skylab's servers.
+ * The default {@link Client} used to fetch variations from Experiment's servers.
  * @category Core Usage
  */
-export class SkylabClient implements Client {
+export class ExperimentClient implements Client {
   protected readonly instanceName: string;
   protected readonly apiKey: string;
   protected readonly storage: Storage;
@@ -32,19 +32,19 @@ export class SkylabClient implements Client {
   protected readonly debug: boolean;
   protected readonly debugAssignmentRequests: boolean;
 
-  protected config: SkylabConfig;
-  protected user: SkylabUser;
+  protected config: ExperimentConfig;
+  protected user: ExperimentUser;
   protected contextProvider: ContextProvider;
 
   private retriesEnabled: boolean;
   private retriesBackoff: Backoff;
 
   /**
-   * Creates a new SkylabClient instance.
-   * @param apiKey The Client key for the Skylab project
-   * @param config See {@link SkylabConfig} for config options
+   * Creates a new ExperimentClient instance.
+   * @param apiKey The Client key for the Experiment project
+   * @param config See {@link ExperimentConfig} for config options
    */
-  public constructor(apiKey: string, config: SkylabConfig) {
+  public constructor(apiKey: string, config: ExperimentConfig) {
     this.apiKey = apiKey;
     this.config = { ...Defaults, ...config };
     const normalizedInstanceName = normalizeInstanceName(
@@ -75,10 +75,10 @@ export class SkylabClient implements Client {
    * If you are using the `initialFlags` config option to pre-load this SDK from the
    * server, you do not need to call `start`.
    *
-   * @param user The user context for variants. See {@link SkylabUser} for more details.
+   * @param user The user context for variants. See {@link ExperimentUser} for more details.
    * @returns A promise that resolves when the async request for variants is complete.
    */
-  public async start(user: SkylabUser): Promise<SkylabClient> {
+  public async start(user: ExperimentUser): Promise<ExperimentClient> {
     this.user = user || {};
     this.storage.load();
     if (this.config.initialFlags && this.config.preferInitialFlags) {
@@ -100,17 +100,17 @@ export class SkylabClient implements Client {
   }
 
   /**
-   * Sets the user context. Skylab will continue to serve variation assignments
+   * Sets the user context. Experiment will continue to serve variation assignments
    * from the old user context until new variants are fetched.
    *
    * If the fetch triggered by this function fails, the retry interval will be started
    * if the flag is set and continue until the fetch succeeds.
-   * @param user The user context for variants. See {@link SkylabUser} for more details.
+   * @param user The user context for variants. See {@link ExperimentUser} for more details.
    * @returns A promise that resolves when the async request for variants is complete.
    */
-  public async setUser(user: SkylabUser): Promise<SkylabClient> {
+  public async setUser(user: ExperimentUser): Promise<ExperimentClient> {
     if (this.debug) {
-      console.debug('[Skylab] Set user: ', user);
+      console.debug('[Experiment] Set user: ', user);
     }
     this.user = user;
     try {
@@ -128,27 +128,27 @@ export class SkylabClient implements Client {
   /**
    * Sets an context provider that will inject identity information into the user
    * context. The context provider will override any device ID or user ID set on
-   * the SkylabUser object.
+   * the ExperimentUser object.
    * See {@link ContextProvider} for more details
    * @param contextProvider
    */
-  public setContextProvider(contextProvider: ContextProvider): SkylabClient {
+  public setContextProvider(contextProvider: ContextProvider): ExperimentClient {
     this.contextProvider = contextProvider;
     return this;
   }
 
   protected async fetchAll(
-    user: SkylabUser,
+    user: ExperimentUser,
     timeoutMillis: number,
     retry: boolean,
   ): Promise<Variants> {
     // Don't even try to fetch variants if API key is not set
     if (!this.apiKey) {
-      throw Error('Skylab API key is empty');
+      throw Error('Experiment API key is empty');
     }
 
     if (this.debug) {
-      console.debug('[Skylab] Fetch all: retry=' + retry);
+      console.debug('[Experiment] Fetch all: retry=' + retry);
     }
 
     // Proactively cancel retries if active in order to avoid unecessary API
@@ -171,7 +171,7 @@ export class SkylabClient implements Client {
   }
 
   protected async doFetch(
-    user: SkylabUser,
+    user: ExperimentUser,
     timeoutMillis: number,
   ): Promise<Response> {
     const userContext = this.addContext(user);
@@ -189,7 +189,7 @@ export class SkylabClient implements Client {
       Authorization: `Api-Key ${this.apiKey}`,
     };
     if (this.debug) {
-      console.debug('[Skylab] Fetch variants for user: ', userContext);
+      console.debug('[Experiment] Fetch variants for user: ', userContext);
     }
     const response = await this.httpClient.request(
       endpoint,
@@ -199,7 +199,7 @@ export class SkylabClient implements Client {
       timeoutMillis,
     );
     if (this.debug) {
-      console.debug('[Skylab] Received fetch response:', response);
+      console.debug('[Experiment] Received fetch response:', response);
     }
     return response;
   }
@@ -214,7 +214,7 @@ export class SkylabClient implements Client {
       };
     }
     if (this.debug) {
-      console.debug('[Skylab] Received variants:', variants);
+      console.debug('[Experiment] Received variants:', variants);
     }
     return variants;
   }
@@ -226,16 +226,16 @@ export class SkylabClient implements Client {
     }
     this.storage.save();
     if (this.debug) {
-      console.debug('[Skylab] Stored flags:', variants);
+      console.debug('[Experiment] Stored flags:', variants);
     }
   }
 
-  protected async startRetries(user: SkylabUser): Promise<void> {
+  protected async startRetries(user: ExperimentUser): Promise<void> {
     if (this.config.fetchRetries == 0) {
       return;
     }
     if (this.debug) {
-      console.debug('[Skylab] Retry fetch all');
+      console.debug('[Experiment] Retry fetch all');
     }
     this.retriesBackoff = new Backoff(
       this.config.fetchRetries,
@@ -254,7 +254,7 @@ export class SkylabClient implements Client {
     }
   }
 
-  private addContext(user: SkylabUser) {
+  private addContext(user: ExperimentUser) {
     return {
       device_id: this.contextProvider?.getDeviceId() || undefined,
       user_id: this.contextProvider?.getUserId() || undefined,
@@ -263,7 +263,7 @@ export class SkylabClient implements Client {
       platform: this.contextProvider?.getPlatform() || undefined,
       os: this.contextProvider?.getOs() || undefined,
       device_model: this.contextProvider?.getDeviceModel() || undefined,
-      library: `skylab-js-client/${PACKAGE_VERSION}`,
+      library: `experiment-js-client/${PACKAGE_VERSION}`,
       ...user,
     };
   }
@@ -291,7 +291,7 @@ export class SkylabClient implements Client {
     );
 
     if (this.debug) {
-      console.debug(`[Skylab] variant for flag ${flagKey} is ${variant.value}`);
+      console.debug(`[Experiment] variant for flag ${flagKey} is ${variant.value}`);
     }
 
     return variant;

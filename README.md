@@ -1,8 +1,8 @@
-# Javascript Client (Browser) SDK for Skylab
+# Javascript Client (Browser) SDK for Experiment
 
 ## Overview
 
-This is the Javascript client (web browser) SDK for Skylab, Amplitude's
+This is the Javascript client (web browser) SDK for Experiment, Amplitude's
 experimentation and feature management platform.
 
 ## Browser Compatibility

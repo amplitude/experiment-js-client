@@ -1,5 +1,5 @@
 /**
- * A ContextProvider injects information into the {@link SkylabUser} object
+ * A ContextProvider injects information into the {@link ExperimentUser} object
  * before sending a request to the server. This can be used to pass
  * identity (deviceId and userId), or other platform specific context.
  * @category Context Provider

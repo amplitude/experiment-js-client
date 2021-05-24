@@ -1,16 +1,16 @@
 {
-  "name": "@amplitude/skylab-js-client-root",
+  "name": "@amplitude/experiment-js-client-root",
   "version": "0.1.1",
-  "description": "Javascript Client SDK for Amplitude Skylab",
+  "description": "Javascript Client SDK for Amplitude Experiment",
   "scripts": {
-    "build": "yarn workspace @amplitude/skylab-js-client build",
+    "build": "yarn workspace @amplitude/experiment-js-client build",
     "lint": "lerna run lint",
     "test": "jest",
     "start": "yarn workspace browser-demo start"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amplitude/skylab-js-client.git"
+    "url": "git+https://github.com/amplitude/experiment-js-client.git"
   },
   "author": "Amplitude",
   "license": "MIT",
@@ -19,9 +19,9 @@
     "packages/*"
   ],
   "bugs": {
-    "url": "https://github.com/amplitude/skylab-js-client/issues"
+    "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
-  "homepage": "https://github.com/amplitude/skylab-js-client#readme",
+  "homepage": "https://github.com/amplitude/experiment-js-client#readme",
   "devDependencies": {
     "@babel/core": "^7.11.1",
     "@babel/preset-env": "^7.11.0",

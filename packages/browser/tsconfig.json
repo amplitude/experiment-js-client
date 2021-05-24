@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.json",
   "include": ["src/**/*.ts", "package.json"],
   "typedocOptions": {
-    "name": "Skylab JS Client Documentation",
+    "name": "Experiment JS Client Documentation",
     "entryPoints": ["./src/index.ts"],
     "categoryOrder": [
       "Core Usage",

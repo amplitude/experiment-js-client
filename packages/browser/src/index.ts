@@ -1,16 +1,16 @@
 /**
- * This is the API Reference for the Skylab JS Client SDK.
+ * This is the API Reference for the Experiment JS Client SDK.
  * For more details on implementing this SDK, view the documentation
  * [here](https://amplitude-lab.readme.io/docs/javascript-client-sdk).
- * @module skylab-js-client
+ * @module experiment-js-client
  */
 
-export { SkylabConfig } from './config';
+export { ExperimentConfig } from './config';
 export { AmplitudeContextProvider } from './context/amplitudeContextProvider';
-export { Skylab } from './factory';
-export { StubSkylabClient } from './stubClient';
-export { SkylabClient } from './skylabClient';
+export { Experiment } from './factory';
+export { StubExperimentClient } from './stubClient';
+export { ExperimentClient } from './experimentClient';
 export { Client } from './types/client';
 export { ContextProvider } from './types/context';
-export { SkylabUser } from './types/user';
+export { ExperimentUser } from './types/user';
 export { Variant, Variants } from './types/variant';

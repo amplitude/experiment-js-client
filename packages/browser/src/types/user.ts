@@ -5,7 +5,7 @@
  * rule based user targeting.
  * @category Types
  */
-export type SkylabUser = {
+export type ExperimentUser = {
   /**
    * Device ID for associating with an identity in Amplitude
    */

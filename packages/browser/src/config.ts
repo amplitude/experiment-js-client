@@ -3,7 +3,7 @@ import { Variant } from './types/variant';
 /**
  * @category Configuration
  */
-export interface SkylabConfig {
+export interface ExperimentConfig {
   /**
    * Set to true to log some extra information to the console.
    */
@@ -15,7 +15,7 @@ export interface SkylabConfig {
   debugAssignmentRequests?: boolean;
 
   /**
-   * The default fallback variant for all {@link SkylabClient.getVariant} calls.
+   * The default fallback variant for all {@link ExperimentClient.getVariant} calls.
    */
   fallbackVariant?: string;
 
@@ -26,7 +26,7 @@ export interface SkylabConfig {
   initialFlags?: { [flagKey: string]: string | Variant };
 
   /**
-   * The instance name for the SkylabClient. Instance names are case _insensitive_.
+   * The instance name for the ExperimentClient. Instance names are case _insensitive_.
    */
   instanceName?: string;
 
@@ -85,7 +85,7 @@ export interface SkylabConfig {
 }
 
 /**
- Defaults for Skylab Config options
+ Defaults for Experiment Config options
 
  | **Option**       | **Default**                       |
  |------------------|-----------------------------------|
@@ -107,7 +107,7 @@ export interface SkylabConfig {
  *
  * @category Configuration
  */
-export const Defaults: SkylabConfig = {
+export const Defaults: ExperimentConfig = {
   debug: false,
   debugAssignmentRequests: false,
   fallbackVariant: '',

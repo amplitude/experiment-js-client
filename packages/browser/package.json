@@ -1,8 +1,8 @@
 {
-  "name": "@amplitude/skylab-js-client",
+  "name": "@amplitude/experiment-js-client",
   "version": "1.1.0",
-  "description": "Javascript Client SDK for Amplitude Skylab",
-  "main": "dist/skylab.umd.js",
+  "description": "Javascript Client SDK for Amplitude Experiment",
+  "main": "dist/experiment.umd.js",
   "types": "dist/types/src/index.d.ts",
   "files": [
     "dist"
@@ -17,16 +17,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/amplitude/skylab-js-client.git",
+    "url": "https://github.com/amplitude/experiment-js-client.git",
     "directory": "packages/browser"
   },
   "author": "Amplitude",
   "license": "MIT",
   "private": false,
   "bugs": {
-    "url": "https://github.com/amplitude/skylab-js-client/issues"
+    "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
-  "homepage": "https://github.com/amplitude/skylab-js-client#readme",
+  "homepage": "https://github.com/amplitude/experiment-js-client#readme",
   "dependencies": {
     "base64-js": "^1.3.1",
     "unfetch": "^4.1.0"
