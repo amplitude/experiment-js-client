@@ -55,7 +55,9 @@ export class Backoff {
           this.backoff(fn, nextAttempt, nextDelay);
         } else {
           console.error(
-            '[Experiment] Retries failed after ' + this.attempts + ' attempts: ',
+            '[Experiment] Retries failed after ' +
+              this.attempts +
+              ' attempts: ',
             e,
           );
         }
