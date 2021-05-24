@@ -132,7 +132,9 @@ export class ExperimentClient implements Client {
    * See {@link ContextProvider} for more details
    * @param contextProvider
    */
-  public setContextProvider(contextProvider: ContextProvider): ExperimentClient {
+  public setContextProvider(
+    contextProvider: ContextProvider,
+  ): ExperimentClient {
     this.contextProvider = contextProvider;
     return this;
   }
@@ -291,7 +293,9 @@ export class ExperimentClient implements Client {
     );
 
     if (this.debug) {
-      console.debug(`[Experiment] variant for flag ${flagKey} is ${variant.value}`);
+      console.debug(
+        `[Experiment] variant for flag ${flagKey} is ${variant.value}`,
+      );
     }
 
     return variant;
