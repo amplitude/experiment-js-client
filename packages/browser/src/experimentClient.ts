@@ -16,7 +16,6 @@ import { ExperimentUser } from './types/user';
 import { Variant, Flags } from './types/variant';
 import { Backoff } from './util/backoff';
 import { urlSafeBase64Encode } from './util/base64';
-import { normalizeInstanceName } from './util/normalize';
 import { randomString } from './util/randomstring';
 
 // Configs which have been removed from the public API.
@@ -32,13 +31,10 @@ const assignmentBackoffScalar = 1.5;
  * @category Core Usage
  */
 export class ExperimentClient implements Client {
-  protected readonly instanceName: string;
   protected readonly apiKey: string;
   protected readonly storage: Storage;
-  protected readonly storageNamespace: string;
   protected readonly httpClient: HttpClient;
   protected readonly debug: boolean;
-  protected readonly debugAssignmentRequests: boolean;
 
   protected config: ExperimentConfig;
   protected user: ExperimentUser;
@@ -52,24 +48,16 @@ export class ExperimentClient implements Client {
    * @param apiKey The Client key for the Experiment project
    * @param config See {@link ExperimentConfig} for config options
    */
-  public constructor(
-    apiKey: string,
-    instanceName: string,
-    config: ExperimentConfig,
-  ) {
+  constructor(apiKey: string, config?: ExperimentConfig) {
     this.apiKey = apiKey;
     this.config = { ...Defaults, ...config };
-    const normalizedInstanceName = normalizeInstanceName(instanceName);
 
-    this.instanceName = normalizedInstanceName;
     this.httpClient = FetchHttpClient;
 
     const shortApiKey = this.apiKey.substring(this.apiKey.length - 6);
-    this.storageNamespace = `amp-sl-${shortApiKey}`;
-    this.storage = new LocalStorage(this.storageNamespace);
+    this.storage = new LocalStorage(`amp-sl-${shortApiKey}`);
 
     this.debug = this.config.debug;
-    this.debugAssignmentRequests = this.config.debug;
 
     this.retriesEnabled = this.config.retryAssignmentOnFailure;
   }
@@ -181,12 +169,8 @@ export class ExperimentClient implements Client {
     const userContext = this.addContext(user);
     const encodedContext = urlSafeBase64Encode(JSON.stringify(userContext));
     let queryString = '';
-    let debugAssignmentRequestsParam: string;
-    if (this.debugAssignmentRequests) {
-      debugAssignmentRequestsParam = `d=${randomString(8)}`;
-    }
-    if (debugAssignmentRequestsParam) {
-      queryString = '?' + debugAssignmentRequestsParam;
+    if (this.debug) {
+      queryString = `?d=${randomString(8)}`;
     }
     const endpoint = `${this.config.serverUrl}/sdk/vardata/${encodedContext}${queryString}`;
     const headers = {

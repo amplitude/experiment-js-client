@@ -15,11 +15,7 @@ const instances = {};
 const init = (apiKey: string, config?: ExperimentConfig): ExperimentClient => {
   const normalizedName = normalizeInstanceName(defaultInstanceName);
   if (!instances[normalizedName]) {
-    instances[normalizedName] = new ExperimentClient(
-      apiKey,
-      normalizedName,
-      config,
-    );
+    instances[normalizedName] = new ExperimentClient(apiKey, config);
   }
   return instances[normalizedName];
 };
