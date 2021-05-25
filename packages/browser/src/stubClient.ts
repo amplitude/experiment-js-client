@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Defaults } from './config';
 import { Client } from './types/client';
 import { ContextProvider } from './types/context';
