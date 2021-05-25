@@ -304,7 +304,13 @@ export class ExperimentClient implements Client {
     if (!this.apiKey) {
       return {};
     }
-    return this.storage.getAll();
+    // Fallback to initial flags if storage is empty.
+    const variants = this.storage.getAll();
+    if (Object.keys(variants).length === 0) {
+      return this.config.initialFlags ?? {};
+    } else {
+      return variants;
+    }
   }
 
   /**
