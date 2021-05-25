@@ -47,8 +47,8 @@ export class ExperimentClient implements Client {
    * @param apiKey The Client key for the Experiment project
    * @param config See {@link ExperimentConfig} for config options
    */
-  constructor(apiKey: string, config?: ExperimentConfig) {
-    this.apiKey = apiKey;
+  constructor(config: ExperimentConfig) {
+    this.apiKey = config.apiKey;
     this.config = { ...Defaults, ...config };
 
     this.httpClient = FetchHttpClient;

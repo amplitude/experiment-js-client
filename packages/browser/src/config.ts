@@ -5,6 +5,11 @@ import { Variant, Flags } from './types/variant';
  */
 export interface ExperimentConfig {
   /**
+   * The environment API key (required).
+   */
+  apiKey: string;
+
+  /**
    * Debug all assignment requests in the UI Debugger and log additional information to the console.
    * This should be false for production builds.
    */

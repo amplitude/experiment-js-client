@@ -12,7 +12,7 @@ const instances = {};
  * @param apiKey The environment API Key
  * @param config See {@link ExperimentConfig} for config options
  */
-const init = (apiKey: string, config?: ExperimentConfig): ExperimentClient => {
+const instance = (config?: ExperimentConfig): ExperimentClient => {
   const normalizedName = normalizeInstanceName(defaultInstanceName);
   if (!instances[normalizedName]) {
     instances[normalizedName] = new ExperimentClient(apiKey, config);
@@ -25,5 +25,5 @@ const init = (apiKey: string, config?: ExperimentConfig): ExperimentClient => {
  * @category Core Usage
  */
 export const Experiment = {
-  init,
+  instance,
 };
