@@ -15,7 +15,12 @@ const instances = {};
 const instance = (config?: ExperimentConfig): ExperimentClient => {
   const normalizedName = normalizeInstanceName(defaultInstanceName);
   if (!instances[normalizedName]) {
-    instances[normalizedName] = new ExperimentClient(apiKey, config);
+    if (!config) {
+      throw Error(
+        'Initial Experiment initiaization must include config with valid API key.',
+      );
+    }
+    instances[normalizedName] = new ExperimentClient(config);
   }
   return instances[normalizedName];
 };
