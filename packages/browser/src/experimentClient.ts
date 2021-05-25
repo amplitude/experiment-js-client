@@ -21,7 +21,6 @@ import { randomString } from './util/randomstring';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
-const defaultInstanceName = '$default_instance';
 const assignmentBackoffTimeout = 10000;
 const assignmentBackoffAttempts = 8;
 const assignmentBackoffMinMillis = 500;
@@ -53,10 +52,14 @@ export class ExperimentClient implements Client {
    * @param apiKey The Client key for the Experiment project
    * @param config See {@link ExperimentConfig} for config options
    */
-  public constructor(apiKey: string, config: ExperimentConfig) {
+  public constructor(
+    apiKey: string,
+    instanceName: string,
+    config: ExperimentConfig,
+  ) {
     this.apiKey = apiKey;
     this.config = { ...Defaults, ...config };
-    const normalizedInstanceName = normalizeInstanceName(defaultInstanceName);
+    const normalizedInstanceName = normalizeInstanceName(instanceName);
 
     this.instanceName = normalizedInstanceName;
     this.httpClient = FetchHttpClient;
