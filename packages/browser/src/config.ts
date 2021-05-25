@@ -34,7 +34,7 @@ export interface ExperimentConfig {
   /**
    * Set to true to retry assignment requests in the background if the initial requests fails or times out.
    */
-  retryFailedAssignment?: boolean;
+  retryAssignmentOnFailure?: boolean;
 }
 
 /**
@@ -59,5 +59,5 @@ export const Defaults: ExperimentConfig = {
   initialFlags: null,
   serverUrl: 'https://api.lab.amplitude.com',
   assignmentTimeoutMillis: 10000,
-  retryFailedAssignment: true,
+  retryAssignmentOnFailure: true,
 };
