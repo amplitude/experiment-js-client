@@ -1,45 +1,25 @@
-import { Variant } from './types/variant';
+import { Variant, Flags } from './types/variant';
 
 /**
  * @category Configuration
  */
 export interface ExperimentConfig {
   /**
-   * Set to true to log some extra information to the console.
+   * Debug all assignment requests in the UI Debugger and log additional information to the console.
+   * This should be false for production builds.
    */
   debug?: boolean;
 
   /**
-   * Set to true to view assignment requests in the UI debugger
-   */
-  debugAssignmentRequests?: boolean;
-
-  /**
    * The default fallback variant for all {@link ExperimentClient.getVariant} calls.
    */
-  fallbackVariant?: string;
+  fallbackVariant?: Variant;
 
   /**
    * Initial variant values for flags. This is useful for bootstrapping the client with
    * values determined on the server.
    */
-  initialFlags?: { [flagKey: string]: string | Variant };
-
-  /**
-   * The instance name for the ExperimentClient. Instance names are case _insensitive_.
-   */
-  instanceName?: string;
-
-  /**
-   * True if this client is being initialized on the server side. This is useful for server side rendering.
-   * Currently this flag is unused but is reserved for future use.
-   */
-  isServerSide?: boolean;
-
-  /**
-   * Whether to prioritize initialFlags over localStorage while async requests for variants are still in flight.
-   */
-  preferInitialFlags?: boolean;
+  initialFlags?: Flags;
 
   /**
    * The server endpoint from which to request variants.
@@ -47,41 +27,14 @@ export interface ExperimentConfig {
   serverUrl?: string;
 
   /**
-   * The local storage key to use for storing metadata
+   * The assignment request timeout, in milliseconds, used when fetching variants triggered by calling start() or setUser().
    */
-  storageKey?: 'amp-sl-meta';
+  assignmentTimeoutMillis?: number;
 
   /**
-   * The request timeout, in milliseconds, used when fetching variants triggered by calling start() or setUser().
+   * Set to true to retry assignment requests in the background if the initial requests fails or times out.
    */
-  fetchTimeoutMillis?: number;
-
-  /**
-   * The number of retries to attempt before failing
-   */
-  fetchRetries?: number;
-
-  /**
-   * Retry backoff minimum (starting backoff delay) in milliseconds. The minimum backoff is scaled by
-   * `fetchRetryBackoffScalar` after each retry failure.
-   */
-  fetchRetryBackoffMinMillis: number;
-
-  /**
-   * Retry backoff maximum in milliseconds. If the scaled backoff is greater than the max, the max is
-   * used for all subsequent retries.
-   */
-  fetchRetryBackoffMaxMillis: number;
-
-  /**
-   * Scales the minimum backoff exponentially.
-   */
-  fetchRetryBackoffScalar: number;
-
-  /**
-   * The request timeout for retrying fetch requests.
-   */
-  fetchRetryTimeoutMillis?: number;
+  retryFailedAssignment?: boolean;
 }
 
 /**
@@ -90,36 +43,21 @@ export interface ExperimentConfig {
  | **Option**       | **Default**                       |
  |------------------|-----------------------------------|
  | **debug**        | false                             |
- | **debugAssignmentRequests** | false                  |
- | **fallbackVariant**         | ""                     |
- | **instanceName** | `"$default_instance"`             |
- | **isServerSide**            | false                  |
- | **preferInitialFlags**      | false                  |
+ | **fallbackVariant**         | null                   |
+ | **initialFlags**         | null                   |
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
- | **storageKey**    | `"amp-sl-meta"` |
- | **fetchTimeoutMillis**    | `10000` |
- | **fetchRetries**    | `8` |
- | **fetchRetryBackoffMinMillis**    | `500` |
- | **fetchRetryBackoffMaxMillis**    | `10000` |
- | **fetchRetryBackoffScalar**    | `1.5` |
- | **fetchRetryTimeoutMillis**    | `10000` |
+ | **assignmentTimeoutMillis**    | `10000` |
+ | **retryFailedAssignment**    | `true` |
+
 
  *
  * @category Configuration
  */
 export const Defaults: ExperimentConfig = {
   debug: false,
-  debugAssignmentRequests: false,
-  fallbackVariant: '',
-  instanceName: '$default_instance',
-  isServerSide: false,
-  preferInitialFlags: false,
+  fallbackVariant: null,
+  initialFlags: null,
   serverUrl: 'https://api.lab.amplitude.com',
-  storageKey: 'amp-sl-meta',
-  fetchTimeoutMillis: 10000,
-  fetchRetries: 8,
-  fetchRetryBackoffMinMillis: 500,
-  fetchRetryBackoffMaxMillis: 10000,
-  fetchRetryBackoffScalar: 1.5,
-  fetchRetryTimeoutMillis: 10000,
+  assignmentTimeoutMillis: 10000,
+  retryFailedAssignment: true,
 };

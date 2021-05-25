@@ -4,7 +4,7 @@
  */
 
 import { Storage } from '../types/storage';
-import { Variant, Variants } from '../types/variant';
+import { Variant, Flags } from '../types/variant';
 
 export class LocalStorage implements Storage {
   protected readonly namespace: string;
@@ -30,7 +30,7 @@ export class LocalStorage implements Storage {
     this.map = {};
   }
 
-  getAll(): Variants {
+  getAll(): Flags {
     return this.map;
   }
 

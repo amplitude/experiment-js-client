@@ -13,4 +13,4 @@ export { ExperimentClient } from './experimentClient';
 export { Client } from './types/client';
 export { ContextProvider } from './types/context';
 export { ExperimentUser } from './types/user';
-export { Variant, Variants } from './types/variant';
+export { Variant, Flags } from './types/variant';
