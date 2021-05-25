@@ -40,7 +40,6 @@ export class ExperimentClient implements Client {
   protected user: ExperimentUser;
   protected contextProvider: ContextProvider;
 
-  private retriesEnabled: boolean;
   private retriesBackoff: Backoff;
 
   /**
@@ -58,8 +57,6 @@ export class ExperimentClient implements Client {
     this.storage = new LocalStorage(`amp-sl-${shortApiKey}`);
 
     this.debug = this.config.debug;
-
-    this.retriesEnabled = this.config.retryAssignmentOnFailure;
   }
 
   /**
@@ -81,7 +78,7 @@ export class ExperimentClient implements Client {
       await this.fetchAll(
         user,
         this.config.assignmentTimeoutMillis,
-        this.retriesEnabled,
+        this.config.retryAssignmentOnFailure,
       );
     } catch (e) {
       console.error(e);
@@ -107,7 +104,7 @@ export class ExperimentClient implements Client {
       await this.fetchAll(
         user,
         this.config.assignmentTimeoutMillis,
-        this.retriesEnabled,
+        this.config.retryAssignmentOnFailure,
       );
     } catch (e) {
       console.error(e);
