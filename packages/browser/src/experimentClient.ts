@@ -68,7 +68,7 @@ export class ExperimentClient implements Client {
     this.debug = this.config.debug;
     this.debugAssignmentRequests = this.config.debug;
 
-    this.retriesEnabled = this.config.retryFailedAssignment;
+    this.retriesEnabled = this.config.retryAssignmentOnFailure;
   }
 
   /**
