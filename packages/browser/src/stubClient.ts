@@ -9,11 +9,7 @@ import { Variant, Flags } from './types/variant';
  * A stub {@link Client} implementation that does nothing for all methods
  */
 export class StubExperimentClient implements Client {
-  public async setUser(user: ExperimentUser): Promise<StubExperimentClient> {
-    return this;
-  }
-
-  public async start(user: ExperimentUser): Promise<StubExperimentClient> {
+  public async assign(user: ExperimentUser): Promise<StubExperimentClient> {
     return this;
   }
 
@@ -27,7 +23,7 @@ export class StubExperimentClient implements Client {
     return Defaults.fallbackVariant;
   }
 
-  public getVariants(): Flags {
+  public getFlags(): Flags {
     return {};
   }
 }

@@ -54,6 +54,7 @@ export class ExperimentClient implements Client {
       this.config.apiKey.length - 6,
     );
     this.storage = new LocalStorage(`amp-sl-${shortApiKey}`);
+    this.storage.load();
   }
 
   /**
@@ -68,33 +69,10 @@ export class ExperimentClient implements Client {
    * @param user The user context for variants. See {@link ExperimentUser} for more details.
    * @returns A promise that resolves when the async request for variants is complete.
    */
-  public async start(user: ExperimentUser): Promise<ExperimentClient> {
+  public async assign(
+    user: ExperimentUser = this.user,
+  ): Promise<ExperimentClient> {
     this.user = user || {};
-    this.storage.load();
-    try {
-      await this.fetchAll(
-        user,
-        this.config.assignmentTimeoutMillis,
-        this.config.retryAssignmentOnFailure,
-      );
-    } catch (e) {
-      console.error(e);
-    }
-    return this;
-  }
-
-  /**
-   * Sets the user context. Experiment will continue to serve variation assignments
-   * from the old user context until new variants are fetched.
-   *
-   * If the fetch triggered by this function fails, the retry interval will be started
-   * if the flag is set and continue until the fetch succeeds.
-   * @param user The user context for variants. See {@link ExperimentUser} for more details.
-   * @returns A promise that resolves when the async request for variants is complete.
-   */
-  public async setUser(user: ExperimentUser): Promise<ExperimentClient> {
-    this.debug('[Experiment] Set user: ', user);
-    this.user = user;
     try {
       await this.fetchAll(
         user,
@@ -248,7 +226,7 @@ export class ExperimentClient implements Client {
     if (!this.config.apiKey) {
       return { value: undefined };
     }
-    const flags = this.getVariants();
+    const flags = this.getFlags();
     const variant = this._convertVariant(
       flags[flagKey] ?? fallback ?? this.config.fallbackVariant,
     );
@@ -259,7 +237,7 @@ export class ExperimentClient implements Client {
   /**
    * Returns all variants for the user.
    */
-  public getVariants(): Flags {
+  public getFlags(): Flags {
     if (!this.config.apiKey) {
       return {};
     }
