@@ -12,7 +12,7 @@ import { Client } from './types/client';
 import { Storage } from './types/storage';
 import { HttpClient } from './types/transport';
 import { ExperimentUser, ExperimentUserProvider } from './types/user';
-import { Variant, Flags } from './types/variant';
+import { Variant, Variants } from './types/variant';
 import { Backoff } from './util/backoff';
 import { urlSafeBase64Encode } from './util/base64';
 import { randomString } from './util/randomstring';
@@ -62,13 +62,13 @@ export class ExperimentClient implements Client {
    * 2. Asynchronously fetch all variants with the provided user context.
    * 4. If the fetch fails and the retry flag is set, start the retry interval until success.
    *
-   * If you are using the `initialFlags` config option to pre-load this SDK from the
+   * If you are using the `initialVariants` config option to pre-load this SDK from the
    * server, you do not need to call `start`.
    *
    * @param user The user context for variants. See {@link ExperimentUser} for more details.
    * @returns A promise that resolves when the async request for variants is complete.
    */
-  public async assign(
+  public async fetch(
     user: ExperimentUser = this.user,
   ): Promise<ExperimentClient> {
     this.user = user || {};
@@ -100,7 +100,7 @@ export class ExperimentClient implements Client {
     user: ExperimentUser,
     timeoutMillis: number,
     retry: boolean,
-  ): Promise<Flags> {
+  ): Promise<Variants> {
     // Don't even try to fetch variants if API key is not set
     if (!this.config.apiKey) {
       throw Error('Experiment API key is empty');
@@ -153,9 +153,9 @@ export class ExperimentClient implements Client {
     return response;
   }
 
-  protected async parseResponse(response: Response): Promise<Flags> {
+  protected async parseResponse(response: Response): Promise<Variants> {
     const json = await response.json();
-    const variants: Flags = {};
+    const variants: Variants = {};
     for (const flag of Object.keys(json)) {
       variants[flag] = {
         value: json[flag].key,
@@ -166,7 +166,7 @@ export class ExperimentClient implements Client {
     return variants;
   }
 
-  protected storeVariants(variants: Flags): void {
+  protected storeVariants(variants: Variants): void {
     this.storage.clear();
     for (const key in variants) {
       this.storage.put(key, variants[key]);
@@ -203,40 +203,40 @@ export class ExperimentClient implements Client {
   }
 
   /**
-   * Returns the variant for the provided flagKey.
+   * Returns the variant for the provided key.
    * Fallback order:
    * - Provided fallback
    * - Initial flags
    * - fallbackVariant in config
    * - Defaults.fallbackVariant (empty string)
    * Fallbacks happen if a value is null or undefined
-   * @param flagKey
+   * @param key
    * @param fallback A fallback value that takes precedence over any other fallback value.
    */
-  public getVariant(flagKey: string, fallback?: string | Variant): Variant {
+  public variant(key: string, fallback?: string | Variant): Variant {
     if (!this.config.apiKey) {
       return { value: undefined };
     }
-    const flags = this.getFlags();
+    const flags = this.all();
     const variant = this._convertVariant(
-      flags[flagKey] ?? fallback ?? this.config.fallbackVariant,
+      flags[key] ?? fallback ?? this.config.fallbackVariant,
     );
-    this.debug(`[Experiment] variant for flag ${flagKey} is ${variant.value}`);
+    this.debug(`[Experiment] variant for flag ${key} is ${variant.value}`);
     return variant;
   }
 
   /**
    * Returns all variants for the user.
    */
-  public getFlags(): Flags {
+  public all(): Variants {
     if (!this.config.apiKey) {
       return {};
     }
     const storageFlags = this.storage.getAll();
     if (this.config.source == Source.LocalStorage) {
-      return { ...this.config.initialFlags, ...storageFlags };
-    } else if (this.config.source == Source.InitialFlags) {
-      return { ...storageFlags, ...this.config.initialFlags };
+      return { ...this.config.initialVariants, ...storageFlags };
+    } else if (this.config.source == Source.InitialVariants) {
+      return { ...storageFlags, ...this.config.initialVariants };
     }
   }
 

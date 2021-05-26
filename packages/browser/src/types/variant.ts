@@ -17,6 +17,6 @@ export type Variant = {
 /**
  * @category Types
  */
-export type Flags = {
-  [flagKey: string]: Variant;
+export type Variants = {
+  [key: string]: Variant;
 };

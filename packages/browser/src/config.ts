@@ -1,4 +1,4 @@
-import { Variant, Flags } from './types/variant';
+import { Variant, Variants } from './types/variant';
 
 /**
  * Determines the primary source of flags and variants before falling back.
@@ -8,17 +8,18 @@ export enum Source {
   /**
    * The default way to source variants within your application. Before the
    * assignments are fetched, `getVariant(s)` will fallback to local storage
-   * first, then `initialFlags` if local storage is empty. This option
+   * first, then `initialVariants` if local storage is empty. This option
    * effectively falls back to an assignment fetched previously.
    */
   LocalStorage = 'localStorage',
+
   /**
    * This bootstrap option is used primarily for servers-side rendering using an
-   * Experiment server SDK. This bootstrap option always prefers `intialFlags`
-   * over data in local storage, even if variants are fetched successfully and
-   * stored locally.
+   * Experiment server SDK. This bootstrap option always prefers the config
+   * `initialVariants` over data in local storage, even if variants are fetched
+   * successfully and stored locally.
    */
-  InitialFlags = 'intialFlags',
+  InitialVariants = 'initialVariants',
 }
 
 /**
@@ -45,9 +46,9 @@ export interface ExperimentConfig {
   /**
    * Initial variant values for flags. This is useful for bootstrapping the
    * client with fallbacks and values evaluated from server-side rendering.
-   * @see Flags
+   * @see Variants
    */
-  initialFlags?: Flags;
+  initialVariants?: Variants;
 
   /**
    * Determines the primary source of flags and variants before falling back.
@@ -80,12 +81,11 @@ export interface ExperimentConfig {
  |------------------|-----------------------------------|
  | **debug**        | `false`                           |
  | **fallbackVariant**         | `null`                 |
- | **initialFlags**         | `null`                 |
+ | **initialVariants**         | `null`                 |
  | **source** | `Source.LocalStorage` |
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
-
 
  *
  * @category Configuration
@@ -94,7 +94,7 @@ export const Defaults: ExperimentConfig = {
   apiKey: null,
   debug: false,
   fallbackVariant: null,
-  initialFlags: null,
+  initialVariants: null,
   source: Source.LocalStorage,
   serverUrl: 'https://api.lab.amplitude.com',
   assignmentTimeoutMillis: 10000,

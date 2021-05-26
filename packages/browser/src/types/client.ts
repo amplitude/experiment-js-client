@@ -1,13 +1,13 @@
 import { ExperimentUser, ExperimentUserProvider } from './user';
-import { Variant, Flags } from './variant';
+import { Variant, Variants } from './variant';
 
 /**
  * Interface for the main client.
  * @category Core Usage
  */
 export interface Client {
-  assign(user?: ExperimentUser): Promise<Client>;
+  fetch(user?: ExperimentUser): Promise<Client>;
+  variant(key: string, fallback?: string | Variant): Variant;
+  all(): Variants;
   setUserProvider(userProvider: ExperimentUserProvider): Client;
-  getVariant(flagKey: string, fallback?: string | Variant): Variant;
-  getFlags(): Flags;
 }
