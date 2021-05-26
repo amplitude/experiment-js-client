@@ -5,7 +5,7 @@
  * @module experiment-js-client
  */
 
-export { ExperimentConfig } from './config';
+export { ExperimentConfig, Source } from './config';
 export { AmplitudeContextProvider } from './context/amplitudeContextProvider';
 export { Experiment } from './factory';
 export { StubExperimentClient } from './stubClient';

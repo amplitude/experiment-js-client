@@ -265,9 +265,9 @@ export class ExperimentClient implements Client {
     }
     const storageFlags = this.storage.getAll();
     if (this.config.source == Source.LocalStorage) {
-      return { ...storageFlags, ...this.config.initialFlags };
-    } else if (this.config.source == Source.InitialFlags) {
       return { ...this.config.initialFlags, ...storageFlags };
+    } else if (this.config.source == Source.InitialFlags) {
+      return { ...storageFlags, ...this.config.initialFlags };
     }
   }
 
