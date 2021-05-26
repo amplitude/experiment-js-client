@@ -12,4 +12,4 @@ export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';
 export { Client } from './types/client';
 export { ExperimentUser, ExperimentUserProvider } from './types/user';
-export { Variant, Flags } from './types/variant';
+export { Variant, Variants } from './types/variant';

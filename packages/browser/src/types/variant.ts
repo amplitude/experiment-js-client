@@ -3,12 +3,12 @@
  */
 export type Variant = {
   /**
-   * The value of the variant determined by the flag configuration
+   * The value of the variant.
    */
   value: string;
 
   /**
-   * The attached payload, if any
+   * The attached payload, if any.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload?: any;

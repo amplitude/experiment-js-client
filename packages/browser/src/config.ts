@@ -1,7 +1,8 @@
 import { Variant, Variants } from './types/variant';
 
 /**
- * Determines the primary source of flags and variants before falling back.
+ * Determines the primary source of variants before falling back.
+ *
  * @category Configuration
  */
 export enum Source {
@@ -38,20 +39,20 @@ export interface ExperimentConfig {
   debug?: boolean;
 
   /**
-   * The default fallback variant for all {@link ExperimentClient.getVariant}
+   * The default fallback variant for all {@link ExperimentClient.variant}
    * calls.
    */
   fallbackVariant?: Variant;
 
   /**
-   * Initial variant values for flags. This is useful for bootstrapping the
+   * Initial values for variants. This is useful for bootstrapping the
    * client with fallbacks and values evaluated from server-side rendering.
    * @see Variants
    */
   initialVariants?: Variants;
 
   /**
-   * Determines the primary source of flags and variants before falling back.
+   * Determines the primary source of variants and variants before falling back.
    * @see Source
    */
   source?: Source;
@@ -62,16 +63,15 @@ export interface ExperimentConfig {
   serverUrl?: string;
 
   /**
-   * The assignment request timeout, in milliseconds, used when fetching
-   * variants triggered by calling start() or setUser().
+   * The request timeout, in milliseconds, when fetching variants.
    */
-  assignmentTimeoutMillis?: number;
+  fetchTimeoutMillis?: number;
 
   /**
-   * Set to true to retry assignment requests in the background if the initial
+   * Set to true to retry fetch requests in the background if the initial
    * requests fails or times out.
    */
-  retryAssignmentOnFailure?: boolean;
+  retryFetchOnFailure?: boolean;
 }
 
 /**
@@ -97,6 +97,6 @@ export const Defaults: ExperimentConfig = {
   initialVariants: null,
   source: Source.LocalStorage,
   serverUrl: 'https://api.lab.amplitude.com',
-  assignmentTimeoutMillis: 10000,
-  retryAssignmentOnFailure: true,
+  fetchTimeoutMillis: 10000,
+  retryFetchOnFailure: true,
 };

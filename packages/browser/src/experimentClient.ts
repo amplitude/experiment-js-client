@@ -19,15 +19,16 @@ import { randomString } from './util/randomstring';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
-const assignmentBackoffTimeout = 10000;
-const assignmentBackoffAttempts = 8;
-const assignmentBackoffMinMillis = 500;
-const assignmentBackoffMaxMillis = 10000;
-const assignmentBackoffScalar = 1.5;
+const fetchBackoffTimeout = 10000;
+const fetchBackoffAttempts = 8;
+const fetchBackoffMinMillis = 500;
+const fetchBackoffMaxMillis = 10000;
+const fetchBackoffScalar = 1.5;
 
 /**
  * The default {@link Client} used to fetch variations from Experiment's
  * servers.
+ *
  * @category Core Usage
  */
 export class ExperimentClient implements Client {
@@ -41,6 +42,7 @@ export class ExperimentClient implements Client {
 
   /**
    * Creates a new ExperimentClient instance.
+   *
    * @param apiKey The Client key for the Experiment project
    * @param config See {@link ExperimentConfig} for config options
    */
@@ -57,23 +59,33 @@ export class ExperimentClient implements Client {
   }
 
   /**
-   * Starts the client. This will
-   * 1. Load the id from local storage, or generate a new one if one does not exist.
-   * 2. Asynchronously fetch all variants with the provided user context.
-   * 4. If the fetch fails and the retry flag is set, start the retry interval until success.
+   * Assign the given user to the SDK and asynchronously fetch all variants
+   * from the server. Subsequent calls may omit the user from the argument to
+   * use the user from the previous call.
    *
-   * If you are using the `initialVariants` config option to pre-load this SDK from the
-   * server, you do not need to call `start`.
+   * If an {@link ExperimentUserProvider} has been set, the argument user will
+   * be merged with the provider user, preferring user fields from the argument
+   * user and falling back on the provider for fields which are null or
+   * undefined.
    *
-   * @param user The user context for variants. See {@link ExperimentUser} for more details.
-   * @returns A promise that resolves when the async request for variants is complete.
+   * If configured, fetch retries the request in the background on failure.
+   * Variants received from a successful retry are stored in local storage for
+   * access.
+   *
+   * If you are using the `initialVariants` config option to pre-load this SDK
+   * from the server, you generally do not need to call `fetch`.
+   *
+   * @param user The user to fetch variants for.
+   * @returns Promise that resolves when the request for variants completes.
+   * @see ExperimentUser
+   * @see ExperimentUserProvider
    */
   public async fetch(
     user: ExperimentUser = this.user,
   ): Promise<ExperimentClient> {
     this.user = user || {};
     try {
-      await this.fetchAll(
+      await this.fetchInternal(
         user,
         this.config.assignmentTimeoutMillis,
         this.config.retryAssignmentOnFailure,
@@ -85,9 +97,53 @@ export class ExperimentClient implements Client {
   }
 
   /**
+   * Returns the variant for the provided key.
+   *
+   * Fetches {@link all} variants from falling back given fallback then the
+   * configured fallbackVariant.
+   *
+   * @param key
+   * @param fallback The highest priority fallback.
+   * @see ExperimentConfig
+   */
+  public variant(key: string, fallback?: string | Variant): Variant {
+    if (!this.config.apiKey) {
+      return { value: undefined };
+    }
+    const variants = this.all();
+    const variant = this.convertVariant(
+      variants[key] ?? fallback ?? this.config.fallbackVariant,
+    );
+    this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
+    return variant;
+  }
+
+  /**
+   * Returns all variants for the user.
+   *
+   * The primary source of variants is based on the
+   * {@link Source} configured in the {@link ExperimentConfig}.
+   *
+   * @see Source
+   * @see ExperimentConfig
+   */
+  public all(): Variants {
+    if (!this.config.apiKey) {
+      return {};
+    }
+    const storageVariants = this.storage.getAll();
+    if (this.config.source == Source.LocalStorage) {
+      return { ...this.config.initialVariants, ...storageVariants };
+    } else if (this.config.source == Source.InitialVariants) {
+      return { ...storageVariants, ...this.config.initialVariants };
+    }
+  }
+
+  /**
    * Sets an context provider that will inject identity information into the user
    * context. The context provider will override any device ID or user ID set on
    * the ExperimentUser object.
+   *
    * See {@link ExperimentUserProvider} for more details
    * @param userProvider
    */
@@ -96,7 +152,7 @@ export class ExperimentClient implements Client {
     return this;
   }
 
-  protected async fetchAll(
+  protected async fetchInternal(
     user: ExperimentUser,
     timeoutMillis: number,
     retry: boolean,
@@ -156,10 +212,10 @@ export class ExperimentClient implements Client {
   protected async parseResponse(response: Response): Promise<Variants> {
     const json = await response.json();
     const variants: Variants = {};
-    for (const flag of Object.keys(json)) {
-      variants[flag] = {
-        value: json[flag].key,
-        payload: json[flag].payload,
+    for (const key of Object.keys(json)) {
+      variants[key] = {
+        value: json[key].key,
+        payload: json[key].payload,
       };
     }
     this.debug('[Experiment] Received variants:', variants);
@@ -172,19 +228,19 @@ export class ExperimentClient implements Client {
       this.storage.put(key, variants[key]);
     }
     this.storage.save();
-    this.debug('[Experiment] Stored flags:', variants);
+    this.debug('[Experiment] Stored variants:', variants);
   }
 
   protected async startRetries(user: ExperimentUser): Promise<void> {
     this.debug('[Experiment] Retry fetch all');
     this.retriesBackoff = new Backoff(
-      assignmentBackoffAttempts,
-      assignmentBackoffMinMillis,
-      assignmentBackoffMaxMillis,
-      assignmentBackoffScalar,
+      fetchBackoffAttempts,
+      fetchBackoffMinMillis,
+      fetchBackoffMaxMillis,
+      fetchBackoffScalar,
     );
     this.retriesBackoff.start(async () => {
-      await this.fetchAll(user, assignmentBackoffTimeout, false);
+      await this.fetchInternal(user, fetchBackoffTimeout, false);
     });
   }
 
@@ -202,50 +258,7 @@ export class ExperimentClient implements Client {
     };
   }
 
-  /**
-   * Returns the variant for the provided key.
-   * Fallback order:
-   * - Provided fallback
-   * - Initial flags
-   * - fallbackVariant in config
-   * - Defaults.fallbackVariant (empty string)
-   * Fallbacks happen if a value is null or undefined
-   * @param key
-   * @param fallback A fallback value that takes precedence over any other fallback value.
-   */
-  public variant(key: string, fallback?: string | Variant): Variant {
-    if (!this.config.apiKey) {
-      return { value: undefined };
-    }
-    const flags = this.all();
-    const variant = this._convertVariant(
-      flags[key] ?? fallback ?? this.config.fallbackVariant,
-    );
-    this.debug(`[Experiment] variant for flag ${key} is ${variant.value}`);
-    return variant;
-  }
-
-  /**
-   * Returns all variants for the user.
-   */
-  public all(): Variants {
-    if (!this.config.apiKey) {
-      return {};
-    }
-    const storageFlags = this.storage.getAll();
-    if (this.config.source == Source.LocalStorage) {
-      return { ...this.config.initialVariants, ...storageFlags };
-    } else if (this.config.source == Source.InitialVariants) {
-      return { ...storageFlags, ...this.config.initialVariants };
-    }
-  }
-
-  /**
-   * Converts a string value or Variant to a Variant object
-   * @param value
-   * @returns
-   */
-  private _convertVariant(value: string | Variant): Variant | null {
+  private convertVariant(value: string | Variant): Variant | null {
     if (value === null || value === undefined) {
       return null;
     }
