@@ -81,6 +81,7 @@ export interface ExperimentConfig {
  | **debug**        | `false`                           |
  | **fallbackVariant**         | `null`                 |
  | **initialFlags**         | `null`                 |
+ | **source** | `Source.LocalStorage` |
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
