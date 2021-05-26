@@ -24,7 +24,7 @@ type AmplitudeUAParser = {
 };
 
 /**
- * An AmplitudeExperimentUserProvider injects information from the Amplitude SDK into
+ * An AmplitudeUserProvider injects information from the Amplitude SDK into
  * the {@link ExperimentUser} object before sending a request to the server.
  * @category Context Provider
  */
