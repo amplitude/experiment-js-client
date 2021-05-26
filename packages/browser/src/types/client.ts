@@ -7,7 +7,7 @@ import { Variant, Flags } from './variant';
  * @category Core Usage
  */
 export interface Client {
-  start(user?: ExperimentUser): Promise<Client>;
+  assign(user?: ExperimentUser): Promise<Client>;
   setContextProvider(contextProvider: ContextProvider): Client;
   getVariant(flagKey: string, fallback?: string | Variant): Variant;
   getFlags(): Flags;
