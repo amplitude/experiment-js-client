@@ -4,15 +4,14 @@
  * identity (deviceId and userId), or other platform specific context.
  * @category Context Provider
  */
-export interface ContextProvider {
-  // identity related context
-  getDeviceId(): string;
-  getUserId(): string;
-
-  // platform related context
-  getVersion(): string;
-  getLanguage(): string;
-  getPlatform(): string;
-  getOs(): string;
-  getDeviceModel(): string;
+export interface ExperimentContext {
+  deviceId?: string;
+  userId?: string;
+  version?: string;
+  language?: string;
+  platform?: string;
+  os?: string;
+  deviceModel?: string;
 }
+
+export type ContextProvider = () => ExperimentContext;
