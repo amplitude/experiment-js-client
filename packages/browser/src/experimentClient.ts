@@ -9,10 +9,9 @@ import { ExperimentConfig, Defaults, Source } from './config';
 import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
 import { Client } from './types/client';
-import { ContextProvider } from './types/context';
 import { Storage } from './types/storage';
 import { HttpClient } from './types/transport';
-import { ExperimentUser } from './types/user';
+import { ExperimentUser, ExperimentUserProvider } from './types/user';
 import { Variant, Flags } from './types/variant';
 import { Backoff } from './util/backoff';
 import { urlSafeBase64Encode } from './util/base64';
@@ -37,7 +36,7 @@ export class ExperimentClient implements Client {
   protected readonly config: ExperimentConfig;
 
   protected user: ExperimentUser;
-  protected contextProvider: ContextProvider;
+  protected userProvider: ExperimentUserProvider;
   private retriesBackoff: Backoff;
 
   /**
@@ -89,13 +88,11 @@ export class ExperimentClient implements Client {
    * Sets an context provider that will inject identity information into the user
    * context. The context provider will override any device ID or user ID set on
    * the ExperimentUser object.
-   * See {@link ContextProvider} for more details
-   * @param contextProvider
+   * See {@link ExperimentUserProvider} for more details
+   * @param userProvider
    */
-  public setContextProvider(
-    contextProvider: ContextProvider,
-  ): ExperimentClient {
-    this.contextProvider = contextProvider;
+  public setUserProvider(userProvider: ExperimentUserProvider): Client {
+    this.userProvider = userProvider;
     return this;
   }
 
@@ -199,14 +196,8 @@ export class ExperimentClient implements Client {
 
   private addContext(user: ExperimentUser) {
     return {
-      device_id: this.contextProvider?.getDeviceId() || undefined,
-      user_id: this.contextProvider?.getUserId() || undefined,
-      version: this.contextProvider?.getVersion() || undefined,
-      language: this.contextProvider?.getLanguage() || undefined,
-      platform: this.contextProvider?.getPlatform() || undefined,
-      os: this.contextProvider?.getOs() || undefined,
-      device_model: this.contextProvider?.getDeviceModel() || undefined,
       library: `experiment-js-client/${PACKAGE_VERSION}`,
+      ...this.userProvider?.getUser(),
       ...user,
     };
   }

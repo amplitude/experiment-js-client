@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Defaults } from './config';
 import { Client } from './types/client';
-import { ContextProvider } from './types/context';
-import { ExperimentUser } from './types/user';
+import { ExperimentUser, ExperimentUserProvider } from './types/user';
 import { Variant, Flags } from './types/variant';
 
 /**
@@ -13,8 +12,8 @@ export class StubExperimentClient implements Client {
     return this;
   }
 
-  public setContextProvider(
-    contextProvider: ContextProvider,
+  public setUserProvider(
+    uerProvider: ExperimentUserProvider,
   ): StubExperimentClient {
     return this;
   }

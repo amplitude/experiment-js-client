@@ -1,4 +1,4 @@
-import { ContextProvider } from '../types/context';
+import { ExperimentUser, ExperimentUserProvider } from '../types/user';
 
 type AmplitudeInstance = {
   options?: AmplitudeOptions;
@@ -24,31 +24,29 @@ type AmplitudeUAParser = {
 };
 
 /**
- * An AmplitudeContextProvider injects information from the Amplitude SDK into
+ * An AmplitudeUserProvider injects information from the Amplitude SDK into
  * the {@link ExperimentUser} object before sending a request to the server.
  * @category Context Provider
  */
-export class AmplitudeContextProvider implements ContextProvider {
+export class AmplitudeUserProvider implements ExperimentUserProvider {
   private amplitudeInstance: AmplitudeInstance;
   constructor(amplitudeInstance: AmplitudeInstance) {
     this.amplitudeInstance = amplitudeInstance;
   }
-  getDeviceId(): string {
-    return this.amplitudeInstance?.options?.deviceId;
+
+  getUser(): ExperimentUser {
+    return {
+      device_id: this.amplitudeInstance?.options?.deviceId,
+      user_id: this.amplitudeInstance?.options?.userId,
+      version: this.amplitudeInstance?.options?.versionName,
+      language: this.amplitudeInstance?.options?.language,
+      platform: this.amplitudeInstance?.options?.platform,
+      os: this.getOs(),
+      device_model: this.getDeviceModel(),
+    };
   }
-  getUserId(): string {
-    return this.amplitudeInstance?.options?.userId;
-  }
-  getVersion(): string {
-    return this.amplitudeInstance?.options?.versionName;
-  }
-  getLanguage(): string {
-    return this.amplitudeInstance?.options?.language;
-  }
-  getPlatform(): string {
-    return this.amplitudeInstance?.options?.platform;
-  }
-  getOs(): string {
+
+  private getOs(): string {
     return [
       this.amplitudeInstance?._ua?.browser?.name,
       this.amplitudeInstance?._ua?.browser?.major,
@@ -56,7 +54,8 @@ export class AmplitudeContextProvider implements ContextProvider {
       .filter((e) => e !== null && e !== undefined)
       .join(' ');
   }
-  getDeviceModel(): string {
+
+  private getDeviceModel(): string {
     return this.amplitudeInstance?._ua?.os?.name;
   }
 }
