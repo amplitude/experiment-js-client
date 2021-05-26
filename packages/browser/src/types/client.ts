@@ -1,5 +1,4 @@
-import { ContextProvider } from './context';
-import { ExperimentUser } from './user';
+import { ExperimentUser, ExperimentUserProvider } from './user';
 import { Variant, Flags } from './variant';
 
 /**
@@ -11,5 +10,5 @@ export interface Client {
   setUser(user: ExperimentUser): Promise<Client>;
   getVariant(flagKey: string, fallback?: string | Variant): Variant;
   getVariants(): Flags;
-  setContextProvider(contextProvider: ContextProvider): Client;
+  setUserProvider(userProvider: ExperimentUserProvider): Client;
 }

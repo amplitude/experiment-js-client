@@ -1,4 +1,4 @@
-import { ContextProvider, ExperimentContext } from '../types/context';
+import { ExperimentUser, ExperimentUserProvider } from '../types/user';
 
 type AmplitudeInstance = {
   options?: AmplitudeOptions;
@@ -24,25 +24,25 @@ type AmplitudeUAParser = {
 };
 
 /**
- * An AmplitudeContextProvider injects information from the Amplitude SDK into
+ * An AmplitudeExperimentUserProvider injects information from the Amplitude SDK into
  * the {@link ExperimentUser} object before sending a request to the server.
  * @category Context Provider
  */
-export class AmplitudeContextProvider implements ContextProvider {
+export class AmplitudeUserProvider implements ExperimentUserProvider {
   private amplitudeInstance: AmplitudeInstance;
   constructor(amplitudeInstance: AmplitudeInstance) {
     this.amplitudeInstance = amplitudeInstance;
   }
 
-  getContext(): ExperimentContext {
+  getUser(): ExperimentUser {
     return {
-      deviceId: this.amplitudeInstance?.options?.deviceId,
-      userId: this.amplitudeInstance?.options?.userId,
+      device_id: this.amplitudeInstance?.options?.deviceId,
+      user_id: this.amplitudeInstance?.options?.userId,
       version: this.amplitudeInstance?.options?.versionName,
       language: this.amplitudeInstance?.options?.language,
       platform: this.amplitudeInstance?.options?.platform,
       os: this.getOs(),
-      deviceModel: this.getDeviceModel(),
+      device_model: this.getDeviceModel(),
     };
   }
 
