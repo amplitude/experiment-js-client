@@ -37,19 +37,25 @@ export type ExperimentUser = {
   dma?: string;
 
   /**
-   * Predefined field, auto populated via a ContextProvider
+   * Predefined field, auto populated via a ExperimentUserProvider
    * or can be manually provided
    */
   language?: string;
 
   /**
-   * Predefined field, auto populated via a ContextProvider
+   * Predefined field, auto populated via a ExperimentUserProvider
    * or can be manually provided
    */
   platform?: string;
 
   /**
-   * Predefined field, auto populated via a ContextProvider
+   * Predefined field, auto populated via a ExperimentUserProvider
+   * or can be manually provided
+   */
+  version?: string;
+
+  /**
+   * Predefined field, auto populated via a ExperimentUserProvider
    * or can be manually provided
    */
   os?: string;
@@ -81,3 +87,13 @@ export type ExperimentUser = {
       | Array<string | number | boolean>;
   };
 };
+
+/**
+ * An ExperimentUserProvider injects information into the {@link ExperimentUser}
+ * object before sending a request to the server. This can be used to pass
+ * identity (deviceId and userId), or other platform specific context.
+ * @category User Provider
+ */
+export interface ExperimentUserProvider {
+  getUser(): ExperimentUser;
+}

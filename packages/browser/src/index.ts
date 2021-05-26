@@ -6,11 +6,10 @@
  */
 
 export { ExperimentConfig, Source } from './config';
-export { AmplitudeContextProvider } from './context/amplitudeContextProvider';
+export { AmplitudeUserProvider } from './context/amplitudeUserProvider';
 export { Experiment } from './factory';
 export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';
 export { Client } from './types/client';
-export { ContextProvider } from './types/context';
-export { ExperimentUser } from './types/user';
+export { ExperimentUser, ExperimentUserProvider } from './types/user';
 export { Variant, Flags } from './types/variant';
