@@ -14,4 +14,6 @@ export interface ExperimentContext {
  * identity (deviceId and userId), or other platform specific context.
  * @category Context Provider
  */
-export type ContextProvider = () => ExperimentContext;
+export interface ContextProvider {
+  getContext(): ExperimentContext;
+}

@@ -1,4 +1,4 @@
-import { ContextProvider } from '../types/context';
+import { ContextProvider, ExperimentContext } from '../types/context';
 
 type AmplitudeInstance = {
   options?: AmplitudeOptions;
@@ -33,22 +33,20 @@ export class AmplitudeContextProvider implements ContextProvider {
   constructor(amplitudeInstance: AmplitudeInstance) {
     this.amplitudeInstance = amplitudeInstance;
   }
-  getDeviceId(): string {
-    return this.amplitudeInstance?.options?.deviceId;
+
+  getContext(): ExperimentContext {
+    return {
+      deviceId: this.amplitudeInstance?.options?.deviceId,
+      userId: this.amplitudeInstance?.options?.userId,
+      version: this.amplitudeInstance?.options?.versionName,
+      language: this.amplitudeInstance?.options?.language,
+      platform: this.amplitudeInstance?.options?.platform,
+      os: this.getOs(),
+      deviceModel: this.getDeviceModel(),
+    };
   }
-  getUserId(): string {
-    return this.amplitudeInstance?.options?.userId;
-  }
-  getVersion(): string {
-    return this.amplitudeInstance?.options?.versionName;
-  }
-  getLanguage(): string {
-    return this.amplitudeInstance?.options?.language;
-  }
-  getPlatform(): string {
-    return this.amplitudeInstance?.options?.platform;
-  }
-  getOs(): string {
+
+  private getOs(): string {
     return [
       this.amplitudeInstance?._ua?.browser?.name,
       this.amplitudeInstance?._ua?.browser?.major,
@@ -56,7 +54,8 @@ export class AmplitudeContextProvider implements ContextProvider {
       .filter((e) => e !== null && e !== undefined)
       .join(' ');
   }
-  getDeviceModel(): string {
+
+  private getDeviceModel(): string {
     return this.amplitudeInstance?._ua?.os?.name;
   }
 }
