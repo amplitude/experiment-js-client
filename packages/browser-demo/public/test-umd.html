@@ -3,7 +3,7 @@
    const apiKey = "client-IAxMYws9vVQESrrK88aTcToyqMxiiJoR"; // This is provided in your Experiment product settings
 
   var Experiment = Experiment.Experiment;
-  Experiment.init(apiKey);
+  Experiment.instance({apiKey: apiKey});
 
   Experiment.instance().start();
 </script>

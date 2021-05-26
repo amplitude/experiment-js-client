@@ -1,7 +1,8 @@
-import { Defaults, ExperimentConfig } from './config';
+import { ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
 import { normalizeInstanceName } from './util/normalize';
 
+const defaultInstanceName = '$default_instance';
 const instances = {};
 
 /**
@@ -11,23 +12,16 @@ const instances = {};
  * @param apiKey The environment API Key
  * @param config See {@link ExperimentConfig} for config options
  */
-const init = (apiKey: string, config?: ExperimentConfig): ExperimentClient => {
-  const normalizedName = normalizeInstanceName(
-    config?.instanceName || Defaults.instanceName,
-  );
+const instance = (config?: ExperimentConfig): ExperimentClient => {
+  const normalizedName = normalizeInstanceName(defaultInstanceName);
   if (!instances[normalizedName]) {
-    instances[normalizedName] = new ExperimentClient(apiKey, config);
+    if (!config) {
+      throw Error(
+        'Initial Experiment initiaization must include config with valid API key.',
+      );
+    }
+    instances[normalizedName] = new ExperimentClient(config);
   }
-  return instances[normalizedName];
-};
-
-/**
- * Returns the singleton {@link ExperimentClient} instance associated with the given name.
- * @param name The instance name. Omit to get the default instance. Instance names are case
- * _insensitive_.
- */
-const instance = (name: string = Defaults.instanceName): ExperimentClient => {
-  const normalizedName = normalizeInstanceName(name) || Defaults.instanceName;
   return instances[normalizedName];
 };
 
@@ -36,6 +30,5 @@ const instance = (name: string = Defaults.instanceName): ExperimentClient => {
  * @category Core Usage
  */
 export const Experiment = {
-  init,
   instance,
 };

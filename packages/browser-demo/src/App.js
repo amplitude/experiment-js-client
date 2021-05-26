@@ -3,12 +3,18 @@ import React from 'react';
 
 import { Experiment } from '@amplitude/experiment-js-client';
 import { useExperiment, ExperimentProvider } from './experiment';
+import { Source } from '@amplitude/experiment-js-client';
 
-Experiment.init('client-IAxMYws9vVQESrrK88aTcToyqMxiiJoR', {
-  initialFlags: { 'js-browser-demo': 'initial' },
-  preferInitialFlags: true,
-  debugAssignmentRequests: true,
+Experiment.instance({
+  apiKey: 'client-IAxMYws9vVQESrrK88aTcToyqMxiiJoR',
   debug: true,
+  source: Source.LocalStorage,
+  initialFlags: {
+    'js-browser-demo': {
+      value: 'initial',
+      payload: {},
+    }
+  },
 });
 
 const Feature = (props) => {

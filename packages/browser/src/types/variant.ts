@@ -10,12 +10,13 @@ export type Variant = {
   /**
    * The attached payload, if any
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload?: any;
 };
 
 /**
  * @category Types
  */
-export type Variants = {
+export type Flags = {
   [flagKey: string]: Variant;
 };

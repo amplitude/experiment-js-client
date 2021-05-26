@@ -5,7 +5,7 @@
 
 import { version as PACKAGE_VERSION } from '../package.json';
 
-import { ExperimentConfig, Defaults } from './config';
+import { ExperimentConfig, Defaults, Source } from './config';
 import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
 import { Client } from './types/client';
@@ -13,30 +13,31 @@ import { ContextProvider } from './types/context';
 import { Storage } from './types/storage';
 import { HttpClient } from './types/transport';
 import { ExperimentUser } from './types/user';
-import { Variant, Variants } from './types/variant';
+import { Variant, Flags } from './types/variant';
 import { Backoff } from './util/backoff';
 import { urlSafeBase64Encode } from './util/base64';
-import { normalizeInstanceName } from './util/normalize';
 import { randomString } from './util/randomstring';
 
+// Configs which have been removed from the public API.
+// May be added back in the future.
+const assignmentBackoffTimeout = 10000;
+const assignmentBackoffAttempts = 8;
+const assignmentBackoffMinMillis = 500;
+const assignmentBackoffMaxMillis = 10000;
+const assignmentBackoffScalar = 1.5;
+
 /**
- * The default {@link Client} used to fetch variations from Experiment's servers.
+ * The default {@link Client} used to fetch variations from Experiment's
+ * servers.
  * @category Core Usage
  */
 export class ExperimentClient implements Client {
-  protected readonly instanceName: string;
-  protected readonly apiKey: string;
   protected readonly storage: Storage;
-  protected readonly storageNamespace: string;
   protected readonly httpClient: HttpClient;
-  protected readonly debug: boolean;
-  protected readonly debugAssignmentRequests: boolean;
+  protected readonly config: ExperimentConfig;
 
-  protected config: ExperimentConfig;
   protected user: ExperimentUser;
   protected contextProvider: ContextProvider;
-
-  private retriesEnabled: boolean;
   private retriesBackoff: Backoff;
 
   /**
@@ -44,32 +45,21 @@ export class ExperimentClient implements Client {
    * @param apiKey The Client key for the Experiment project
    * @param config See {@link ExperimentConfig} for config options
    */
-  public constructor(apiKey: string, config: ExperimentConfig) {
-    this.apiKey = apiKey;
+  constructor(config: ExperimentConfig) {
     this.config = { ...Defaults, ...config };
-    const normalizedInstanceName = normalizeInstanceName(
-      this.config.instanceName,
-    );
 
-    this.instanceName = normalizedInstanceName;
     this.httpClient = FetchHttpClient;
 
-    const shortApiKey = this.apiKey.substring(this.apiKey.length - 6);
-    this.storageNamespace = `amp-sl-${shortApiKey}`;
-    this.storage = new LocalStorage(this.storageNamespace);
-
-    this.debug = this.config.debug;
-    this.debugAssignmentRequests = this.config.debugAssignmentRequests;
-
-    this.retriesEnabled = this.config.fetchRetries > 0;
+    const shortApiKey = this.config.apiKey.substring(
+      this.config.apiKey.length - 6,
+    );
+    this.storage = new LocalStorage(`amp-sl-${shortApiKey}`);
   }
 
   /**
    * Starts the client. This will
    * 1. Load the id from local storage, or generate a new one if one does not exist.
    * 2. Asynchronously fetch all variants with the provided user context.
-   * 3. Fall back on local storage (or initialFlags if `preferInitialFlags` is true) while the async
-   *    request for variants is continuing.
    * 4. If the fetch fails and the retry flag is set, start the retry interval until success.
    *
    * If you are using the `initialFlags` config option to pre-load this SDK from the
@@ -81,17 +71,11 @@ export class ExperimentClient implements Client {
   public async start(user: ExperimentUser): Promise<ExperimentClient> {
     this.user = user || {};
     this.storage.load();
-    if (this.config.initialFlags && this.config.preferInitialFlags) {
-      // initial flags take precedent over local storage until flags are fetched
-      for (const [flagKey, value] of Object.entries(this.config.initialFlags)) {
-        this.storage.put(flagKey, this._convertVariant(value));
-      }
-    }
     try {
       await this.fetchAll(
         user,
-        this.config.fetchTimeoutMillis,
-        this.retriesEnabled,
+        this.config.assignmentTimeoutMillis,
+        this.config.retryAssignmentOnFailure,
       );
     } catch (e) {
       console.error(e);
@@ -109,15 +93,13 @@ export class ExperimentClient implements Client {
    * @returns A promise that resolves when the async request for variants is complete.
    */
   public async setUser(user: ExperimentUser): Promise<ExperimentClient> {
-    if (this.debug) {
-      console.debug('[Experiment] Set user: ', user);
-    }
+    this.debug('[Experiment] Set user: ', user);
     this.user = user;
     try {
       await this.fetchAll(
         user,
-        this.config.fetchTimeoutMillis,
-        this.retriesEnabled,
+        this.config.assignmentTimeoutMillis,
+        this.config.retryAssignmentOnFailure,
       );
     } catch (e) {
       console.error(e);
@@ -143,15 +125,13 @@ export class ExperimentClient implements Client {
     user: ExperimentUser,
     timeoutMillis: number,
     retry: boolean,
-  ): Promise<Variants> {
+  ): Promise<Flags> {
     // Don't even try to fetch variants if API key is not set
-    if (!this.apiKey) {
+    if (!this.config.apiKey) {
       throw Error('Experiment API key is empty');
     }
 
-    if (this.debug) {
-      console.debug('[Experiment] Fetch all: retry=' + retry);
-    }
+    this.debug('[Experiment] Fetch all: retry=' + retry);
 
     // Proactively cancel retries if active in order to avoid unecessary API
     // requests. A new failure will restart the retries.
@@ -179,20 +159,14 @@ export class ExperimentClient implements Client {
     const userContext = this.addContext(user);
     const encodedContext = urlSafeBase64Encode(JSON.stringify(userContext));
     let queryString = '';
-    let debugAssignmentRequestsParam: string;
-    if (this.debugAssignmentRequests) {
-      debugAssignmentRequestsParam = `d=${randomString(8)}`;
-    }
-    if (debugAssignmentRequestsParam) {
-      queryString = '?' + debugAssignmentRequestsParam;
+    if (this.config.debug) {
+      queryString = `?d=${randomString(8)}`;
     }
     const endpoint = `${this.config.serverUrl}/sdk/vardata/${encodedContext}${queryString}`;
     const headers = {
-      Authorization: `Api-Key ${this.apiKey}`,
+      Authorization: `Api-Key ${this.config.apiKey}`,
     };
-    if (this.debug) {
-      console.debug('[Experiment] Fetch variants for user: ', userContext);
-    }
+    this.debug('[Experiment] Fetch variants for user: ', userContext);
     const response = await this.httpClient.request(
       endpoint,
       'GET',
@@ -200,53 +174,42 @@ export class ExperimentClient implements Client {
       null,
       timeoutMillis,
     );
-    if (this.debug) {
-      console.debug('[Experiment] Received fetch response:', response);
-    }
+    this.debug('[Experiment] Received fetch response:', response);
     return response;
   }
 
-  protected async parseResponse(response: Response): Promise<Variants> {
+  protected async parseResponse(response: Response): Promise<Flags> {
     const json = await response.json();
-    const variants: Variants = {};
+    const variants: Flags = {};
     for (const flag of Object.keys(json)) {
       variants[flag] = {
         value: json[flag].key,
         payload: json[flag].payload,
       };
     }
-    if (this.debug) {
-      console.debug('[Experiment] Received variants:', variants);
-    }
+    this.debug('[Experiment] Received variants:', variants);
     return variants;
   }
 
-  protected storeVariants(variants: Variants): void {
+  protected storeVariants(variants: Flags): void {
     this.storage.clear();
     for (const key in variants) {
       this.storage.put(key, variants[key]);
     }
     this.storage.save();
-    if (this.debug) {
-      console.debug('[Experiment] Stored flags:', variants);
-    }
+    this.debug('[Experiment] Stored flags:', variants);
   }
 
   protected async startRetries(user: ExperimentUser): Promise<void> {
-    if (this.config.fetchRetries == 0) {
-      return;
-    }
-    if (this.debug) {
-      console.debug('[Experiment] Retry fetch all');
-    }
+    this.debug('[Experiment] Retry fetch all');
     this.retriesBackoff = new Backoff(
-      this.config.fetchRetries,
-      this.config.fetchRetryBackoffMinMillis,
-      this.config.fetchRetryBackoffMaxMillis,
-      this.config.fetchRetryBackoffScalar,
+      assignmentBackoffAttempts,
+      assignmentBackoffMinMillis,
+      assignmentBackoffMaxMillis,
+      assignmentBackoffScalar,
     );
     this.retriesBackoff.start(async () => {
-      await this.fetchAll(user, this.config.fetchRetryTimeoutMillis, false);
+      await this.fetchAll(user, assignmentBackoffTimeout, false);
     });
   }
 
@@ -282,33 +245,30 @@ export class ExperimentClient implements Client {
    * @param fallback A fallback value that takes precedence over any other fallback value.
    */
   public getVariant(flagKey: string, fallback?: string | Variant): Variant {
-    if (!this.apiKey) {
+    if (!this.config.apiKey) {
       return { value: undefined };
     }
+    const flags = this.getVariants();
     const variant = this._convertVariant(
-      this.storage.get(flagKey) ??
-        fallback ??
-        this.config.initialFlags?.[flagKey] ??
-        this.config.fallbackVariant,
+      flags[flagKey] ?? fallback ?? this.config.fallbackVariant,
     );
-
-    if (this.debug) {
-      console.debug(
-        `[Experiment] variant for flag ${flagKey} is ${variant.value}`,
-      );
-    }
-
+    this.debug(`[Experiment] variant for flag ${flagKey} is ${variant.value}`);
     return variant;
   }
 
   /**
-   * Returns all variants for the user
+   * Returns all variants for the user.
    */
-  public getVariants(): Variants {
-    if (!this.apiKey) {
+  public getVariants(): Flags {
+    if (!this.config.apiKey) {
       return {};
     }
-    return this.storage.getAll();
+    const storageFlags = this.storage.getAll();
+    if (this.config.source == Source.LocalStorage) {
+      return { ...this.config.initialFlags, ...storageFlags };
+    } else if (this.config.source == Source.InitialFlags) {
+      return { ...storageFlags, ...this.config.initialFlags };
+    }
   }
 
   /**
@@ -326,6 +286,13 @@ export class ExperimentClient implements Client {
       };
     } else {
       return value;
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private debug(message?: any, ...optionalParams: any[]): void {
+    if (this.config.debug) {
+      console.debug(message, optionalParams);
     }
   }
 }

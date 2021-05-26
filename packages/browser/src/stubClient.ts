@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Defaults } from './config';
 import { Client } from './types/client';
 import { ContextProvider } from './types/context';
 import { ExperimentUser } from './types/user';
-import { Variant, Variants } from './types/variant';
+import { Variant, Flags } from './types/variant';
 
 /**
  * A stub {@link Client} implementation that does nothing for all methods
@@ -23,10 +24,10 @@ export class StubExperimentClient implements Client {
   }
 
   public getVariant(flagKey: string, fallback?: string | Variant): Variant {
-    return { value: Defaults.fallbackVariant };
+    return Defaults.fallbackVariant;
   }
 
-  public getVariants(): Variants {
+  public getVariants(): Flags {
     return {};
   }
 }

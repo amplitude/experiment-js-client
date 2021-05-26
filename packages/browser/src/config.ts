@@ -1,45 +1,59 @@
-import { Variant } from './types/variant';
+import { Variant, Flags } from './types/variant';
+
+/**
+ * Determines the primary source of flags and variants before falling back.
+ * @category Configuration
+ */
+export enum Source {
+  /**
+   * The default way to source variants within your application. Before the
+   * assignments are fetched, `getVariant(s)` will fallback to local storage
+   * first, then `initialFlags` if local storage is empty. This option
+   * effectively falls back to an assignment fetched previously.
+   */
+  LocalStorage = 'localStorage',
+  /**
+   * This bootstrap option is used primarily for servers-side rendering using an
+   * Experiment server SDK. This bootstrap option always prefers `intialFlags`
+   * over data in local storage, even if variants are fetched successfully and
+   * stored locally.
+   */
+  InitialFlags = 'intialFlags',
+}
 
 /**
  * @category Configuration
  */
 export interface ExperimentConfig {
   /**
-   * Set to true to log some extra information to the console.
+   * The environment API key (required).
+   */
+  apiKey: string;
+
+  /**
+   * Debug all assignment requests in the UI Debugger and log additional
+   * information to the console. This should be false for production builds.
    */
   debug?: boolean;
 
   /**
-   * Set to true to view assignment requests in the UI debugger
+   * The default fallback variant for all {@link ExperimentClient.getVariant}
+   * calls.
    */
-  debugAssignmentRequests?: boolean;
+  fallbackVariant?: Variant;
 
   /**
-   * The default fallback variant for all {@link ExperimentClient.getVariant} calls.
+   * Initial variant values for flags. This is useful for bootstrapping the
+   * client with fallbacks and values evaluated from server-side rendering.
+   * @see Flags
    */
-  fallbackVariant?: string;
+  initialFlags?: Flags;
 
   /**
-   * Initial variant values for flags. This is useful for bootstrapping the client with
-   * values determined on the server.
+   * Determines the primary source of flags and variants before falling back.
+   * @see Source
    */
-  initialFlags?: { [flagKey: string]: string | Variant };
-
-  /**
-   * The instance name for the ExperimentClient. Instance names are case _insensitive_.
-   */
-  instanceName?: string;
-
-  /**
-   * True if this client is being initialized on the server side. This is useful for server side rendering.
-   * Currently this flag is unused but is reserved for future use.
-   */
-  isServerSide?: boolean;
-
-  /**
-   * Whether to prioritize initialFlags over localStorage while async requests for variants are still in flight.
-   */
-  preferInitialFlags?: boolean;
+  source?: Source;
 
   /**
    * The server endpoint from which to request variants.
@@ -47,41 +61,16 @@ export interface ExperimentConfig {
   serverUrl?: string;
 
   /**
-   * The local storage key to use for storing metadata
+   * The assignment request timeout, in milliseconds, used when fetching
+   * variants triggered by calling start() or setUser().
    */
-  storageKey?: 'amp-sl-meta';
+  assignmentTimeoutMillis?: number;
 
   /**
-   * The request timeout, in milliseconds, used when fetching variants triggered by calling start() or setUser().
+   * Set to true to retry assignment requests in the background if the initial
+   * requests fails or times out.
    */
-  fetchTimeoutMillis?: number;
-
-  /**
-   * The number of retries to attempt before failing
-   */
-  fetchRetries?: number;
-
-  /**
-   * Retry backoff minimum (starting backoff delay) in milliseconds. The minimum backoff is scaled by
-   * `fetchRetryBackoffScalar` after each retry failure.
-   */
-  fetchRetryBackoffMinMillis: number;
-
-  /**
-   * Retry backoff maximum in milliseconds. If the scaled backoff is greater than the max, the max is
-   * used for all subsequent retries.
-   */
-  fetchRetryBackoffMaxMillis: number;
-
-  /**
-   * Scales the minimum backoff exponentially.
-   */
-  fetchRetryBackoffScalar: number;
-
-  /**
-   * The request timeout for retrying fetch requests.
-   */
-  fetchRetryTimeoutMillis?: number;
+  retryAssignmentOnFailure?: boolean;
 }
 
 /**
@@ -89,37 +78,25 @@ export interface ExperimentConfig {
 
  | **Option**       | **Default**                       |
  |------------------|-----------------------------------|
- | **debug**        | false                             |
- | **debugAssignmentRequests** | false                  |
- | **fallbackVariant**         | ""                     |
- | **instanceName** | `"$default_instance"`             |
- | **isServerSide**            | false                  |
- | **preferInitialFlags**      | false                  |
+ | **debug**        | `false`                           |
+ | **fallbackVariant**         | `null`                 |
+ | **initialFlags**         | `null`                 |
+ | **source** | `Source.LocalStorage` |
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
- | **storageKey**    | `"amp-sl-meta"` |
- | **fetchTimeoutMillis**    | `10000` |
- | **fetchRetries**    | `8` |
- | **fetchRetryBackoffMinMillis**    | `500` |
- | **fetchRetryBackoffMaxMillis**    | `10000` |
- | **fetchRetryBackoffScalar**    | `1.5` |
- | **fetchRetryTimeoutMillis**    | `10000` |
+ | **assignmentTimeoutMillis**    | `10000` |
+ | **retryFailedAssignment**    | `true` |
+
 
  *
  * @category Configuration
  */
 export const Defaults: ExperimentConfig = {
+  apiKey: null,
   debug: false,
-  debugAssignmentRequests: false,
-  fallbackVariant: '',
-  instanceName: '$default_instance',
-  isServerSide: false,
-  preferInitialFlags: false,
+  fallbackVariant: null,
+  initialFlags: null,
+  source: Source.LocalStorage,
   serverUrl: 'https://api.lab.amplitude.com',
-  storageKey: 'amp-sl-meta',
-  fetchTimeoutMillis: 10000,
-  fetchRetries: 8,
-  fetchRetryBackoffMinMillis: 500,
-  fetchRetryBackoffMaxMillis: 10000,
-  fetchRetryBackoffScalar: 1.5,
-  fetchRetryTimeoutMillis: 10000,
+  assignmentTimeoutMillis: 10000,
+  retryAssignmentOnFailure: true,
 };

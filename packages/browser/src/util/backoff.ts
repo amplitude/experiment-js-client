@@ -8,6 +8,7 @@ export class Backoff {
 
   private started = false;
   private done = false;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private timeoutHandle: any;
 
   public constructor(
