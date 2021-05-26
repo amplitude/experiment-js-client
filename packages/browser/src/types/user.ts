@@ -61,17 +61,7 @@ export type ExperimentUser = {
   os?: string;
 
   /**
-   * Predefined field, can be manually provided
-   */
-  device_family?: string;
-
-  /**
-   * Predefined field, can be manually provided
-   */
-  device_type?: string;
-
-  /**
-   * Predefined field, auto populated via a ExperimentUserProvider
+   * Predefined field, auto populated via a ContextProvider
    * or can be manually provided
    */
   device_model?: string;
