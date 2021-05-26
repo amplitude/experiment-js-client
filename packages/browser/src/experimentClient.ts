@@ -87,8 +87,8 @@ export class ExperimentClient implements Client {
     try {
       await this.fetchInternal(
         user,
-        this.config.assignmentTimeoutMillis,
-        this.config.retryAssignmentOnFailure,
+        this.config.fetchTimeoutMillis,
+        this.config.retryFetchOnFailure,
       );
     } catch (e) {
       console.error(e);
