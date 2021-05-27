@@ -66,6 +66,7 @@ export class LocalStorage implements Storage {
       this.map = {};
     }
   }
+
   save(): void {
     try {
       localStorage.setItem(this.namespace, JSON.stringify(this.map));
