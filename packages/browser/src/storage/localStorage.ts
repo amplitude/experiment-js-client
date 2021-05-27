@@ -6,6 +6,17 @@
 import { Storage } from '../types/storage';
 import { Variant, Variants } from '../types/variant';
 
+const localStorageInstances = {};
+
+export const getLocalStorageInstance = (apiKey: string): Storage => {
+  const shortApiKey = apiKey.substring(apiKey.length - 6);
+  const storageKey = `amp-sl-${shortApiKey}`;
+  if (!localStorageInstances[storageKey]) {
+    localStorageInstances[storageKey] = new LocalStorage(storageKey);
+  }
+  return localStorageInstances[storageKey];
+};
+
 export class LocalStorage implements Storage {
   protected readonly namespace: string;
   protected map: Record<string, Variant> = {};
@@ -14,11 +25,10 @@ export class LocalStorage implements Storage {
     this.namespace = namespace;
   }
 
-  put(key: string, value: Variant): Variant {
-    const oldValue: Variant = this.get(key);
+  put(key: string, value: Variant): void {
     this.map[key] = value;
-    return oldValue;
   }
+
   get(key: string): Variant {
     let value = this.map[key];
     if (value === undefined) {
@@ -26,6 +36,7 @@ export class LocalStorage implements Storage {
     }
     return value;
   }
+
   clear(): void {
     this.map = {};
   }
@@ -55,6 +66,7 @@ export class LocalStorage implements Storage {
       this.map = {};
     }
   }
+
   save(): void {
     try {
       localStorage.setItem(this.namespace, JSON.stringify(this.map));

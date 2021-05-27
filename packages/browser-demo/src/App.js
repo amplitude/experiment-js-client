@@ -1,26 +1,12 @@
 import './App.css';
 import React from 'react';
 
-import { Experiment } from '@amplitude/experiment-js-client';
 import { useExperiment, ExperimentProvider } from './experiment';
-import { Source } from '@amplitude/experiment-js-client';
-
-Experiment.instance({
-  apiKey: 'client-IAxMYws9vVQESrrK88aTcToyqMxiiJoR',
-  debug: true,
-  source: Source.LocalStorage,
-  initialVariants: {
-    'js-browser-demo': {
-      value: 'initial',
-      payload: {},
-    }
-  },
-});
 
 const Feature = (props) => {
   const { client, ready, loaded } = useExperiment();
 
-  const feature = client.getVariant('js-browser-demo');
+  const feature = client.variant('js-browser-demo');
   console.log(
     `js-browser-demo: ${feature?.value}, payload: ${JSON.stringify(feature?.payload)}, ready: ${ready}, loaded: ${loaded}`,
   );

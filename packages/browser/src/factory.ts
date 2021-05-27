@@ -1,9 +1,7 @@
 import { ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
-import { normalizeInstanceName } from './util/normalize';
-
-const defaultInstanceName = '$default_instance';
-const instances = {};
+import { getLocalStorageInstance } from './storage/localStorage';
+import { FetchHttpClient } from './transport/http';
 
 /**
  * Initializes a singleton {@link ExperimentClient} identified by the value of
@@ -12,17 +10,12 @@ const instances = {};
  * @param apiKey The environment API Key
  * @param config See {@link ExperimentConfig} for config options
  */
-const instance = (config?: ExperimentConfig): ExperimentClient => {
-  const normalizedName = normalizeInstanceName(defaultInstanceName);
-  if (!instances[normalizedName]) {
-    if (!config) {
-      throw Error(
-        'Initial Experiment initiaization must include config with valid API key.',
-      );
-    }
-    instances[normalizedName] = new ExperimentClient(config);
-  }
-  return instances[normalizedName];
+const initialize = (
+  apiKey: string,
+  config?: ExperimentConfig,
+): ExperimentClient => {
+  const storage = getLocalStorageInstance(apiKey);
+  return new ExperimentClient(apiKey, config, FetchHttpClient, storage);
 };
 
 /**
@@ -30,5 +23,5 @@ const instance = (config?: ExperimentConfig): ExperimentClient => {
  * @category Core Usage
  */
 export const Experiment = {
-  instance,
+  initialize,
 };

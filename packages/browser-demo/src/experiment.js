@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
-import { Experiment } from '@amplitude/experiment-js-client';
+import { Experiment, Source } from '@amplitude/experiment-js-client';
 import React, { createContext } from 'react';
 
 export const ExperimentContext = createContext({
@@ -12,18 +12,33 @@ export const useExperiment = () => {
   return useContext(ExperimentContext);
 };
 
+const config = {
+  debug: true,
+  source: Source.LocalStorage,
+  initialVariants: {
+    'js-browser-demo': {
+      value: 'initial',
+      payload: {},
+    }
+  },
+}
+
+const experiment = Experiment.initialize(
+  'client-IAxMYws9vVQESrrK88aTcToyqMxiiJoR',
+  config,
+);
+
 export const ExperimentProvider = (props) => {
-  const { instanceName, experimentUser, children } = props;
+  const { experimentUser, children } = props;
   const [ready, setReady] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   const startExperiment = useCallback(async () => {
-    Experiment.instance(instanceName)
-      .start(experimentUser)
+    experiment.fetch(experimentUser)
       .then(() => {
         setLoaded(true);
       });
-  }, [instanceName, experimentUser]);
+  }, [experimentUser]);
 
   useEffect(() => {
     console.log('starting experiment');
@@ -35,7 +50,7 @@ export const ExperimentProvider = (props) => {
     ready && (
       <ExperimentContext.Provider
         value={{
-          client: Experiment.instance(instanceName),
+          client: experiment,
           ready: ready,
           loaded: loaded,
         }}
