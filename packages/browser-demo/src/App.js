@@ -9,7 +9,7 @@ Experiment.instance({
   apiKey: 'client-IAxMYws9vVQESrrK88aTcToyqMxiiJoR',
   debug: true,
   source: Source.LocalStorage,
-  initialFlags: {
+  initialVariants: {
     'js-browser-demo': {
       value: 'initial',
       payload: {},
