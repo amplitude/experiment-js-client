@@ -6,9 +6,15 @@
 import { Storage } from '../types/storage';
 import { Variant, Variants } from '../types/variant';
 
+const localStorageInstances = {};
+
 export const getLocalStorageInstance = (apiKey: string): Storage => {
   const shortApiKey = apiKey.substring(apiKey.length - 6);
-  return new LocalStorage(`amp-sl-${shortApiKey}`);
+  const storageKey = `amp-sl-${shortApiKey}`;
+  if (!localStorageInstances[storageKey]) {
+    localStorageInstances[storageKey] = new LocalStorage(storageKey);
+  }
+  return localStorageInstances[storageKey];
 };
 
 export class LocalStorage implements Storage {
