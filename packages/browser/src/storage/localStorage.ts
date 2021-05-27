@@ -6,6 +6,11 @@
 import { Storage } from '../types/storage';
 import { Variant, Variants } from '../types/variant';
 
+export const getLocalStorageInstance = (apiKey: string): Storage => {
+  const shortApiKey = apiKey.substring(apiKey.length - 6);
+  return new LocalStorage(`amp-sl-${shortApiKey}`);
+};
+
 export class LocalStorage implements Storage {
   protected readonly namespace: string;
   protected map: Record<string, Variant> = {};

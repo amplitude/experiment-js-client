@@ -6,7 +6,6 @@
 import { version as PACKAGE_VERSION } from '../package.json';
 
 import { ExperimentConfig, Defaults, Source } from './config';
-import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
 import { Client } from './types/client';
 import { Storage } from './types/storage';
@@ -32,6 +31,7 @@ const fetchBackoffScalar = 1.5;
  * @category Core Usage
  */
 export class ExperimentClient implements Client {
+  protected readonly apiKey: string;
   protected readonly storage: Storage;
   protected readonly httpClient: HttpClient;
   protected readonly config: ExperimentConfig;
@@ -46,15 +46,13 @@ export class ExperimentClient implements Client {
    * @param apiKey The Client key for the Experiment project
    * @param config See {@link ExperimentConfig} for config options
    */
-  constructor(config: ExperimentConfig) {
+  constructor(apiKey: string, config: ExperimentConfig, storage: Storage) {
+    this.apiKey = apiKey;
     this.config = { ...Defaults, ...config };
 
     this.httpClient = FetchHttpClient;
 
-    const shortApiKey = this.config.apiKey.substring(
-      this.config.apiKey.length - 6,
-    );
-    this.storage = new LocalStorage(`amp-sl-${shortApiKey}`);
+    this.storage = storage;
     this.storage.load();
   }
 
@@ -107,7 +105,7 @@ export class ExperimentClient implements Client {
    * @see ExperimentConfig
    */
   public variant(key: string, fallback?: string | Variant): Variant {
-    if (!this.config.apiKey) {
+    if (!this.apiKey) {
       return { value: undefined };
     }
     const variants = this.all();
@@ -128,7 +126,7 @@ export class ExperimentClient implements Client {
    * @see ExperimentConfig
    */
   public all(): Variants {
-    if (!this.config.apiKey) {
+    if (!this.apiKey) {
       return {};
     }
     const storageVariants = this.storage.getAll();
@@ -158,7 +156,7 @@ export class ExperimentClient implements Client {
     retry: boolean,
   ): Promise<Variants> {
     // Don't even try to fetch variants if API key is not set
-    if (!this.config.apiKey) {
+    if (!this.apiKey) {
       throw Error('Experiment API key is empty');
     }
 
@@ -195,7 +193,7 @@ export class ExperimentClient implements Client {
     }
     const endpoint = `${this.config.serverUrl}/sdk/vardata/${encodedContext}${queryString}`;
     const headers = {
-      Authorization: `Api-Key ${this.config.apiKey}`,
+      Authorization: `Api-Key ${this.apiKey}`,
     };
     this.debug('[Experiment] Fetch variants for user: ', userContext);
     const response = await this.httpClient.request(
