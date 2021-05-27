@@ -199,7 +199,7 @@ export class ExperimentClient implements Client {
     const headers = {
       Authorization: `Api-Key ${this.apiKey}`,
     };
-    this.debug(`[Experiment] Fetch variants for user: ${userContext}`);
+    this.debug('[Experiment] Fetch variants for user: ', userContext);
     const response = await this.httpClient.request(
       endpoint,
       'GET',
@@ -207,7 +207,7 @@ export class ExperimentClient implements Client {
       null,
       timeoutMillis,
     );
-    this.debug(`[Experiment] Received fetch response: ${response}`);
+    this.debug('[Experiment] Received fetch response: ', response);
     return response;
   }
 
@@ -220,7 +220,7 @@ export class ExperimentClient implements Client {
         payload: json[key].payload,
       };
     }
-    this.debug(`[Experiment] Received variants: ${variants}`);
+    this.debug('[Experiment] Received variants: ', variants);
     return variants;
   }
 
@@ -230,7 +230,7 @@ export class ExperimentClient implements Client {
       this.storage.put(key, variants[key]);
     }
     this.storage.save();
-    this.debug(`[Experiment] Stored variants: ${variants}`);
+    this.debug('[Experiment] Stored variants: ', variants);
   }
 
   protected async startRetries(user: ExperimentUser): Promise<void> {
