@@ -6,7 +6,6 @@
 import { version as PACKAGE_VERSION } from '../package.json';
 
 import { ExperimentConfig, Defaults, Source } from './config';
-import { FetchHttpClient } from './transport/http';
 import { Client } from './types/client';
 import { Storage } from './types/storage';
 import { HttpClient } from './types/transport';
@@ -31,13 +30,13 @@ const fetchBackoffScalar = 1.5;
  * @category Core Usage
  */
 export class ExperimentClient implements Client {
-  protected readonly apiKey: string;
-  protected readonly storage: Storage;
-  protected readonly httpClient: HttpClient;
-  protected readonly config: ExperimentConfig;
+  private readonly apiKey: string;
+  private readonly storage: Storage;
+  private readonly httpClient: HttpClient;
+  private readonly config: ExperimentConfig;
 
-  protected user: ExperimentUser;
-  protected userProvider: ExperimentUserProvider;
+  private user: ExperimentUser;
+  private userProvider: ExperimentUserProvider;
   private retriesBackoff: Backoff;
 
   /**
@@ -45,13 +44,18 @@ export class ExperimentClient implements Client {
    *
    * @param apiKey The Client key for the Experiment project
    * @param config See {@link ExperimentConfig} for config options
+   * @param httpClient The {@link HttpClient} to make fetch requests with
+   * @param storage The storage implementation
    */
-  constructor(apiKey: string, config: ExperimentConfig, storage: Storage) {
+  constructor(
+    apiKey: string,
+    config: ExperimentConfig,
+    httpClient: HttpClient,
+    storage: Storage,
+  ) {
     this.apiKey = apiKey;
     this.config = { ...Defaults, ...config };
-
-    this.httpClient = FetchHttpClient;
-
+    this.httpClient = httpClient;
     this.storage = storage;
     this.storage.load();
   }
@@ -160,7 +164,7 @@ export class ExperimentClient implements Client {
       throw Error('Experiment API key is empty');
     }
 
-    this.debug('[Experiment] Fetch all: retry=' + retry);
+    this.debug(`[Experiment] Fetch all: retry=${retry}`);
 
     // Proactively cancel retries if active in order to avoid unecessary API
     // requests. A new failure will restart the retries.
@@ -195,7 +199,7 @@ export class ExperimentClient implements Client {
     const headers = {
       Authorization: `Api-Key ${this.apiKey}`,
     };
-    this.debug('[Experiment] Fetch variants for user: ', userContext);
+    this.debug(`[Experiment] Fetch variants for user: ${userContext}`);
     const response = await this.httpClient.request(
       endpoint,
       'GET',
@@ -203,7 +207,7 @@ export class ExperimentClient implements Client {
       null,
       timeoutMillis,
     );
-    this.debug('[Experiment] Received fetch response:', response);
+    this.debug(`[Experiment] Received fetch response: ${response}`);
     return response;
   }
 
@@ -216,7 +220,7 @@ export class ExperimentClient implements Client {
         payload: json[key].payload,
       };
     }
-    this.debug('[Experiment] Received variants:', variants);
+    this.debug(`[Experiment] Received variants: ${variants}`);
     return variants;
   }
 
@@ -226,11 +230,11 @@ export class ExperimentClient implements Client {
       this.storage.put(key, variants[key]);
     }
     this.storage.save();
-    this.debug('[Experiment] Stored variants:', variants);
+    this.debug(`[Experiment] Stored variants: ${variants}`);
   }
 
   protected async startRetries(user: ExperimentUser): Promise<void> {
-    this.debug('[Experiment] Retry fetch all');
+    this.debug('[Experiment] Retry fetch');
     this.retriesBackoff = new Backoff(
       fetchBackoffAttempts,
       fetchBackoffMinMillis,
@@ -272,7 +276,7 @@ export class ExperimentClient implements Client {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private debug(message?: any, ...optionalParams: any[]): void {
     if (this.config.debug) {
-      console.debug(message, optionalParams);
+      console.debug(message, ...optionalParams);
     }
   }
 }

@@ -19,11 +19,10 @@ export class LocalStorage implements Storage {
     this.namespace = namespace;
   }
 
-  put(key: string, value: Variant): Variant {
-    const oldValue: Variant = this.get(key);
+  put(key: string, value: Variant): void {
     this.map[key] = value;
-    return oldValue;
   }
+
   get(key: string): Variant {
     let value = this.map[key];
     if (value === undefined) {
@@ -31,6 +30,7 @@ export class LocalStorage implements Storage {
     }
     return value;
   }
+
   clear(): void {
     this.map = {};
   }

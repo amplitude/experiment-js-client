@@ -1,6 +1,7 @@
 import { ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
 import { getLocalStorageInstance } from './storage/localStorage';
+import { FetchHttpClient } from './transport/http';
 
 /**
  * Initializes a singleton {@link ExperimentClient} identified by the value of
@@ -14,7 +15,7 @@ const initialize = (
   config?: ExperimentConfig,
 ): ExperimentClient => {
   const storage = getLocalStorageInstance(apiKey);
-  return new ExperimentClient(apiKey, config, storage);
+  return new ExperimentClient(apiKey, config, FetchHttpClient, storage);
 };
 
 /**
