@@ -6,6 +6,8 @@ import { Variant, Variants } from './variant';
  * @category Core Usage
  */
 export interface Client {
+  getUser(): ExperimentUser;
+  setUser(user: ExperimentUser): void;
   fetch(user?: ExperimentUser): Promise<Client>;
   variant(key: string, fallback?: string | Variant): Variant;
   all(): Variants;

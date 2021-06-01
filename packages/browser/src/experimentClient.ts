@@ -61,6 +61,29 @@ export class ExperimentClient implements Client {
   }
 
   /**
+   * Get a copy of the internal {@link ExperimentUser} object if it is set.
+   *
+   * @returns a copy of the internal user object if set.
+   */
+  public getUser(): ExperimentUser {
+    if (!this.user) {
+      return this.user;
+    }
+    const userPropertiesCopy = { ...this.user.user_properties };
+    return { ...this.user, user_properties: userPropertiesCopy };
+  }
+
+  /**
+   * Copy in and set the user within the experiment client.
+   *
+   * @param user the user to set within the experiment client.
+   */
+  public setUser(user: ExperimentUser): void {
+    const userPropertiesCopy = { ...user.user_properties };
+    this.user = { ...user, user_properties: userPropertiesCopy };
+  }
+
+  /**
    * Assign the given user to the SDK and asynchronously fetch all variants
    * from the server. Subsequent calls may omit the user from the argument to
    * use the user from the previous call.
@@ -85,7 +108,7 @@ export class ExperimentClient implements Client {
   public async fetch(
     user: ExperimentUser = this.user,
   ): Promise<ExperimentClient> {
-    this.user = user || {};
+    this.setUser(user || {});
     try {
       await this.fetchInternal(
         user,
@@ -101,7 +124,7 @@ export class ExperimentClient implements Client {
   /**
    * Returns the variant for the provided key.
    *
-   * Fetches {@link all} variants from falling back given fallback then the
+   * Fetches {@link all} variants, falling back  on the given fallback, then the
    * configured fallbackVariant.
    *
    * @param key
@@ -142,8 +165,8 @@ export class ExperimentClient implements Client {
   }
 
   /**
-   * Sets an context provider that will inject identity information into the user
-   * context. The context provider will override any device ID or user ID set on
+   * Sets a user provider that will inject identity information into the user
+   * for {@link fetch} requests. The context provider will override any device ID or user ID set on
    * the ExperimentUser object.
    *
    * See {@link ExperimentUserProvider} for more details

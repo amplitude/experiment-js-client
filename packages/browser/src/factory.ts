@@ -1,12 +1,13 @@
 import { ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
-import { getLocalStorageInstance } from './storage/localStorage';
+import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
 
+const instances = {};
+
 /**
- * Initializes a singleton {@link ExperimentClient} identified by the value of
- * `config.name`, defaulting to {@link Defaults}. Instance names are case
- * _insensitive_.
+ * Initializes a singleton {@link ExperimentClient} identified by the api-key.
+ *
  * @param apiKey The environment API Key
  * @param config See {@link ExperimentConfig} for config options
  */
@@ -14,8 +15,16 @@ const initialize = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
-  const storage = getLocalStorageInstance(apiKey);
-  return new ExperimentClient(apiKey, config, FetchHttpClient, storage);
+  if (!instances[apiKey]) {
+    const storageKey = `amp-sl-${apiKey.substring(apiKey.length - 6)}`;
+    instances[apiKey] = new ExperimentClient(
+      apiKey,
+      config,
+      FetchHttpClient,
+      new LocalStorage(storageKey),
+    );
+  }
+  return instances[apiKey];
 };
 
 /**
