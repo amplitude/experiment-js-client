@@ -6,23 +6,13 @@
 import { Storage } from '../types/storage';
 import { Variant, Variants } from '../types/variant';
 
-const localStorageInstances = {};
-
-export const getLocalStorageInstance = (apiKey: string): Storage => {
-  const shortApiKey = apiKey.substring(apiKey.length - 6);
-  const storageKey = `amp-sl-${shortApiKey}`;
-  if (!localStorageInstances[storageKey]) {
-    localStorageInstances[storageKey] = new LocalStorage(storageKey);
-  }
-  return localStorageInstances[storageKey];
-};
-
 export class LocalStorage implements Storage {
   protected readonly namespace: string;
   protected map: Record<string, Variant> = {};
 
-  constructor(namespace: string) {
-    this.namespace = namespace;
+  constructor(instanceName: string, apiKey: string) {
+    const shortApiKey = apiKey.substring(apiKey.length - 6);
+    this.namespace = `amp-exp-${instanceName}-${shortApiKey}`;
   }
 
   put(key: string, value: Variant): void {

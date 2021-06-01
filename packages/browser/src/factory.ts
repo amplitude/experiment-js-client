@@ -4,6 +4,7 @@ import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
 
 const instances = {};
+const defaultInstance = '$default_instance';
 
 /**
  * Initializes a singleton {@link ExperimentClient} identified by the api-key.
@@ -15,16 +16,15 @@ const initialize = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
-  if (!instances[apiKey]) {
-    const storageKey = `amp-sl-${apiKey.substring(apiKey.length - 6)}`;
-    instances[apiKey] = new ExperimentClient(
+  if (!instances[defaultInstance]) {
+    instances[defaultInstance] = new ExperimentClient(
       apiKey,
       config,
       FetchHttpClient,
-      new LocalStorage(storageKey),
+      new LocalStorage(defaultInstance, apiKey),
     );
   }
-  return instances[apiKey];
+  return instances[defaultInstance];
 };
 
 /**
