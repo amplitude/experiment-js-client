@@ -3,8 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>ExperimentClient | Experiment JS Client Documentation - v1.1.0</title>
-	<meta name="description" content="Documentation for Experiment JS Client Documentation - v1.1.0">
+	<title>ExperimentClient | Experiment JS Client Documentation - v0.1.0</title>
+	<meta name="description" content="Documentation for Experiment JS Client Documentation - v0.1.0">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<style type="text/css">:root {
   --color-background: #fdfdfd;
@@ -2674,7 +2674,7 @@ img {
 		<div class="container">
 			<div class="table-wrap">
 				<div class="table-cell">
-					<strong><a href="../index.html">Experiment JS Client Documentation - v1.1.0</a></strong>
+					<strong><a href="../index.html">Experiment JS Client Documentation - v0.1.0</a></strong>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -2704,8 +2704,11 @@ img {
 </header>
 <nav class="tsd-navigation secondary">
 	<ul>
+		<li class=" tsd-kind-enum">
+			<a href="../enums/source.html" class="tsd-kind-icon">Source</a>
+		</li>
 		<li class=" tsd-kind-class">
-			<a href="amplitudecontextprovider.html" class="tsd-kind-icon">Amplitude<wbr>Context<wbr>Provider</a>
+			<a href="amplitudeuserprovider.html" class="tsd-kind-icon">Amplitude<wbr>User<wbr>Provider</a>
 		</li>
 		<li class="current tsd-kind-class">
 			<a href="experimentclient.html" class="tsd-kind-icon">Experiment<wbr>Client</a>
@@ -2714,19 +2717,22 @@ img {
 					<a href="experimentclient.html#constructor" class="tsd-kind-icon">constructor</a>
 				</li>
 				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="experimentclient.html#getvariant" class="tsd-kind-icon">get<wbr>Variant</a>
+					<a href="experimentclient.html#all" class="tsd-kind-icon">all</a>
 				</li>
 				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="experimentclient.html#getvariants" class="tsd-kind-icon">get<wbr>Variants</a>
+					<a href="experimentclient.html#fetch" class="tsd-kind-icon">fetch</a>
 				</li>
 				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="experimentclient.html#setcontextprovider" class="tsd-kind-icon">set<wbr>Context<wbr>Provider</a>
+					<a href="experimentclient.html#getuser" class="tsd-kind-icon">get<wbr>User</a>
 				</li>
 				<li class=" tsd-kind-method tsd-parent-kind-class">
 					<a href="experimentclient.html#setuser" class="tsd-kind-icon">set<wbr>User</a>
 				</li>
 				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="experimentclient.html#start" class="tsd-kind-icon">start</a>
+					<a href="experimentclient.html#setuserprovider" class="tsd-kind-icon">set<wbr>User<wbr>Provider</a>
+				</li>
+				<li class=" tsd-kind-method tsd-parent-kind-class">
+					<a href="experimentclient.html#variant" class="tsd-kind-icon">variant</a>
 				</li>
 			</ul>
 		</li>
@@ -2737,10 +2743,10 @@ img {
 			<a href="../interfaces/client.html" class="tsd-kind-icon">Client</a>
 		</li>
 		<li class=" tsd-kind-interface">
-			<a href="../interfaces/contextprovider.html" class="tsd-kind-icon">Context<wbr>Provider</a>
+			<a href="../interfaces/experimentconfig.html" class="tsd-kind-icon">Experiment<wbr>Config</a>
 		</li>
 		<li class=" tsd-kind-interface">
-			<a href="../interfaces/experimentconfig.html" class="tsd-kind-icon">Experiment<wbr>Config</a>
+			<a href="../interfaces/experimentuserprovider.html" class="tsd-kind-icon">Experiment<wbr>User<wbr>Provider</a>
 		</li>
 		<li class=" tsd-kind-type-alias">
 			<a href="../index.html#experimentuser" class="tsd-kind-icon">Experiment<wbr>User</a>
@@ -2761,7 +2767,8 @@ img {
 		<section class="tsd-panel tsd-comment">
 			<div class="tsd-comment tsd-typography">
 				<div class="lead">
-					<p>The default <a href="../interfaces/client.html">Client</a> used to fetch variations from Experiment&#39;s servers.</p>
+					<p>The default <a href="../interfaces/client.html">Client</a> used to fetch variations from Experiment&#39;s
+					servers.</p>
 				</div>
 			</div>
 		</section>
@@ -2792,11 +2799,12 @@ img {
 					<section class="tsd-index-section ">
 						<h3>Methods</h3>
 						<ul class="tsd-index-list">
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="experimentclient.html#getvariant" class="tsd-kind-icon">get<wbr>Variant</a></li>
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="experimentclient.html#getvariants" class="tsd-kind-icon">get<wbr>Variants</a></li>
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="experimentclient.html#setcontextprovider" class="tsd-kind-icon">set<wbr>Context<wbr>Provider</a></li>
+							<li class="tsd-kind-method tsd-parent-kind-class"><a href="experimentclient.html#all" class="tsd-kind-icon">all</a></li>
+							<li class="tsd-kind-method tsd-parent-kind-class"><a href="experimentclient.html#fetch" class="tsd-kind-icon">fetch</a></li>
+							<li class="tsd-kind-method tsd-parent-kind-class"><a href="experimentclient.html#getuser" class="tsd-kind-icon">get<wbr>User</a></li>
 							<li class="tsd-kind-method tsd-parent-kind-class"><a href="experimentclient.html#setuser" class="tsd-kind-icon">set<wbr>User</a></li>
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="experimentclient.html#start" class="tsd-kind-icon">start</a></li>
+							<li class="tsd-kind-method tsd-parent-kind-class"><a href="experimentclient.html#setuserprovider" class="tsd-kind-icon">set<wbr>User<wbr>Provider</a></li>
+							<li class="tsd-kind-method tsd-parent-kind-class"><a href="experimentclient.html#variant" class="tsd-kind-icon">variant</a></li>
 						</ul>
 					</section>
 				</div>
@@ -2808,7 +2816,7 @@ img {
 				<a name="constructor" class="tsd-anchor"></a>
 				<h3>constructor</h3>
 				<ul class="tsd-signatures tsd-kind-constructor tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">new <wbr>Experiment<wbr>Client<span class="tsd-signature-symbol">(</span>apiKey<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, config<span class="tsd-signature-symbol">: </span><a href="../interfaces/experimentconfig.html" class="tsd-signature-type" data-tsd-kind="Interface">ExperimentConfig</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a></li>
+					<li class="tsd-signature tsd-kind-icon">new <wbr>Experiment<wbr>Client<span class="tsd-signature-symbol">(</span>apiKey<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, config<span class="tsd-signature-symbol">: </span><a href="../interfaces/experimentconfig.html" class="tsd-signature-type" data-tsd-kind="Interface">ExperimentConfig</a>, httpClient<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">HttpClient</span>, storage<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Storage</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a></li>
 				</ul>
 				<ul class="tsd-descriptions">
 					<li class="tsd-description">
@@ -2833,6 +2841,18 @@ img {
 									<p>See <a href="../interfaces/experimentconfig.html">ExperimentConfig</a> for config options</p>
 								</div>
 							</li>
+							<li>
+								<h5>httpClient: <span class="tsd-signature-type">HttpClient</span></h5>
+								<div class="tsd-comment tsd-typography">
+									<p>The {@link HttpClient} to make fetch requests with</p>
+								</div>
+							</li>
+							<li>
+								<h5>storage: <span class="tsd-signature-type">Storage</span></h5>
+								<div class="tsd-comment tsd-typography">
+									<p>The storage implementation</p>
+								</div>
+							</li>
 						</ul>
 						<h4 class="tsd-returns-title">Returns <a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a></h4>
 					</li>
@@ -2842,93 +2862,102 @@ img {
 		<section class="tsd-panel-group tsd-member-group ">
 			<h2>Methods</h2>
 			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="getvariant" class="tsd-anchor"></a>
-				<h3>get<wbr>Variant</h3>
+				<a name="all" class="tsd-anchor"></a>
+				<h3>all</h3>
 				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">get<wbr>Variant<span class="tsd-signature-symbol">(</span>flagKey<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, fallback<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><a href="../index.html#variant" class="tsd-signature-type" data-tsd-kind="Type alias">Variant</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../index.html#variant" class="tsd-signature-type" data-tsd-kind="Type alias">Variant</a></li>
+					<li class="tsd-signature tsd-kind-icon">all<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../index.html#variants" class="tsd-signature-type" data-tsd-kind="Type alias">Variants</a></li>
 				</ul>
 				<ul class="tsd-descriptions">
 					<li class="tsd-description">
 						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/client.html">Client</a>.<a href="../interfaces/client.html#getvariant">getVariant</a></p>
+							<p>Implementation of <a href="../interfaces/client.html">Client</a>.<a href="../interfaces/client.html#all">all</a></p>
 						</aside>
 						<div class="tsd-comment tsd-typography">
 							<div class="lead">
-								<p>Returns the variant for the provided flagKey.
-								Fallback order:</p>
-								<ul>
-									<li>Provided fallback</li>
-									<li>Initial flags</li>
-									<li>fallbackVariant in config</li>
-									<li>Defaults.fallbackVariant (empty string)
-									Fallbacks happen if a value is null or undefined</li>
-								</ul>
+								<p>Returns all variants for the user.</p>
 							</div>
-						</div>
-						<h4 class="tsd-parameters-title">Parameters</h4>
-						<ul class="tsd-parameters">
-							<li>
-								<h5>flagKey: <span class="tsd-signature-type">string</span></h5>
-							</li>
-							<li>
-								<h5><span class="tsd-flag ts-flagOptional">Optional</span> fallback: <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><a href="../index.html#variant" class="tsd-signature-type" data-tsd-kind="Type alias">Variant</a></h5>
-								<div class="tsd-comment tsd-typography">
-									<p>A fallback value that takes precedence over any other fallback value.</p>
-								</div>
-							</li>
-						</ul>
-						<h4 class="tsd-returns-title">Returns <a href="../index.html#variant" class="tsd-signature-type" data-tsd-kind="Type alias">Variant</a></h4>
-					</li>
-				</ul>
-			</section>
-			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="getvariants" class="tsd-anchor"></a>
-				<h3>get<wbr>Variants</h3>
-				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">get<wbr>Variants<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../index.html#variants" class="tsd-signature-type" data-tsd-kind="Type alias">Variants</a></li>
-				</ul>
-				<ul class="tsd-descriptions">
-					<li class="tsd-description">
-						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/client.html">Client</a>.<a href="../interfaces/client.html#getvariants">getVariants</a></p>
-						</aside>
-						<div class="tsd-comment tsd-typography">
-							<div class="lead">
-								<p>Returns all variants for the user</p>
-							</div>
+							<p>The primary source of variants is based on the
+							<a href="../enums/source.html">Source</a> configured in the <a href="../interfaces/experimentconfig.html">ExperimentConfig</a>.</p>
+							<dl class="tsd-comment-tags">
+								<dt>see</dt>
+								<dd><p>Source</p>
+								</dd>
+								<dt>see</dt>
+								<dd><p>ExperimentConfig</p>
+								</dd>
+							</dl>
 						</div>
 						<h4 class="tsd-returns-title">Returns <a href="../index.html#variants" class="tsd-signature-type" data-tsd-kind="Type alias">Variants</a></h4>
 					</li>
 				</ul>
 			</section>
 			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="setcontextprovider" class="tsd-anchor"></a>
-				<h3>set<wbr>Context<wbr>Provider</h3>
+				<a name="fetch" class="tsd-anchor"></a>
+				<h3>fetch</h3>
 				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">set<wbr>Context<wbr>Provider<span class="tsd-signature-symbol">(</span>contextProvider<span class="tsd-signature-symbol">: </span><a href="../interfaces/contextprovider.html" class="tsd-signature-type" data-tsd-kind="Interface">ContextProvider</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a></li>
+					<li class="tsd-signature tsd-kind-icon">fetch<span class="tsd-signature-symbol">(</span>user<span class="tsd-signature-symbol">?: </span><a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a><span class="tsd-signature-symbol">&gt;</span></li>
 				</ul>
 				<ul class="tsd-descriptions">
 					<li class="tsd-description">
 						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/client.html">Client</a>.<a href="../interfaces/client.html#setcontextprovider">setContextProvider</a></p>
+							<p>Implementation of <a href="../interfaces/client.html">Client</a>.<a href="../interfaces/client.html#fetch">fetch</a></p>
 						</aside>
 						<div class="tsd-comment tsd-typography">
 							<div class="lead">
-								<p>Sets an context provider that will inject identity information into the user
-									context. The context provider will override any device ID or user ID set on
-									the ExperimentUser object.
-								See <a href="../interfaces/contextprovider.html">ContextProvider</a> for more details</p>
+								<p>Assign the given user to the SDK and asynchronously fetch all variants
+									from the server. Subsequent calls may omit the user from the argument to
+								use the user from the previous call.</p>
 							</div>
+							<p>If an <a href="../interfaces/experimentuserprovider.html">ExperimentUserProvider</a> has been set, the argument user will
+								be merged with the provider user, preferring user fields from the argument
+								user and falling back on the provider for fields which are null or
+							undefined.</p>
+							<p>If configured, fetch retries the request in the background on failure.
+								Variants received from a successful retry are stored in local storage for
+							access.</p>
+							<p>If you are using the <code>initialVariants</code> config option to pre-load this SDK
+							from the server, you generally do not need to call <code>fetch</code>.</p>
+							<dl class="tsd-comment-tags">
+								<dt>see</dt>
+								<dd><p>ExperimentUser</p>
+								</dd>
+								<dt>see</dt>
+								<dd><p>ExperimentUserProvider</p>
+								</dd>
+							</dl>
 						</div>
 						<h4 class="tsd-parameters-title">Parameters</h4>
 						<ul class="tsd-parameters">
 							<li>
-								<h5>contextProvider: <a href="../interfaces/contextprovider.html" class="tsd-signature-type" data-tsd-kind="Interface">ContextProvider</a></h5>
+								<h5>user: <a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a><span class="tsd-signature-symbol"> = ...</span></h5>
 								<div class="tsd-comment tsd-typography">
+									<p>The user to fetch variants for.</p>
 								</div>
 							</li>
 						</ul>
-						<h4 class="tsd-returns-title">Returns <a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a></h4>
+						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a><span class="tsd-signature-symbol">&gt;</span></h4>
+						<p>Promise that resolves when the request for variants completes.</p>
+					</li>
+				</ul>
+			</section>
+			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+				<a name="getuser" class="tsd-anchor"></a>
+				<h3>get<wbr>User</h3>
+				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+					<li class="tsd-signature tsd-kind-icon">get<wbr>User<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a></li>
+				</ul>
+				<ul class="tsd-descriptions">
+					<li class="tsd-description">
+						<aside class="tsd-sources">
+							<p>Implementation of <a href="../interfaces/client.html">Client</a>.<a href="../interfaces/client.html#getuser">getUser</a></p>
+						</aside>
+						<div class="tsd-comment tsd-typography">
+							<div class="lead">
+								<p>Get a copy of the internal <a href="../index.html#experimentuser">ExperimentUser</a> object if it is set.</p>
+							</div>
+						</div>
+						<h4 class="tsd-returns-title">Returns <a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a></h4>
+						<p>a copy of the internal user object if set.</p>
 					</li>
 				</ul>
 			</section>
@@ -2936,7 +2965,7 @@ img {
 				<a name="setuser" class="tsd-anchor"></a>
 				<h3>set<wbr>User</h3>
 				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">set<wbr>User<span class="tsd-signature-symbol">(</span>user<span class="tsd-signature-symbol">: </span><a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a><span class="tsd-signature-symbol">&gt;</span></li>
+					<li class="tsd-signature tsd-kind-icon">set<wbr>User<span class="tsd-signature-symbol">(</span>user<span class="tsd-signature-symbol">: </span><a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
 				</ul>
 				<ul class="tsd-descriptions">
 					<li class="tsd-description">
@@ -2945,62 +2974,89 @@ img {
 						</aside>
 						<div class="tsd-comment tsd-typography">
 							<div class="lead">
-								<p>Sets the user context. Experiment will continue to serve variation assignments
-								from the old user context until new variants are fetched.</p>
+								<p>Copy in and set the user within the experiment client.</p>
 							</div>
-							<p>If the fetch triggered by this function fails, the retry interval will be started
-							if the flag is set and continue until the fetch succeeds.</p>
 						</div>
 						<h4 class="tsd-parameters-title">Parameters</h4>
 						<ul class="tsd-parameters">
 							<li>
 								<h5>user: <a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a></h5>
 								<div class="tsd-comment tsd-typography">
-									<p>The user context for variants. See <a href="../index.html#experimentuser">ExperimentUser</a> for more details.</p>
+									<p>the user to set within the experiment client.</p>
 								</div>
 							</li>
 						</ul>
-						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a><span class="tsd-signature-symbol">&gt;</span></h4>
-						<p>A promise that resolves when the async request for variants is complete.</p>
+						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
 					</li>
 				</ul>
 			</section>
 			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="start" class="tsd-anchor"></a>
-				<h3>start</h3>
+				<a name="setuserprovider" class="tsd-anchor"></a>
+				<h3>set<wbr>User<wbr>Provider</h3>
 				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">start<span class="tsd-signature-symbol">(</span>user<span class="tsd-signature-symbol">: </span><a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a><span class="tsd-signature-symbol">&gt;</span></li>
+					<li class="tsd-signature tsd-kind-icon">set<wbr>User<wbr>Provider<span class="tsd-signature-symbol">(</span>userProvider<span class="tsd-signature-symbol">: </span><a href="../interfaces/experimentuserprovider.html" class="tsd-signature-type" data-tsd-kind="Interface">ExperimentUserProvider</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../interfaces/client.html" class="tsd-signature-type" data-tsd-kind="Interface">Client</a></li>
 				</ul>
 				<ul class="tsd-descriptions">
 					<li class="tsd-description">
 						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/client.html">Client</a>.<a href="../interfaces/client.html#start">start</a></p>
+							<p>Implementation of <a href="../interfaces/client.html">Client</a>.<a href="../interfaces/client.html#setuserprovider">setUserProvider</a></p>
 						</aside>
 						<div class="tsd-comment tsd-typography">
 							<div class="lead">
-								<p>Starts the client. This will</p>
-								<ol>
-									<li>Load the id from local storage, or generate a new one if one does not exist.</li>
-									<li>Asynchronously fetch all variants with the provided user context.</li>
-									<li>Fall back on local storage (or initialFlags if <code>preferInitialFlags</code> is true) while the async
-									request for variants is continuing.</li>
-									<li>If the fetch fails and the retry flag is set, start the retry interval until success.</li>
-								</ol>
+								<p>Sets a user provider that will inject identity information into the user
+									for <a href="experimentclient.html#fetch">fetch</a> requests. The context provider will override any device ID or user ID set on
+								the ExperimentUser object.</p>
 							</div>
-							<p>If you are using the <code>initialFlags</code> config option to pre-load this SDK from the
-							server, you do not need to call <code>start</code>.</p>
+							<p>See <a href="../interfaces/experimentuserprovider.html">ExperimentUserProvider</a> for more details</p>
 						</div>
 						<h4 class="tsd-parameters-title">Parameters</h4>
 						<ul class="tsd-parameters">
 							<li>
-								<h5>user: <a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a></h5>
+								<h5>userProvider: <a href="../interfaces/experimentuserprovider.html" class="tsd-signature-type" data-tsd-kind="Interface">ExperimentUserProvider</a></h5>
 								<div class="tsd-comment tsd-typography">
-									<p>The user context for variants. See <a href="../index.html#experimentuser">ExperimentUser</a> for more details.</p>
 								</div>
 							</li>
 						</ul>
-						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a><span class="tsd-signature-symbol">&gt;</span></h4>
-						<p>A promise that resolves when the async request for variants is complete.</p>
+						<h4 class="tsd-returns-title">Returns <a href="../interfaces/client.html" class="tsd-signature-type" data-tsd-kind="Interface">Client</a></h4>
+					</li>
+				</ul>
+			</section>
+			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+				<a name="variant" class="tsd-anchor"></a>
+				<h3>variant</h3>
+				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+					<li class="tsd-signature tsd-kind-icon">variant<span class="tsd-signature-symbol">(</span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, fallback<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><a href="../index.html#variant" class="tsd-signature-type" data-tsd-kind="Type alias">Variant</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../index.html#variant" class="tsd-signature-type" data-tsd-kind="Type alias">Variant</a></li>
+				</ul>
+				<ul class="tsd-descriptions">
+					<li class="tsd-description">
+						<aside class="tsd-sources">
+							<p>Implementation of <a href="../interfaces/client.html">Client</a>.<a href="../interfaces/client.html#variant">variant</a></p>
+						</aside>
+						<div class="tsd-comment tsd-typography">
+							<div class="lead">
+								<p>Returns the variant for the provided key.</p>
+							</div>
+							<p>Fetches <a href="experimentclient.html#all">all</a> variants, falling back  on the given fallback, then the
+							configured fallbackVariant.</p>
+							<dl class="tsd-comment-tags">
+								<dt>see</dt>
+								<dd><p>ExperimentConfig</p>
+								</dd>
+							</dl>
+						</div>
+						<h4 class="tsd-parameters-title">Parameters</h4>
+						<ul class="tsd-parameters">
+							<li>
+								<h5>key: <span class="tsd-signature-type">string</span></h5>
+							</li>
+							<li>
+								<h5><span class="tsd-flag ts-flagOptional">Optional</span> fallback: <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><a href="../index.html#variant" class="tsd-signature-type" data-tsd-kind="Type alias">Variant</a></h5>
+								<div class="tsd-comment tsd-typography">
+									<p>The highest priority fallback.</p>
+								</div>
+							</li>
+						</ul>
+						<h4 class="tsd-returns-title">Returns <a href="../index.html#variant" class="tsd-signature-type" data-tsd-kind="Type alias">Variant</a></h4>
 					</li>
 				</ul>
 			</section>

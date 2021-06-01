@@ -1,0 +1,16 @@
+# Change Log
+
+All notable changes to this project will be documented in this file.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+# 0.1.0 (2021-06-01)
+
+
+### Features
+
+* add singleton back ([3e32c47](https://github.com/amplitude/experiment-js-client/commit/3e32c47876501ed2093727f61c8280904a3b2462))
+* refactor context provider for better compatibility ([#4](https://github.com/amplitude/experiment-js-client/issues/4)) ([f5db5d1](https://github.com/amplitude/experiment-js-client/commit/f5db5d198f8cd463ba5292d871ccec55da31fbfb))
+* remove device family and type ([#3](https://github.com/amplitude/experiment-js-client/issues/3)) ([2b103a5](https://github.com/amplitude/experiment-js-client/commit/2b103a5837d2204e86358655e14b443e3f88f9b0))
+* remove singleton ([#5](https://github.com/amplitude/experiment-js-client/issues/5)) ([acc9463](https://github.com/amplitude/experiment-js-client/commit/acc94630566250749e6df417d4377cf3c042cc68))
+* simplify and update client api ([#2](https://github.com/amplitude/experiment-js-client/issues/2)) ([61fffc4](https://github.com/amplitude/experiment-js-client/commit/61fffc44ef7c23ad6dbe9ad3d3a77d070b3d1845))
+* simplify configuration ([#1](https://github.com/amplitude/experiment-js-client/issues/1)) ([18b98c7](https://github.com/amplitude/experiment-js-client/commit/18b98c78101683e14db751810daf9e1214ba2750))

@@ -3,8 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>AmplitudeContextProvider | Experiment JS Client Documentation - v1.1.0</title>
-	<meta name="description" content="Documentation for Experiment JS Client Documentation - v1.1.0">
+	<title>AmplitudeUserProvider | Experiment JS Client Documentation - v0.1.0</title>
+	<meta name="description" content="Documentation for Experiment JS Client Documentation - v0.1.0">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<style type="text/css">:root {
   --color-background: #fdfdfd;
@@ -2674,7 +2674,7 @@ img {
 		<div class="container">
 			<div class="table-wrap">
 				<div class="table-cell">
-					<strong><a href="../index.html">Experiment JS Client Documentation - v1.1.0</a></strong>
+					<strong><a href="../index.html">Experiment JS Client Documentation - v0.1.0</a></strong>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -2704,32 +2704,17 @@ img {
 </header>
 <nav class="tsd-navigation secondary">
 	<ul>
+		<li class=" tsd-kind-enum">
+			<a href="../enums/source.html" class="tsd-kind-icon">Source</a>
+		</li>
 		<li class="current tsd-kind-class">
-			<a href="amplitudecontextprovider.html" class="tsd-kind-icon">Amplitude<wbr>Context<wbr>Provider</a>
+			<a href="amplitudeuserprovider.html" class="tsd-kind-icon">Amplitude<wbr>User<wbr>Provider</a>
 			<ul>
 				<li class=" tsd-kind-constructor tsd-parent-kind-class">
-					<a href="amplitudecontextprovider.html#constructor" class="tsd-kind-icon">constructor</a>
+					<a href="amplitudeuserprovider.html#constructor" class="tsd-kind-icon">constructor</a>
 				</li>
 				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="amplitudecontextprovider.html#getdeviceid" class="tsd-kind-icon">get<wbr>Device<wbr>Id</a>
-				</li>
-				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="amplitudecontextprovider.html#getdevicemodel" class="tsd-kind-icon">get<wbr>Device<wbr>Model</a>
-				</li>
-				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="amplitudecontextprovider.html#getlanguage" class="tsd-kind-icon">get<wbr>Language</a>
-				</li>
-				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="amplitudecontextprovider.html#getos" class="tsd-kind-icon">get<wbr>Os</a>
-				</li>
-				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="amplitudecontextprovider.html#getplatform" class="tsd-kind-icon">get<wbr>Platform</a>
-				</li>
-				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="amplitudecontextprovider.html#getuserid" class="tsd-kind-icon">get<wbr>User<wbr>Id</a>
-				</li>
-				<li class=" tsd-kind-method tsd-parent-kind-class">
-					<a href="amplitudecontextprovider.html#getversion" class="tsd-kind-icon">get<wbr>Version</a>
+					<a href="amplitudeuserprovider.html#getuser" class="tsd-kind-icon">get<wbr>User</a>
 				</li>
 			</ul>
 		</li>
@@ -2743,10 +2728,10 @@ img {
 			<a href="../interfaces/client.html" class="tsd-kind-icon">Client</a>
 		</li>
 		<li class=" tsd-kind-interface">
-			<a href="../interfaces/contextprovider.html" class="tsd-kind-icon">Context<wbr>Provider</a>
+			<a href="../interfaces/experimentconfig.html" class="tsd-kind-icon">Experiment<wbr>Config</a>
 		</li>
 		<li class=" tsd-kind-interface">
-			<a href="../interfaces/experimentconfig.html" class="tsd-kind-icon">Experiment<wbr>Config</a>
+			<a href="../interfaces/experimentuserprovider.html" class="tsd-kind-icon">Experiment<wbr>User<wbr>Provider</a>
 		</li>
 		<li class=" tsd-kind-type-alias">
 			<a href="../index.html#experimentuser" class="tsd-kind-icon">Experiment<wbr>User</a>
@@ -2767,7 +2752,7 @@ img {
 		<section class="tsd-panel tsd-comment">
 			<div class="tsd-comment tsd-typography">
 				<div class="lead">
-					<p>An AmplitudeContextProvider injects information from the Amplitude SDK into
+					<p>An AmplitudeUserProvider injects information from the Amplitude SDK into
 					the <a href="../index.html#experimentuser">ExperimentUser</a> object before sending a request to the server.</p>
 				</div>
 			</div>
@@ -2776,14 +2761,14 @@ img {
 			<h3>Hierarchy</h3>
 			<ul class="tsd-hierarchy">
 				<li>
-					<span class="target">AmplitudeContextProvider</span>
+					<span class="target">AmplitudeUserProvider</span>
 				</li>
 			</ul>
 		</section>
 		<section class="tsd-panel">
 			<h3>Implements</h3>
 			<ul class="tsd-hierarchy">
-				<li><a href="../interfaces/contextprovider.html" class="tsd-signature-type" data-tsd-kind="Interface">ContextProvider</a></li>
+				<li><a href="../interfaces/experimentuserprovider.html" class="tsd-signature-type" data-tsd-kind="Interface">ExperimentUserProvider</a></li>
 			</ul>
 		</section>
 		<section class="tsd-panel-group tsd-index-group">
@@ -2793,19 +2778,13 @@ img {
 					<section class="tsd-index-section ">
 						<h3>Constructors</h3>
 						<ul class="tsd-index-list">
-							<li class="tsd-kind-constructor tsd-parent-kind-class"><a href="amplitudecontextprovider.html#constructor" class="tsd-kind-icon">constructor</a></li>
+							<li class="tsd-kind-constructor tsd-parent-kind-class"><a href="amplitudeuserprovider.html#constructor" class="tsd-kind-icon">constructor</a></li>
 						</ul>
 					</section>
 					<section class="tsd-index-section ">
 						<h3>Methods</h3>
 						<ul class="tsd-index-list">
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="amplitudecontextprovider.html#getdeviceid" class="tsd-kind-icon">get<wbr>Device<wbr>Id</a></li>
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="amplitudecontextprovider.html#getdevicemodel" class="tsd-kind-icon">get<wbr>Device<wbr>Model</a></li>
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="amplitudecontextprovider.html#getlanguage" class="tsd-kind-icon">get<wbr>Language</a></li>
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="amplitudecontextprovider.html#getos" class="tsd-kind-icon">get<wbr>Os</a></li>
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="amplitudecontextprovider.html#getplatform" class="tsd-kind-icon">get<wbr>Platform</a></li>
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="amplitudecontextprovider.html#getuserid" class="tsd-kind-icon">get<wbr>User<wbr>Id</a></li>
-							<li class="tsd-kind-method tsd-parent-kind-class"><a href="amplitudecontextprovider.html#getversion" class="tsd-kind-icon">get<wbr>Version</a></li>
+							<li class="tsd-kind-method tsd-parent-kind-class"><a href="amplitudeuserprovider.html#getuser" class="tsd-kind-icon">get<wbr>User</a></li>
 						</ul>
 					</section>
 				</div>
@@ -2817,7 +2796,7 @@ img {
 				<a name="constructor" class="tsd-anchor"></a>
 				<h3>constructor</h3>
 				<ul class="tsd-signatures tsd-kind-constructor tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">new <wbr>Amplitude<wbr>Context<wbr>Provider<span class="tsd-signature-symbol">(</span>amplitudeInstance<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">AmplitudeInstance</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="amplitudecontextprovider.html" class="tsd-signature-type" data-tsd-kind="Class">AmplitudeContextProvider</a></li>
+					<li class="tsd-signature tsd-kind-icon">new <wbr>Amplitude<wbr>User<wbr>Provider<span class="tsd-signature-symbol">(</span>amplitudeInstance<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">AmplitudeInstance</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="amplitudeuserprovider.html" class="tsd-signature-type" data-tsd-kind="Class">AmplitudeUserProvider</a></li>
 				</ul>
 				<ul class="tsd-descriptions">
 					<li class="tsd-description">
@@ -2829,7 +2808,7 @@ img {
 								<h5>amplitudeInstance: <span class="tsd-signature-type">AmplitudeInstance</span></h5>
 							</li>
 						</ul>
-						<h4 class="tsd-returns-title">Returns <a href="amplitudecontextprovider.html" class="tsd-signature-type" data-tsd-kind="Class">AmplitudeContextProvider</a></h4>
+						<h4 class="tsd-returns-title">Returns <a href="amplitudeuserprovider.html" class="tsd-signature-type" data-tsd-kind="Class">AmplitudeUserProvider</a></h4>
 					</li>
 				</ul>
 			</section>
@@ -2837,107 +2816,17 @@ img {
 		<section class="tsd-panel-group tsd-member-group ">
 			<h2>Methods</h2>
 			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="getdeviceid" class="tsd-anchor"></a>
-				<h3>get<wbr>Device<wbr>Id</h3>
+				<a name="getuser" class="tsd-anchor"></a>
+				<h3>get<wbr>User</h3>
 				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">get<wbr>Device<wbr>Id<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
+					<li class="tsd-signature tsd-kind-icon">get<wbr>User<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a></li>
 				</ul>
 				<ul class="tsd-descriptions">
 					<li class="tsd-description">
 						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/contextprovider.html">ContextProvider</a>.<a href="../interfaces/contextprovider.html#getdeviceid">getDeviceId</a></p>
+							<p>Implementation of <a href="../interfaces/experimentuserprovider.html">ExperimentUserProvider</a>.<a href="../interfaces/experimentuserprovider.html#getuser">getUser</a></p>
 						</aside>
-						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
-					</li>
-				</ul>
-			</section>
-			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="getdevicemodel" class="tsd-anchor"></a>
-				<h3>get<wbr>Device<wbr>Model</h3>
-				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">get<wbr>Device<wbr>Model<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
-				</ul>
-				<ul class="tsd-descriptions">
-					<li class="tsd-description">
-						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/contextprovider.html">ContextProvider</a>.<a href="../interfaces/contextprovider.html#getdevicemodel">getDeviceModel</a></p>
-						</aside>
-						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
-					</li>
-				</ul>
-			</section>
-			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="getlanguage" class="tsd-anchor"></a>
-				<h3>get<wbr>Language</h3>
-				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">get<wbr>Language<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
-				</ul>
-				<ul class="tsd-descriptions">
-					<li class="tsd-description">
-						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/contextprovider.html">ContextProvider</a>.<a href="../interfaces/contextprovider.html#getlanguage">getLanguage</a></p>
-						</aside>
-						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
-					</li>
-				</ul>
-			</section>
-			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="getos" class="tsd-anchor"></a>
-				<h3>get<wbr>Os</h3>
-				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">get<wbr>Os<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
-				</ul>
-				<ul class="tsd-descriptions">
-					<li class="tsd-description">
-						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/contextprovider.html">ContextProvider</a>.<a href="../interfaces/contextprovider.html#getos">getOs</a></p>
-						</aside>
-						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
-					</li>
-				</ul>
-			</section>
-			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="getplatform" class="tsd-anchor"></a>
-				<h3>get<wbr>Platform</h3>
-				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">get<wbr>Platform<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
-				</ul>
-				<ul class="tsd-descriptions">
-					<li class="tsd-description">
-						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/contextprovider.html">ContextProvider</a>.<a href="../interfaces/contextprovider.html#getplatform">getPlatform</a></p>
-						</aside>
-						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
-					</li>
-				</ul>
-			</section>
-			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="getuserid" class="tsd-anchor"></a>
-				<h3>get<wbr>User<wbr>Id</h3>
-				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">get<wbr>User<wbr>Id<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
-				</ul>
-				<ul class="tsd-descriptions">
-					<li class="tsd-description">
-						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/contextprovider.html">ContextProvider</a>.<a href="../interfaces/contextprovider.html#getuserid">getUserId</a></p>
-						</aside>
-						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
-					</li>
-				</ul>
-			</section>
-			<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
-				<a name="getversion" class="tsd-anchor"></a>
-				<h3>get<wbr>Version</h3>
-				<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">get<wbr>Version<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
-				</ul>
-				<ul class="tsd-descriptions">
-					<li class="tsd-description">
-						<aside class="tsd-sources">
-							<p>Implementation of <a href="../interfaces/contextprovider.html">ContextProvider</a>.<a href="../interfaces/contextprovider.html#getversion">getVersion</a></p>
-						</aside>
-						<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
+						<h4 class="tsd-returns-title">Returns <a href="../index.html#experimentuser" class="tsd-signature-type" data-tsd-kind="Type alias">ExperimentUser</a></h4>
 					</li>
 				</ul>
 			</section>
