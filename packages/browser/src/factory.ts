@@ -1,9 +1,9 @@
 import { ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
-import { LocalStorage } from './storage/localStorage';
-import { FetchHttpClient } from './transport/http';
 
 const instances = {};
+
+// TODO this is defined twice, figure something better out.
 const defaultInstance = '$default_instance';
 
 /**
@@ -17,12 +17,7 @@ const initialize = (
   config?: ExperimentConfig,
 ): ExperimentClient => {
   if (!instances[defaultInstance]) {
-    instances[defaultInstance] = new ExperimentClient(
-      apiKey,
-      config,
-      FetchHttpClient,
-      new LocalStorage(defaultInstance, apiKey),
-    );
+    instances[defaultInstance] = new ExperimentClient(apiKey, config);
   }
   return instances[defaultInstance];
 };

@@ -6,6 +6,8 @@
 import { version as PACKAGE_VERSION } from '../package.json';
 
 import { ExperimentConfig, Defaults, Source } from './config';
+import { LocalStorage } from './storage/localStorage';
+import { FetchHttpClient } from './transport/http';
 import { Client } from './types/client';
 import { Storage } from './types/storage';
 import { HttpClient } from './types/transport';
@@ -23,6 +25,9 @@ const fetchBackoffMinMillis = 500;
 const fetchBackoffMaxMillis = 10000;
 const fetchBackoffScalar = 1.5;
 
+// TODO this is defined twice, figure something better out.
+const defaultInstance = '$default_instance';
+
 /**
  * The default {@link Client} used to fetch variations from Experiment's
  * servers.
@@ -31,9 +36,9 @@ const fetchBackoffScalar = 1.5;
  */
 export class ExperimentClient implements Client {
   private readonly apiKey: string;
-  private readonly storage: Storage;
-  private readonly httpClient: HttpClient;
   private readonly config: ExperimentConfig;
+  private readonly httpClient?: HttpClient;
+  private readonly storage?: Storage;
 
   private user: ExperimentUser;
   private userProvider: ExperimentUserProvider;
@@ -42,21 +47,17 @@ export class ExperimentClient implements Client {
   /**
    * Creates a new ExperimentClient instance.
    *
+   * In most cases you will want to use the `initialize` factory method in
+   * {@link Experiment}.
+   *
    * @param apiKey The Client key for the Experiment project
    * @param config See {@link ExperimentConfig} for config options
-   * @param httpClient The {@link HttpClient} to make fetch requests with
-   * @param storage The storage implementation
    */
-  constructor(
-    apiKey: string,
-    config: ExperimentConfig,
-    httpClient: HttpClient,
-    storage: Storage,
-  ) {
+  public constructor(apiKey: string, config: ExperimentConfig) {
     this.apiKey = apiKey;
     this.config = { ...Defaults, ...config };
-    this.httpClient = httpClient;
-    this.storage = storage;
+    this.httpClient = FetchHttpClient;
+    this.storage = new LocalStorage(defaultInstance, apiKey);
     this.storage.load();
   }
 
@@ -166,8 +167,8 @@ export class ExperimentClient implements Client {
 
   /**
    * Sets a user provider that will inject identity information into the user
-   * for {@link fetch} requests. The context provider will override any device ID or user ID set on
-   * the ExperimentUser object.
+   * for {@link fetch()} requests. The user provider will only set user fields
+   * in outgoing requests which are null or undefined.
    *
    * See {@link ExperimentUserProvider} for more details
    * @param userProvider
@@ -177,7 +178,7 @@ export class ExperimentClient implements Client {
     return this;
   }
 
-  protected async fetchInternal(
+  private async fetchInternal(
     user: ExperimentUser,
     timeoutMillis: number,
     retry: boolean,
@@ -208,7 +209,7 @@ export class ExperimentClient implements Client {
     }
   }
 
-  protected async doFetch(
+  private async doFetch(
     user: ExperimentUser,
     timeoutMillis: number,
   ): Promise<Response> {
@@ -234,7 +235,7 @@ export class ExperimentClient implements Client {
     return response;
   }
 
-  protected async parseResponse(response: Response): Promise<Variants> {
+  private async parseResponse(response: Response): Promise<Variants> {
     const json = await response.json();
     const variants: Variants = {};
     for (const key of Object.keys(json)) {
@@ -247,7 +248,7 @@ export class ExperimentClient implements Client {
     return variants;
   }
 
-  protected storeVariants(variants: Variants): void {
+  private storeVariants(variants: Variants): void {
     this.storage.clear();
     for (const key in variants) {
       this.storage.put(key, variants[key]);
@@ -256,7 +257,7 @@ export class ExperimentClient implements Client {
     this.debug('[Experiment] Stored variants: ', variants);
   }
 
-  protected async startRetries(user: ExperimentUser): Promise<void> {
+  private async startRetries(user: ExperimentUser): Promise<void> {
     this.debug('[Experiment] Retry fetch');
     this.retriesBackoff = new Backoff(
       fetchBackoffAttempts,
@@ -269,7 +270,7 @@ export class ExperimentClient implements Client {
     });
   }
 
-  protected stopRetries(): void {
+  private stopRetries(): void {
     if (this.retriesBackoff != null) {
       this.retriesBackoff.cancel();
     }
