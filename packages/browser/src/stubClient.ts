@@ -19,6 +19,10 @@ export class StubExperimentClient implements Client {
     return this;
   }
 
+  public getUserProvider(): ExperimentUserProvider {
+    return null;
+  }
+
   public setUserProvider(
     uerProvider: ExperimentUserProvider,
   ): StubExperimentClient {

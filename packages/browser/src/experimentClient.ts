@@ -40,8 +40,8 @@ export class ExperimentClient implements Client {
   private readonly httpClient?: HttpClient;
   private readonly storage?: Storage;
 
-  private user: ExperimentUser;
-  private userProvider: ExperimentUserProvider;
+  private user: ExperimentUser = null;
+  private userProvider: ExperimentUserProvider = null;
   private retriesBackoff: Backoff;
 
   /**
@@ -163,6 +163,16 @@ export class ExperimentClient implements Client {
     } else if (this.config.source == Source.InitialVariants) {
       return { ...storageVariants, ...this.config.initialVariants };
     }
+  }
+
+  /**
+   * Get the user provider set by {@link setUserProvider} or null if the user
+   * provider has not been set.
+   *
+   * @returns The user provider set by {@link setUserProvider} or null.
+   */
+  public getUserProvider(): ExperimentUserProvider {
+    return this.userProvider;
   }
 
   /**

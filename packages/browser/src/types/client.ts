@@ -11,5 +11,6 @@ export interface Client {
   fetch(user?: ExperimentUser): Promise<Client>;
   variant(key: string, fallback?: string | Variant): Variant;
   all(): Variants;
+  getUserProvider(): ExperimentUserProvider;
   setUserProvider(userProvider: ExperimentUserProvider): Client;
 }
