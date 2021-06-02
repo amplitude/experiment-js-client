@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.2.0](https://github.com/amplitude/experiment-js-client/compare/v0.1.0...v0.2.0) (2021-06-02)
+
+
+### Features
+
+* change constructor back to the way it was before ([32f5d0a](https://github.com/amplitude/experiment-js-client/commit/32f5d0a8e3374ba5c55d52c52bba5e160a6814d8))
+* update local storage key ([638164a](https://github.com/amplitude/experiment-js-client/commit/638164a7abfd17ea532a77e22cfae46918d27231))
+
+
+
+
+
 # 0.1.0 (2021-06-01)
 
 

@@ -3,8 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>ExperimentClient | Experiment JS Client Documentation - v0.1.0</title>
-	<meta name="description" content="Documentation for Experiment JS Client Documentation - v0.1.0">
+	<title>ExperimentClient | Experiment JS Client Documentation - v0.2.0</title>
+	<meta name="description" content="Documentation for Experiment JS Client Documentation - v0.2.0">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<style type="text/css">:root {
   --color-background: #fdfdfd;
@@ -2674,7 +2674,7 @@ img {
 		<div class="container">
 			<div class="table-wrap">
 				<div class="table-cell">
-					<strong><a href="../index.html">Experiment JS Client Documentation - v0.1.0</a></strong>
+					<strong><a href="../index.html">Experiment JS Client Documentation - v0.2.0</a></strong>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -2816,7 +2816,7 @@ img {
 				<a name="constructor" class="tsd-anchor"></a>
 				<h3>constructor</h3>
 				<ul class="tsd-signatures tsd-kind-constructor tsd-parent-kind-class">
-					<li class="tsd-signature tsd-kind-icon">new <wbr>Experiment<wbr>Client<span class="tsd-signature-symbol">(</span>apiKey<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, config<span class="tsd-signature-symbol">: </span><a href="../interfaces/experimentconfig.html" class="tsd-signature-type" data-tsd-kind="Interface">ExperimentConfig</a>, httpClient<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">HttpClient</span>, storage<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Storage</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a></li>
+					<li class="tsd-signature tsd-kind-icon">new <wbr>Experiment<wbr>Client<span class="tsd-signature-symbol">(</span>apiKey<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, config<span class="tsd-signature-symbol">: </span><a href="../interfaces/experimentconfig.html" class="tsd-signature-type" data-tsd-kind="Interface">ExperimentConfig</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="experimentclient.html" class="tsd-signature-type" data-tsd-kind="Class">ExperimentClient</a></li>
 				</ul>
 				<ul class="tsd-descriptions">
 					<li class="tsd-description">
@@ -2826,6 +2826,8 @@ img {
 							<div class="lead">
 								<p>Creates a new ExperimentClient instance.</p>
 							</div>
+							<p>In most cases you will want to use the <code>initialize</code> factory method in
+							<a href="../index.html#experiment">Experiment</a>.</p>
 						</div>
 						<h4 class="tsd-parameters-title">Parameters</h4>
 						<ul class="tsd-parameters">
@@ -2839,18 +2841,6 @@ img {
 								<h5>config: <a href="../interfaces/experimentconfig.html" class="tsd-signature-type" data-tsd-kind="Interface">ExperimentConfig</a></h5>
 								<div class="tsd-comment tsd-typography">
 									<p>See <a href="../interfaces/experimentconfig.html">ExperimentConfig</a> for config options</p>
-								</div>
-							</li>
-							<li>
-								<h5>httpClient: <span class="tsd-signature-type">HttpClient</span></h5>
-								<div class="tsd-comment tsd-typography">
-									<p>The {@link HttpClient} to make fetch requests with</p>
-								</div>
-							</li>
-							<li>
-								<h5>storage: <span class="tsd-signature-type">Storage</span></h5>
-								<div class="tsd-comment tsd-typography">
-									<p>The storage implementation</p>
 								</div>
 							</li>
 						</ul>
@@ -3004,8 +2994,8 @@ img {
 						<div class="tsd-comment tsd-typography">
 							<div class="lead">
 								<p>Sets a user provider that will inject identity information into the user
-									for <a href="experimentclient.html#fetch">fetch</a> requests. The context provider will override any device ID or user ID set on
-								the ExperimentUser object.</p>
+									for {@link fetch()} requests. The user provider will only set user fields
+								in outgoing requests which are null or undefined.</p>
 							</div>
 							<p>See <a href="../interfaces/experimentuserprovider.html">ExperimentUserProvider</a> for more details</p>
 						</div>
