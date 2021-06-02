@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.3.0](https://github.com/amplitude/experiment-js-client/compare/v0.2.0...v0.3.0) (2021-06-02)
+
+
+### Features
+
+* add getUserProvider, make user null be default ([a9d4f2b](https://github.com/amplitude/experiment-js-client/commit/a9d4f2b518b76429797df0f0e107c10bb4b68c87))
+
+
+
+
+
 # [0.2.0](https://github.com/amplitude/experiment-js-client/compare/v0.1.0...v0.2.0) (2021-06-02)
 
 
