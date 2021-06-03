@@ -87,8 +87,8 @@ export interface ExperimentConfig {
  */
 export const Defaults: ExperimentConfig = {
   debug: false,
-  fallbackVariant: null,
-  initialVariants: null,
+  fallbackVariant: {},
+  initialVariants: {},
   source: Source.LocalStorage,
   serverUrl: 'https://api.lab.amplitude.com',
   fetchTimeoutMillis: 10000,

@@ -5,7 +5,7 @@ export type Variant = {
   /**
    * The value of the variant.
    */
-  value: string;
+  value?: string;
 
   /**
    * The attached payload, if any.

@@ -128,7 +128,7 @@ export class ExperimentClient implements Client {
    * Fetches {@link all} variants, falling back  on the given fallback, then the
    * configured fallbackVariant.
    *
-   * @param key
+   * @param key The key to get the variant for.
    * @param fallback The highest priority fallback.
    * @see ExperimentConfig
    */
@@ -294,9 +294,9 @@ export class ExperimentClient implements Client {
     };
   }
 
-  private convertVariant(value: string | Variant): Variant | null {
+  private convertVariant(value: string | Variant): Variant {
     if (value === null || value === undefined) {
-      return null;
+      return {};
     }
     if (typeof value == 'string') {
       return {
