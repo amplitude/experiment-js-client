@@ -62,29 +62,6 @@ export class ExperimentClient implements Client {
   }
 
   /**
-   * Get a copy of the internal {@link ExperimentUser} object if it is set.
-   *
-   * @returns a copy of the internal user object if set.
-   */
-  public getUser(): ExperimentUser {
-    if (!this.user) {
-      return this.user;
-    }
-    const userPropertiesCopy = { ...this.user.user_properties };
-    return { ...this.user, user_properties: userPropertiesCopy };
-  }
-
-  /**
-   * Copy in and set the user within the experiment client.
-   *
-   * @param user the user to set within the experiment client.
-   */
-  public setUser(user: ExperimentUser): void {
-    const userPropertiesCopy = { ...user.user_properties };
-    this.user = { ...user, user_properties: userPropertiesCopy };
-  }
-
-  /**
    * Assign the given user to the SDK and asynchronously fetch all variants
    * from the server. Subsequent calls may omit the user from the argument to
    * use the user from the previous call.
@@ -163,6 +140,33 @@ export class ExperimentClient implements Client {
     } else if (this.config.source == Source.InitialVariants) {
       return { ...storageVariants, ...this.config.initialVariants };
     }
+  }
+
+  /**
+   * Get a copy of the internal {@link ExperimentUser} object if it is set.
+   *
+   * @returns a copy of the internal user object if set.
+   */
+  public getUser(): ExperimentUser {
+    if (!this.user) {
+      return this.user;
+    }
+    const userPropertiesCopy = { ...this.user.user_properties };
+    return { ...this.user, user_properties: userPropertiesCopy };
+  }
+
+  /**
+   * Copy in and set the user within the experiment client.
+   *
+   * @param user the user to set within the experiment client.
+   */
+  public setUser(user: ExperimentUser): void {
+    if (!user) {
+      this.user = null;
+      return;
+    }
+    const userPropertiesCopy = { ...user.user_properties };
+    this.user = { ...user, user_properties: userPropertiesCopy };
   }
 
   /**
