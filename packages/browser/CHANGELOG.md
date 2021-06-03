@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.1](https://github.com/amplitude/experiment-js-client/compare/v0.4.0...v0.4.1) (2021-06-03)
+
+
+### Bug Fixes
+
+* fix fallback order ([b75aac7](https://github.com/amplitude/experiment-js-client/commit/b75aac7d1349fca40e7652ca018a2dede5585017))
+
+
+
+
+
 # [0.4.0](https://github.com/amplitude/experiment-js-client/compare/v0.3.0...v0.4.0) (2021-06-03)
 
 
