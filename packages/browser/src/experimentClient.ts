@@ -113,12 +113,14 @@ export class ExperimentClient implements Client {
     if (!this.apiKey) {
       return { value: undefined };
     }
-    const variants = this.all();
-    const variant = this.convertVariant(
-      variants[key] ?? fallback ?? this.config.fallbackVariant,
-    );
-    this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
-    return variant;
+    const variant =
+      this.sourceVariants()[key] ??
+      fallback ??
+      this.secondaryVariants()[key] ??
+      this.config.fallbackVariant;
+    const converted = this.convertVariant(variant);
+    this.debug(`[Experiment] variant for ${key} is ${converted.value}`);
+    return converted;
   }
 
   /**
@@ -134,12 +136,7 @@ export class ExperimentClient implements Client {
     if (!this.apiKey) {
       return {};
     }
-    const storageVariants = this.storage.getAll();
-    if (this.config.source == Source.LocalStorage) {
-      return { ...this.config.initialVariants, ...storageVariants };
-    } else if (this.config.source == Source.InitialVariants) {
-      return { ...storageVariants, ...this.config.initialVariants };
-    }
+    return { ...this.secondaryVariants(), ...this.sourceVariants() };
   }
 
   /**
@@ -308,6 +305,22 @@ export class ExperimentClient implements Client {
       };
     } else {
       return value;
+    }
+  }
+
+  private sourceVariants(): Variants {
+    if (this.config.source == Source.LocalStorage) {
+      return this.storage.getAll();
+    } else if (this.config == Source.InitialVariants) {
+      return this.config.initialVariants;
+    }
+  }
+
+  private secondaryVariants(): Variants {
+    if (this.config.source == Source.LocalStorage) {
+      return this.config.initialVariants;
+    } else if (this.config == Source.InitialVariants) {
+      return this.storage.getAll();
     }
   }
 
