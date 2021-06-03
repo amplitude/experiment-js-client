@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.4.0](https://github.com/amplitude/experiment-js-client/compare/v0.3.0...v0.4.0) (2021-06-03)
+
+
+### Bug Fixes
+
+* protect setUser ([8a6ae20](https://github.com/amplitude/experiment-js-client/commit/8a6ae2000a898794872e3d260e2c4ba6de2a3197))
+
+
+### Features
+
+* make variant non-null ([5a1712e](https://github.com/amplitude/experiment-js-client/commit/5a1712ec90e8aca6327fd89839f12c8fe1d6f8df))
+
+
+
+
+
 # [0.3.0](https://github.com/amplitude/experiment-js-client/compare/v0.2.0...v0.3.0) (2021-06-02)
 
 
