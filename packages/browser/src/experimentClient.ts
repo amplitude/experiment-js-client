@@ -208,8 +208,7 @@ export class ExperimentClient implements Client {
     }
 
     try {
-      const response = await this.doFetch(user, timeoutMillis);
-      const variants = await this.parseResponse(response);
+      const variants = await this.doFetch(user, timeoutMillis);
       this.storeVariants(variants);
       return variants;
     } catch (e) {
@@ -223,7 +222,7 @@ export class ExperimentClient implements Client {
   private async doFetch(
     user: ExperimentUser,
     timeoutMillis: number,
-  ): Promise<Response> {
+  ): Promise<Variants> {
     const userContext = this.addContext(user);
     const encodedContext = urlSafeBase64Encode(JSON.stringify(userContext));
     let queryString = '';
@@ -242,8 +241,11 @@ export class ExperimentClient implements Client {
       null,
       timeoutMillis,
     );
+    if (response.status != 200) {
+      throw Error(`Fetch error response: status=${response.status}`);
+    }
     this.debug('[Experiment] Received fetch response: ', response);
-    return response;
+    return await this.parseResponse(response);
   }
 
   private async parseResponse(response: Response): Promise<Variants> {
