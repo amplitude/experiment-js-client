@@ -224,21 +224,21 @@ export class ExperimentClient implements Client {
     timeoutMillis: number,
   ): Promise<Variants> {
     const userContext = this.addContext(user);
-    const encodedContext = urlSafeBase64Encode(JSON.stringify(userContext));
-    let queryString = '';
-    if (this.config.debug) {
-      queryString = `?d=${randomString(8)}`;
-    }
-    const endpoint = `${this.config.serverUrl}/sdk/vardata/${encodedContext}${queryString}`;
+    const queryString = '';
+    // let queryString = '';
+    // if (this.config.debug) {
+    //   queryString = `?d=${randomString(8)}`;
+    // }
+    const endpoint = `${this.config.serverUrl}/sdk/vardata${queryString}`;
     const headers = {
       Authorization: `Api-Key ${this.apiKey}`,
     };
     this.debug('[Experiment] Fetch variants for user: ', userContext);
     const response = await this.httpClient.request(
       endpoint,
-      'GET',
+      'POST',
       headers,
-      null,
+      JSON.stringify(user),
       timeoutMillis,
     );
     if (response.status != 200) {

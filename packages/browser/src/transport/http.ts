@@ -34,14 +34,14 @@ const request: HttpClient['request'] = (
   requestUrl: string,
   method: string,
   headers: Record<string, string>,
-  data?: Record<string, string>,
+  data: string,
   timeoutMillis?: number,
 ): Promise<Response> => {
   return timeout(
     fetch(requestUrl, {
-      method,
-      headers,
-      body: data && JSON.stringify(data),
+      method: method,
+      headers: headers,
+      body: data,
     }),
     timeoutMillis,
   );
