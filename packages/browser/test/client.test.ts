@@ -16,7 +16,7 @@ const testTimeoutRetrySuccessClient = new ExperimentClient(API_KEY, {
 });
 
 beforeEach(() => {
-    localStorage.clear();
+  localStorage.clear();
 });
 
 test('ExperimentClient.fetch, success', async () => {
