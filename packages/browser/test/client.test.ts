@@ -16,8 +16,8 @@ const testTimeoutRetrySuccessClient = new ExperimentClient(API_KEY, {
 });
 
 beforeEach(() => {
-    localStorage.clear()
-})
+    localStorage.clear();
+});
 
 test('ExperimentClient.fetch, success', async () => {
   await testClient.fetch(testUser);
@@ -27,7 +27,7 @@ test('ExperimentClient.fetch, success', async () => {
 
 test('ExperimentClient.fetch, no retries, timeout failure', async () => {
   await testTimeoutNoRetriesClient.fetch(testUser);
-  const variants = testTimeoutNoRetriesClient.all()
+  const variants = testTimeoutNoRetriesClient.all();
   expect(variants).toEqual({});
 });
 
