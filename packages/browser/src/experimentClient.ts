@@ -14,7 +14,6 @@ import { HttpClient } from './types/transport';
 import { ExperimentUser, ExperimentUserProvider } from './types/user';
 import { Variant, Variants } from './types/variant';
 import { Backoff } from './util/backoff';
-import { urlSafeBase64Encode } from './util/base64';
 import { randomString } from './util/randomstring';
 
 // Configs which have been removed from the public API.
@@ -224,21 +223,27 @@ export class ExperimentClient implements Client {
     timeoutMillis: number,
   ): Promise<Variants> {
     const userContext = this.addContext(user);
-    const encodedContext = urlSafeBase64Encode(JSON.stringify(userContext));
     let queryString = '';
     if (this.config.debug) {
       queryString = `?d=${randomString(8)}`;
     }
-    const endpoint = `${this.config.serverUrl}/sdk/vardata/${encodedContext}${queryString}`;
+    const endpoint = `${this.config.serverUrl}/sdk/vardata${queryString}`;
     const headers = {
       Authorization: `Api-Key ${this.apiKey}`,
     };
+    const body = JSON.stringify(user);
+    // CDN can only cache requests where the body is < 8KB
+    if (body.length > 8000) {
+      console.warn(
+        `[Experiment] encoded user object length ${body.length} cannot be cached by CDN; must be < 8KB`,
+      );
+    }
     this.debug('[Experiment] Fetch variants for user: ', userContext);
     const response = await this.httpClient.request(
       endpoint,
-      'GET',
+      'POST',
       headers,
-      null,
+      body,
       timeoutMillis,
     );
     if (response.status != 200) {
