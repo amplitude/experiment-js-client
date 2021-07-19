@@ -100,6 +100,8 @@ export interface ExperimentConfig {
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
+ | **userProvider**    | `null` |
+ | **trackingProvider**    | `null` |
 
  *
  * @category Configuration
@@ -112,4 +114,6 @@ export const Defaults: ExperimentConfig = {
   serverUrl: 'https://api.lab.amplitude.com',
   fetchTimeoutMillis: 10000,
   retryFetchOnFailure: true,
+  userProvider: null,
+  trackingProvider: null,
 };
