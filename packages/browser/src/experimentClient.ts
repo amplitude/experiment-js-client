@@ -9,9 +9,10 @@ import { ExperimentConfig, Defaults, Source } from './config';
 import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
 import { Client } from './types/client';
+import { ExperimentUserProvider } from './types/provider';
 import { Storage } from './types/storage';
 import { HttpClient } from './types/transport';
-import { ExperimentUser, ExperimentUserProvider } from './types/user';
+import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
 import { Backoff } from './util/backoff';
 import { randomString } from './util/randomstring';
@@ -40,8 +41,12 @@ export class ExperimentClient implements Client {
   private readonly storage?: Storage;
 
   private user: ExperimentUser = null;
-  private userProvider: ExperimentUserProvider = null;
   private retriesBackoff: Backoff;
+
+  /**
+   * @deprecated
+   */
+  private userProvider: ExperimentUserProvider = null;
 
   /**
    * Creates a new ExperimentClient instance.
@@ -119,6 +124,10 @@ export class ExperimentClient implements Client {
       this.config.fallbackVariant;
     const converted = this.convertVariant(variant);
     this.debug(`[Experiment] variant for ${key} is ${converted.value}`);
+    this.config.trackingProvider?.track('[Experiment] Exposure', {
+      id: key,
+      variant: converted.value,
+    });
     return converted;
   }
 
@@ -170,6 +179,7 @@ export class ExperimentClient implements Client {
    * provider has not been set.
    *
    * @returns The user provider set by {@link setUserProvider} or null.
+   * @deprecated use ExperimentConfig.userProvider instead
    */
   public getUserProvider(): ExperimentUserProvider {
     return this.userProvider;
@@ -182,6 +192,7 @@ export class ExperimentClient implements Client {
    *
    * See {@link ExperimentUserProvider} for more details
    * @param userProvider
+   * @deprecated use ExperimentConfig.userProvider instead
    */
   public setUserProvider(userProvider: ExperimentUserProvider): Client {
     this.userProvider = userProvider;

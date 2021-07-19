@@ -1,3 +1,5 @@
+import { ExperimentTrackingProvider } from './types/provider';
+import { ExperimentUserProvider } from './types/user';
 import { Variant, Variants } from './types/variant';
 
 /**
@@ -67,6 +69,21 @@ export interface ExperimentConfig {
    * requests fails or times out.
    */
   retryFetchOnFailure?: boolean;
+
+  /**
+   * Sets a user provider that will inject identity information into the user
+   * for {@link fetch()} requests. The user provider will only set user fields
+   * in outgoing requests which are null or undefined.
+   *
+   * See {@link ExperimentUserProvider} for more details
+   */
+  userProvider?: ExperimentUserProvider;
+
+  /**
+   * Provides a tracking implementation for standard experiment events generated
+   * by the client (e.g. exposure).
+   */
+  trackingProvider?: ExperimentTrackingProvider;
 }
 
 /**

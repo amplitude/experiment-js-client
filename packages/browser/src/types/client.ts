@@ -1,4 +1,5 @@
-import { ExperimentUser, ExperimentUserProvider } from './user';
+import { ExperimentUserProvider } from './provider';
+import { ExperimentUser } from './user';
 import { Variant, Variants } from './variant';
 
 /**
@@ -11,6 +12,13 @@ export interface Client {
   all(): Variants;
   getUser(): ExperimentUser;
   setUser(user: ExperimentUser): void;
+
+  /**
+   * @deprecated use ExperimentConfig.userProvider instead
+   */
   getUserProvider(): ExperimentUserProvider;
+  /**
+   * @deprecated use ExperimentConfig.userProvider instead
+   */
   setUserProvider(userProvider: ExperimentUserProvider): Client;
 }
