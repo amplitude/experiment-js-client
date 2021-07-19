@@ -147,8 +147,12 @@ export class ExperimentClient implements Client {
     if (!this.user) {
       return this.user;
     }
-    const userPropertiesCopy = { ...this.user.user_properties };
-    return { ...this.user, user_properties: userPropertiesCopy };
+    if (this.user?.user_properties) {
+      const userPropertiesCopy = { ...this.user.user_properties };
+      return { ...this.user, user_properties: userPropertiesCopy };
+    } else {
+      return { ...this.user };
+    }
   }
 
   /**
@@ -161,8 +165,12 @@ export class ExperimentClient implements Client {
       this.user = null;
       return;
     }
-    const userPropertiesCopy = { ...user.user_properties };
-    this.user = { ...user, user_properties: userPropertiesCopy };
+    if (this.user?.user_properties) {
+      const userPropertiesCopy = { ...user.user_properties };
+      this.user = { ...user, user_properties: userPropertiesCopy };
+    } else {
+      this.user = { ...user };
+    }
   }
 
   /**
@@ -318,7 +326,7 @@ export class ExperimentClient implements Client {
   private sourceVariants(): Variants {
     if (this.config.source == Source.LocalStorage) {
       return this.storage.getAll();
-    } else if (this.config == Source.InitialVariants) {
+    } else if (this.config.source == Source.InitialVariants) {
       return this.config.initialVariants;
     }
   }
@@ -326,7 +334,7 @@ export class ExperimentClient implements Client {
   private secondaryVariants(): Variants {
     if (this.config.source == Source.LocalStorage) {
       return this.config.initialVariants;
-    } else if (this.config == Source.InitialVariants) {
+    } else if (this.config.source == Source.InitialVariants) {
       return this.storage.getAll();
     }
   }
