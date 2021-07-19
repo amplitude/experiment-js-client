@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.3](https://github.com/amplitude/experiment-js-client/compare/v1.0.2...v1.0.3) (2021-07-19)
+
+
+### Bug Fixes
+
+* use merged ccontext in post body ([4ead70a](https://github.com/amplitude/experiment-js-client/commit/4ead70a6c81f54b3db02cf4b39cbb5415ddc09a0))
+
+
+
+
+
 ## [1.0.2](https://github.com/amplitude/experiment-js-client/compare/v1.0.1...v1.0.2) (2021-07-16)
 
 
