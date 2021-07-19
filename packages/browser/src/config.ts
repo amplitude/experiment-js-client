@@ -1,5 +1,7 @@
-import { ExperimentTrackingProvider } from './types/provider';
-import { ExperimentUserProvider } from './types/user';
+import {
+  ExperimentTrackingProvider,
+  ExperimentUserProvider,
+} from './types/provider';
 import { Variant, Variants } from './types/variant';
 
 /**
