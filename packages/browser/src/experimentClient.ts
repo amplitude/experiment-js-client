@@ -231,7 +231,7 @@ export class ExperimentClient implements Client {
     const headers = {
       Authorization: `Api-Key ${this.apiKey}`,
     };
-    const body = JSON.stringify(user);
+    const body = JSON.stringify(userContext);
     // CDN can only cache requests where the body is < 8KB
     if (body.length > 8000) {
       console.warn(
