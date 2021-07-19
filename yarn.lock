@@ -3,7 +3,7 @@
 
 
 "@amplitude/experiment-js-client@file:packages/browser":
-  version "1.0.0"
+  version "1.0.3"
   dependencies:
     unfetch "^4.1.0"
 
