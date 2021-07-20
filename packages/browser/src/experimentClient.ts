@@ -126,7 +126,7 @@ export class ExperimentClient implements Client {
     const converted = this.convertVariant(variant);
     this.debug(`[Experiment] variant for ${key} is ${converted.value}`);
     this.config.analyticsProvider?.track(
-      new ExposureEvent(this.addContext(this.getUser()), key, converted.value),
+      new ExposureEvent(this.addContext(this.getUser()), key, converted),
     );
     return converted;
   }

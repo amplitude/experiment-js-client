@@ -1,4 +1,5 @@
 import { ExperimentUser } from './user';
+import { Variant } from './variant';
 
 /**
  * Analytics event for tracking events generated from the experiment SDK client.
@@ -43,14 +44,14 @@ export class ExposureEvent implements ExperimentAnalyticsEvent {
   /**
    * The variant of the flag/experiment that the user has been exposed to.
    */
-  public variant: string;
+  public variant: Variant;
 
-  public constructor(user: ExperimentUser, key: string, variant: string) {
+  public constructor(user: ExperimentUser, key: string, variant: Variant) {
     this.key = key;
     this.variant = variant;
     this.properties = {
       key: key,
-      variant: variant,
+      variant: variant.value,
     };
   }
 }
