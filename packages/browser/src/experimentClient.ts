@@ -8,6 +8,7 @@ import { version as PACKAGE_VERSION } from '../package.json';
 import { ExperimentConfig, Defaults, Source } from './config';
 import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
+import { ExposureEvent } from './types/analytics';
 import { Client } from './types/client';
 import { ExperimentUserProvider } from './types/provider';
 import { Storage } from './types/storage';
@@ -124,10 +125,9 @@ export class ExperimentClient implements Client {
       this.config.fallbackVariant;
     const converted = this.convertVariant(variant);
     this.debug(`[Experiment] variant for ${key} is ${converted.value}`);
-    this.config.trackingProvider?.track('[Experiment] Exposure', {
-      id: key,
-      variant: converted.value,
-    });
+    this.config.analyticsProvider?.track(
+      new ExposureEvent(this.addContext(this.getUser()), key, converted.value),
+    );
     return converted;
   }
 

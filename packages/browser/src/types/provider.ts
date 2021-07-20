@@ -1,3 +1,4 @@
+import { ExperimentAnalyticsEvent } from './analytics';
 import { ExperimentUser } from './user';
 
 /**
@@ -11,10 +12,10 @@ export interface ExperimentUserProvider {
 }
 
 /**
- * Provides a tracking implementation for standard experiment events generated
- * by the client (e.g. exposure).
+ * Provides a analytics implementation for standard experiment events generated
+ * by the client (e.g. {@link ExposureEvent}).
  * @category Provider
  */
-export interface ExperimentTrackingProvider {
-  track(eventName: string, properties: Record<string, string>): void;
+export interface ExperimentAnalyticsProvider {
+  track(event: ExperimentAnalyticsEvent): void;
 }

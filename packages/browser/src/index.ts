@@ -13,7 +13,7 @@ export { ExperimentClient } from './experimentClient';
 export { Client } from './types/client';
 export {
   ExperimentUserProvider,
-  ExperimentTrackingProvider,
+  ExperimentAnalyticsProvider,
 } from './types/provider';
 export { ExperimentUser } from './types/user';
 export { Variant, Variants } from './types/variant';

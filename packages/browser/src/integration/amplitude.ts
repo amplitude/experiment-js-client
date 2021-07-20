@@ -1,6 +1,7 @@
+import { ExperimentAnalyticsEvent } from '../types/analytics';
 import {
   ExperimentUserProvider,
-  ExperimentTrackingProvider,
+  ExperimentAnalyticsProvider,
 } from '../types/provider';
 import { ExperimentUser } from '../types/user';
 
@@ -69,13 +70,13 @@ export class AmplitudeUserProvider implements ExperimentUserProvider {
  * Provides a tracking implementation for standard experiment events generated
  * by the client (e.g. exposure).
  */
-export class AmplitudeTrackingProvider implements ExperimentTrackingProvider {
+export class AmplitudeTrackingProvider implements ExperimentAnalyticsProvider {
   private amplitudeInstance: AmplitudeInstance;
   constructor(amplitudeInstance: AmplitudeInstance) {
     this.amplitudeInstance = amplitudeInstance;
   }
 
-  track(eventName: string, properties: Record<string, string>): void {
-    this.amplitudeInstance.logEvent(eventName, properties);
+  track(event: ExperimentAnalyticsEvent): void {
+    this.amplitudeInstance.logEvent(event.name, event.properties);
   }
 }
