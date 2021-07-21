@@ -71,7 +71,7 @@ test('ExperimentClient.fetch, with retries, retry success', async () => {
   });
   await client.fetch(testUser);
   let variant = client.variant(serverKey);
-  expect(variant).toEqual(fallbackVariant)
+  expect(variant).toEqual(fallbackVariant);
   await delay(2000);
   variant = client.variant(serverKey);
   expect(variant).toEqual(serverVariant);
