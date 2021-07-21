@@ -156,7 +156,7 @@ test('ExperimentClient.all, initial variants returned', async () => {
 
 /**
  * Setting source to initial variants will prioritize variants in initial
- * variants over those stored in initial variants.
+ * variants over those stored in local storage.
  */
 test('ExperimentClient.fetch, initial variants source, prefer initial', async () => {
   const client = new ExperimentClient(API_KEY, {
