@@ -6,7 +6,10 @@
  */
 
 export { ExperimentConfig, Source } from './config';
-export { AmplitudeUserProvider } from './integration/amplitude';
+export {
+  AmplitudeUserProvider,
+  AmplitudeAnalyticsProvider,
+} from './integration/amplitude';
 export { Experiment } from './factory';
 export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';

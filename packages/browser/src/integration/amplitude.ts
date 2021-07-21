@@ -70,7 +70,7 @@ export class AmplitudeUserProvider implements ExperimentUserProvider {
  * Provides a tracking implementation for standard experiment events generated
  * by the client (e.g. exposure).
  */
-export class AmplitudeTrackingProvider implements ExperimentAnalyticsProvider {
+export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
   private amplitudeInstance: AmplitudeInstance;
   constructor(amplitudeInstance: AmplitudeInstance) {
     this.amplitudeInstance = amplitudeInstance;
