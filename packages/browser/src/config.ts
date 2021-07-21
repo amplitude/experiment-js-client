@@ -101,7 +101,7 @@ export interface ExperimentConfig {
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
  | **userProvider**    | `null` |
- | **trackingProvider**    | `null` |
+ | **analyticsProvider**    | `null` |
 
  *
  * @category Configuration
