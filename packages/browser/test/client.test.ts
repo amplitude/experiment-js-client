@@ -66,11 +66,14 @@ test('ExperimentClient.fetch, no retries, timeout failure', async () => {
  */
 test('ExperimentClient.fetch, with retries, retry success', async () => {
   const client = new ExperimentClient(API_KEY, {
+    fallbackVariant: fallbackVariant,
     fetchTimeoutMillis: 1,
   });
   await client.fetch(testUser);
+  let variant = client.variant(serverKey);
+  expect(variant).toEqual(fallbackVariant)
   await delay(2000);
-  const variant = client.variant(serverKey);
+  variant = client.variant(serverKey);
   expect(variant).toEqual(serverVariant);
 });
 
