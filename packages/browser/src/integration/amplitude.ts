@@ -1,8 +1,14 @@
-import { ExperimentUser, ExperimentUserProvider } from '../types/user';
+import { ExperimentAnalyticsEvent } from '../types/analytics';
+import {
+  ExperimentUserProvider,
+  ExperimentAnalyticsProvider,
+} from '../types/provider';
+import { ExperimentUser } from '../types/user';
 
 type AmplitudeInstance = {
   options?: AmplitudeOptions;
   _ua?: AmplitudeUAParser;
+  logEvent(eventName: string, properties: Record<string, string>): void;
 };
 
 type AmplitudeOptions = {
@@ -57,5 +63,20 @@ export class AmplitudeUserProvider implements ExperimentUserProvider {
 
   private getDeviceModel(): string {
     return this.amplitudeInstance?._ua?.os?.name;
+  }
+}
+
+/**
+ * Provides a tracking implementation for standard experiment events generated
+ * by the client (e.g. exposure).
+ */
+export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
+  private amplitudeInstance: AmplitudeInstance;
+  constructor(amplitudeInstance: AmplitudeInstance) {
+    this.amplitudeInstance = amplitudeInstance;
+  }
+
+  track(event: ExperimentAnalyticsEvent): void {
+    this.amplitudeInstance.logEvent(event.name, event.properties);
   }
 }
