@@ -1,5 +1,7 @@
 import { Source } from '../src/config';
 import { ExperimentClient } from '../src/experimentClient';
+import { ExperimentAnalyticsEvent, ExposureEvent } from '../src/types/analytics';
+import { ExperimentAnalyticsProvider } from '../src/types/provider';
 import { ExperimentUser, ExperimentUserProvider } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
 
@@ -195,3 +197,58 @@ test('ExperimentClient.fetch, with user provider, success', async () => {
   const variant = client.variant('sdk-ci-test');
   expect(variant).toEqual({ value: 'on', payload: 'payload' });
 });
+
+/**
+ * Utility class for testing analytics provider & exposure tracking.
+ */
+class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
+  public didTrack = false;
+  public block: (ExposureEvent) => void;
+  public constructor(block: (ExposureEvent) => void) {
+    this.block = block;
+  }
+  track(event: ExperimentAnalyticsEvent): void {
+    this.block(event);
+    this.didTrack = true;
+  }
+}
+
+/**
+ * Configure a client with an analytics provider which checks that a valid
+ * exposure event is tracked when the client's variant function is called.
+ */
+test('ExperimentClient.variant, with analytics provider, exposure tracked', async () => {
+  const analyticsProvider = new TestAnalyticsProvider((event: ExperimentAnalyticsEvent) => {
+    expect(event.name).toEqual('[Experiment] Exposure');
+    expect(event.properties).toEqual({
+      key: serverKey,
+      variant: serverVariant.value
+    });
+    expect(event).toBeInstanceOf(ExposureEvent);
+    const exposureEvent = event as ExposureEvent
+    expect(exposureEvent.key).toEqual(serverKey)
+    expect(exposureEvent.variant).toEqual(serverVariant)
+  });
+  const client = new ExperimentClient(API_KEY, {
+    analyticsProvider: analyticsProvider,
+  });
+  await client.fetch(testUser);
+  client.variant(serverKey);
+  expect(analyticsProvider.didTrack).toEqual(true)
+})
+
+/**
+ * Configure a client with an analytics provider which fails the test if called.
+ * Tests that the analytics provider is not called with an exposure event when
+ * the client exposes the user to a fallback/initial variant.
+ */
+ test('ExperimentClient.variant, with analytics provider, exposure not tracked on fallback', async () => {
+  const analyticsProvider = new TestAnalyticsProvider(() => {
+    fail('analytics provider should not be called when user exposed to fallback');
+  });
+  const client = new ExperimentClient(API_KEY, {
+    analyticsProvider: analyticsProvider,
+  });
+  client.variant(initialKey);
+  client.variant(unknownKey);
+})
