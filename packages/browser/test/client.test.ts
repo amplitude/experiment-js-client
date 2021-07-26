@@ -1,6 +1,9 @@
 import { Source } from '../src/config';
 import { ExperimentClient } from '../src/experimentClient';
-import { ExperimentAnalyticsEvent, ExposureEvent } from '../src/types/analytics';
+import {
+  ExperimentAnalyticsEvent,
+  ExposureEvent,
+} from '../src/types/analytics';
 import { ExperimentAnalyticsProvider } from '../src/types/provider';
 import { ExperimentUser, ExperimentUserProvider } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
