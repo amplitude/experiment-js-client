@@ -107,27 +107,39 @@ export class ExperimentClient implements Client {
   /**
    * Returns the variant for the provided key.
    *
-   * Fetches {@link all} variants, falling back  on the given fallback, then the
-   * configured fallbackVariant.
+   * Access the variant from {@link Source}, falling back  on the given
+   * fallback, then the configured fallbackVariant.
+   *
+   * If an {@link ExperimentAnalyticsProvider} is configured, this function will
+   * call the provider with an {@link ExposureEvent}. The exposure event does
+   * not count towards your event volume within Amplitude.
    *
    * @param key The key to get the variant for.
    * @param fallback The highest priority fallback.
    * @see ExperimentConfig
+   * @see ExperimentAnalyticsProvider
    */
   public variant(key: string, fallback?: string | Variant): Variant {
     if (!this.apiKey) {
       return { value: undefined };
     }
+    const sourceVariant = this.sourceVariants()[key];
+    if (sourceVariant?.value) {
+      this.config.analyticsProvider?.track(
+        new ExposureEvent(
+          this.addContext(this.getUser()),
+          key,
+          this.convertVariant(sourceVariant),
+        ),
+      );
+    }
     const variant =
-      this.sourceVariants()[key] ??
+      sourceVariant ??
       fallback ??
       this.secondaryVariants()[key] ??
       this.config.fallbackVariant;
     const converted = this.convertVariant(variant);
     this.debug(`[Experiment] variant for ${key} is ${converted.value}`);
-    this.config.analyticsProvider?.track(
-      new ExposureEvent(this.addContext(this.getUser()), key, converted),
-    );
     return converted;
   }
 
