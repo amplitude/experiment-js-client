@@ -28,7 +28,8 @@
   },
   "homepage": "https://github.com/amplitude/experiment-js-client#readme",
   "dependencies": {
-    "unfetch": "^4.1.0"
+    "base64-js": "1.5.1",
+    "unfetch": "4.1.0"
   },
   "gitHead": "0a910f04a64dafcf37b68be45ed7dca58fdd6acf"
 }
