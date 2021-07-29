@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.1.0](https://github.com/amplitude/experiment-js-client/compare/v1.0.3...v1.1.0) (2021-07-29)
+
+
+### Bug Fixes
+
+* add additional client tests and fixes ([#8](https://github.com/amplitude/experiment-js-client/issues/8)) ([d0d196d](https://github.com/amplitude/experiment-js-client/commit/d0d196d32be420b4363ecb95a19aed188e8630c2))
+* don't track exposure to fallbacks and add tests ([#9](https://github.com/amplitude/experiment-js-client/issues/9)) ([bd4917f](https://github.com/amplitude/experiment-js-client/commit/bd4917fcd7b18ceafb6599b76c5e728d565528b4))
+* revert POST to GET request with user in header ([#10](https://github.com/amplitude/experiment-js-client/issues/10)) ([326990c](https://github.com/amplitude/experiment-js-client/commit/326990cd19c00399669d9fa1f369aaa709727766))
+
+
+### Features
+
+* client-side exposure tracking via analytics provider ([#7](https://github.com/amplitude/experiment-js-client/issues/7)) ([30448ab](https://github.com/amplitude/experiment-js-client/commit/30448abf524f12bd6ae7fc34bd247c5ad2927c3a))
+
+
+
+
+
 ## [1.0.3](https://github.com/amplitude/experiment-js-client/compare/v1.0.2...v1.0.3) (2021-07-19)
 
 
