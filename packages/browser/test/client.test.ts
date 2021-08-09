@@ -139,7 +139,7 @@ test('ExperimentClient.variant, initial variants fallback before fetch, no fallb
   variant = client.variant(serverKey);
   expect(variant).toEqual(serverOffVariant);
 
-  await client.fetch();
+  await client.fetch(testUser);
 
   variant = client.variant(initialKey);
   expect(variant).toEqual(initialVariant);
