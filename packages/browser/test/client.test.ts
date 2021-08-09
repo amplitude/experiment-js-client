@@ -206,10 +206,10 @@ test('ExperimentClient.fetch, with user provider, success', async () => {
  * Test that fetch with a user provided by a config user provider rather than an
  * explicit user argument is successful.
  */
- test('ExperimentClient.fetch, with config user provider, success', async () => {
+test('ExperimentClient.fetch, with config user provider, success', async () => {
   const client = new ExperimentClient(API_KEY, {
     userProvider: new TestUserProvider(),
-  })
+  });
   await client.fetch();
   const variant = client.variant('sdk-ci-test');
   expect(variant).toEqual({ value: 'on', payload: 'payload' });
