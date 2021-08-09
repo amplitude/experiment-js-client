@@ -7,12 +7,13 @@ import {
 import { ExperimentAnalyticsProvider } from '../src/types/provider';
 import { ExperimentUser, ExperimentUserProvider } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
+import { randomString } from '../src/util/randomstring';
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 class TestUserProvider implements ExperimentUserProvider {
   getUser(): ExperimentUser {
-    return testUser;
+    return { device_id: `${randomString(32)}` };
   }
 }
 
@@ -196,6 +197,19 @@ test('ExperimentClient.fetch, with user provider, success', async () => {
   const client = new ExperimentClient(API_KEY, {}).setUserProvider(
     new TestUserProvider(),
   );
+  await client.fetch();
+  const variant = client.variant('sdk-ci-test');
+  expect(variant).toEqual({ value: 'on', payload: 'payload' });
+});
+
+/**
+ * Test that fetch with a user provided by a config user provider rather than an
+ * explicit user argument is successful.
+ */
+ test('ExperimentClient.fetch, with config user provider, success', async () => {
+  const client = new ExperimentClient(API_KEY, {
+    userProvider: new TestUserProvider(),
+  })
   await client.fetch();
   const variant = client.variant('sdk-ci-test');
   expect(variant).toEqual({ value: 'on', payload: 'payload' });

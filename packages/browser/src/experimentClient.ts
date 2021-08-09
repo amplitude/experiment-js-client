@@ -62,6 +62,9 @@ export class ExperimentClient implements Client {
   public constructor(apiKey: string, config: ExperimentConfig) {
     this.apiKey = apiKey;
     this.config = { ...Defaults, ...config };
+    if (this.config.userProvider) {
+      this.userProvider = this.config.userProvider;
+    }
     this.httpClient = FetchHttpClient;
     this.storage = new LocalStorage(defaultInstance, apiKey);
     this.storage.load();
