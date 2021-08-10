@@ -16,11 +16,16 @@ export interface ExperimentAnalyticsEvent {
   name: string;
 
   /**
-   * Properties for the analytics event. Should be passed as the event
+   * Event properties for the analytics event. Should be passed as the event
    * properties to the analytics implementation provided by the
    * {@link ExperimentAnalyticsProvider}.
    */
   properties: Record<string, string>;
+
+  /**
+   * Custom user properties
+   */
+  userProperties?: Record<string, unknown>;
 }
 
 /**
@@ -30,6 +35,7 @@ export interface ExperimentAnalyticsEvent {
 export class ExposureEvent implements ExperimentAnalyticsEvent {
   name = '[Experiment] Exposure';
   properties: Record<string, string>;
+  userProperties?: Record<string, unknown>;
 
   /**
    * The user exposed to the flag/experiment variant.
@@ -53,5 +59,6 @@ export class ExposureEvent implements ExperimentAnalyticsEvent {
       key: key,
       variant: variant.value,
     };
+    this.userProperties = user.user_properties;
   }
 }

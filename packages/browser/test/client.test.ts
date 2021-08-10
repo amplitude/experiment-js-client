@@ -220,8 +220,8 @@ test('ExperimentClient.fetch, with config user provider, success', async () => {
  */
 class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
   public didTrack = false;
-  public block: (ExposureEvent) => void;
-  public constructor(block: (ExposureEvent) => void) {
+  public block: (event: ExperimentAnalyticsEvent) => void;
+  public constructor(block: (event: ExperimentAnalyticsEvent) => void) {
     this.block = block;
   }
   track(event: ExperimentAnalyticsEvent): void {
@@ -272,4 +272,25 @@ test('ExperimentClient.variant, with analytics provider, exposure not tracked on
   });
   client.variant(initialKey);
   client.variant(unknownKey);
+});
+
+/**
+ * Configure a client with an analytics provider which checks that
+ * user_properties from the ExperimentUser object are passed through the event
+ * to the analytics provider.
+ */
+test('ExperimentClient.variant, with analytics provider, user properties tracked', async () => {
+  const userProperties = { 'string': 'string', 'bool': true, 'number': 13121 };
+  const analyticsProvider = new TestAnalyticsProvider(
+    (event: ExperimentAnalyticsEvent) => {
+      expect(event.userProperties).toEqual(userProperties);
+    }
+  );
+  const client = new ExperimentClient(API_KEY, {
+    debug: true,
+    analyticsProvider: analyticsProvider,
+  });
+  await client.fetch({ user_properties: userProperties, ...testUser });
+  client.variant(serverKey);
+  expect(analyticsProvider.didTrack).toEqual(true);
 });
