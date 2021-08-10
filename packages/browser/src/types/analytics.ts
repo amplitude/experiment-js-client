@@ -23,7 +23,9 @@ export interface ExperimentAnalyticsEvent {
   properties: Record<string, string>;
 
   /**
-   * Custom user properties
+   * Custom user properties from the {@link ExperimentUser} stored by the
+   * {@link ExperimentClient}. Also includes merged properties provided by the
+   * {@link ExperimentUserProvider}.
    */
   userProperties?: Record<string, unknown>;
 }
