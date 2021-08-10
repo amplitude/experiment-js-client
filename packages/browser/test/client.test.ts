@@ -280,11 +280,11 @@ test('ExperimentClient.variant, with analytics provider, exposure not tracked on
  * to the analytics provider.
  */
 test('ExperimentClient.variant, with analytics provider, user properties tracked', async () => {
-  const userProperties = { 'string': 'string', 'bool': true, 'number': 13121 };
+  const userProperties = { string: 'string', bool: true, number: 13121 };
   const analyticsProvider = new TestAnalyticsProvider(
     (event: ExperimentAnalyticsEvent) => {
       expect(event.userProperties).toEqual(userProperties);
-    }
+    },
   );
   const client = new ExperimentClient(API_KEY, {
     debug: true,
