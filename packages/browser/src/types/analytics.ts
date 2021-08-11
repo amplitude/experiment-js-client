@@ -61,6 +61,8 @@ export class ExposureEvent implements ExperimentAnalyticsEvent {
       key: key,
       variant: variant.value,
     };
-    this.userProperties = user.user_properties;
+    this.userProperties = {
+      [`[Experiment] ${key}`]: variant.value,
+    };
   }
 }

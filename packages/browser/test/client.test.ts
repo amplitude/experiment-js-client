@@ -280,17 +280,18 @@ test('ExperimentClient.variant, with analytics provider, exposure not tracked on
  * to the analytics provider.
  */
 test('ExperimentClient.variant, with analytics provider, user properties tracked', async () => {
-  const userProperties = { string: 'string', bool: true, number: 13121 };
   const analyticsProvider = new TestAnalyticsProvider(
     (event: ExperimentAnalyticsEvent) => {
-      expect(event.userProperties).toEqual(userProperties);
+      expect(event.userProperties).toEqual({
+        [`[Experiment] ${serverKey}`]: serverVariant.value,
+      });
     },
   );
   const client = new ExperimentClient(API_KEY, {
     debug: true,
     analyticsProvider: analyticsProvider,
   });
-  await client.fetch({ user_properties: userProperties, ...testUser });
+  await client.fetch(testUser);
   client.variant(serverKey);
   expect(analyticsProvider.didTrack).toEqual(true);
 });
