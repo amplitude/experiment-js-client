@@ -9,6 +9,7 @@ type AmplitudeInstance = {
   options?: AmplitudeOptions;
   _ua?: AmplitudeUAParser;
   logEvent(eventName: string, properties: Record<string, string>): void;
+  setUserProperties(userProperties: Record<string, unknown>): void;
 };
 
 type AmplitudeOptions = {
@@ -77,6 +78,9 @@ export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
 
   track(event: ExperimentAnalyticsEvent): void {
+    if (event.userProperties) {
+      this.amplitudeInstance.setUserProperties(event.userProperties);
+    }
     this.amplitudeInstance.logEvent(event.name, event.properties);
   }
 }
