@@ -13,7 +13,7 @@ const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 class TestUserProvider implements ExperimentUserProvider {
   getUser(): ExperimentUser {
-    return { device_id: `${randomString(32)}` };
+    return { user_id: `${randomString(32)}` };
   }
 }
 
@@ -194,7 +194,7 @@ test('ExperimentClient.fetch, sets user, setUser overrides', async () => {
  * explicit user argument is successful.
  */
 test('ExperimentClient.fetch, with user provider, success', async () => {
-  const client = new ExperimentClient(API_KEY, {}).setUserProvider(
+  const client = new ExperimentClient(API_KEY, {debug: true}).setUserProvider(
     new TestUserProvider(),
   );
   await client.fetch();
