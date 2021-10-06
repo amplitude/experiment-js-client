@@ -18,4 +18,5 @@ export interface ExperimentUserProvider {
  */
 export interface ExperimentAnalyticsProvider {
   track(event: ExperimentAnalyticsEvent): void;
+  unset(event: ExperimentAnalyticsEvent): void;
 }

@@ -4,12 +4,24 @@ import {
   ExperimentAnalyticsProvider,
 } from '../types/provider';
 import { ExperimentUser } from '../types/user';
+import { safeGlobal } from '../util/global';
+
+declare global {
+  // eslint-disable-next-line no-var, @typescript-eslint/no-explicit-any
+  var amplitude: any;
+}
+
+type AmplitudeIdentify = {
+  set(property: string, value: unknown): void;
+  unset(property: string): void;
+};
 
 type AmplitudeInstance = {
   options?: AmplitudeOptions;
   _ua?: AmplitudeUAParser;
   logEvent(eventName: string, properties: Record<string, string>): void;
   setUserProperties(userProperties: Record<string, unknown>): void;
+  identify(identify: AmplitudeIdentify): void;
 };
 
 type AmplitudeOptions = {
@@ -78,9 +90,17 @@ export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
 
   track(event: ExperimentAnalyticsEvent): void {
-    if (event.userProperties) {
-      this.amplitudeInstance.setUserProperties(event.userProperties);
-    }
+    // if the variant has a value, set the user property and log an event
+    this.amplitudeInstance.setUserProperties({
+      [event.userProperty]: event.variant?.value,
+    });
     this.amplitudeInstance.logEvent(event.name, event.properties);
+  }
+
+  unset(event: ExperimentAnalyticsEvent): void {
+    // if the variant does not have a value, unset the user property
+    this.amplitudeInstance.identify(
+      new safeGlobal.amplitude.Identify().unset(event.userProperty),
+    );
   }
 }

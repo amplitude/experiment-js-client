@@ -21,6 +21,10 @@ const config = {
       payload: {},
     }
   },
+  analyticsProvider: {
+    track: (event) => { console.log('Tracked: ' + JSON.stringify(event))},
+    unset: (event) => { console.log('Unset: ' + JSON.stringify(event))}
+  }
 }
 
 const experiment = Experiment.initialize(
