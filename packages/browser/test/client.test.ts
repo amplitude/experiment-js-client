@@ -194,7 +194,7 @@ test('ExperimentClient.fetch, sets user, setUser overrides', async () => {
  * explicit user argument is successful.
  */
 test('ExperimentClient.fetch, with user provider, success', async () => {
-  const client = new ExperimentClient(API_KEY, {debug: true}).setUserProvider(
+  const client = new ExperimentClient(API_KEY, {}).setUserProvider(
     new TestUserProvider(),
   );
   await client.fetch();
