@@ -1,3 +1,4 @@
+import { VariantSource } from './source';
 import { ExperimentUser } from './user';
 import { Variant } from './variant';
 
@@ -19,11 +20,24 @@ export interface ExperimentAnalyticsEvent {
    * Event properties for the analytics event. Should be passed as the event
    * properties to the analytics implementation provided by the
    * {@link ExperimentAnalyticsProvider}.
+   * This is equivalent to
+   * ```
+   * {
+   *   "key": key,
+   *   "variant": variant,
+   * }
+   * ```
    */
   properties: Record<string, string>;
 
   /**
    * User properties to identify with the user prior to sending the event.
+   * This is equivalent to
+   * ```
+   * {
+   *   [userProperty]: variant
+   * }
+   * ```
    */
   userProperties?: Record<string, unknown>;
 
@@ -76,20 +90,4 @@ export const exposureEvent = (
       [userProperty]: value,
     },
   };
-};
-
-export enum VariantSource {
-  LOCAL_STORAGE = 'storage',
-  INITIAL_VARIANTS = 'initial',
-  SECONDARY_LOCAL_STORAGE = 'secondary-storage',
-  SECONDARY_INITIAL_VARIANTS = 'secondary-initial',
-  FALLBACK_INLINE = 'fallback-inline',
-  FALLBACK_CONFIG = 'fallback-config',
-}
-
-export const isFallback = (source: VariantSource): boolean => {
-  return (
-    source === VariantSource.FALLBACK_INLINE ||
-    source === VariantSource.FALLBACK_CONFIG
-  );
 };

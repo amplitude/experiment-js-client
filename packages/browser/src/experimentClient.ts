@@ -5,12 +5,13 @@
 
 import { version as PACKAGE_VERSION } from '../package.json';
 
-import { ExperimentConfig, Defaults, Source } from './config';
+import { ExperimentConfig, Defaults } from './config';
 import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
-import { exposureEvent, isFallback, VariantSource } from './types/analytics';
+import { exposureEvent } from './types/analytics';
 import { Client } from './types/client';
 import { ExperimentUserProvider } from './types/provider';
+import { isFallback, Source, VariantSource } from './types/source';
 import { Storage } from './types/storage';
 import { HttpClient } from './types/transport';
 import { ExperimentUser } from './types/user';
@@ -121,39 +122,27 @@ export class ExperimentClient implements Client {
    *
    * @param key The key to get the variant for.
    * @param fallback The highest priority fallback.
-   * @param trackExposure Sends a track event via the configured {@link ExperimentAnalyticsProvider}
    * @see ExperimentConfig
    * @see ExperimentAnalyticsProvider
    */
-  public variant(
-    key: string,
-    fallback?: string | Variant,
-    trackExposure = true,
-  ): Variant {
+  public variant(key: string, fallback?: string | Variant): Variant {
     if (!this.apiKey) {
       return { value: undefined };
     }
     const { source, variant } = this.variantAndSource(key, fallback);
 
-    if (trackExposure) {
-      if (isFallback(source) || !variant?.value) {
-        // fallbacks indicate not being allocated into an experiment, so
-        // we can unset the property
-        this.config.analyticsProvider?.unset(
+    if (isFallback(source) || !variant?.value) {
+      // fallbacks indicate not being allocated into an experiment, so
+      // we can unset the property
+      this.config.analyticsProvider?.unset?.(
+        exposureEvent(this.addContext(this.getUser()), key, variant, source),
+      );
+    } else {
+      if (variant?.value) {
+        // only track when there's a value for a non fallback variant
+        this.config.analyticsProvider?.track(
           exposureEvent(this.addContext(this.getUser()), key, variant, source),
         );
-      } else {
-        if (variant?.value) {
-          // only track when there's a value for a non fallback variant
-          this.config.analyticsProvider?.track(
-            exposureEvent(
-              this.addContext(this.getUser()),
-              key,
-              variant,
-              source,
-            ),
-          );
-        }
       }
     }
 
