@@ -27,23 +27,23 @@ export enum Source {
  * @category Source
  */
 export enum VariantSource {
-  LOCAL_STORAGE = 'storage',
-  INITIAL_VARIANTS = 'initial',
-  SECONDARY_LOCAL_STORAGE = 'secondary-storage',
-  SECONDARY_INITIAL_VARIANTS = 'secondary-initial',
-  FALLBACK_INLINE = 'fallback-inline',
-  FALLBACK_CONFIG = 'fallback-config',
+  LocalStorage = 'storage',
+  InitialVariants = 'initial',
+  SecondaryLocalStoraage = 'secondary-storage',
+  SecondaryInitialVariants = 'secondary-initial',
+  FallbackInline = 'fallback-inline',
+  FallbackConfig = 'fallback-config',
 }
 
 /**
  * Returns true if the VariantSource is one of the fallbacks (inline or config)
  *
  * @param source a {@link VariantSource}
- * @returns true if source is {@link VariantSource.FALLBACK_INLINE} or {@link VariantSource.FALLBACK_CONFIG}
+ * @returns true if source is {@link VariantSource.FallbackInline} or {@link VariantSource.FallbackConfig}
  */
 export const isFallback = (source: VariantSource): boolean => {
   return (
-    source === VariantSource.FALLBACK_INLINE ||
-    source === VariantSource.FALLBACK_CONFIG
+    source === VariantSource.FallbackInline ||
+    source === VariantSource.FallbackConfig
   );
 };

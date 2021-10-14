@@ -171,25 +171,25 @@ export class ExperimentClient implements Client {
       if (!isNullOrUndefined(sourceVariant)) {
         return {
           variant: this.convertVariant(sourceVariant),
-          source: VariantSource.INITIAL_VARIANTS,
+          source: VariantSource.InitialVariants,
         };
       }
       const secondaryVariant = this.secondaryVariants()[key];
       if (!isNullOrUndefined(secondaryVariant)) {
         return {
           variant: this.convertVariant(secondaryVariant),
-          source: VariantSource.SECONDARY_LOCAL_STORAGE,
+          source: VariantSource.SecondaryLocalStoraage,
         };
       }
       if (!isNullOrUndefined(fallback)) {
         return {
           variant: this.convertVariant(fallback),
-          source: VariantSource.FALLBACK_INLINE,
+          source: VariantSource.FallbackInline,
         };
       }
       return {
         variant: this.convertVariant(this.config.fallbackVariant),
-        source: VariantSource.FALLBACK_CONFIG,
+        source: VariantSource.FallbackConfig,
       };
     } else {
       // for source = LocalStorage, fallback order goes:
@@ -202,25 +202,25 @@ export class ExperimentClient implements Client {
       if (!isNullOrUndefined(sourceVariant)) {
         return {
           variant: this.convertVariant(sourceVariant),
-          source: VariantSource.LOCAL_STORAGE,
+          source: VariantSource.LocalStorage,
         };
       }
       if (!isNullOrUndefined(fallback)) {
         return {
           variant: this.convertVariant(fallback),
-          source: VariantSource.FALLBACK_INLINE,
+          source: VariantSource.FallbackInline,
         };
       }
       const secondaryVariant = this.secondaryVariants()[key];
       if (!isNullOrUndefined(secondaryVariant)) {
         return {
           variant: this.convertVariant(secondaryVariant),
-          source: VariantSource.SECONDARY_INITIAL_VARIANTS,
+          source: VariantSource.SecondaryInitialVariants,
         };
       }
       return {
         variant: this.convertVariant(this.config.fallbackVariant),
-        source: VariantSource.FALLBACK_CONFIG,
+        source: VariantSource.FallbackConfig,
       };
     }
   }
