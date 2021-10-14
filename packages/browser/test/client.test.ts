@@ -218,7 +218,10 @@ class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
   track(): void {
     return;
   }
-  unset(): void {
+  unsetUserProperty(): void {
+    return;
+  }
+  setUserProperty(): void {
     return;
   }
 }
@@ -230,15 +233,18 @@ class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
 test('ExperimentClient.variant, with analytics provider, exposure tracked, unset not sent', async () => {
   const analyticsProvider = new TestAnalyticsProvider();
   const spyTrack = jest.spyOn(analyticsProvider, 'track');
-  const spyUnset = jest.spyOn(analyticsProvider, 'unset');
+  const spySet = jest.spyOn(analyticsProvider, 'setUserProperty');
+  const spyUnset = jest.spyOn(analyticsProvider, 'unsetUserProperty');
   const client = new ExperimentClient(API_KEY, {
     analyticsProvider: analyticsProvider,
   });
   await client.fetch(testUser);
   client.variant(serverKey);
+
+  expect(spySet).toBeCalledTimes(1);
   expect(spyTrack).toBeCalledTimes(1);
 
-  expect(spyTrack).lastCalledWith({
+  const expectedEvent = {
     name: '[Experiment] Exposure',
     properties: {
       key: serverKey,
@@ -254,7 +260,14 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked, unset
       [`[Experiment] ${serverKey}`]: serverVariant.value,
     },
     userProperty: `[Experiment] ${serverKey}`,
-  });
+  };
+  expect(spySet).lastCalledWith(expectedEvent);
+  expect(spyTrack).lastCalledWith(expectedEvent);
+
+  // verify call order
+  const spySetOrder = spySet.mock.invocationCallOrder[0];
+  const spyTrackOrder = spyTrack.mock.invocationCallOrder[0];
+  expect(spySetOrder).toBeLessThan(spyTrackOrder)
 
   expect(spyUnset).toBeCalledTimes(0);
 });
@@ -267,12 +280,14 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked, unset
 test('ExperimentClient.variant, with analytics provider, exposure not tracked on fallback, unset sent', async () => {
   const analyticsProvider = new TestAnalyticsProvider();
   const spyTrack = jest.spyOn(analyticsProvider, 'track');
-  const spyUnset = jest.spyOn(analyticsProvider, 'unset');
+  const spySet = jest.spyOn(analyticsProvider, 'setUserProperty');
+  const spyUnset = jest.spyOn(analyticsProvider, 'unsetUserProperty');
   const client = new ExperimentClient(API_KEY, {
     analyticsProvider: analyticsProvider,
   });
   client.variant(initialKey);
   client.variant(unknownKey);
   expect(spyTrack).toHaveBeenCalledTimes(0);
+  expect(spySet).toHaveBeenCalledTimes(0);
   expect(spyUnset).toHaveBeenCalledTimes(2);
 });

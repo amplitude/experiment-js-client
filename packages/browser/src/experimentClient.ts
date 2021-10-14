@@ -134,15 +134,20 @@ export class ExperimentClient implements Client {
     if (isFallback(source) || !variant?.value) {
       // fallbacks indicate not being allocated into an experiment, so
       // we can unset the property
-      this.config.analyticsProvider?.unset?.(
+      this.config.analyticsProvider?.unsetUserProperty?.(
         exposureEvent(this.addContext(this.getUser()), key, variant, source),
       );
     } else {
       if (variant?.value) {
         // only track when there's a value for a non fallback variant
-        this.config.analyticsProvider?.track(
-          exposureEvent(this.addContext(this.getUser()), key, variant, source),
+        const event = exposureEvent(
+          this.addContext(this.getUser()),
+          key,
+          variant,
+          source,
         );
+        this.config.analyticsProvider?.setUserProperty?.(event);
+        this.config.analyticsProvider?.track(event);
       }
     }
 

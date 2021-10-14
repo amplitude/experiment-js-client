@@ -90,14 +90,17 @@ export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
 
   track(event: ExperimentAnalyticsEvent): void {
+    this.amplitudeInstance.logEvent(event.name, event.properties);
+  }
+
+  setUserProperty(event: ExperimentAnalyticsEvent): void {
     // if the variant has a value, set the user property and log an event
     this.amplitudeInstance.setUserProperties({
       [event.userProperty]: event.variant?.value,
     });
-    this.amplitudeInstance.logEvent(event.name, event.properties);
   }
 
-  unset(event: ExperimentAnalyticsEvent): void {
+  unsetUserProperty(event: ExperimentAnalyticsEvent): void {
     // if the variant does not have a value, unset the user property
     this.amplitudeInstance.identify(
       new safeGlobal.amplitude.Identify().unset(event.userProperty),
