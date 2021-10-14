@@ -267,7 +267,7 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked, unset
   // verify call order
   const spySetOrder = spySet.mock.invocationCallOrder[0];
   const spyTrackOrder = spyTrack.mock.invocationCallOrder[0];
-  expect(spySetOrder).toBeLessThan(spyTrackOrder)
+  expect(spySetOrder).toBeLessThan(spyTrackOrder);
 
   expect(spyUnset).toBeCalledTimes(0);
 });
