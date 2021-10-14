@@ -137,18 +137,16 @@ export class ExperimentClient implements Client {
       this.config.analyticsProvider?.unsetUserProperty?.(
         exposureEvent(this.addContext(this.getUser()), key, variant, source),
       );
-    } else {
-      if (variant?.value) {
-        // only track when there's a value for a non fallback variant
-        const event = exposureEvent(
-          this.addContext(this.getUser()),
-          key,
-          variant,
-          source,
-        );
-        this.config.analyticsProvider?.setUserProperty?.(event);
-        this.config.analyticsProvider?.track(event);
-      }
+    } else if (variant?.value) {
+      // only track when there's a value for a non fallback variant
+      const event = exposureEvent(
+        this.addContext(this.getUser()),
+        key,
+        variant,
+        source,
+      );
+      this.config.analyticsProvider?.setUserProperty?.(event);
+      this.config.analyticsProvider?.track(event);
     }
 
     this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
