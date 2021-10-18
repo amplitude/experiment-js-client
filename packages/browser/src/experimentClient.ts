@@ -5,16 +5,18 @@
 
 import { version as PACKAGE_VERSION } from '../package.json';
 
-import { ExperimentConfig, Defaults, Source } from './config';
+import { ExperimentConfig, Defaults } from './config';
 import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
-import { ExposureEvent } from './types/analytics';
+import { exposureEvent } from './types/analytics';
 import { Client } from './types/client';
 import { ExperimentUserProvider } from './types/provider';
+import { isFallback, Source, VariantSource } from './types/source';
 import { Storage } from './types/storage';
 import { HttpClient } from './types/transport';
 import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
+import { isNullOrUndefined } from './util';
 import { Backoff } from './util/backoff';
 import { urlSafeBase64Encode } from './util/base64';
 import { randomString } from './util/randomstring';
@@ -114,9 +116,9 @@ export class ExperimentClient implements Client {
    * Access the variant from {@link Source}, falling back  on the given
    * fallback, then the configured fallbackVariant.
    *
-   * If an {@link ExperimentAnalyticsProvider} is configured, this function will
-   * call the provider with an {@link ExposureEvent}. The exposure event does
-   * not count towards your event volume within Amplitude.
+   * If an {@link ExperimentAnalyticsProvider} is configured and trackExposure is
+   * true, this function will call the provider with an {@link ExposureEvent}.
+   * The exposure event does not count towards your event volume within Amplitude.
    *
    * @param key The key to get the variant for.
    * @param fallback The highest priority fallback.
@@ -127,24 +129,100 @@ export class ExperimentClient implements Client {
     if (!this.apiKey) {
       return { value: undefined };
     }
-    const sourceVariant = this.sourceVariants()[key];
-    if (sourceVariant?.value) {
-      this.config.analyticsProvider?.track(
-        new ExposureEvent(
-          this.addContext(this.getUser()),
-          key,
-          this.convertVariant(sourceVariant),
-        ),
+    const { source, variant } = this.variantAndSource(key, fallback);
+
+    if (isFallback(source) || !variant?.value) {
+      // fallbacks indicate not being allocated into an experiment, so
+      // we can unset the property
+      this.config.analyticsProvider?.unsetUserProperty?.(
+        exposureEvent(this.addContext(this.getUser()), key, variant, source),
       );
+    } else if (variant?.value) {
+      // only track when there's a value for a non fallback variant
+      const event = exposureEvent(
+        this.addContext(this.getUser()),
+        key,
+        variant,
+        source,
+      );
+      this.config.analyticsProvider?.setUserProperty?.(event);
+      this.config.analyticsProvider?.track(event);
     }
-    const variant =
-      sourceVariant ??
-      fallback ??
-      this.secondaryVariants()[key] ??
-      this.config.fallbackVariant;
-    const converted = this.convertVariant(variant);
-    this.debug(`[Experiment] variant for ${key} is ${converted.value}`);
-    return converted;
+
+    this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
+    return variant;
+  }
+
+  private variantAndSource(
+    key: string,
+    fallback: string | Variant,
+  ): {
+    variant: Variant;
+    source: VariantSource;
+  } {
+    if (this.config.source === Source.InitialVariants) {
+      // for source = InitialVariants, fallback order goes:
+      // 1. InitialFlags
+      // 2. Local Storage
+      // 3. Function fallback
+      // 4. Config fallback
+
+      const sourceVariant = this.sourceVariants()[key];
+      if (!isNullOrUndefined(sourceVariant)) {
+        return {
+          variant: this.convertVariant(sourceVariant),
+          source: VariantSource.InitialVariants,
+        };
+      }
+      const secondaryVariant = this.secondaryVariants()[key];
+      if (!isNullOrUndefined(secondaryVariant)) {
+        return {
+          variant: this.convertVariant(secondaryVariant),
+          source: VariantSource.SecondaryLocalStoraage,
+        };
+      }
+      if (!isNullOrUndefined(fallback)) {
+        return {
+          variant: this.convertVariant(fallback),
+          source: VariantSource.FallbackInline,
+        };
+      }
+      return {
+        variant: this.convertVariant(this.config.fallbackVariant),
+        source: VariantSource.FallbackConfig,
+      };
+    } else {
+      // for source = LocalStorage, fallback order goes:
+      // 1. Local Storage
+      // 2. Function fallback
+      // 3. InitialFlags
+      // 4. Config fallback
+
+      const sourceVariant = this.sourceVariants()[key];
+      if (!isNullOrUndefined(sourceVariant)) {
+        return {
+          variant: this.convertVariant(sourceVariant),
+          source: VariantSource.LocalStorage,
+        };
+      }
+      if (!isNullOrUndefined(fallback)) {
+        return {
+          variant: this.convertVariant(fallback),
+          source: VariantSource.FallbackInline,
+        };
+      }
+      const secondaryVariant = this.secondaryVariants()[key];
+      if (!isNullOrUndefined(secondaryVariant)) {
+        return {
+          variant: this.convertVariant(secondaryVariant),
+          source: VariantSource.SecondaryInitialVariants,
+        };
+      }
+      return {
+        variant: this.convertVariant(this.config.fallbackVariant),
+        source: VariantSource.FallbackConfig,
+      };
+    }
   }
 
   /**

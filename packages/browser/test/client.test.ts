@@ -1,10 +1,6 @@
-import { Source } from '../src/config';
 import { ExperimentClient } from '../src/experimentClient';
-import {
-  ExperimentAnalyticsEvent,
-  ExposureEvent,
-} from '../src/types/analytics';
 import { ExperimentAnalyticsProvider } from '../src/types/provider';
+import { Source } from '../src/types/source';
 import { ExperimentUser, ExperimentUserProvider } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
 import { randomString } from '../src/util/randomstring';
@@ -219,14 +215,14 @@ test('ExperimentClient.fetch, with config user provider, success', async () => {
  * Utility class for testing analytics provider & exposure tracking.
  */
 class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
-  public didTrack = false;
-  public block: (event: ExperimentAnalyticsEvent) => void;
-  public constructor(block: (event: ExperimentAnalyticsEvent) => void) {
-    this.block = block;
+  track(): void {
+    return;
   }
-  track(event: ExperimentAnalyticsEvent): void {
-    this.block(event);
-    this.didTrack = true;
+  unsetUserProperty(): void {
+    return;
+  }
+  setUserProperty(): void {
+    return;
   }
 }
 
@@ -234,26 +230,46 @@ class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
  * Configure a client with an analytics provider which checks that a valid
  * exposure event is tracked when the client's variant function is called.
  */
-test('ExperimentClient.variant, with analytics provider, exposure tracked', async () => {
-  const analyticsProvider = new TestAnalyticsProvider(
-    (event: ExperimentAnalyticsEvent) => {
-      expect(event.name).toEqual('[Experiment] Exposure');
-      expect(event.properties).toEqual({
-        key: serverKey,
-        variant: serverVariant.value,
-      });
-      expect(event).toBeInstanceOf(ExposureEvent);
-      const exposureEvent = event as ExposureEvent;
-      expect(exposureEvent.key).toEqual(serverKey);
-      expect(exposureEvent.variant).toEqual(serverVariant);
-    },
-  );
+test('ExperimentClient.variant, with analytics provider, exposure tracked, unset not sent', async () => {
+  const analyticsProvider = new TestAnalyticsProvider();
+  const spyTrack = jest.spyOn(analyticsProvider, 'track');
+  const spySet = jest.spyOn(analyticsProvider, 'setUserProperty');
+  const spyUnset = jest.spyOn(analyticsProvider, 'unsetUserProperty');
   const client = new ExperimentClient(API_KEY, {
     analyticsProvider: analyticsProvider,
   });
   await client.fetch(testUser);
   client.variant(serverKey);
-  expect(analyticsProvider.didTrack).toEqual(true);
+
+  expect(spySet).toBeCalledTimes(1);
+  expect(spyTrack).toBeCalledTimes(1);
+
+  const expectedEvent = {
+    name: '[Experiment] Exposure',
+    properties: {
+      key: serverKey,
+      source: 'storage',
+      variant: serverVariant.value,
+    },
+    user: expect.objectContaining({
+      user_id: 'test_user',
+    }),
+    key: serverKey,
+    variant: serverVariant,
+    userProperties: {
+      [`[Experiment] ${serverKey}`]: serverVariant.value,
+    },
+    userProperty: `[Experiment] ${serverKey}`,
+  };
+  expect(spySet).lastCalledWith(expectedEvent);
+  expect(spyTrack).lastCalledWith(expectedEvent);
+
+  // verify call order
+  const spySetOrder = spySet.mock.invocationCallOrder[0];
+  const spyTrackOrder = spyTrack.mock.invocationCallOrder[0];
+  expect(spySetOrder).toBeLessThan(spyTrackOrder);
+
+  expect(spyUnset).toBeCalledTimes(0);
 });
 
 /**
@@ -261,37 +277,17 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked', asyn
  * Tests that the analytics provider is not called with an exposure event when
  * the client exposes the user to a fallback/initial variant.
  */
-test('ExperimentClient.variant, with analytics provider, exposure not tracked on fallback', async () => {
-  const analyticsProvider = new TestAnalyticsProvider(() => {
-    fail(
-      'analytics provider should not be called when user exposed to fallback',
-    );
-  });
+test('ExperimentClient.variant, with analytics provider, exposure not tracked on fallback, unset sent', async () => {
+  const analyticsProvider = new TestAnalyticsProvider();
+  const spyTrack = jest.spyOn(analyticsProvider, 'track');
+  const spySet = jest.spyOn(analyticsProvider, 'setUserProperty');
+  const spyUnset = jest.spyOn(analyticsProvider, 'unsetUserProperty');
   const client = new ExperimentClient(API_KEY, {
     analyticsProvider: analyticsProvider,
   });
   client.variant(initialKey);
   client.variant(unknownKey);
-});
-
-/**
- * Configure a client with an analytics provider which checks that
- * user_properties from the ExperimentUser object are passed through the event
- * to the analytics provider.
- */
-test('ExperimentClient.variant, with analytics provider, user properties tracked', async () => {
-  const analyticsProvider = new TestAnalyticsProvider(
-    (event: ExperimentAnalyticsEvent) => {
-      expect(event.userProperties).toEqual({
-        [`[Experiment] ${serverKey}`]: serverVariant.value,
-      });
-    },
-  );
-  const client = new ExperimentClient(API_KEY, {
-    debug: true,
-    analyticsProvider: analyticsProvider,
-  });
-  await client.fetch(testUser);
-  client.variant(serverKey);
-  expect(analyticsProvider.didTrack).toEqual(true);
+  expect(spyTrack).toHaveBeenCalledTimes(0);
+  expect(spySet).toHaveBeenCalledTimes(0);
+  expect(spyUnset).toHaveBeenCalledTimes(2);
 });

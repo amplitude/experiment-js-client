@@ -5,7 +5,7 @@
  * @module experiment-js-client
  */
 
-export { ExperimentConfig, Source } from './config';
+export { ExperimentConfig } from './config';
 export {
   AmplitudeUserProvider,
   AmplitudeAnalyticsProvider,
@@ -18,5 +18,6 @@ export {
   ExperimentUserProvider,
   ExperimentAnalyticsProvider,
 } from './types/provider';
+export { Source } from './types/source';
 export { ExperimentUser } from './types/user';
 export { Variant, Variants } from './types/variant';
