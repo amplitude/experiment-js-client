@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.3.0](https://github.com/amplitude/experiment-js-client/compare/v1.2.0...v1.3.0) (2021-10-18)
+
+
+### Features
+
+* unset user properties when variant evaluates to none or is a fallback ([#13](https://github.com/amplitude/experiment-js-client/issues/13)) ([dbab7e8](https://github.com/amplitude/experiment-js-client/commit/dbab7e83659628edcd4fca71e001fc38cae6b27b))
+
+
+
+
+
 # [1.2.0](https://github.com/amplitude/experiment-js-client/compare/v1.1.1...v1.2.0) (2021-08-12)
 
 
