@@ -8,11 +8,7 @@ import { Variant, Variants } from './variant';
  */
 export interface Client {
   fetch(user?: ExperimentUser): Promise<Client>;
-  variant(
-    key: string,
-    fallback?: string | Variant,
-    trackExposure?: boolean,
-  ): Variant;
+  variant(key: string, fallback?: string | Variant): Variant;
   all(): Variants;
   getUser(): ExperimentUser;
   setUser(user: ExperimentUser): void;

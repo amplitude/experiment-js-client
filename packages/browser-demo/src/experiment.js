@@ -23,7 +23,8 @@ const config = {
   },
   analyticsProvider: {
     track: (event) => { console.log('Tracked: ' + JSON.stringify(event))},
-    unset: (event) => { console.log('Unset: ' + JSON.stringify(event))}
+    setUserProperty: (event) => { console.log('Set User Property: ' + JSON.stringify(event))},
+    unsetUserProperty: (event) => { console.log('Unset User Property: ' + JSON.stringify(event))}
   }
 }
 
