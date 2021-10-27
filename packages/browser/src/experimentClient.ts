@@ -3,6 +3,8 @@
  * @module experiment-js-client
  */
 
+import { is } from '@babel/types';
+import { AmplitudeUserProvider } from '.';
 import { version as PACKAGE_VERSION } from '../package.json';
 
 import { ExperimentConfig, Defaults } from './config';
@@ -402,7 +404,10 @@ export class ExperimentClient implements Client {
     }
   }
 
-  private addContext(user: ExperimentUser) {
+  private async addContext(user: ExperimentUser): Promise<ExperimentUser> {
+    if (this.userProvider instanceof AmplitudeUserProvider) {
+      await this.userProvider.onceInitialized();
+    }
     return {
       library: `experiment-js-client/${PACKAGE_VERSION}`,
       ...this.userProvider?.getUser(),

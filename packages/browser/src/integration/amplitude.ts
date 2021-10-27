@@ -22,6 +22,7 @@ type AmplitudeInstance = {
   logEvent(eventName: string, properties: Record<string, string>): void;
   setUserProperties(userProperties: Record<string, unknown>): void;
   identify(identify: AmplitudeIdentify): void;
+  onInit(callback: () => void): void;
 };
 
 type AmplitudeOptions = {
@@ -51,6 +52,18 @@ export class AmplitudeUserProvider implements ExperimentUserProvider {
   private amplitudeInstance: AmplitudeInstance;
   constructor(amplitudeInstance: AmplitudeInstance) {
     this.amplitudeInstance = amplitudeInstance;
+  }
+
+  /**
+   * Returns a promise which resolves when the amplitude instance has completed
+   * initialization.
+   */
+  async onceInitialized(): Promise<void> {
+    await new Promise<void>((resolve) => {
+      this.amplitudeInstance.onInit(() => {
+        resolve();
+      });
+    });
   }
 
   getUser(): ExperimentUser {
