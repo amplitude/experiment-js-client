@@ -241,6 +241,9 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked, unset
   await client.fetch(testUser);
   client.variant(serverKey);
 
+  // delay slightly because tracking is asnyc
+  await delay(100);
+
   expect(spySet).toBeCalledTimes(1);
   expect(spyTrack).toBeCalledTimes(1);
 
@@ -269,6 +272,9 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked, unset
   const spyTrackOrder = spyTrack.mock.invocationCallOrder[0];
   expect(spySetOrder).toBeLessThan(spyTrackOrder);
 
+  // delay slightly because tracking is asnyc
+  await delay(100);
+
   expect(spyUnset).toBeCalledTimes(0);
 });
 
@@ -287,6 +293,10 @@ test('ExperimentClient.variant, with analytics provider, exposure not tracked on
   });
   client.variant(initialKey);
   client.variant(unknownKey);
+
+  // delay slightly because tracking is asnyc
+  await delay(100);
+
   expect(spyTrack).toHaveBeenCalledTimes(0);
   expect(spySet).toHaveBeenCalledTimes(0);
   expect(spyUnset).toHaveBeenCalledTimes(2);
