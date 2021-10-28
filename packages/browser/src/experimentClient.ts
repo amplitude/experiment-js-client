@@ -3,11 +3,10 @@
  * @module experiment-js-client
  */
 
-import { is } from '@babel/types';
-import { AmplitudeUserProvider } from '.';
 import { version as PACKAGE_VERSION } from '../package.json';
 
 import { ExperimentConfig, Defaults } from './config';
+import { AmplitudeUserProvider } from './integration/amplitude';
 import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
@@ -136,19 +135,18 @@ export class ExperimentClient implements Client {
     if (isFallback(source) || !variant?.value) {
       // fallbacks indicate not being allocated into an experiment, so
       // we can unset the property
-      this.config.analyticsProvider?.unsetUserProperty?.(
-        exposureEvent(this.addContext(this.getUser()), key, variant, source),
-      );
+      this.addContext(this.getUser()).then((user) => {
+        this.config.analyticsProvider?.unsetUserProperty?.(
+          exposureEvent(user, key, variant, source),
+        );
+      });
     } else if (variant?.value) {
       // only track when there's a value for a non fallback variant
-      const event = exposureEvent(
-        this.addContext(this.getUser()),
-        key,
-        variant,
-        source,
-      );
-      this.config.analyticsProvider?.setUserProperty?.(event);
-      this.config.analyticsProvider?.track(event);
+      this.addContext(this.getUser()).then((user) => {
+        const event = exposureEvent(user, key, variant, source);
+        this.config.analyticsProvider?.setUserProperty?.(event);
+        this.config.analyticsProvider?.track(event);
+      });
     }
 
     this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
@@ -337,7 +335,7 @@ export class ExperimentClient implements Client {
     user: ExperimentUser,
     timeoutMillis: number,
   ): Promise<Variants> {
-    const userContext = this.addContext(user);
+    const userContext = await this.addContext(user);
     const encodedContext = urlSafeBase64Encode(JSON.stringify(userContext));
     let queryString = '';
     if (this.config.debug) {
