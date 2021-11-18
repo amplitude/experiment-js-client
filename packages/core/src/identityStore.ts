@@ -67,7 +67,13 @@ export class IdentityStoreImpl implements IdentityStore {
     return Object.assign(this.identity);
   }
   setIdentity(identity: Identity): void {
+    const originalIdentity = Object.assign(this.identity);
     this.identity = Object.assign(identity);
+    if (originalIdentity != identity) {
+      this.listeners.forEach((listener) => {
+        listener(identity);
+      });
+    }
   }
   addIdentityListener(listener: IdentityListener): void {
     this.listeners.add(listener);
