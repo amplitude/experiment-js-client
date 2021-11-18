@@ -8,5 +8,5 @@ export {
   Identity,
   IdentityStore,
   IdentityListener,
-  Editor,
+  IdentityEditor,
 } from './identityStore';
