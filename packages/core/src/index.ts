@@ -2,7 +2,7 @@ export { AmplitudeCore } from './amplitudeCore';
 export {
   AnalyticsConnector,
   AnalyticsEvent,
-  AnalyticsEventListener,
+  AnalyticsEventReceiver,
 } from './analyticsConnector';
 export {
   Identity,

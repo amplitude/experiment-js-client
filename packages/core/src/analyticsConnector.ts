@@ -4,38 +4,32 @@ export type AnalyticsEvent = {
   userProperties?: Record<string, unknown>;
 };
 
-export type AnalyticsEventListener = (event: AnalyticsEvent) => void;
+export type AnalyticsEventReceiver = (event: AnalyticsEvent) => void;
 
 export interface AnalyticsConnector {
   logEvent(event: AnalyticsEvent): void;
-  addEventListener(listener: AnalyticsEventListener): void;
-  removeEventListener(listener: AnalyticsEventListener): void;
+  setEventReceiver(listener: AnalyticsEventReceiver): void;
 }
 
 export class AnalyticsConnectorImpl implements AnalyticsConnector {
-  private listeners = new Set<AnalyticsEventListener>();
+  private receiver: AnalyticsEventReceiver;
   private queue: AnalyticsEvent[] = [];
 
   logEvent(event: AnalyticsEvent): void {
-    if (this.listeners.size == 0) {
+    if (!this.receiver) {
       this.queue.push(event);
     } else {
-      this.listeners.forEach((listener) => {
-        listener(event);
-      });
+      this.receiver(event);
     }
   }
 
-  addEventListener(listener: AnalyticsEventListener): void {
-    this.listeners.add(listener);
+  setEventReceiver(receiver: AnalyticsEventReceiver): void {
+    this.receiver = receiver;
     if (this.queue.length > 0) {
       this.queue.forEach((event) => {
-        listener(event);
+        receiver(event);
       });
+      this.queue = [];
     }
-  }
-
-  removeEventListener(listener: AnalyticsEventListener): void {
-    this.listeners.delete(listener);
   }
 }

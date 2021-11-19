@@ -1,3 +1,11 @@
+const ID_OP_SET = '$set';
+const ID_OP_UNSET = '$unset';
+const ID_OP_SET_ONCE = '$setOnce';
+const ID_OP_ADD = '$add';
+const ID_OP_APPEND = '$append';
+const ID_OP_PREPEND = '$prepend';
+const ID_OP_CLEAR_ALL = '$clearAll';
+
 export type Identity = {
   userId?: string;
   deviceId?: string;
@@ -30,32 +38,85 @@ export class IdentityStoreImpl implements IdentityStore {
 
   editIdentity(): IdentityEditor {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-    const actingIdentity = Object.assign(this.identity);
+    const self: IdentityStore = this;
+    const actingIdentity: Identity = Object.assign(this.identity);
     const editor: IdentityEditor = {
       setUserId: function (userId: string): IdentityEditor {
         actingIdentity.userId = userId;
         return this;
       },
+
       setDeviceId: function (deviceId: string): IdentityEditor {
         actingIdentity.deviceId = deviceId;
         return this;
       },
+
       setUserProperties: function (
         userProperties: Record<string, unknown>,
       ): IdentityEditor {
         actingIdentity.userProperties = userProperties;
         return this;
       },
+
       updateUserProperties: function (
         actions: Record<string, Record<string, unknown>>,
       ): IdentityEditor {
+        let actingProperties = actingIdentity.userProperties || {};
         for (const [action, properties] of Object.entries(actions)) {
-          // TODO update logic
-          throw Error(`${action}, ${properties}`);
+          switch (action) {
+            case ID_OP_SET:
+              for (const [key, value] of Object.entries(properties)) {
+                actingProperties[key] = value;
+              }
+              break;
+            case ID_OP_UNSET:
+              for (const key of Object.keys(properties)) {
+                delete actingProperties[key];
+              }
+              break;
+            case ID_OP_SET_ONCE:
+              for (const [key, value] of Object.entries(properties)) {
+                if (!actingIdentity.userProperties[key]) {
+                  actingProperties[key] = value;
+                }
+              }
+              break;
+            case ID_OP_ADD:
+              for (const [key, value] of Object.entries(properties)) {
+                const actingValue = actingProperties[key];
+                if (
+                  typeof actingValue === 'number' &&
+                  typeof value === 'number'
+                ) {
+                  actingProperties[key] = actingValue + value;
+                }
+              }
+              break;
+            case ID_OP_APPEND:
+              for (const [key, value] of Object.entries(properties)) {
+                const actingValue = actingProperties[key];
+                if (Array.isArray(actingValue) && Array.isArray(value)) {
+                  actingProperties[key] = actingValue.push(...value);
+                }
+              }
+              break;
+            case ID_OP_PREPEND:
+              for (const [key, value] of Object.entries(properties)) {
+                const actingValue = actingProperties[key];
+                if (Array.isArray(actingValue) && Array.isArray(value)) {
+                  actingProperties[key] = value.push(...actingValue);
+                }
+              }
+              break;
+            case ID_OP_CLEAR_ALL:
+              actingProperties = {};
+              break;
+          }
         }
+        actingIdentity.userProperties = actingProperties;
         return this;
       },
+
       commit: function (): void {
         self.setIdentity(actingIdentity);
         return this;
@@ -63,9 +124,11 @@ export class IdentityStoreImpl implements IdentityStore {
     };
     return editor;
   }
+
   getIdentity(): Identity {
     return Object.assign(this.identity);
   }
+
   setIdentity(identity: Identity): void {
     const originalIdentity = Object.assign(this.identity);
     this.identity = Object.assign(identity);
@@ -75,9 +138,11 @@ export class IdentityStoreImpl implements IdentityStore {
       });
     }
   }
+
   addIdentityListener(listener: IdentityListener): void {
     this.listeners.add(listener);
   }
+
   removeIdentityListener(listener: IdentityListener): void {
     this.listeners.delete(listener);
   }
