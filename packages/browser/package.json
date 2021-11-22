@@ -31,5 +31,9 @@
     "base64-js": "1.5.1",
     "unfetch": "4.1.0"
   },
+  "devDependencies": {
+    "@types/amplitude-js": "^8.0.2",
+    "amplitude-js": "^8.12.0"
+  },
   "gitHead": "0a910f04a64dafcf37b68be45ed7dca58fdd6acf"
 }

@@ -51,6 +51,8 @@
     "ts-jest": "^26.5.4",
     "tslib": "^2.0.1",
     "typedoc": "^0.20.32",
-    "typescript": "^3.9.7"
+    "typescript": "^3.9.7",
+    "@types/amplitude-js": "^8.0.2",
+    "amplitude-js": "^8.12.0"
   }
 }
