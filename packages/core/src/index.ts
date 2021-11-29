@@ -1,4 +1,4 @@
-export { AmplitudeCore, getAmpltudeCore } from './amplitudeCore';
+export { AmplitudeCore, getAmplitudeCore } from './amplitudeCore';
 export {
   AnalyticsConnector,
   AnalyticsEvent,

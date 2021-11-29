@@ -9,7 +9,7 @@ export class AmplitudeCore {
   public readonly analyticsConnector = new AnalyticsConnectorImpl();
 }
 
-export const getAmpltudeCore = (instanceName: string): AmplitudeCore => {
+export const getAmplitudeCore = (instanceName: string): AmplitudeCore => {
   if (!safeGlobal['amplitudeCoreInstances'][instanceName]) {
     safeGlobal['amplitudeCoreInstances'][instanceName] = new AmplitudeCore();
   }
