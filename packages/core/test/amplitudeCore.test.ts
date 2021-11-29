@@ -1,4 +1,4 @@
-import { getAmpltudeCore } from '../src/amplitudeCore';
+import { getAmplitudeCore } from '../src/amplitudeCore';
 
 test('getAmplitudeCore returns the same instance', async () => {
   const core = getAmpltudeCore('$default_instance');

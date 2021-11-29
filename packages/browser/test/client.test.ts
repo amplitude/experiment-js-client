@@ -1,7 +1,10 @@
 import { ExperimentClient } from '../src/experimentClient';
-import { ExperimentAnalyticsProvider } from '../src/types/provider';
+import {
+  ExperimentAnalyticsProvider,
+  ExperimentUserProvider,
+} from '../src/types/provider';
 import { Source } from '../src/types/source';
-import { ExperimentUser, ExperimentUserProvider } from '../src/types/user';
+import { ExperimentUser } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
 import { randomString } from '../src/util/randomstring';
 

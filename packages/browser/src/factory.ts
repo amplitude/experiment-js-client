@@ -1,5 +1,8 @@
+import { getAmplitudeCore } from '@amplitude/amplitude-core';
+
 import { ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
+import { CoreAnalyticsProvider, CoreUserProvider } from './integration/core';
 
 const instances = {};
 
@@ -22,10 +25,33 @@ const initialize = (
   return instances[defaultInstance];
 };
 
+const initializeWithAmplitude = (
+  apiKey: string,
+  config?: ExperimentConfig,
+): ExperimentClient => {
+  const core = getAmplitudeCore(defaultInstance);
+  if (!instances[defaultInstance]) {
+    if (!config.userProvider) {
+      config.userProvider = new CoreUserProvider(core.identityStore);
+    }
+    if (!config.analyticsProvider) {
+      config.analyticsProvider = new CoreAnalyticsProvider(
+        core.analyticsConnector,
+      );
+    }
+    instances[defaultInstance] = new ExperimentClient(apiKey, config);
+    core.identityStore.addIdentityListener(() => {
+      instances[defaultInstance].fetch();
+    });
+  }
+  return instances[defaultInstance];
+};
+
 /**
  * Provides factory methods for storing singleton instances of {@link ExperimentClient}
  * @category Core Usage
  */
 export const Experiment = {
   initialize,
+  initializeWithAmplitude,
 };
