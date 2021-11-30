@@ -1,4 +1,4 @@
-import { getAmplitudeCore } from '@amplitude/amplitude-core';
+import { AmplitudeCore } from '@amplitude/amplitude-core';
 
 import { ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
@@ -29,7 +29,7 @@ const initializeWithAmplitude = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
-  const core = getAmplitudeCore(defaultInstance);
+  const core = AmplitudeCore.getInstance(defaultInstance);
   if (!instances[defaultInstance]) {
     if (!config.userProvider) {
       config.userProvider = new CoreUserProvider(core.identityStore);
