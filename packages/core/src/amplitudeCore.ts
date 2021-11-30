@@ -7,11 +7,11 @@ safeGlobal['amplitudeCoreInstances'] = {};
 export class AmplitudeCore {
   public readonly identityStore = new IdentityStoreImpl();
   public readonly analyticsConnector = new AnalyticsConnectorImpl();
-}
 
-export const getAmplitudeCore = (instanceName: string): AmplitudeCore => {
-  if (!safeGlobal['amplitudeCoreInstances'][instanceName]) {
-    safeGlobal['amplitudeCoreInstances'][instanceName] = new AmplitudeCore();
+  static getInstance(instanceName: string): AmplitudeCore {
+    if (!safeGlobal['amplitudeCoreInstances'][instanceName]) {
+      safeGlobal['amplitudeCoreInstances'][instanceName] = new AmplitudeCore();
+    }
+    return safeGlobal['amplitudeCoreInstances'][instanceName];
   }
-  return safeGlobal['amplitudeCoreInstances'][instanceName];
-};
+}
