@@ -11,7 +11,7 @@ const browserConfig = {
   input: 'src/index.ts',
   output: {
     dir: 'dist',
-    entryFileNames: 'experiment.umd.js',
+    entryFileNames: 'core.umd.js',
     exports: 'named',
     format: 'umd',
     name: 'Experiment',
