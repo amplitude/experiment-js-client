@@ -31,6 +31,7 @@ const initializeWithAmplitude = (
 ): ExperimentClient => {
   const core = AmplitudeCore.getInstance(defaultInstance);
   if (!instances[defaultInstance]) {
+    config = config || {};
     if (!config.userProvider) {
       config.userProvider = new CoreUserProvider(core.identityStore);
     }
