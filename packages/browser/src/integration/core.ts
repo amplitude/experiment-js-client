@@ -54,35 +54,55 @@ export class CoreUserProvider implements ExperimentUserProvider {
 
 export class CoreAnalyticsProvider implements ExperimentAnalyticsProvider {
   private readonly analyticsConnector: AnalyticsConnector;
+
+  // In memory record of flagKey and variant value to in order to only set
+  // user properties and track an exposure event once per session unless the
+  // variant value changes
+  private readonly exposures: Record<string, string> = {};
+
   constructor(analyticsConnector: AnalyticsConnector) {
     this.analyticsConnector = analyticsConnector;
   }
 
   track(event: ExperimentAnalyticsEvent): void {
+    if (this.hasAlreadyBeenExposedTo(event.key, event.variant.value)) {
+      return;
+    } else {
+      this.exposures[event.key] = event.variant.value;
+    }
     const analyticsEvent: AnalyticsEvent = {
       eventType: event.name,
       eventProperties: event.properties,
+      userProperties: { $set: { [event.userProperty]: event.variant.value } },
     };
     this.analyticsConnector.logEvent(analyticsEvent);
   }
 
   setUserProperty?(event: ExperimentAnalyticsEvent): void {
+    if (this.hasAlreadyBeenExposedTo(event.key, event.variant.value)) {
+      return;
+    }
     const analyticsEvent: AnalyticsEvent = {
       eventType: '$identify',
       userProperties: {
-        $set: { [event.userProperty]: event.variant },
+        $set: { [event.userProperty]: event.variant.value },
       },
     };
     this.analyticsConnector.logEvent(analyticsEvent);
   }
 
   unsetUserProperty?(event: ExperimentAnalyticsEvent): void {
+    delete this.exposures[event.key];
     const analyticsEvent: AnalyticsEvent = {
       eventType: '$identify',
       userProperties: {
-        $unset: { [event.userProperty]: event.variant },
+        $unset: { [event.userProperty]: event.variant.value },
       },
     };
     this.analyticsConnector.logEvent(analyticsEvent);
+  }
+
+  private hasAlreadyBeenExposedTo(flagKey: string, value: string): boolean {
+    return this.exposures && this.exposures[flagKey] == value;
   }
 }
