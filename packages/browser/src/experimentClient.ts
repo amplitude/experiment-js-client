@@ -337,7 +337,7 @@ export class ExperimentClient implements Client {
     user: ExperimentUser,
     timeoutMillis: number,
   ): Promise<Variants> {
-    const userContext = this.addContext(user);
+    const userContext = await this.addContext(user);
     const encodedContext = urlSafeBase64Encode(JSON.stringify(userContext));
     let queryString = '';
     if (this.config.debug) {
