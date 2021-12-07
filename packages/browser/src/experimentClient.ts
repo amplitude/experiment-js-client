@@ -6,6 +6,7 @@
 import { version as PACKAGE_VERSION } from '../package.json';
 
 import { ExperimentConfig, Defaults } from './config';
+import { CoreUserProvider } from './integration/core';
 import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
@@ -134,19 +135,20 @@ export class ExperimentClient implements Client {
     if (isFallback(source) || !variant?.value) {
       // fallbacks indicate not being allocated into an experiment, so
       // we can unset the property
-      this.config.analyticsProvider?.unsetUserProperty?.(
-        exposureEvent(this.addContext(this.getUser()), key, variant, source),
-      );
+      this.addContext(this.getUser()).then((user) => {
+        this.config.analyticsProvider?.unsetUserProperty?.(
+          exposureEvent(user, key, variant, source),
+        );
+      });
     } else if (variant?.value) {
-      // only track when there's a value for a non fallback variant
-      const event = exposureEvent(
-        this.addContext(this.getUser()),
-        key,
-        variant,
-        source,
-      );
-      this.config.analyticsProvider?.setUserProperty?.(event);
-      this.config.analyticsProvider?.track(event);
+      // fallbacks indicate not being allocated into an experiment, so
+      // we can unset the property
+      this.addContext(this.getUser()).then((user) => {
+        // only track when there's a value for a non fallback variant
+        const event = exposureEvent(user, key, variant, source);
+        this.config.analyticsProvider?.setUserProperty?.(event);
+        this.config.analyticsProvider?.track(event);
+      });
     }
 
     this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
@@ -402,7 +404,10 @@ export class ExperimentClient implements Client {
     }
   }
 
-  private addContext(user: ExperimentUser) {
+  private async addContext(user: ExperimentUser): Promise<ExperimentUser> {
+    if (this.userProvider instanceof CoreUserProvider) {
+      await this.userProvider.identityReady();
+    }
     return {
       library: `experiment-js-client/${PACKAGE_VERSION}`,
       ...this.userProvider?.getUser(),
