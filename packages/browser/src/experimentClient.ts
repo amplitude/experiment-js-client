@@ -408,10 +408,16 @@ export class ExperimentClient implements Client {
     if (this.userProvider instanceof CoreUserProvider) {
       await this.userProvider.identityReady();
     }
+    const providedUser = this.userProvider?.getUser();
+    const mergedUserProperties = {
+      ...user?.user_properties,
+      ...providedUser?.user_properties,
+    };
     return {
       library: `experiment-js-client/${PACKAGE_VERSION}`,
       ...this.userProvider?.getUser(),
       ...user,
+      user_properties: mergedUserProperties,
     };
   }
 
