@@ -30,6 +30,35 @@ test('editIdentity, setUserId setDeviceId, identity listener called', async () =
   expect(listenerCalled).toEqual(true);
 });
 
+test('editIdentity, updateUserProperties, identity listener called', async () => {
+  const identityStore = new IdentityStoreImpl();
+  let listenerCalled = false;
+  identityStore.addIdentityListener(() => {
+    listenerCalled = true;
+  });
+
+  identityStore
+    .editIdentity()
+    .setUserId('user_id')
+    .setDeviceId('device_id')
+    .commit();
+  expect(listenerCalled).toEqual(true);
+
+  listenerCalled = false;
+  identityStore
+    .editIdentity()
+    .updateUserProperties({ $set: { test: 'test' } })
+    .commit();
+  expect(listenerCalled).toEqual(true);
+
+  listenerCalled = false;
+  identityStore
+    .editIdentity()
+    .updateUserProperties({ $set: { test: 'test2' } })
+    .commit();
+  expect(listenerCalled).toEqual(true);
+});
+
 test('setIdentity, getIdentity, success', async () => {
   const identityStore = new IdentityStoreImpl();
   const expectedIdentity = { userId: 'user_id', deviceId: 'device_id' };

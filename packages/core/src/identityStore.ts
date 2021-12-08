@@ -39,7 +39,11 @@ export class IdentityStoreImpl implements IdentityStore {
   editIdentity(): IdentityEditor {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self: IdentityStore = this;
-    const actingIdentity: Identity = { ...this.identity };
+    const actingUserProperties = { ...this.identity.userProperties };
+    const actingIdentity: Identity = {
+      ...this.identity,
+      userProperties: actingUserProperties,
+    };
     const editor: IdentityEditor = {
       setUserId: function (userId: string): IdentityEditor {
         actingIdentity.userId = userId;
