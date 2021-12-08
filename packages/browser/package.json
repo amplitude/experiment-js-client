@@ -30,7 +30,7 @@
   "dependencies": {
     "base64-js": "1.5.1",
     "unfetch": "4.1.0",
-    "@amplitude/amplitude-core": "0.0.1"
+    "@amplitude/amplitude-core": "0.0.2"
   },
   "devDependencies": {
     "@types/amplitude-js": "^8.0.2",

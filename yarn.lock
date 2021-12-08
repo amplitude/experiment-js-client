@@ -3,9 +3,9 @@
 
 
 "@amplitude/experiment-js-client@file:packages/browser":
-  version "1.4.0-alpha.0"
+  version "1.4.0-alpha.3"
   dependencies:
-    "@amplitude/amplitude-core" "0.0.1"
+    "@amplitude/amplitude-core" "0.0.2"
     base64-js "1.5.1"
     unfetch "4.1.0"
 
