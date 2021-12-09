@@ -1,0 +1,36 @@
+{
+  "name": "@amplitude/experiment-js-segment-plugin",
+  "version": "0.0.1",
+  "description": "Segment Plugin for Amplitude JavaScript Experiment SDK",
+  "main": "dist/segment.umd.js",
+  "types": "dist/types/src/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && rollup -c",
+    "docs": "typedoc",
+    "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
+    "test": "jest",
+    "version": "yarn docs && git add ../../docs",
+    "prepublish": "yarn build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amplitude/experiment-js-client.git",
+    "directory": "packages/segment-plugin"
+  },
+  "author": "Amplitude",
+  "license": "MIT",
+  "private": false,
+  "bugs": {
+    "url": "https://github.com/amplitude/experiment-js-client/issues"
+  },
+  "homepage": "https://github.com/amplitude/experiment-js-client#readme",
+
+  "devDependencies": {
+    "@amplitude/experiment-js-client": "1.3.0",
+    "@segment/analytics-next": "1.32.1"
+  },
+  "gitHead": "0a910f04a64dafcf37b68be45ed7dca58fdd6acf"
+}
