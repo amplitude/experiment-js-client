@@ -17,7 +17,7 @@ export class SegmentAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
   unsetUserProperty(event: ExperimentAnalyticsEvent): void {
     this.segment.identify({
-      [event.userProperty]: null,
+      [event.userProperty]: '(none)',
     });
   }
 }
