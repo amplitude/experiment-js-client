@@ -239,10 +239,14 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked, unset
   const spySet = jest.spyOn(analyticsProvider, 'setUserProperty');
   const spyUnset = jest.spyOn(analyticsProvider, 'unsetUserProperty');
   const client = new ExperimentClient(API_KEY, {
+    debug: true,
     analyticsProvider: analyticsProvider,
   });
   await client.fetch(testUser);
   client.variant(serverKey);
+
+  // analytics provider call is asynchronous
+  await delay(100);
 
   expect(spySet).toBeCalledTimes(1);
   expect(spyTrack).toBeCalledTimes(1);
@@ -290,6 +294,10 @@ test('ExperimentClient.variant, with analytics provider, exposure not tracked on
   });
   client.variant(initialKey);
   client.variant(unknownKey);
+
+  // analytics provider call is asynchronous
+  await delay(100);
+
   expect(spyTrack).toHaveBeenCalledTimes(0);
   expect(spySet).toHaveBeenCalledTimes(0);
   expect(spyUnset).toHaveBeenCalledTimes(2);
