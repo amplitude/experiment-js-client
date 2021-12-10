@@ -58,17 +58,19 @@ export class CoreAnalyticsProvider implements ExperimentAnalyticsProvider {
   // In memory record of flagKey and variant value to in order to only set
   // user properties and track an exposure event once per session unless the
   // variant value changes
-  private readonly exposures: Record<string, string> = {};
+  private readonly setProperties: Record<string, string> = {};
+  private readonly unsetProperties: Record<string, string> = {};
 
   constructor(analyticsConnector: AnalyticsConnector) {
     this.analyticsConnector = analyticsConnector;
   }
 
   track(event: ExperimentAnalyticsEvent): void {
-    if (this.hasAlreadyBeenExposedTo(event.key, event.variant.value)) {
+    if (this.setProperties[event.key] == event.variant.value) {
       return;
     } else {
-      this.exposures[event.key] = event.variant.value;
+      this.setProperties[event.key] = event.variant.value;
+      delete this.unsetProperties[event.key];
     }
     const analyticsEvent: AnalyticsEvent = {
       eventType: event.name,
@@ -79,7 +81,7 @@ export class CoreAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
 
   setUserProperty?(event: ExperimentAnalyticsEvent): void {
-    if (this.hasAlreadyBeenExposedTo(event.key, event.variant.value)) {
+    if (this.setProperties[event.key] == event.variant.value) {
       return;
     }
     const analyticsEvent: AnalyticsEvent = {
@@ -92,7 +94,12 @@ export class CoreAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
 
   unsetUserProperty?(event: ExperimentAnalyticsEvent): void {
-    delete this.exposures[event.key];
+    if (this.unsetProperties[event.key]) {
+      return;
+    } else {
+      this.unsetProperties[event.key] = 'unset';
+      delete this.setProperties[event.key];
+    }
     const analyticsEvent: AnalyticsEvent = {
       eventType: '$identify',
       userProperties: {
@@ -100,9 +107,5 @@ export class CoreAnalyticsProvider implements ExperimentAnalyticsProvider {
       },
     };
     this.analyticsConnector.logEvent(analyticsEvent);
-  }
-
-  private hasAlreadyBeenExposedTo(flagKey: string, value: string): boolean {
-    return this.exposures && this.exposures[flagKey] == value;
   }
 }
