@@ -241,7 +241,6 @@ test('ExperimentClient.variant, with analytics provider, unset called only once 
     eventCount++;
   });
   const client = new ExperimentClient(API_KEY, {
-    debug: true,
     analyticsProvider: analyticsProvider,
   });
   await client.fetch(testUser);
