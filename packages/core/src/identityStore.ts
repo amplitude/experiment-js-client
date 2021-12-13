@@ -33,7 +33,7 @@ export interface IdentityEditor {
 }
 
 export class IdentityStoreImpl implements IdentityStore {
-  private identity: Identity = {};
+  private identity: Identity = { userProperties: {} };
   private listeners = new Set<IdentityListener>();
 
   editIdentity(): IdentityEditor {
@@ -44,7 +44,7 @@ export class IdentityStoreImpl implements IdentityStore {
       ...this.identity,
       userProperties: actingUserProperties,
     };
-    const editor: IdentityEditor = {
+    return {
       setUserId: function (userId: string): IdentityEditor {
         actingIdentity.userId = userId;
         return this;
@@ -126,7 +126,6 @@ export class IdentityStoreImpl implements IdentityStore {
         return this;
       },
     };
-    return editor;
   }
 
   getIdentity(): Identity {

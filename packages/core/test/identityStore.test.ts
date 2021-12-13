@@ -11,12 +11,20 @@ test('editIdentity, setUserId setDeviceId, success', async () => {
     .setDeviceId('device_id')
     .commit();
   const identity = identityStore.getIdentity();
-  expect(identity).toEqual({ userId: 'user_id', deviceId: 'device_id' });
+  expect(identity).toEqual({
+    userId: 'user_id',
+    deviceId: 'device_id',
+    userProperties: {},
+  });
 });
 
 test('editIdentity, setUserId setDeviceId, identity listener called', async () => {
   const identityStore = new IdentityStoreImpl();
-  const expectedIdentity = { userId: 'user_id', deviceId: 'device_id' };
+  const expectedIdentity = {
+    userId: 'user_id',
+    deviceId: 'device_id',
+    userProperties: {},
+  };
   let listenerCalled = false;
   identityStore.addIdentityListener((identity) => {
     expect(identity).toEqual(expectedIdentity);
