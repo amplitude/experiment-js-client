@@ -1,3 +1,6 @@
+import { AnalyticsConnectorImpl } from '@amplitude/amplitude-core/src/analyticsConnector';
+import { CoreAnalyticsProvider } from 'src/integration/core';
+
 import { ExperimentClient } from '../src/experimentClient';
 import {
   ExperimentAnalyticsProvider,
@@ -176,7 +179,7 @@ test('ExperimentClient.fetch, initial variants source, prefer initial', async ()
 });
 
 /**
- * Test that fetch with an explicit user arguement will set the user within the
+ * Test that fetch with an explicit user argument will set the user within the
  * client, and calling setUser() after will overwrite the user.
  */
 test('ExperimentClient.fetch, sets user, setUser overrides', async () => {
@@ -229,6 +232,30 @@ class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
 }
 
+test('ExperimentClient.variant, with analytics provider, unset called only once per key', async () => {
+  const analyticsConnector = new AnalyticsConnectorImpl();
+  const analyticsProvider = new CoreAnalyticsProvider(analyticsConnector);
+  const unsetSpy = jest.spyOn(analyticsProvider, 'unsetUserProperty');
+  let eventCount = 0;
+  analyticsConnector.setEventReceiver(() => {
+    eventCount++;
+  });
+  const client = new ExperimentClient(API_KEY, {
+    debug: true,
+    analyticsProvider: analyticsProvider,
+  });
+  await client.fetch(testUser);
+  for (let i = 0; i < 100; i++) {
+    client.variant('key-that-does-not-exist');
+  }
+
+  // analytics provider call is asynchronous
+  await delay(1000);
+
+  expect(unsetSpy).toBeCalledTimes(100);
+  expect(eventCount).toEqual(1);
+});
+
 /**
  * Configure a client with an analytics provider which checks that a valid
  * exposure event is tracked when the client's variant function is called.
@@ -246,7 +273,7 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked, unset
   client.variant(serverKey);
 
   // analytics provider call is asynchronous
-  await delay(100);
+  await delay(1000);
 
   expect(spySet).toBeCalledTimes(1);
   expect(spyTrack).toBeCalledTimes(1);
@@ -296,7 +323,7 @@ test('ExperimentClient.variant, with analytics provider, exposure not tracked on
   client.variant(unknownKey);
 
   // analytics provider call is asynchronous
-  await delay(100);
+  await delay(1000);
 
   expect(spyTrack).toHaveBeenCalledTimes(0);
   expect(spySet).toHaveBeenCalledTimes(0);
