@@ -1,16 +1,14 @@
 import { AmplitudeCore } from '@amplitude/amplitude-core';
 
-import { ExperimentConfig } from './config';
+import { Defaults, ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
 import { CoreAnalyticsProvider, CoreUserProvider } from './integration/core';
 
 const instances = {};
 
-// TODO this is defined twice, figure something better out.
-const defaultInstance = '$default_instance';
-
 /**
- * Initializes a singleton {@link ExperimentClient} identified by the api-key.
+ * Initializes a singleton {@link ExperimentClient} identified by the configured
+ * instance name.
  *
  * @param apiKey The environment API Key
  * @param config See {@link ExperimentConfig} for config options
@@ -19,18 +17,35 @@ const initialize = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
-  if (!instances[defaultInstance]) {
-    instances[defaultInstance] = new ExperimentClient(apiKey, config);
+  // Store instances by appending the instance name and api key. Allows for
+  // initializing multiple default instances for different api keys.
+  const instanceName = config?.instanceName || Defaults.instanceName;
+  const instanceKey = `${instanceName}.${apiKey}`;
+  if (!instances[instanceKey]) {
+    instances[instanceKey] = new ExperimentClient(apiKey, config);
   }
-  return instances[defaultInstance];
+  return instances[instanceKey];
 };
 
-const initializeWithAmplitude = (
+/**
+ * Initialize a singleton {@link ExperimentClient} which automatically
+ * integrates with the installed and initialized instance of the amplitude
+ * analytics SDK.
+ *
+ * Amplitude analytics
+ * @param apiKey
+ * @param config
+ */
+const initializeWithAmplitudeAnalytics = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
-  const core = AmplitudeCore.getInstance(defaultInstance);
-  if (!instances[defaultInstance]) {
+  // Store instances by appending the instance name and api key. Allows for
+  // initializing multiple default instances for different api keys.
+  const instanceName = config?.instanceName || Defaults.instanceName;
+  const instanceKey = `${instanceName}.${apiKey}`;
+  const core = AmplitudeCore.getInstance(instanceName);
+  if (!instances[instanceKey]) {
     config = config || {};
     if (!config.userProvider) {
       config.userProvider = new CoreUserProvider(core.identityStore);
@@ -40,12 +55,12 @@ const initializeWithAmplitude = (
         core.analyticsConnector,
       );
     }
-    instances[defaultInstance] = new ExperimentClient(apiKey, config);
+    instances[instanceKey] = new ExperimentClient(apiKey, config);
     core.identityStore.addIdentityListener(() => {
-      instances[defaultInstance].fetch();
+      instances[instanceKey].fetch();
     });
   }
-  return instances[defaultInstance];
+  return instances[instanceKey];
 };
 
 /**
@@ -54,5 +69,5 @@ const initializeWithAmplitude = (
  */
 export const Experiment = {
   initialize,
-  initializeWithAmplitude,
+  initializeWithAmplitudeAnalytics,
 };

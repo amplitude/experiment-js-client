@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-js-client",
-  "version": "1.4.0-alpha.8",
+  "version": "1.4.0-alpha.9",
   "description": "Javascript Client SDK for Amplitude Experiment",
   "main": "dist/experiment.umd.js",
   "types": "dist/types/src/index.d.ts",

@@ -47,7 +47,7 @@ export class CoreUserProvider implements ExperimentUserProvider {
       user_id: identity.userId,
       device_id: identity.deviceId,
       user_properties: userProperties,
-      // TODO: Other contextual info
+      // TODO: Other contextual info, should be contained in core
     };
   }
 }

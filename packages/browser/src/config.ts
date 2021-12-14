@@ -16,6 +16,13 @@ export interface ExperimentConfig {
   debug?: boolean;
 
   /**
+   * The name of the instance being initialized. Used for initializing separate
+   * instances of experiment or linking the experiment SDK to a specific
+   * instance of the amplitude analytics SDK.
+   */
+  instanceName?: string;
+
+  /**
    * The default fallback variant for all {@link ExperimentClient.variant}
    * calls.
    */
@@ -72,6 +79,7 @@ export interface ExperimentConfig {
  | **Option**       | **Default**                       |
  |------------------|-----------------------------------|
  | **debug**        | `false`                           |
+ | **instanceName** | `$default_instance` |
  | **fallbackVariant**         | `null`                 |
  | **initialVariants**         | `null`                 |
  | **source** | `Source.LocalStorage` |
@@ -86,6 +94,7 @@ export interface ExperimentConfig {
  */
 export const Defaults: ExperimentConfig = {
   debug: false,
+  instanceName: '$default_instance',
   fallbackVariant: {},
   initialVariants: {},
   source: Source.LocalStorage,

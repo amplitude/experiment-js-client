@@ -30,9 +30,6 @@ const fetchBackoffMinMillis = 500;
 const fetchBackoffMaxMillis = 10000;
 const fetchBackoffScalar = 1.5;
 
-// TODO this is defined twice, figure something better out.
-const defaultInstance = '$default_instance';
-
 /**
  * The default {@link Client} used to fetch variations from Experiment's
  * servers.
@@ -69,7 +66,7 @@ export class ExperimentClient implements Client {
       this.userProvider = this.config.userProvider;
     }
     this.httpClient = FetchHttpClient;
-    this.storage = new LocalStorage(defaultInstance, apiKey);
+    this.storage = new LocalStorage(this.config.instanceName, apiKey);
     this.storage.load();
   }
 
