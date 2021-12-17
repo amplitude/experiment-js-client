@@ -17,7 +17,9 @@ export class AnalyticsConnectorImpl implements AnalyticsConnector {
 
   logEvent(event: AnalyticsEvent): void {
     if (!this.receiver) {
-      this.queue.push(event);
+      if (this.queue.length < 512) {
+        this.queue.push(event);
+      }
     } else {
       this.receiver(event);
     }
