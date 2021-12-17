@@ -5,6 +5,10 @@ export {
   AnalyticsEventReceiver,
 } from './analyticsConnector';
 export {
+  ApplicationContext,
+  ApplicationContextProvider,
+} from './applicationContextProvider';
+export {
   Identity,
   IdentityStore,
   IdentityListener,
