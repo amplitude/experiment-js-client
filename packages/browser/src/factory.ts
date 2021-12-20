@@ -3,6 +3,7 @@ import { AmplitudeCore } from '@amplitude/amplitude-core';
 import { Defaults, ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
 import { CoreAnalyticsProvider, CoreUserProvider } from './integration/core';
+import { DefaultUserProvider } from './integration/default';
 
 const instances = {};
 
@@ -21,7 +22,12 @@ const initialize = (
   // initializing multiple default instances for different api keys.
   const instanceName = config?.instanceName || Defaults.instanceName;
   const instanceKey = `${instanceName}.${apiKey}`;
+  const core = AmplitudeCore.getInstance(instanceName);
   if (!instances[instanceKey]) {
+    config = {
+      userProvider: new DefaultUserProvider(core.applicationContextProvider),
+      ...config,
+    };
     instances[instanceKey] = new ExperimentClient(apiKey, config);
   }
   return instances[instanceKey];
@@ -46,15 +52,11 @@ const initializeWithAmplitudeAnalytics = (
   const instanceKey = `${instanceName}.${apiKey}`;
   const core = AmplitudeCore.getInstance(instanceName);
   if (!instances[instanceKey]) {
-    config = config || {};
-    if (!config.userProvider) {
-      config.userProvider = new CoreUserProvider(core.identityStore);
-    }
-    if (!config.analyticsProvider) {
-      config.analyticsProvider = new CoreAnalyticsProvider(
-        core.analyticsConnector,
-      );
-    }
+    config = {
+      userProvider: new CoreUserProvider(core.identityStore),
+      analyticsProvider: new CoreAnalyticsProvider(core.analyticsConnector),
+      ...config,
+    };
     instances[instanceKey] = new ExperimentClient(apiKey, config);
     core.identityStore.addIdentityListener(() => {
       instances[instanceKey].fetch();

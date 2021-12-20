@@ -13,9 +13,20 @@ export interface ApplicationContextProvider {
   getApplicationContext(): ApplicationContext;
 }
 
+export const getApplicationContext = (
+  versionName: string = null,
+): ApplicationContext => {
+  return {
+    versionName: versionName,
+    language: getLanguage(),
+    platform: 'Web',
+    os: getOs(this.ua),
+    deviceModel: getDeviceModel(this.ua),
+  };
+};
+
 export class ApplicationContextProviderImpl
-  implements ApplicationContextProvider
-{
+  implements ApplicationContextProvider {
   private readonly ua = new UAParser(navigator.userAgent).getResult();
   public versionName: string;
   getApplicationContext(): ApplicationContext {
