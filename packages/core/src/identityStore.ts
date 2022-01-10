@@ -1,9 +1,5 @@
 const ID_OP_SET = '$set';
 const ID_OP_UNSET = '$unset';
-const ID_OP_SET_ONCE = '$setOnce';
-const ID_OP_ADD = '$add';
-const ID_OP_APPEND = '$append';
-const ID_OP_PREPEND = '$prepend';
 const ID_OP_CLEAR_ALL = '$clearAll';
 
 export type Identity = {
@@ -76,40 +72,6 @@ export class IdentityStoreImpl implements IdentityStore {
             case ID_OP_UNSET:
               for (const key of Object.keys(properties)) {
                 delete actingProperties[key];
-              }
-              break;
-            case ID_OP_SET_ONCE:
-              for (const [key, value] of Object.entries(properties)) {
-                if (!actingProperties[key]) {
-                  actingProperties[key] = value;
-                }
-              }
-              break;
-            case ID_OP_ADD:
-              for (const [key, value] of Object.entries(properties)) {
-                const actingValue = actingProperties[key] ?? 0;
-                if (
-                  typeof actingValue === 'number' &&
-                  typeof value === 'number'
-                ) {
-                  actingProperties[key] = actingValue + value;
-                }
-              }
-              break;
-            case ID_OP_APPEND:
-              for (const [key, value] of Object.entries(properties)) {
-                const actingValue = actingProperties[key] ?? [];
-                if (Array.isArray(actingValue) && Array.isArray(value)) {
-                  actingProperties[key] = actingValue.concat(value);
-                }
-              }
-              break;
-            case ID_OP_PREPEND:
-              for (const [key, value] of Object.entries(properties)) {
-                const actingValue = actingProperties[key] ?? [];
-                if (Array.isArray(actingValue) && Array.isArray(value)) {
-                  actingProperties[key] = value.concat(actingValue);
-                }
               }
               break;
             case ID_OP_CLEAR_ALL:
