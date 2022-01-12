@@ -21,6 +21,7 @@ import { isNullOrUndefined } from './util';
 import { Backoff } from './util/backoff';
 import { urlSafeBase64Encode } from './util/base64';
 import { randomString } from './util/randomstring';
+import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
@@ -50,6 +51,8 @@ export class ExperimentClient implements Client {
    */
   private userProvider: ExperimentUserProvider = null;
 
+  private analyticsProvider: SessionAnalyticsProvider;
+
   /**
    * Creates a new ExperimentClient instance.
    *
@@ -64,6 +67,11 @@ export class ExperimentClient implements Client {
     this.config = { ...Defaults, ...config };
     if (this.config.userProvider) {
       this.userProvider = this.config.userProvider;
+    }
+    if (this.config.analyticsProvider) {
+      this.analyticsProvider = new SessionAnalyticsProvider(
+        this.config.analyticsProvider,
+      );
     }
     this.httpClient = FetchHttpClient;
     this.storage = new LocalStorage(this.config.instanceName, apiKey);
@@ -128,26 +136,26 @@ export class ExperimentClient implements Client {
       return { value: undefined };
     }
     const { source, variant } = this.variantAndSource(key, fallback);
-
-    if (isFallback(source) || !variant?.value) {
-      // fallbacks indicate not being allocated into an experiment, so
-      // we can unset the property
-      this.addContext(this.getUser()).then((user) => {
-        this.config.analyticsProvider?.unsetUserProperty?.(
-          exposureEvent(user, key, variant, source),
-        );
-      });
-    } else if (variant?.value) {
-      // fallbacks indicate not being allocated into an experiment, so
-      // we can unset the property
-      this.addContext(this.getUser()).then((user) => {
-        // only track when there's a value for a non fallback variant
-        const event = exposureEvent(user, key, variant, source);
-        this.config.analyticsProvider?.setUserProperty?.(event);
-        this.config.analyticsProvider?.track(event);
-      });
+    if (this.config.automaticClientSideExposureTracking) {
+      if (isFallback(source) || !variant?.value) {
+        // fallbacks indicate not being allocated into an experiment, so
+        // we can unset the property
+        this.addContext(this.getUser()).then((user) => {
+          this.analyticsProvider?.unsetUserProperty?.(
+            exposureEvent(user, key, variant, source),
+          );
+        });
+      } else if (variant?.value) {
+        // fallbacks indicate not being allocated into an experiment, so
+        // we can unset the property
+        this.addContext(this.getUser()).then((user) => {
+          // only track when there's a value for a non fallback variant
+          const event = exposureEvent(user, key, variant, source);
+          this.analyticsProvider?.setUserProperty?.(event);
+          this.analyticsProvider?.track(event);
+        });
+      }
     }
-
     this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
     return variant;
   }

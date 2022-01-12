@@ -58,6 +58,13 @@ export interface ExperimentConfig {
   retryFetchOnFailure?: boolean;
 
   /**
+   * If true, automatically tracks exposure events though the
+   * `ExperimentAnalyticsProvider`. If no analytics provider is set, this
+   * option does nothing.
+   */
+  automaticClientSideExposureTracking?: boolean;
+
+  /**
    * Sets a user provider that will inject identity information into the user
    * for {@link fetch()} requests. The user provider will only set user fields
    * in outgoing requests which are null or undefined.
@@ -86,6 +93,7 @@ export interface ExperimentConfig {
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
+ | **automaticClientSideExposureTracking** | `true` |
  | **userProvider**    | `null` |
  | **analyticsProvider**    | `null` |
 
@@ -101,6 +109,7 @@ export const Defaults: ExperimentConfig = {
   serverUrl: 'https://api.lab.amplitude.com',
   fetchTimeoutMillis: 10000,
   retryFetchOnFailure: true,
+  automaticClientSideExposureTracking: true,
   userProvider: null,
   analyticsProvider: null,
 };
