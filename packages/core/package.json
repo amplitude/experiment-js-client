@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/amplitude-core",
-  "version": "1.0.0-alpha.0",
+  "version": "1.0.0",
   "description": "Core package for Amplitide SDKs",
   "main": "dist/core.umd.js",
   "types": "dist/types/src/index.d.ts",
