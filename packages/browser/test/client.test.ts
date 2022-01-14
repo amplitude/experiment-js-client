@@ -1,4 +1,4 @@
-import { AnalyticsConnectorImpl } from '@amplitude/amplitude-core/src/analyticsConnector';
+import { AmplitudeCore } from '@amplitude/amplitude-core';
 import { CoreAnalyticsProvider } from 'src/integration/core';
 
 import { ExperimentClient } from '../src/experimentClient';
@@ -233,7 +233,7 @@ class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
 }
 
 test('ExperimentClient.variant, with analytics provider, unset called only once per key', async () => {
-  const analyticsConnector = new AnalyticsConnectorImpl();
+  const analyticsConnector = AmplitudeCore.getInstance('1').analyticsConnector;
   const analyticsProvider = new CoreAnalyticsProvider(analyticsConnector);
   const unsetSpy = jest.spyOn(analyticsProvider, 'unsetUserProperty');
   let eventCount = 0;
@@ -251,7 +251,7 @@ test('ExperimentClient.variant, with analytics provider, unset called only once 
   // analytics provider call is asynchronous
   await delay(1000);
 
-  expect(unsetSpy).toBeCalledTimes(100);
+  expect(unsetSpy).toBeCalledTimes(1);
   expect(eventCount).toEqual(1);
 });
 
