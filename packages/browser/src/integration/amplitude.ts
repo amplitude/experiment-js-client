@@ -6,11 +6,6 @@ import {
 import { ExperimentUser } from '../types/user';
 import { safeGlobal } from '../util/global';
 
-declare global {
-  // eslint-disable-next-line no-var, @typescript-eslint/no-explicit-any
-  var amplitude: any;
-}
-
 type AmplitudeIdentify = {
   set(property: string, value: unknown): void;
   unset(property: string): void;
