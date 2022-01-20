@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.3](https://github.com/amplitude/experiment-js-client/compare/v1.3.2...v1.3.3) (2022-01-20)
+
+
+### Bug Fixes
+
+* fix unset user property ([#20](https://github.com/amplitude/experiment-js-client/issues/20)) ([b722506](https://github.com/amplitude/experiment-js-client/commit/b722506c79bd920467025f46beda28416bb63a71))
+
+
+
+
+
 ## [1.3.2](https://github.com/amplitude/experiment-js-client/compare/v1.3.1...v1.3.2) (2022-01-20)
 
 

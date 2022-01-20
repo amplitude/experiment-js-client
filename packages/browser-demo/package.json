@@ -1,6 +1,6 @@
 {
   "name": "browser-demo",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "private": true,
   "dependencies": {
     "@amplitude/experiment-js-client": "file:../browser",
