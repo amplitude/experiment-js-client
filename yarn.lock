@@ -3,7 +3,7 @@
 
 
 "@amplitude/experiment-js-client@file:packages/browser":
-  version "1.0.3"
+  version "1.3.2"
   dependencies:
     base64-js "1.5.1"
     unfetch "4.1.0"
@@ -3074,6 +3074,11 @@
   version "7.2.1"
   resolved "https://registry.yarnpkg.com/@testing-library/user-event/-/user-event-7.2.1.tgz#2ad4e844175a3738cb9e7064be5ea070b8863a1c"
   integrity sha512-oZ0Ib5I4Z2pUEcoo95cT1cr6slco9WY7yiPpG+RGNkj8YcYgJnM7pXmYmorNOReh8MIGcKSqXyeGjxnr8YiZbA==
+
+"@types/amplitude-js@^8.9.4":
+  version "8.9.4"
+  resolved "https://registry.yarnpkg.com/@types/amplitude-js/-/amplitude-js-8.9.4.tgz#a44b2f562800370635fec161c2ae8696798eaeb6"
+  integrity sha512-f6Uu2jXwfIJq0rAC2mkxGbkBPsQyU4gt3TfGwhovbt62Qr3zPJQ6ZC+oucRmrAqj2PQpkX/pLBgyu3Ig6WvO4A==
 
 "@types/aria-query@^4.2.0":
   version "4.2.0"
