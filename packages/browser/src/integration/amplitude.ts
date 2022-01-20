@@ -96,9 +96,13 @@ export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
 
   unsetUserProperty(event: ExperimentAnalyticsEvent): void {
+    const amplitude = safeGlobal['amplitude'];
+    if (!amplitude) {
+      return;
+    }
     // if the variant does not have a value, unset the user property
     this.amplitudeInstance.identify(
-      new safeGlobal.amplitude.Identify().unset(event.userProperty),
+      new amplitude.Identify().unset(event.userProperty),
     );
   }
 }
