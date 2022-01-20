@@ -6,7 +6,7 @@ import { useExperiment, ExperimentProvider } from './experiment';
 const Feature = (props) => {
   const { client, ready, loaded } = useExperiment();
 
-  const feature = client.variant('js-browser-demo');
+  const feature = client.variant('asdf');
   console.log(
     `js-browser-demo: ${feature?.value}, payload: ${JSON.stringify(feature?.payload)}, ready: ${ready}, loaded: ${loaded}`,
   );
@@ -35,7 +35,7 @@ const Feature = (props) => {
 
 export default function App() {
   return (
-    <ExperimentProvider experimentUser={{ user_id: 'user_id', device_family: 'device_family' }}>
+    <ExperimentProvider experimentUser={{}}>
       <div className="container">
         <main className="main">
           <h1 className="title">Browser demo for Experiment</h1>

@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
-import { Experiment, Source } from '@amplitude/experiment-js-client';
+import { AmplitudeAnalyticsProvider, AmplitudeUserProvider, Experiment, Source } from "@amplitude/experiment-js-client";
 import React, { createContext } from 'react';
+import amplitude from 'amplitude-js';
 
 export const ExperimentContext = createContext({
   client: null,
@@ -12,6 +13,10 @@ export const useExperiment = () => {
   return useContext(ExperimentContext);
 };
 
+const analytics = amplitude.getInstance()
+analytics.init("a6dd847b9d2f03c816d4f3f8458cdc1d")
+analytics.setUserId("brian.giori@amplitude.com")
+
 const config = {
   debug: true,
   source: Source.LocalStorage,
@@ -21,11 +26,8 @@ const config = {
       payload: {},
     }
   },
-  analyticsProvider: {
-    track: (event) => { console.log('Tracked: ' + JSON.stringify(event))},
-    setUserProperty: (event) => { console.log('Set User Property: ' + JSON.stringify(event))},
-    unsetUserProperty: (event) => { console.log('Unset User Property: ' + JSON.stringify(event))}
-  }
+  userProvider: new AmplitudeUserProvider(analytics),
+  analyticsProvider: new AmplitudeAnalyticsProvider(analytics),
 }
 
 const experiment = Experiment.initialize(
