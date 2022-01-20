@@ -6,6 +6,11 @@ import {
 import { ExperimentUser } from '../types/user';
 import { safeGlobal } from '../util/global';
 
+declare global {
+  // eslint-disable-next-line no-var, @typescript-eslint/no-explicit-any
+  var amplitude: any;
+}
+
 type AmplitudeIdentify = {
   set(property: string, value: unknown): void;
   unset(property: string): void;
@@ -96,13 +101,9 @@ export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
 
   unsetUserProperty(event: ExperimentAnalyticsEvent): void {
-    const amplitude = safeGlobal['amplitude'];
-    if (!amplitude) {
-      return;
-    }
     // if the variant does not have a value, unset the user property
     this.amplitudeInstance.identify(
-      new amplitude.Identify().unset(event.userProperty),
+      new safeGlobal.amplitude.Identify().unset(event.userProperty),
     );
   }
 }
