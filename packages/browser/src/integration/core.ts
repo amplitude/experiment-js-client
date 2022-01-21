@@ -10,6 +10,7 @@ import {
   ExperimentUserProvider,
 } from '../types/provider';
 import { ExperimentUser } from '../types/user';
+import { safeGlobal } from '../util/global';
 
 type UserProperties = Record<
   string,
@@ -22,16 +23,26 @@ export class CoreUserProvider implements ExperimentUserProvider {
     this.identityStore = identityStore;
   }
 
-  async identityReady(): Promise<void> {
+  async identityReady(ms: number): Promise<unknown> {
     const identity = this.identityStore.getIdentity();
     if (!identity.userId && !identity.deviceId) {
-      return new Promise((resolve) => {
-        const listener = () => {
-          resolve();
-          this.identityStore.removeIdentityListener(listener);
-        };
-        this.identityStore.addIdentityListener(listener);
-      });
+      return Promise.race([
+        new Promise((resolve) => {
+          const listener = () => {
+            resolve();
+            this.identityStore.removeIdentityListener(listener);
+          };
+          this.identityStore.addIdentityListener(listener);
+        }),
+        new Promise((resolve, reject) => {
+          safeGlobal.setTimeout(
+            reject,
+            ms,
+            'Timed out waiting for Amplitude Analytics SDK to initialize. ' +
+              'You must ensure that the analytics SDK is initialized prior to calling fetch().',
+          );
+        }),
+      ]);
     }
   }
 

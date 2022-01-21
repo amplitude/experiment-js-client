@@ -140,20 +140,17 @@ export class ExperimentClient implements Client {
       if (isFallback(source) || !variant?.value) {
         // fallbacks indicate not being allocated into an experiment, so
         // we can unset the property
-        this.addContext(this.getUser()).then((user) => {
-          this.analyticsProvider?.unsetUserProperty?.(
-            exposureEvent(user, key, variant, source),
-          );
-        });
+        const user = this.addContext(this.getUser());
+        const event = exposureEvent(user, key, variant, source);
+        this.analyticsProvider?.unsetUserProperty?.(event);
       } else if (variant?.value) {
         // fallbacks indicate not being allocated into an experiment, so
         // we can unset the property
-        this.addContext(this.getUser()).then((user) => {
-          // only track when there's a value for a non fallback variant
-          const event = exposureEvent(user, key, variant, source);
-          this.analyticsProvider?.setUserProperty?.(event);
-          this.analyticsProvider?.track(event);
-        });
+        // only track when there's a value for a non fallback variant
+        const user = this.addContext(this.getUser());
+        const event = exposureEvent(user, key, variant, source);
+        this.analyticsProvider?.setUserProperty?.(event);
+        this.analyticsProvider?.track(event);
       }
     }
     this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
@@ -342,7 +339,7 @@ export class ExperimentClient implements Client {
     user: ExperimentUser,
     timeoutMillis: number,
   ): Promise<Variants> {
-    const userContext = await this.addContext(user);
+    const userContext = await this.addContextOrWait(user, 1000);
     const encodedContext = urlSafeBase64Encode(JSON.stringify(userContext));
     let queryString = '';
     if (this.config.debug) {
@@ -409,10 +406,7 @@ export class ExperimentClient implements Client {
     }
   }
 
-  private async addContext(user: ExperimentUser): Promise<ExperimentUser> {
-    if (this.userProvider instanceof CoreUserProvider) {
-      await this.userProvider.identityReady();
-    }
+  private addContext(user: ExperimentUser): ExperimentUser {
     const providedUser = this.userProvider?.getUser();
     const mergedUserProperties = {
       ...user?.user_properties,
@@ -424,6 +418,16 @@ export class ExperimentClient implements Client {
       ...user,
       user_properties: mergedUserProperties,
     };
+  }
+
+  private async addContextOrWait(
+    user: ExperimentUser,
+    ms: number,
+  ): Promise<ExperimentUser> {
+    if (this.userProvider instanceof CoreUserProvider) {
+      await this.userProvider.identityReady(ms);
+    }
+    return this.addContext(user);
   }
 
   private convertVariant(value: string | Variant): Variant {
