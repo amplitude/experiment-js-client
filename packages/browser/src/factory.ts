@@ -58,9 +58,11 @@ const initializeWithAmplitudeAnalytics = (
       ...config,
     };
     instances[instanceKey] = new ExperimentClient(apiKey, config);
-    core.identityStore.addIdentityListener(() => {
-      instances[instanceKey].fetch();
-    });
+    if (config.automaticFetchOnAmplitudeIdentityChange) {
+      core.identityStore.addIdentityListener(() => {
+        instances[instanceKey].fetch();
+      });
+    }
   }
   return instances[instanceKey];
 };

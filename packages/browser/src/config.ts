@@ -65,6 +65,21 @@ export interface ExperimentConfig {
   automaticClientSideExposureTracking?: boolean;
 
   /**
+   * This config only matters if you are using the amplitude analytics SDK
+   * integration initialized by calling
+   * `Experiment.initializeWithAmplitudeAnalytics()`.
+   *
+   * If true, the `ExperimentClient` will automatically fetch variants when the
+   * user's identity changes. The user's identity includes user_id, device_id
+   * and any user properties which are `set`, `unset` or `clearAll`ed via a call
+   * to `identify()`.
+   *
+   * Note: Non-idempotent identify operations `setOnce`, `add`, `append`, and
+   * `prepend` are not counted towards the user identity changing.
+   */
+  automaticFetchOnAmplitudeIdentityChange?: boolean;
+
+  /**
    * Sets a user provider that will inject identity information into the user
    * for {@link fetch()} requests. The user provider will only set user fields
    * in outgoing requests which are null or undefined.
@@ -94,6 +109,7 @@ export interface ExperimentConfig {
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
  | **automaticClientSideExposureTracking** | `true` |
+ | **automaticFetchOnAmplitudeIdentityChange** | `false` |
  | **userProvider**    | `null` |
  | **analyticsProvider**    | `null` |
 
@@ -110,6 +126,7 @@ export const Defaults: ExperimentConfig = {
   fetchTimeoutMillis: 10000,
   retryFetchOnFailure: true,
   automaticClientSideExposureTracking: true,
+  automaticFetchOnAmplitudeIdentityChange: false,
   userProvider: null,
   analyticsProvider: null,
 };
