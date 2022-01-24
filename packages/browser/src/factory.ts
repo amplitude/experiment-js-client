@@ -11,7 +11,7 @@ const instances = {};
  * Initializes a singleton {@link ExperimentClient} identified by the configured
  * instance name.
  *
- * @param apiKey The environment API Key
+ * @param apiKey The deployment API Key
  * @param config See {@link ExperimentConfig} for config options
  */
 const initialize = (
@@ -38,9 +38,11 @@ const initialize = (
  * integrates with the installed and initialized instance of the amplitude
  * analytics SDK.
  *
- * Amplitude analytics
- * @param apiKey
- * @param config
+ * You must be using amplitude-js SDK version 8.17.0+ for this integration to
+ * work.
+ *
+ * @param apiKey The deployment API Key
+ * @param config See {@link ExperimentConfig} for config options
  */
 const initializeWithAmplitudeAnalytics = (
   apiKey: string,
