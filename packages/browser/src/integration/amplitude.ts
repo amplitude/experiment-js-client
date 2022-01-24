@@ -37,7 +37,7 @@ type AmplitudeUAParser = {
 };
 
 /**
- * @deprecated Update your version of the amplitude analytics SDK to X.X.X+ and for seamless
+ * @deprecated Update your version of the amplitude analytics-js SDK to 8.17.0+ and for seamless
  * integration with the amplitude analytics SDK.
  */
 export class AmplitudeUserProvider implements ExperimentUserProvider {
@@ -73,7 +73,7 @@ export class AmplitudeUserProvider implements ExperimentUserProvider {
 }
 
 /**
- * @deprecated Update your version of the amplitude analytics SDK to X.X.X+ and for seamless
+ * @deprecated Update your version of the amplitude analytics-js SDK to 8.17.0+ and for seamless
  * integration with the amplitude analytics SDK.
  */
 export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
