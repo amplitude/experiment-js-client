@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.4](https://github.com/amplitude/experiment-js-client/compare/v1.3.3...v1.3.4) (2022-01-24)
+
+
+### Bug Fixes
+
+* remove _logEvent from instance type ([#21](https://github.com/amplitude/experiment-js-client/issues/21)) ([670a2f2](https://github.com/amplitude/experiment-js-client/commit/670a2f2f715c7739ac449d7adf69edd9045c5ab3))
+
+
+
+
+
 ## [1.3.3](https://github.com/amplitude/experiment-js-client/compare/v1.3.2...v1.3.3) (2022-01-20)
 
 

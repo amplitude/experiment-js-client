@@ -14,12 +14,6 @@ type AmplitudeInstance = {
   options?: AmplitudeOptions;
   _ua?: AmplitudeUAParser;
   logEvent(eventName: string, properties: Record<string, string>): void;
-  _logEvent(
-    eventType: string,
-    eventProperties: Record<string, unknown>,
-    apiProperties: Record<string, unknown>,
-    userProperties: Record<string, unknown>,
-  );
   setUserProperties(userProperties: Record<string, unknown>): void;
   identify(identify: AmplitudeIdentify): void;
 };
@@ -83,7 +77,7 @@ export class AmplitudeUserProvider implements ExperimentUserProvider {
  * integration with the amplitude analytics SDK.
  */
 export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
-  private amplitudeInstance: AmplitudeInstance;
+  private readonly amplitudeInstance: AmplitudeInstance;
   constructor(amplitudeInstance: AmplitudeInstance) {
     this.amplitudeInstance = amplitudeInstance;
   }
@@ -101,7 +95,7 @@ export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
 
   unsetUserProperty(event: ExperimentAnalyticsEvent): void {
     // if the variant does not have a value, unset the user property
-    this.amplitudeInstance._logEvent('$identify', null, null, {
+    this.amplitudeInstance['_logEvent']('$identify', null, null, {
       $unset: { [event.userProperty]: '-' },
     });
   }
