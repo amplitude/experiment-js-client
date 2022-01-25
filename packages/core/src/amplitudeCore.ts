@@ -8,8 +8,7 @@ safeGlobal['amplitudeCoreInstances'] = {};
 export class AmplitudeCore {
   public readonly identityStore = new IdentityStoreImpl();
   public readonly analyticsConnector = new AnalyticsConnectorImpl();
-  public readonly applicationContextProvider =
-    new ApplicationContextProviderImpl();
+  public readonly applicationContextProvider = new ApplicationContextProviderImpl();
 
   static getInstance(instanceName: string): AmplitudeCore {
     if (!safeGlobal['amplitudeCoreInstances'][instanceName]) {
