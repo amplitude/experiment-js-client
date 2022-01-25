@@ -19,4 +19,5 @@ dist/
 # MacOS
 .DS_Store
 
+# WebStorm IDE
 .idea

@@ -3,6 +3,50 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.4](https://github.com/amplitude/experiment-js-client/compare/v1.3.3...v1.3.4) (2022-01-24)
+
+
+### Bug Fixes
+
+* remove _logEvent from instance type ([#21](https://github.com/amplitude/experiment-js-client/issues/21)) ([670a2f2](https://github.com/amplitude/experiment-js-client/commit/670a2f2f715c7739ac449d7adf69edd9045c5ab3))
+
+
+
+
+
+## [1.3.3](https://github.com/amplitude/experiment-js-client/compare/v1.3.2...v1.3.3) (2022-01-20)
+
+
+### Bug Fixes
+
+* fix unset user property ([#20](https://github.com/amplitude/experiment-js-client/issues/20)) ([b722506](https://github.com/amplitude/experiment-js-client/commit/b722506c79bd920467025f46beda28416bb63a71))
+
+
+
+
+
+## [1.3.2](https://github.com/amplitude/experiment-js-client/compare/v1.3.1...v1.3.2) (2022-01-20)
+
+
+### Bug Fixes
+
+* revert changes ([bee259f](https://github.com/amplitude/experiment-js-client/commit/bee259faf1ebe6abb92fa47af001649be4bbe58d))
+
+
+
+
+
+## [1.3.1](https://github.com/amplitude/experiment-js-client/compare/v1.3.0...v1.3.1) (2022-01-20)
+
+
+### Bug Fixes
+
+* type issue with global amp instance ([#18](https://github.com/amplitude/experiment-js-client/issues/18)) ([5fcf461](https://github.com/amplitude/experiment-js-client/commit/5fcf4615677a280b4acd5edfd6ce81ec1c14f6eb))
+
+
+
+
+
 # [1.3.0](https://github.com/amplitude/experiment-js-client/compare/v1.2.0...v1.3.0) (2021-10-18)
 
 

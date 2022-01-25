@@ -4,7 +4,6 @@ import {
   ExperimentAnalyticsProvider,
 } from '../types/provider';
 import { ExperimentUser } from '../types/user';
-import { safeGlobal } from '../util/global';
 
 type AmplitudeIdentify = {
   set(property: string, value: unknown): void;
@@ -79,7 +78,7 @@ export class AmplitudeUserProvider implements ExperimentUserProvider {
  * by the client (e.g. exposure).
  */
 export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
-  private amplitudeInstance: AmplitudeInstance;
+  private readonly amplitudeInstance: AmplitudeInstance;
   constructor(amplitudeInstance: AmplitudeInstance) {
     this.amplitudeInstance = amplitudeInstance;
   }
@@ -97,8 +96,8 @@ export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
 
   unsetUserProperty(event: ExperimentAnalyticsEvent): void {
     // if the variant does not have a value, unset the user property
-    this.amplitudeInstance.identify(
-      new safeGlobal.amplitude.Identify().unset(event.userProperty),
-    );
+    this.amplitudeInstance['_logEvent']('$identify', null, null, {
+      $unset: { [event.userProperty]: '-' },
+    });
   }
 }
