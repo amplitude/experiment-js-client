@@ -146,6 +146,12 @@ export class ExperimentClient implements Client {
   /**
    * Track an exposure event for the variant associated with the flag/experiment
    * {@link key}.
+   *
+   * This method requires that an {@link ExperimentAnalyticsProvider} be
+   * configured when this client is initialized, either manually, or through the
+   * Amplitude Analytics SDK integration from set up using
+   * {@link Experiment.initializeWithAmplitudeAnalytics}.
+   *
    * @param key The flag/experiment key to track an exposure for.
    */
   public exposure(key: string): void {
