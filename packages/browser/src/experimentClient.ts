@@ -137,96 +137,20 @@ export class ExperimentClient implements Client {
     }
     const { source, variant } = this.variantAndSource(key, fallback);
     if (this.config.automaticClientSideExposureTracking) {
-      if (isFallback(source) || !variant?.value) {
-        // fallbacks indicate not being allocated into an experiment, so
-        // we can unset the property
-        const user = this.addContext(this.getUser());
-        const event = exposureEvent(user, key, variant, source);
-        this.analyticsProvider?.unsetUserProperty?.(event);
-      } else if (variant?.value) {
-        // fallbacks indicate not being allocated into an experiment, so
-        // we can unset the property
-        // only track when there's a value for a non fallback variant
-        const user = this.addContext(this.getUser());
-        const event = exposureEvent(user, key, variant, source);
-        this.analyticsProvider?.setUserProperty?.(event);
-        this.analyticsProvider?.track(event);
-      }
+      this.exposureInternal(key, variant, source);
     }
     this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
     return variant;
   }
 
-  private variantAndSource(
-    key: string,
-    fallback: string | Variant,
-  ): {
-    variant: Variant;
-    source: VariantSource;
-  } {
-    if (this.config.source === Source.InitialVariants) {
-      // for source = InitialVariants, fallback order goes:
-      // 1. InitialFlags
-      // 2. Local Storage
-      // 3. Function fallback
-      // 4. Config fallback
-
-      const sourceVariant = this.sourceVariants()[key];
-      if (!isNullOrUndefined(sourceVariant)) {
-        return {
-          variant: this.convertVariant(sourceVariant),
-          source: VariantSource.InitialVariants,
-        };
-      }
-      const secondaryVariant = this.secondaryVariants()[key];
-      if (!isNullOrUndefined(secondaryVariant)) {
-        return {
-          variant: this.convertVariant(secondaryVariant),
-          source: VariantSource.SecondaryLocalStoraage,
-        };
-      }
-      if (!isNullOrUndefined(fallback)) {
-        return {
-          variant: this.convertVariant(fallback),
-          source: VariantSource.FallbackInline,
-        };
-      }
-      return {
-        variant: this.convertVariant(this.config.fallbackVariant),
-        source: VariantSource.FallbackConfig,
-      };
-    } else {
-      // for source = LocalStorage, fallback order goes:
-      // 1. Local Storage
-      // 2. Function fallback
-      // 3. InitialFlags
-      // 4. Config fallback
-
-      const sourceVariant = this.sourceVariants()[key];
-      if (!isNullOrUndefined(sourceVariant)) {
-        return {
-          variant: this.convertVariant(sourceVariant),
-          source: VariantSource.LocalStorage,
-        };
-      }
-      if (!isNullOrUndefined(fallback)) {
-        return {
-          variant: this.convertVariant(fallback),
-          source: VariantSource.FallbackInline,
-        };
-      }
-      const secondaryVariant = this.secondaryVariants()[key];
-      if (!isNullOrUndefined(secondaryVariant)) {
-        return {
-          variant: this.convertVariant(secondaryVariant),
-          source: VariantSource.SecondaryInitialVariants,
-        };
-      }
-      return {
-        variant: this.convertVariant(this.config.fallbackVariant),
-        source: VariantSource.FallbackConfig,
-      };
-    }
+  /**
+   * Track an exposure event for the variant associated with the flag/experiment
+   * {@link key}.
+   * @param key The flag/experiment key to track an exposure for.
+   */
+  public exposure(key: string): void {
+    const { source, variant } = this.variantAndSource(key, null);
+    this.exposureInternal(key, variant, source);
   }
 
   /**
@@ -303,6 +227,78 @@ export class ExperimentClient implements Client {
   public setUserProvider(userProvider: ExperimentUserProvider): Client {
     this.userProvider = userProvider;
     return this;
+  }
+
+  private variantAndSource(
+    key: string,
+    fallback: string | Variant,
+  ): {
+    variant: Variant;
+    source: VariantSource;
+  } {
+    if (this.config.source === Source.InitialVariants) {
+      // for source = InitialVariants, fallback order goes:
+      // 1. InitialFlags
+      // 2. Local Storage
+      // 3. Function fallback
+      // 4. Config fallback
+
+      const sourceVariant = this.sourceVariants()[key];
+      if (!isNullOrUndefined(sourceVariant)) {
+        return {
+          variant: this.convertVariant(sourceVariant),
+          source: VariantSource.InitialVariants,
+        };
+      }
+      const secondaryVariant = this.secondaryVariants()[key];
+      if (!isNullOrUndefined(secondaryVariant)) {
+        return {
+          variant: this.convertVariant(secondaryVariant),
+          source: VariantSource.SecondaryLocalStoraage,
+        };
+      }
+      if (!isNullOrUndefined(fallback)) {
+        return {
+          variant: this.convertVariant(fallback),
+          source: VariantSource.FallbackInline,
+        };
+      }
+      return {
+        variant: this.convertVariant(this.config.fallbackVariant),
+        source: VariantSource.FallbackConfig,
+      };
+    } else {
+      // for source = LocalStorage, fallback order goes:
+      // 1. Local Storage
+      // 2. Function fallback
+      // 3. InitialFlags
+      // 4. Config fallback
+
+      const sourceVariant = this.sourceVariants()[key];
+      if (!isNullOrUndefined(sourceVariant)) {
+        return {
+          variant: this.convertVariant(sourceVariant),
+          source: VariantSource.LocalStorage,
+        };
+      }
+      if (!isNullOrUndefined(fallback)) {
+        return {
+          variant: this.convertVariant(fallback),
+          source: VariantSource.FallbackInline,
+        };
+      }
+      const secondaryVariant = this.secondaryVariants()[key];
+      if (!isNullOrUndefined(secondaryVariant)) {
+        return {
+          variant: this.convertVariant(secondaryVariant),
+          source: VariantSource.SecondaryInitialVariants,
+        };
+      }
+      return {
+        variant: this.convertVariant(this.config.fallbackVariant),
+        source: VariantSource.FallbackConfig,
+      };
+    }
   }
 
   private async fetchInternal(
@@ -456,6 +452,24 @@ export class ExperimentClient implements Client {
       return this.config.initialVariants;
     } else if (this.config.source == Source.InitialVariants) {
       return this.storage.getAll();
+    }
+  }
+
+  private exposureInternal(
+    key: string,
+    variant: Variant,
+    source: VariantSource,
+  ): void {
+    const user = this.addContext(this.getUser());
+    const event = exposureEvent(user, key, variant, source);
+    if (isFallback(source) || !variant?.value) {
+      // fallbacks indicate not being allocated into an experiment, so
+      // we can unset the property
+      this.analyticsProvider?.unsetUserProperty?.(event);
+    } else if (variant?.value) {
+      // only track when there's a value for a non fallback variant
+      this.analyticsProvider?.setUserProperty?.(event);
+      this.analyticsProvider?.track(event);
     }
   }
 
