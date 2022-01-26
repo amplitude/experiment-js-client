@@ -2,7 +2,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Defaults } from './config';
 import { Client } from './types/client';
-import { ExperimentUser, ExperimentUserProvider } from './types/user';
+import { ExperimentUserProvider } from './types/provider';
+import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
 
 /**
@@ -36,4 +37,6 @@ export class StubExperimentClient implements Client {
   public all(): Variants {
     return {};
   }
+
+  public exposure(key: string): void {}
 }

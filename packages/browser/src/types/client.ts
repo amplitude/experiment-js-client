@@ -10,6 +10,7 @@ export interface Client {
   fetch(user?: ExperimentUser): Promise<Client>;
   variant(key: string, fallback?: string | Variant): Variant;
   all(): Variants;
+  exposure(key: string): void;
   getUser(): ExperimentUser;
   setUser(user: ExperimentUser): void;
 

@@ -14,7 +14,8 @@ export interface ApplicationContextProvider {
 }
 
 export class ApplicationContextProviderImpl
-  implements ApplicationContextProvider {
+  implements ApplicationContextProvider
+{
   private readonly ua = new UAParser(navigator.userAgent).getResult();
   public versionName: string;
   getApplicationContext(): ApplicationContext {

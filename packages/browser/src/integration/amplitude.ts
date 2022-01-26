@@ -37,9 +37,8 @@ type AmplitudeUAParser = {
 };
 
 /**
- * An AmplitudeUserProvider injects information from the Amplitude SDK into
- * the {@link ExperimentUser} object before sending a request to the server.
- * @category Context Provider
+ * @deprecated Update your version of the amplitude analytics-js SDK to 8.17.0+ and for seamless
+ * integration with the amplitude analytics SDK.
  */
 export class AmplitudeUserProvider implements ExperimentUserProvider {
   private amplitudeInstance: AmplitudeInstance;
@@ -74,8 +73,8 @@ export class AmplitudeUserProvider implements ExperimentUserProvider {
 }
 
 /**
- * Provides a tracking implementation for standard experiment events generated
- * by the client (e.g. exposure).
+ * @deprecated Update your version of the amplitude analytics-js SDK to 8.17.0+ and for seamless
+ * integration with the amplitude analytics SDK.
  */
 export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
   private readonly amplitudeInstance: AmplitudeInstance;

@@ -52,5 +52,8 @@
     "tslib": "^2.0.1",
     "typedoc": "^0.20.32",
     "typescript": "^3.9.7"
+  },
+  "resolutions": {
+    "@testing-library/dom": "7.26.0"
   }
 }

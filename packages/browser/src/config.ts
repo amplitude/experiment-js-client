@@ -16,6 +16,13 @@ export interface ExperimentConfig {
   debug?: boolean;
 
   /**
+   * The name of the instance being initialized. Used for initializing separate
+   * instances of experiment or linking the experiment SDK to a specific
+   * instance of the amplitude analytics SDK.
+   */
+  instanceName?: string;
+
+  /**
    * The default fallback variant for all {@link ExperimentClient.variant}
    * calls.
    */
@@ -51,6 +58,28 @@ export interface ExperimentConfig {
   retryFetchOnFailure?: boolean;
 
   /**
+   * If true, automatically tracks exposure events though the
+   * `ExperimentAnalyticsProvider`. If no analytics provider is set, this
+   * option does nothing.
+   */
+  automaticClientSideExposureTracking?: boolean;
+
+  /**
+   * This config only matters if you are using the amplitude analytics SDK
+   * integration initialized by calling
+   * `Experiment.initializeWithAmplitudeAnalytics()`.
+   *
+   * If true, the `ExperimentClient` will automatically fetch variants when the
+   * user's identity changes. The user's identity includes user_id, device_id
+   * and any user properties which are `set`, `unset` or `clearAll`ed via a call
+   * to `identify()`.
+   *
+   * Note: Non-idempotent identify operations `setOnce`, `add`, `append`, and
+   * `prepend` are not counted towards the user identity changing.
+   */
+  automaticFetchOnAmplitudeIdentityChange?: boolean;
+
+  /**
    * Sets a user provider that will inject identity information into the user
    * for {@link fetch()} requests. The user provider will only set user fields
    * in outgoing requests which are null or undefined.
@@ -72,12 +101,15 @@ export interface ExperimentConfig {
  | **Option**       | **Default**                       |
  |------------------|-----------------------------------|
  | **debug**        | `false`                           |
+ | **instanceName** | `$default_instance` |
  | **fallbackVariant**         | `null`                 |
  | **initialVariants**         | `null`                 |
  | **source** | `Source.LocalStorage` |
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
+ | **automaticClientSideExposureTracking** | `true` |
+ | **automaticFetchOnAmplitudeIdentityChange** | `false` |
  | **userProvider**    | `null` |
  | **analyticsProvider**    | `null` |
 
@@ -86,12 +118,15 @@ export interface ExperimentConfig {
  */
 export const Defaults: ExperimentConfig = {
   debug: false,
+  instanceName: '$default_instance',
   fallbackVariant: {},
   initialVariants: {},
   source: Source.LocalStorage,
   serverUrl: 'https://api.lab.amplitude.com',
   fetchTimeoutMillis: 10000,
   retryFetchOnFailure: true,
+  automaticClientSideExposureTracking: true,
+  automaticFetchOnAmplitudeIdentityChange: false,
   userProvider: null,
   analyticsProvider: null,
 };

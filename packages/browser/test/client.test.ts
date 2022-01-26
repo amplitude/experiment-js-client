@@ -1,7 +1,13 @@
+import { AmplitudeCore } from '@amplitude/amplitude-core';
+import { CoreAnalyticsProvider } from 'src/integration/core';
+
 import { ExperimentClient } from '../src/experimentClient';
-import { ExperimentAnalyticsProvider } from '../src/types/provider';
+import {
+  ExperimentAnalyticsProvider,
+  ExperimentUserProvider,
+} from '../src/types/provider';
 import { Source } from '../src/types/source';
-import { ExperimentUser, ExperimentUserProvider } from '../src/types/user';
+import { ExperimentUser } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
 import { randomString } from '../src/util/randomstring';
 
@@ -173,7 +179,7 @@ test('ExperimentClient.fetch, initial variants source, prefer initial', async ()
 });
 
 /**
- * Test that fetch with an explicit user arguement will set the user within the
+ * Test that fetch with an explicit user argument will set the user within the
  * client, and calling setUser() after will overwrite the user.
  */
 test('ExperimentClient.fetch, sets user, setUser overrides', async () => {
@@ -225,6 +231,26 @@ class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
     return;
   }
 }
+
+test('ExperimentClient.variant, with analytics provider, unset called only once per key', async () => {
+  const analyticsConnector = AmplitudeCore.getInstance('1').analyticsConnector;
+  const analyticsProvider = new CoreAnalyticsProvider(analyticsConnector);
+  const unsetSpy = jest.spyOn(analyticsProvider, 'unsetUserProperty');
+  let eventCount = 0;
+  analyticsConnector.setEventReceiver(() => {
+    eventCount++;
+  });
+  const client = new ExperimentClient(API_KEY, {
+    analyticsProvider: analyticsProvider,
+  });
+  await client.fetch(testUser);
+  for (let i = 0; i < 100; i++) {
+    client.variant('key-that-does-not-exist');
+  }
+
+  expect(unsetSpy).toBeCalledTimes(1);
+  expect(eventCount).toEqual(1);
+});
 
 /**
  * Configure a client with an analytics provider which checks that a valid
@@ -287,6 +313,7 @@ test('ExperimentClient.variant, with analytics provider, exposure not tracked on
   });
   client.variant(initialKey);
   client.variant(unknownKey);
+
   expect(spyTrack).toHaveBeenCalledTimes(0);
   expect(spySet).toHaveBeenCalledTimes(0);
   expect(spyUnset).toHaveBeenCalledTimes(2);
