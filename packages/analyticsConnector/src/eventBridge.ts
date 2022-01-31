@@ -6,12 +6,12 @@ export type AnalyticsEvent = {
 
 export type AnalyticsEventReceiver = (event: AnalyticsEvent) => void;
 
-export interface AnalyticsConnector {
+export interface EventBridge {
   logEvent(event: AnalyticsEvent): void;
   setEventReceiver(listener: AnalyticsEventReceiver): void;
 }
 
-export class AnalyticsConnectorImpl implements AnalyticsConnector {
+export class EventBridgeImpl implements EventBridge {
   private receiver: AnalyticsEventReceiver;
   private queue: AnalyticsEvent[] = [];
 

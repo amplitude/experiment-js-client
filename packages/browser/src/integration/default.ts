@@ -1,4 +1,4 @@
-import { ApplicationContextProvider } from '@amplitude/amplitude-core';
+import { ApplicationContextProvider } from '@amplitude/analytics-connector';
 
 import { ExperimentUserProvider } from '../types/provider';
 import { ExperimentUser } from '../types/user';

@@ -1,8 +1,8 @@
 import {
-  AnalyticsConnector,
+  EventBridge,
   AnalyticsEvent,
   IdentityStore,
-} from '@amplitude/amplitude-core';
+} from '@amplitude/analytics-connector';
 
 import { ExperimentAnalyticsEvent } from '../types/analytics';
 import {
@@ -63,10 +63,10 @@ export class CoreUserProvider implements ExperimentUserProvider {
 }
 
 export class CoreAnalyticsProvider implements ExperimentAnalyticsProvider {
-  private readonly analyticsConnector: AnalyticsConnector;
+  private readonly eventBridge: EventBridge;
 
-  constructor(analyticsConnector: AnalyticsConnector) {
-    this.analyticsConnector = analyticsConnector;
+  constructor(eventBridge: EventBridge) {
+    this.eventBridge = eventBridge;
   }
 
   track(event: ExperimentAnalyticsEvent): void {
@@ -75,7 +75,7 @@ export class CoreAnalyticsProvider implements ExperimentAnalyticsProvider {
       eventProperties: event.properties,
       userProperties: { $set: { [event.userProperty]: event.variant.value } },
     };
-    this.analyticsConnector.logEvent(analyticsEvent);
+    this.eventBridge.logEvent(analyticsEvent);
   }
 
   setUserProperty?(event: ExperimentAnalyticsEvent): void {
@@ -85,7 +85,7 @@ export class CoreAnalyticsProvider implements ExperimentAnalyticsProvider {
         $set: { [event.userProperty]: event.variant.value },
       },
     };
-    this.analyticsConnector.logEvent(analyticsEvent);
+    this.eventBridge.logEvent(analyticsEvent);
   }
 
   unsetUserProperty?(event: ExperimentAnalyticsEvent): void {
@@ -95,6 +95,6 @@ export class CoreAnalyticsProvider implements ExperimentAnalyticsProvider {
         $unset: { [event.userProperty]: event.variant.value },
       },
     };
-    this.analyticsConnector.logEvent(analyticsEvent);
+    this.eventBridge.logEvent(analyticsEvent);
   }
 }

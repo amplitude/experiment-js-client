@@ -21,7 +21,10 @@ const browserConfig = {
   },
   external: [],
   plugins: [
-    replace({ BUILD_BROWSER: true }),
+    replace({
+      preventAssignment: true,
+      BUILD_BROWSER: true,
+    }),
     resolve(),
     json(),
     commonjs(),

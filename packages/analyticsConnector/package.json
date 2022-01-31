@@ -1,7 +1,7 @@
 {
-  "name": "@amplitude/amplitude-core",
-  "version": "1.0.0",
-  "description": "Core package for Amplitide SDKs",
+  "name": "@amplitude/analytics-connector",
+  "version": "1.0.0-alpha.0",
+  "description": "Connector package for Amplitude SDKs",
   "main": "dist/core.umd.js",
   "types": "dist/types/src/index.d.ts",
   "files": [

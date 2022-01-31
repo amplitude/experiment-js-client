@@ -1,4 +1,4 @@
-import { AmplitudeCore } from '@amplitude/amplitude-core';
+import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import { CoreAnalyticsProvider } from 'src/integration/core';
 
 import { ExperimentClient } from '../src/experimentClient';
@@ -233,11 +233,11 @@ class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
 }
 
 test('ExperimentClient.variant, with analytics provider, unset called only once per key', async () => {
-  const analyticsConnector = AmplitudeCore.getInstance('1').analyticsConnector;
-  const analyticsProvider = new CoreAnalyticsProvider(analyticsConnector);
+  const eventBridge = AnalyticsConnector.getInstance('1').eventBridge;
+  const analyticsProvider = new CoreAnalyticsProvider(eventBridge);
   const unsetSpy = jest.spyOn(analyticsProvider, 'unsetUserProperty');
   let eventCount = 0;
-  analyticsConnector.setEventReceiver(() => {
+  eventBridge.setEventReceiver(() => {
     eventCount++;
   });
   const client = new ExperimentClient(API_KEY, {

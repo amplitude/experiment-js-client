@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "description": "Javascript Client SDK for Amplitude Experiment",
   "scripts": {
-    "build": "yarn workspace @amplitude/amplitude-core build && yarn workspace @amplitude/experiment-js-client build",
+    "build": "yarn workspace @amplitude/analytics-connector build && yarn workspace @amplitude/experiment-js-client build",
     "lint": "lerna run lint",
     "test": "jest",
     "start": "yarn workspace browser-demo start"
