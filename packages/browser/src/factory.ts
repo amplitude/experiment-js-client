@@ -2,7 +2,10 @@ import { AnalyticsConnector } from '@amplitude/analytics-connector';
 
 import { Defaults, ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
-import { CoreAnalyticsProvider, CoreUserProvider } from './integration/core';
+import {
+  ConnectorAnalyticsProvider,
+  ConnectorUserProvider,
+} from './integration/connector';
 import { DefaultUserProvider } from './integration/default';
 
 const instances = {};
@@ -57,10 +60,8 @@ const initializeWithAmplitudeAnalytics = (
   const connector = AnalyticsConnector.getInstance(instanceName);
   if (!instances[instanceKey]) {
     config = {
-      userProvider: new CoreUserProvider(connector.identityStore),
-      analyticsProvider: new CoreAnalyticsProvider(
-        connector.analyticsConnector,
-      ),
+      userProvider: new ConnectorUserProvider(connector.identityStore),
+      analyticsProvider: new ConnectorAnalyticsProvider(connector.eventBridge),
       ...config,
     };
     instances[instanceKey] = new ExperimentClient(apiKey, config);

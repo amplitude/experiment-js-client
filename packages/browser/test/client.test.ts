@@ -1,5 +1,5 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { CoreAnalyticsProvider } from 'src/integration/core';
+import { ConnectorAnalyticsProvider } from 'src/integration/connector';
 
 import { ExperimentClient } from '../src/experimentClient';
 import {
@@ -234,7 +234,7 @@ class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
 
 test('ExperimentClient.variant, with analytics provider, unset called only once per key', async () => {
   const eventBridge = AnalyticsConnector.getInstance('1').eventBridge;
-  const analyticsProvider = new CoreAnalyticsProvider(eventBridge);
+  const analyticsProvider = new ConnectorAnalyticsProvider(eventBridge);
   const unsetSpy = jest.spyOn(analyticsProvider, 'unsetUserProperty');
   let eventCount = 0;
   eventBridge.setEventReceiver(() => {

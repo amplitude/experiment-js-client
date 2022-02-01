@@ -17,7 +17,7 @@ type UserProperties = Record<
   string | number | boolean | Array<string | number | boolean>
 >;
 
-export class CoreUserProvider implements ExperimentUserProvider {
+export class ConnectorUserProvider implements ExperimentUserProvider {
   private readonly identityStore: IdentityStore;
   constructor(identityStore: IdentityStore) {
     this.identityStore = identityStore;
@@ -62,7 +62,7 @@ export class CoreUserProvider implements ExperimentUserProvider {
   }
 }
 
-export class CoreAnalyticsProvider implements ExperimentAnalyticsProvider {
+export class ConnectorAnalyticsProvider implements ExperimentAnalyticsProvider {
   private readonly eventBridge: EventBridge;
 
   constructor(eventBridge: EventBridge) {
