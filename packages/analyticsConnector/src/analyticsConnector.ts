@@ -7,7 +7,7 @@ safeGlobal['analyticsConnectorInstances'] = {};
 
 export class AnalyticsConnector {
   public readonly identityStore = new IdentityStoreImpl();
-  public readonly analyticsConnector = new EventBridgeImpl();
+  public readonly eventBridge = new EventBridgeImpl();
   public readonly applicationContextProvider =
     new ApplicationContextProviderImpl();
 
