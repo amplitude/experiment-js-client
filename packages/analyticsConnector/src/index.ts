@@ -1,9 +1,9 @@
-export { AmplitudeCore } from './amplitudeCore';
+export { AnalyticsConnector } from './analyticsConnector';
 export {
-  AnalyticsConnector,
+  EventBridge,
   AnalyticsEvent,
   AnalyticsEventReceiver,
-} from './analyticsConnector';
+} from './eventBridge';
 export {
   ApplicationContext,
   ApplicationContextProvider,

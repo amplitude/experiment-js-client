@@ -11,7 +11,7 @@ const browserConfig = {
   input: 'src/index.ts',
   output: {
     dir: 'dist',
-    entryFileNames: 'core.umd.js',
+    entryFileNames: 'analyticsConnector.umd.js',
     exports: 'named',
     format: 'umd',
     name: 'Experiment',
@@ -21,7 +21,10 @@ const browserConfig = {
   },
   external: [],
   plugins: [
-    replace({ BUILD_BROWSER: true }),
+    replace({
+      preventAssignment: true,
+      BUILD_BROWSER: true,
+    }),
     resolve(),
     json(),
     commonjs(),

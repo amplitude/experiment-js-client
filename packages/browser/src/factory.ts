@@ -1,8 +1,11 @@
-import { AmplitudeCore } from '@amplitude/amplitude-core';
+import { AnalyticsConnector } from '@amplitude/analytics-connector';
 
 import { Defaults, ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
-import { CoreAnalyticsProvider, CoreUserProvider } from './integration/core';
+import {
+  ConnectorAnalyticsProvider,
+  ConnectorUserProvider,
+} from './integration/connector';
 import { DefaultUserProvider } from './integration/default';
 
 const instances = {};
@@ -22,10 +25,12 @@ const initialize = (
   // initializing multiple default instances for different api keys.
   const instanceName = config?.instanceName || Defaults.instanceName;
   const instanceKey = `${instanceName}.${apiKey}`;
-  const core = AmplitudeCore.getInstance(instanceName);
+  const connector = AnalyticsConnector.getInstance(instanceName);
   if (!instances[instanceKey]) {
     config = {
-      userProvider: new DefaultUserProvider(core.applicationContextProvider),
+      userProvider: new DefaultUserProvider(
+        connector.applicationContextProvider,
+      ),
       ...config,
     };
     instances[instanceKey] = new ExperimentClient(apiKey, config);
@@ -52,16 +57,16 @@ const initializeWithAmplitudeAnalytics = (
   // initializing multiple default instances for different api keys.
   const instanceName = config?.instanceName || Defaults.instanceName;
   const instanceKey = `${instanceName}.${apiKey}`;
-  const core = AmplitudeCore.getInstance(instanceName);
+  const connector = AnalyticsConnector.getInstance(instanceName);
   if (!instances[instanceKey]) {
     config = {
-      userProvider: new CoreUserProvider(core.identityStore),
-      analyticsProvider: new CoreAnalyticsProvider(core.analyticsConnector),
+      userProvider: new ConnectorUserProvider(connector.identityStore),
+      analyticsProvider: new ConnectorAnalyticsProvider(connector.eventBridge),
       ...config,
     };
     instances[instanceKey] = new ExperimentClient(apiKey, config);
     if (config.automaticFetchOnAmplitudeIdentityChange) {
-      core.identityStore.addIdentityListener(() => {
+      connector.identityStore.addIdentityListener(() => {
         instances[instanceKey].fetch();
       });
     }
