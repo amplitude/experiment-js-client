@@ -70,31 +70,23 @@ export class ConnectorAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
 
   track(event: ExperimentAnalyticsEvent): void {
+    const source = event.properties['source'];
+    const variant = isFallback(source) ? null : event.variant.value;
     const analyticsEvent: AnalyticsEvent = {
-      eventType: event.name,
-      eventProperties: event.properties,
-      userProperties: { $set: { [event.userProperty]: event.variant.value } },
-    };
-    this.eventBridge.logEvent(analyticsEvent);
-  }
-
-  setUserProperty?(event: ExperimentAnalyticsEvent): void {
-    const analyticsEvent: AnalyticsEvent = {
-      eventType: '$identify',
-      userProperties: {
-        $set: { [event.userProperty]: event.variant.value },
+      eventType: '$exposure',
+      eventProperties: {
+        flag_key: event.key,
+        variant: variant,
       },
     };
     this.eventBridge.logEvent(analyticsEvent);
   }
 
   unsetUserProperty?(event: ExperimentAnalyticsEvent): void {
-    const analyticsEvent: AnalyticsEvent = {
-      eventType: '$identify',
-      userProperties: {
-        $unset: { [event.userProperty]: event.variant.value },
-      },
-    };
-    this.eventBridge.logEvent(analyticsEvent);
+    this.track(event);
   }
 }
+
+const isFallback = (source: string) => {
+  return source === 'fallback-inline' || source === 'fallback-config';
+};
