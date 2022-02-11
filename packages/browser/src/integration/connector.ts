@@ -70,23 +70,23 @@ export class ConnectorAnalyticsProvider implements ExperimentAnalyticsProvider {
   }
 
   track(event: ExperimentAnalyticsEvent): void {
-    const source = event.properties['source'];
-    const variant = isFallback(source) ? null : event.variant.value;
     const analyticsEvent: AnalyticsEvent = {
       eventType: '$exposure',
       eventProperties: {
         flag_key: event.key,
-        variant: variant,
+        variant: event.variant.value,
       },
     };
     this.eventBridge.logEvent(analyticsEvent);
   }
 
   unsetUserProperty?(event: ExperimentAnalyticsEvent): void {
-    this.track(event);
+    const analyticsEvent: AnalyticsEvent = {
+      eventType: '$exposure',
+      eventProperties: {
+        flag_key: event.key,
+      },
+    };
+    this.eventBridge.logEvent(analyticsEvent);
   }
 }
-
-const isFallback = (source: string) => {
-  return source === 'fallback-inline' || source === 'fallback-config';
-};
