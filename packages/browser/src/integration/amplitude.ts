@@ -1,8 +1,8 @@
-import { ExperimentAnalyticsEvent } from '../types/analytics';
 import {
-  ExperimentUserProvider,
+  ExperimentAnalyticsEvent,
   ExperimentAnalyticsProvider,
-} from '../types/provider';
+} from '../types/analytics';
+import { ExperimentUserProvider } from '../types/provider';
 import { ExperimentUser } from '../types/user';
 
 type AmplitudeIdentify = {

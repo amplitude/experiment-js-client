@@ -1,15 +1,16 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { ConnectorAnalyticsProvider } from 'src/integration/connector';
+import { ConnectorExposureTrackingProvider } from 'src/integration/connector';
 
 import { ExperimentClient } from '../src/experimentClient';
 import {
-  ExperimentAnalyticsProvider,
   ExperimentUserProvider,
 } from '../src/types/provider';
 import { Source } from '../src/types/source';
 import { ExperimentUser } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
 import { randomString } from '../src/util/randomstring';
+import { ExposureTrackingProvider } from "src/types/exposure";
+import { ExperimentAnalyticsProvider } from "src/types/analytics";
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -220,35 +221,41 @@ test('ExperimentClient.fetch, with config user provider, success', async () => {
 /**
  * Utility class for testing analytics provider & exposure tracking.
  */
-class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
+class TestAnalyticsProvider
+  implements ExposureTrackingProvider, ExperimentAnalyticsProvider
+{
   track(): void {
     return;
   }
-  unsetUserProperty(): void {
+
+  setUserProperty(): void {
     return;
   }
-  setUserProperty(): void {
+
+  unsetUserProperty(): void {
     return;
   }
 }
 
-test('ExperimentClient.variant, with analytics provider, unset called only once per key', async () => {
+test('ExperimentClient.variant, with exposure tracking provider, track called once per key', async () => {
   const eventBridge = AnalyticsConnector.getInstance('1').eventBridge;
-  const analyticsProvider = new ConnectorAnalyticsProvider(eventBridge);
-  const unsetSpy = jest.spyOn(analyticsProvider, 'unsetUserProperty');
+  const exposureTrackingProvider = new ConnectorExposureTrackingProvider(
+    eventBridge,
+  );
+  const trackSpy = jest.spyOn(exposureTrackingProvider, 'track');
   let eventCount = 0;
   eventBridge.setEventReceiver(() => {
     eventCount++;
   });
   const client = new ExperimentClient(API_KEY, {
-    analyticsProvider: analyticsProvider,
+    exposureTrackingProvider: exposureTrackingProvider,
   });
   await client.fetch(testUser);
   for (let i = 0; i < 100; i++) {
     client.variant('key-that-does-not-exist');
   }
 
-  expect(unsetSpy).toBeCalledTimes(1);
+  expect(trackSpy).toBeCalledTimes(1);
   expect(eventCount).toEqual(1);
 });
 

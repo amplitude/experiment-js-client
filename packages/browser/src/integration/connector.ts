@@ -1,14 +1,7 @@
-import {
-  EventBridge,
-  AnalyticsEvent,
-  IdentityStore,
-} from '@amplitude/analytics-connector';
+import { EventBridge, IdentityStore } from '@amplitude/analytics-connector';
 
-import { ExperimentAnalyticsEvent } from '../types/analytics';
-import {
-  ExperimentAnalyticsProvider,
-  ExperimentUserProvider,
-} from '../types/provider';
+import { Exposure, ExposureTrackingProvider } from '../types/exposure';
+import { ExperimentUserProvider } from '../types/provider';
 import { ExperimentUser } from '../types/user';
 import { safeGlobal } from '../util/global';
 
@@ -62,31 +55,19 @@ export class ConnectorUserProvider implements ExperimentUserProvider {
   }
 }
 
-export class ConnectorAnalyticsProvider implements ExperimentAnalyticsProvider {
+export class ConnectorExposureTrackingProvider
+  implements ExposureTrackingProvider
+{
   private readonly eventBridge: EventBridge;
 
   constructor(eventBridge: EventBridge) {
     this.eventBridge = eventBridge;
   }
 
-  track(event: ExperimentAnalyticsEvent): void {
-    const analyticsEvent: AnalyticsEvent = {
+  track(exposure: Exposure): void {
+    this.eventBridge.logEvent({
       eventType: '$exposure',
-      eventProperties: {
-        flag_key: event.key,
-        variant: event.variant.value,
-      },
-    };
-    this.eventBridge.logEvent(analyticsEvent);
-  }
-
-  unsetUserProperty?(event: ExperimentAnalyticsEvent): void {
-    const analyticsEvent: AnalyticsEvent = {
-      eventType: '$exposure',
-      eventProperties: {
-        flag_key: event.key,
-      },
-    };
-    this.eventBridge.logEvent(analyticsEvent);
+      eventProperties: exposure,
+    });
   }
 }

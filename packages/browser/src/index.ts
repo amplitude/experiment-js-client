@@ -15,9 +15,11 @@ export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';
 export { Client } from './types/client';
 export {
-  ExperimentUserProvider,
   ExperimentAnalyticsProvider,
-} from './types/provider';
+  ExperimentAnalyticsEvent,
+} from './types/analytics';
+export { ExperimentUserProvider } from './types/provider';
 export { Source } from './types/source';
 export { ExperimentUser } from './types/user';
 export { Variant, Variants } from './types/variant';
+export { Exposure, ExposureTrackingProvider } from './types/exposure';
