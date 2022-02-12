@@ -11,6 +11,7 @@ import { LocalStorage } from './storage/localStorage';
 import { FetchHttpClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
 import { Client } from './types/client';
+import { ExposureTrackingProvider } from './types/exposure';
 import { ExperimentUserProvider } from './types/provider';
 import { isFallback, Source, VariantSource } from './types/source';
 import { Storage } from './types/storage';
@@ -22,6 +23,7 @@ import { Backoff } from './util/backoff';
 import { urlSafeBase64Encode } from './util/base64';
 import { randomString } from './util/randomstring';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
+import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
@@ -52,6 +54,7 @@ export class ExperimentClient implements Client {
   private userProvider: ExperimentUserProvider = null;
 
   private analyticsProvider: SessionAnalyticsProvider;
+  private exposureTrackingProvider: ExposureTrackingProvider;
 
   /**
    * Creates a new ExperimentClient instance.
@@ -71,6 +74,11 @@ export class ExperimentClient implements Client {
     if (this.config.analyticsProvider) {
       this.analyticsProvider = new SessionAnalyticsProvider(
         this.config.analyticsProvider,
+      );
+    }
+    if (this.config.exposureTrackingProvider) {
+      this.exposureTrackingProvider = new SessionExposureTrackingProvider(
+        this.config.exposureTrackingProvider,
       );
     }
     this.httpClient = FetchHttpClient;
@@ -136,7 +144,7 @@ export class ExperimentClient implements Client {
       return { value: undefined };
     }
     const { source, variant } = this.variantAndSource(key, fallback);
-    if (this.config.automaticClientSideExposureTracking) {
+    if (this.config.automaticExposureTracking) {
       this.exposureInternal(key, variant, source);
     }
     this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
@@ -471,9 +479,14 @@ export class ExperimentClient implements Client {
     if (isFallback(source) || !variant?.value) {
       // fallbacks indicate not being allocated into an experiment, so
       // we can unset the property
+      this.exposureTrackingProvider?.track({ flag_key: key, variant: null });
       this.analyticsProvider?.unsetUserProperty?.(event);
     } else if (variant?.value) {
       // only track when there's a value for a non fallback variant
+      this.exposureTrackingProvider?.track({
+        flag_key: key,
+        variant: variant.value,
+      });
       this.analyticsProvider?.setUserProperty?.(event);
       this.analyticsProvider?.track(event);
     }

@@ -1,5 +1,7 @@
-import { ExperimentAnalyticsEvent } from '../types/analytics';
-import { ExperimentAnalyticsProvider } from '../types/provider';
+import {
+  ExperimentAnalyticsEvent,
+  ExperimentAnalyticsProvider,
+} from '../types/analytics';
 
 /**
  * A wrapper for an analytics provider which only sends one exposure event per

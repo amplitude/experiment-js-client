@@ -1,11 +1,10 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { ConnectorAnalyticsProvider } from 'src/integration/connector';
+import { ConnectorExposureTrackingProvider } from 'src/integration/connector';
 
 import { ExperimentClient } from '../src/experimentClient';
-import {
-  ExperimentAnalyticsProvider,
-  ExperimentUserProvider,
-} from '../src/types/provider';
+import { ExperimentAnalyticsProvider } from '../src/types/analytics';
+import { ExposureTrackingProvider } from '../src/types/exposure';
+import { ExperimentUserProvider } from '../src/types/provider';
 import { Source } from '../src/types/source';
 import { ExperimentUser } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
@@ -220,36 +219,63 @@ test('ExperimentClient.fetch, with config user provider, success', async () => {
 /**
  * Utility class for testing analytics provider & exposure tracking.
  */
-class TestAnalyticsProvider implements ExperimentAnalyticsProvider {
+class TestAnalyticsProvider
+  implements ExposureTrackingProvider, ExperimentAnalyticsProvider
+{
   track(): void {
-    return;
-  }
-  unsetUserProperty(): void {
     return;
   }
   setUserProperty(): void {
     return;
   }
+  unsetUserProperty(): void {
+    return;
+  }
 }
 
-test('ExperimentClient.variant, with analytics provider, unset called only once per key', async () => {
+test('ExperimentClient.variant, with exposure tracking provider, track called once per key', async () => {
   const eventBridge = AnalyticsConnector.getInstance('1').eventBridge;
-  const analyticsProvider = new ConnectorAnalyticsProvider(eventBridge);
-  const unsetSpy = jest.spyOn(analyticsProvider, 'unsetUserProperty');
-  let eventCount = 0;
-  eventBridge.setEventReceiver(() => {
-    eventCount++;
-  });
+  const exposureTrackingProvider = new ConnectorExposureTrackingProvider(
+    eventBridge,
+  );
+  const trackSpy = jest.spyOn(exposureTrackingProvider, 'track');
+  const logEventSpy = jest.spyOn(eventBridge, 'logEvent');
   const client = new ExperimentClient(API_KEY, {
-    analyticsProvider: analyticsProvider,
+    exposureTrackingProvider: exposureTrackingProvider,
   });
   await client.fetch(testUser);
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 10; i++) {
     client.variant('key-that-does-not-exist');
   }
 
-  expect(unsetSpy).toBeCalledTimes(1);
-  expect(eventCount).toEqual(1);
+  expect(trackSpy).toBeCalledTimes(1);
+  expect(trackSpy).toHaveBeenCalledWith({
+    flag_key: 'key-that-does-not-exist',
+    variant: null,
+  });
+  expect(logEventSpy).toBeCalledTimes(1);
+  expect(logEventSpy).toHaveBeenCalledWith({
+    eventType: '$exposure',
+    eventProperties: { flag_key: 'key-that-does-not-exist', variant: null },
+  });
+
+  for (let i = 0; i < 10; i++) {
+    client.variant(serverKey);
+  }
+
+  expect(trackSpy).toBeCalledTimes(2);
+  expect(trackSpy).toHaveBeenCalledWith({
+    flag_key: serverKey,
+    variant: serverVariant.value,
+  });
+  expect(logEventSpy).toBeCalledTimes(2);
+  expect(logEventSpy).toHaveBeenCalledWith({
+    eventType: '$exposure',
+    eventProperties: {
+      flag_key: serverKey,
+      variant: serverVariant.value,
+    },
+  });
 });
 
 /**
