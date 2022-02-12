@@ -227,11 +227,9 @@ class TestAnalyticsProvider
   track(): void {
     return;
   }
-
   setUserProperty(): void {
     return;
   }
-
   unsetUserProperty(): void {
     return;
   }
