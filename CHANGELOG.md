@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.4.0](https://github.com/amplitude/experiment-js-client/compare/v1.3.4...v1.4.0) (2022-02-12)
+
+
+### Bug Fixes
+
+* simplify connector analytics provider ([#24](https://github.com/amplitude/experiment-js-client/issues/24)) ([0aa4eee](https://github.com/amplitude/experiment-js-client/commit/0aa4eee400a8ceaf62de73aa178bc6385c437c17))
+
+
+### Features
+
+* core package for seamless integration with amplitude analytics ([#15](https://github.com/amplitude/experiment-js-client/issues/15)) ([f62c4cb](https://github.com/amplitude/experiment-js-client/commit/f62c4cbd833158e9749c69df53bfbeb41b9f917d))
+* implement exposure tracking provider ([#25](https://github.com/amplitude/experiment-js-client/issues/25)) ([9fb040c](https://github.com/amplitude/experiment-js-client/commit/9fb040c2a23d00f2f91a27028d8b271544f13854))
+* integrate core package into experiment sdk ([#16](https://github.com/amplitude/experiment-js-client/issues/16)) ([7ff0540](https://github.com/amplitude/experiment-js-client/commit/7ff054078a67cafbf8fcd58af45b0c9a9f9a28c3))
+* rename amplitude-core to analytics-connector ([#22](https://github.com/amplitude/experiment-js-client/issues/22)) ([70b3b50](https://github.com/amplitude/experiment-js-client/commit/70b3b5048a5bbc0d88717f5c8cf2db0a8cc85a4d))
+* update analytics connector to use new exposure event definition ([#23](https://github.com/amplitude/experiment-js-client/issues/23)) ([b76b33c](https://github.com/amplitude/experiment-js-client/commit/b76b33ce96273848d9f1b7ae04a26c1ac7311d0c))
+
+
+
+
+
 ## [1.3.4](https://github.com/amplitude/experiment-js-client/compare/v1.3.3...v1.3.4) (2022-01-24)
 
 
