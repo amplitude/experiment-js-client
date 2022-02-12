@@ -2,15 +2,13 @@ import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import { ConnectorExposureTrackingProvider } from 'src/integration/connector';
 
 import { ExperimentClient } from '../src/experimentClient';
-import {
-  ExperimentUserProvider,
-} from '../src/types/provider';
+import { ExperimentAnalyticsProvider } from '../src/types/analytics';
+import { ExposureTrackingProvider } from '../src/types/exposure';
+import { ExperimentUserProvider } from '../src/types/provider';
 import { Source } from '../src/types/source';
 import { ExperimentUser } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
 import { randomString } from '../src/util/randomstring';
-import { ExposureTrackingProvider } from "src/types/exposure";
-import { ExperimentAnalyticsProvider } from "src/types/analytics";
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -241,20 +239,43 @@ test('ExperimentClient.variant, with exposure tracking provider, track called on
     eventBridge,
   );
   const trackSpy = jest.spyOn(exposureTrackingProvider, 'track');
-  let eventCount = 0;
-  eventBridge.setEventReceiver(() => {
-    eventCount++;
-  });
+  const logEventSpy = jest.spyOn(eventBridge, 'logEvent');
   const client = new ExperimentClient(API_KEY, {
     exposureTrackingProvider: exposureTrackingProvider,
   });
   await client.fetch(testUser);
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 10; i++) {
     client.variant('key-that-does-not-exist');
   }
 
   expect(trackSpy).toBeCalledTimes(1);
-  expect(eventCount).toEqual(1);
+  expect(trackSpy).toHaveBeenCalledWith({
+    flag_key: 'key-that-does-not-exist',
+    variant: null,
+  });
+  expect(logEventSpy).toBeCalledTimes(1);
+  expect(logEventSpy).toHaveBeenCalledWith({
+    eventType: '$exposure',
+    eventProperties: { flag_key: 'key-that-does-not-exist', variant: null },
+  });
+
+  for (let i = 0; i < 10; i++) {
+    client.variant(serverKey);
+  }
+
+  expect(trackSpy).toBeCalledTimes(2);
+  expect(trackSpy).toHaveBeenCalledWith({
+    flag_key: serverKey,
+    variant: serverVariant.value,
+  });
+  expect(logEventSpy).toBeCalledTimes(2);
+  expect(logEventSpy).toHaveBeenCalledWith({
+    eventType: '$exposure',
+    eventProperties: {
+      flag_key: serverKey,
+      variant: serverVariant.value,
+    },
+  });
 });
 
 /**
