@@ -1,8 +1,8 @@
+import { ExperimentAnalyticsProvider } from './types/analytics';
+import { ExposureTrackingProvider } from './types/exposure';
 import { ExperimentUserProvider } from './types/provider';
 import { Source } from './types/source';
 import { Variant, Variants } from './types/variant';
-import { ExperimentAnalyticsProvider } from "./types/analytics";
-import { ExposureTrackingProvider } from "./types/exposure";
 
 /**
  * @category Configuration
