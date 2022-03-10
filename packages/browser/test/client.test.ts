@@ -251,12 +251,11 @@ test('ExperimentClient.variant, with exposure tracking provider, track called on
   expect(trackSpy).toBeCalledTimes(1);
   expect(trackSpy).toHaveBeenCalledWith({
     flag_key: 'key-that-does-not-exist',
-    variant: null,
   });
   expect(logEventSpy).toBeCalledTimes(1);
   expect(logEventSpy).toHaveBeenCalledWith({
     eventType: '$exposure',
-    eventProperties: { flag_key: 'key-that-does-not-exist', variant: null },
+    eventProperties: { flag_key: 'key-that-does-not-exist' },
   });
 
   for (let i = 0; i < 10; i++) {
