@@ -25,7 +25,7 @@
  */
 export type Exposure = {
   flag_key: string;
-  variant: string | null | undefined;
+  variant?: string;
 };
 
 /**
