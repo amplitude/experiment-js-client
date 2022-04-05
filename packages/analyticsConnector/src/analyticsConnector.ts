@@ -3,8 +3,6 @@ import { EventBridgeImpl } from './eventBridge';
 import { IdentityStoreImpl } from './identityStore';
 import { safeGlobal } from './util/global';
 
-safeGlobal['analyticsConnectorInstances'] = {};
-
 export class AnalyticsConnector {
   public readonly identityStore = new IdentityStoreImpl();
   public readonly eventBridge = new EventBridgeImpl();
@@ -12,6 +10,9 @@ export class AnalyticsConnector {
     new ApplicationContextProviderImpl();
 
   static getInstance(instanceName: string): AnalyticsConnector {
+    if (!safeGlobal['analyticsConnectorInstances']) {
+      safeGlobal['analyticsConnectorInstances'] = {};
+    }
     if (!safeGlobal['analyticsConnectorInstances'][instanceName]) {
       safeGlobal['analyticsConnectorInstances'][instanceName] =
         new AnalyticsConnector();
