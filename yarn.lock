@@ -2,17 +2,17 @@
 # yarn lockfile v1
 
 
-"@amplitude/analytics-connector@^1.4.0":
-  version "1.4.0"
-  resolved "https://registry.yarnpkg.com/@amplitude/analytics-connector/-/analytics-connector-1.4.0.tgz#0a5dc70365b29201e10f79fc8940e85fbfe84758"
-  integrity sha512-4dSJWcrSUeRCAJYDMNz/e6bmrbSU9Cak+6XAZS+hkWRQX9FoHGqLQQ0LavhJSOH5jvO/yDpY5wqm/pmFijzfJw==
+"@amplitude/analytics-connector@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@amplitude/analytics-connector/-/analytics-connector-1.0.0.tgz#cb8d84b7c3eb2809f2485d5c105699b01a8c3af6"
+  integrity sha512-6RZwSMjhO9VD5rw5FV5U7pU00drDQAQqA+ZTv4mSop8XEws9TimzynGYzLYLijV0vnK7h6j7D3+VJtM4f4MlNA==
   dependencies:
     "@amplitude/ua-parser-js" "0.7.26"
 
 "@amplitude/experiment-js-client@file:packages/browser":
   version "1.4.0"
   dependencies:
-    "@amplitude/analytics-connector" "^1.4.0"
+    "@amplitude/analytics-connector" "1.4.1"
     base64-js "1.5.1"
     unfetch "4.1.0"
 
