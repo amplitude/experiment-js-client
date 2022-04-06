@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.1](https://github.com/amplitude/experiment-js-client/compare/v1.4.0...v1.4.1) (2022-04-06)
+
+
+### Bug Fixes
+
+* make variant optional in exposure object for segment ([#26](https://github.com/amplitude/experiment-js-client/issues/26)) ([aa29994](https://github.com/amplitude/experiment-js-client/commit/aa299943cabd52f4077905a4d76a73eefb68090e))
+* support script tag installs for analytics connector ([#28](https://github.com/amplitude/experiment-js-client/issues/28)) ([fa6be45](https://github.com/amplitude/experiment-js-client/commit/fa6be45182569b3fe1f6a00204e031b6ae9747e1))
+
+
+
+
+
 # [1.4.0](https://github.com/amplitude/experiment-js-client/compare/v1.3.4...v1.4.0) (2022-02-12)
 
 
