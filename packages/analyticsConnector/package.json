@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/analytics-connector",
-  "version": "1.4.1-beta.0",
+  "version": "1.4.1",
   "description": "Connector package for Amplitude SDKs",
   "main": "dist/analyticsConnector.umd.js",
   "types": "dist/types/src/index.d.ts",
@@ -22,6 +22,7 @@
   },
   "author": "Amplitude",
   "license": "MIT",
+  "private": true,
   "bugs": {
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
