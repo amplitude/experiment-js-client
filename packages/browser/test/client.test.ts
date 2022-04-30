@@ -1,5 +1,6 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import { ConnectorExposureTrackingProvider } from 'src/integration/connector';
+import { HttpClient, SimpleResponse } from 'src/types/transport';
 
 import { ExperimentClient } from '../src/experimentClient';
 import { ExperimentAnalyticsProvider } from '../src/types/analytics';
@@ -9,7 +10,6 @@ import { Source } from '../src/types/source';
 import { ExperimentUser } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
 import { randomString } from '../src/util/randomstring';
-import { HttpClient, SimpleResponse } from "src/types/transport";
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 

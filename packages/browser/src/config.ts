@@ -1,10 +1,10 @@
+import { FetchHttpClient } from './transport/http';
 import { ExperimentAnalyticsProvider } from './types/analytics';
 import { ExposureTrackingProvider } from './types/exposure';
 import { ExperimentUserProvider } from './types/provider';
 import { Source } from './types/source';
+import { HttpClient } from './types/transport';
 import { Variant, Variants } from './types/variant';
-import { HttpClient } from "./types/transport";
-import { FetchHttpClient } from "./transport/http";
 
 /**
  * @category Configuration
