@@ -1,7 +1,9 @@
+import { FetchHttpClient } from './transport/http';
 import { ExperimentAnalyticsProvider } from './types/analytics';
 import { ExposureTrackingProvider } from './types/exposure';
 import { ExperimentUserProvider } from './types/provider';
 import { Source } from './types/source';
+import { HttpClient } from './types/transport';
 import { Variant, Variants } from './types/variant';
 
 /**
@@ -100,6 +102,11 @@ export interface ExperimentConfig {
    * implementation.
    */
   exposureTrackingProvider?: ExposureTrackingProvider;
+
+  /**
+   * (Advanced) Use your own http client.
+   */
+  httpClient?: HttpClient;
 }
 
 /**
@@ -138,4 +145,5 @@ export const Defaults: ExperimentConfig = {
   userProvider: null,
   analyticsProvider: null,
   exposureTrackingProvider: null,
+  httpClient: FetchHttpClient,
 };

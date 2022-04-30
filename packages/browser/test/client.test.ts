@@ -1,5 +1,6 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import { ConnectorExposureTrackingProvider } from 'src/integration/connector';
+import { HttpClient, SimpleResponse } from 'src/types/transport';
 
 import { ExperimentClient } from '../src/experimentClient';
 import { ExperimentAnalyticsProvider } from '../src/types/analytics';
@@ -342,4 +343,30 @@ test('ExperimentClient.variant, with analytics provider, exposure not tracked on
   expect(spyTrack).toHaveBeenCalledTimes(0);
   expect(spySet).toHaveBeenCalledTimes(0);
   expect(spyUnset).toHaveBeenCalledTimes(2);
+});
+
+class TestHttpClient implements HttpClient {
+  public readonly status: number;
+  public readonly body: string;
+
+  constructor(status: number, body: string) {
+    this.status = status;
+    this.body = body;
+  }
+
+  async request(): Promise<SimpleResponse> {
+    return { status: this.status, body: this.body } as SimpleResponse;
+  }
+}
+
+test('configure httpClient, success', async () => {
+  const client = new ExperimentClient(API_KEY, {
+    httpClient: new TestHttpClient(
+      200,
+      JSON.stringify({ flag: { key: 'key' } }),
+    ),
+  });
+  await client.fetch();
+  const v = client.variant('flag');
+  expect(v).toEqual({ value: 'key' });
 });
