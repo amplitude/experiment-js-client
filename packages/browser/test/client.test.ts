@@ -354,13 +354,7 @@ class TestHttpClient implements HttpClient {
     this.body = body;
   }
 
-  async request(
-    requestUrl: string,
-    method: string,
-    headers: Record<string, string>,
-    data: string,
-    timeoutMillis?: number,
-  ): Promise<SimpleResponse> {
+  async request(): Promise<SimpleResponse> {
     return { status: this.status, body: this.body } as SimpleResponse;
   }
 }
