@@ -9,6 +9,7 @@ import { Source } from '../src/types/source';
 import { ExperimentUser } from '../src/types/user';
 import { Variant, Variants } from '../src/types/variant';
 import { randomString } from '../src/util/randomstring';
+import { HttpClient, SimpleResponse } from "src/types/transport";
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -342,4 +343,36 @@ test('ExperimentClient.variant, with analytics provider, exposure not tracked on
   expect(spyTrack).toHaveBeenCalledTimes(0);
   expect(spySet).toHaveBeenCalledTimes(0);
   expect(spyUnset).toHaveBeenCalledTimes(2);
+});
+
+class TestHttpClient implements HttpClient {
+  public readonly status: number;
+  public readonly body: string;
+
+  constructor(status: number, body: string) {
+    this.status = status;
+    this.body = body;
+  }
+
+  async request(
+    requestUrl: string,
+    method: string,
+    headers: Record<string, string>,
+    data: string,
+    timeoutMillis?: number,
+  ): Promise<SimpleResponse> {
+    return { status: this.status, body: this.body } as SimpleResponse;
+  }
+}
+
+test('configure httpClient, success', async () => {
+  const client = new ExperimentClient(API_KEY, {
+    httpClient: new TestHttpClient(
+      200,
+      JSON.stringify({ flag: { key: 'key' } }),
+    ),
+  });
+  await client.fetch();
+  const v = client.variant('flag');
+  expect(v).toEqual({ value: 'key' });
 });

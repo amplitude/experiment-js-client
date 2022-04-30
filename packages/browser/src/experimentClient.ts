@@ -15,7 +15,7 @@ import { ExposureTrackingProvider } from './types/exposure';
 import { ExperimentUserProvider } from './types/provider';
 import { isFallback, Source, VariantSource } from './types/source';
 import { Storage } from './types/storage';
-import { HttpClient } from './types/transport';
+import { HttpClient, SimpleResponse } from './types/transport';
 import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
 import { isNullOrUndefined } from './util';
@@ -42,8 +42,8 @@ const fetchBackoffScalar = 1.5;
 export class ExperimentClient implements Client {
   private readonly apiKey: string;
   private readonly config: ExperimentConfig;
-  private readonly httpClient?: HttpClient;
-  private readonly storage?: Storage;
+  private readonly httpClient: HttpClient;
+  private readonly storage: Storage;
 
   private user: ExperimentUser = null;
   private retriesBackoff: Backoff;
@@ -81,7 +81,7 @@ export class ExperimentClient implements Client {
         this.config.exposureTrackingProvider,
       );
     }
-    this.httpClient = FetchHttpClient;
+    this.httpClient = this.config.httpClient;
     this.storage = new LocalStorage(this.config.instanceName, apiKey);
     this.storage.load();
   }
@@ -372,11 +372,11 @@ export class ExperimentClient implements Client {
       throw Error(`Fetch error response: status=${response.status}`);
     }
     this.debug('[Experiment] Received fetch response: ', response);
-    return await this.parseResponse(response);
+    return this.parseResponse(response);
   }
 
-  private async parseResponse(response: Response): Promise<Variants> {
-    const json = await response.json();
+  private parseResponse(response: SimpleResponse): Variants {
+    const json = JSON.parse(response.body);
     const variants: Variants = {};
     for (const key of Object.keys(json)) {
       variants[key] = {

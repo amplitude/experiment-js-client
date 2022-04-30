@@ -5,7 +5,7 @@
 
 import unfetch from 'unfetch';
 
-import { HttpClient } from '../types/transport';
+import { HttpClient, SimpleResponse } from '../types/transport';
 import { safeGlobal } from '../util/global';
 
 const fetch = safeGlobal.fetch || unfetch;
@@ -15,10 +15,10 @@ const fetch = safeGlobal.fetch || unfetch;
  * https://github.com/github/fetch/issues/175#issuecomment-284787564
  */
 const timeout = (
-  promise: Promise<Response>,
+  promise: Promise<SimpleResponse>,
   timeoutMillis?: number,
-): Promise<Response> => {
-  // Dont timeout if timeout is null or invalid
+): Promise<SimpleResponse> => {
+  // Don't timeout if timeout is null or invalid
   if (timeoutMillis == null || timeoutMillis <= 0) {
     return promise;
   }
@@ -36,15 +36,20 @@ const request: HttpClient['request'] = (
   headers: Record<string, string>,
   data: string,
   timeoutMillis?: number,
-): Promise<Response> => {
-  return timeout(
-    fetch(requestUrl, {
+): Promise<SimpleResponse> => {
+  const call = async () => {
+    const response = await fetch(requestUrl, {
       method: method,
       headers: headers,
       body: data,
-    }),
-    timeoutMillis,
-  );
+    });
+    const simpleResponse: SimpleResponse = {
+      status: response.status,
+      body: await response.text(),
+    };
+    return simpleResponse;
+  };
+  return timeout(call(), timeoutMillis);
 };
 
 export const FetchHttpClient: HttpClient = { request };

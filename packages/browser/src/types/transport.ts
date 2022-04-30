@@ -1,3 +1,8 @@
+export interface SimpleResponse {
+  status: number;
+  body: string;
+}
+
 export interface HttpClient {
   request(
     requestUrl: string,
@@ -5,5 +10,5 @@ export interface HttpClient {
     headers: Record<string, string>,
     data: string,
     timeoutMillis?: number,
-  ): Promise<Response>;
+  ): Promise<SimpleResponse>;
 }
