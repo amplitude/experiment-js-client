@@ -121,6 +121,11 @@ const isEqual = (obj1: any, obj2: any): boolean => {
   if (typeA !== typeB) {
     return false;
   }
+  for (const p of primitive) {
+    if (p === typeA) {
+      return obj1 === obj2;
+    }
+  }
   if (primitive.includes(typeA)) {
     return obj1 === obj2;
   }
