@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.1](https://github.com/amplitude/experiment-js-client/compare/v1.5.0...v1.5.1) (2022-05-12)
+
+
+### Bug Fixes
+
+* update analytics connector ([0b4a5a6](https://github.com/amplitude/experiment-js-client/commit/0b4a5a623823b39f53eb5e5c198fcff5b287c5de))
+
+
+
+
+
 # [1.5.0](https://github.com/amplitude/experiment-js-client/compare/v1.4.1...v1.5.0) (2022-04-30)
 
 
