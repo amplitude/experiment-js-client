@@ -9,10 +9,17 @@
   dependencies:
     "@amplitude/ua-parser-js" "0.7.26"
 
-"@amplitude/experiment-js-client@file:packages/browser":
-  version "1.4.1"
+"@amplitude/analytics-connector@1.4.2":
+  version "1.4.2"
+  resolved "https://registry.yarnpkg.com/@amplitude/analytics-connector/-/analytics-connector-1.4.2.tgz#5a87f35d014fa50cb283202d8fde78fa266712c2"
+  integrity sha512-bA9hLDobWA5HBHsdv1hI2+VmQOQ8AA4e3/YB9ng80J8NOLNN2zX/952YSf36Ns86QUm9pPCKHnYrlzMFU61X2g==
   dependencies:
-    "@amplitude/analytics-connector" "1.4.1"
+    "@amplitude/ua-parser-js" "0.7.26"
+
+"@amplitude/experiment-js-client@file:packages/browser":
+  version "1.5.0"
+  dependencies:
+    "@amplitude/analytics-connector" "1.4.2"
     base64-js "1.5.1"
     unfetch "4.1.0"
 
