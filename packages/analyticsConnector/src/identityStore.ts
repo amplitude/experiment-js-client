@@ -2,6 +2,19 @@ const ID_OP_SET = '$set';
 const ID_OP_UNSET = '$unset';
 const ID_OP_CLEAR_ALL = '$clearAll';
 
+// Polyfill for Object.entries
+if (!Object.entries) {
+  Object.entries = function (obj) {
+    const ownProps = Object.keys(obj);
+    let i = ownProps.length;
+    const resArray = new Array(i);
+    while (i--) {
+      resArray[i] = [ownProps[i], obj[ownProps[i]]];
+    }
+    return resArray;
+  };
+}
+
 export type Identity = {
   userId?: string;
   deviceId?: string;
