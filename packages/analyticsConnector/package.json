@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/analytics-connector",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Connector package for Amplitude SDKs",
   "main": "dist/analyticsConnector.umd.js",
   "types": "dist/types/src/index.d.ts",
