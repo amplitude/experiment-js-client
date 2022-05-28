@@ -27,7 +27,7 @@
   },
   "homepage": "https://github.com/amplitude/experiment-js-client#readme",
   "dependencies": {
-    "@amplitude/analytics-connector": "1.4.2",
+    "@amplitude/analytics-connector": "1.4.3",
     "base64-js": "1.5.1",
     "unfetch": "4.1.0"
   },

@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/amplitude/experiment-js-client#readme",
   "dependencies": {
-    "@amplitude/ua-parser-js": "0.7.26"
+    "@amplitude/ua-parser-js": "0.7.31"
   },
   "devDependencies": {
     "@types/amplitude-js": "^8.0.2",
