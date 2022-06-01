@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.3](https://github.com/amplitude/experiment-js-client/compare/v1.5.2...v1.5.3) (2022-06-01)
+
+
+### Bug Fixes
+
+* add secondary initial variants as a fallback ([7727ba9](https://github.com/amplitude/experiment-js-client/commit/7727ba96c519b5b4dbd9355f86fca9ac59a9021d))
+* re-add debug logging ([c18dfc9](https://github.com/amplitude/experiment-js-client/commit/c18dfc9f2fa4b7cbcbb35493cbb2c457a64ed83e))
+
+
+
+
+
 ## [1.5.2](https://github.com/amplitude/experiment-js-client/compare/v1.5.1...v1.5.2) (2022-05-28)
 
 

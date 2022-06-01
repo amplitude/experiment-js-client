@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.3](https://github.com/amplitude/experiment-js-client/compare/v1.5.2...v1.5.3) (2022-06-01)
+
+**Note:** Version bump only for package browser-demo
+
+
+
+
+
 ## [1.5.2](https://github.com/amplitude/experiment-js-client/compare/v1.5.1...v1.5.2) (2022-05-28)
 
 **Note:** Version bump only for package browser-demo
