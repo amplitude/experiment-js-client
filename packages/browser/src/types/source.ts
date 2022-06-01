@@ -29,7 +29,7 @@ export enum Source {
 export enum VariantSource {
   LocalStorage = 'storage',
   InitialVariants = 'initial',
-  SecondaryLocalStoraage = 'secondary-storage',
+  SecondaryLocalStorage = 'secondary-storage',
   SecondaryInitialVariants = 'secondary-initial',
   FallbackInline = 'fallback-inline',
   FallbackConfig = 'fallback-config',
@@ -44,6 +44,7 @@ export enum VariantSource {
 export const isFallback = (source: VariantSource): boolean => {
   return (
     source === VariantSource.FallbackInline ||
-    source === VariantSource.FallbackConfig
+    source === VariantSource.FallbackConfig ||
+    source === VariantSource.SecondaryInitialVariants
   );
 };

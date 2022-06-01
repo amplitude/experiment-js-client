@@ -268,7 +268,7 @@ export class ExperimentClient implements Client {
       if (!isNullOrUndefined(secondaryVariant)) {
         return {
           variant: this.convertVariant(secondaryVariant),
-          source: VariantSource.SecondaryLocalStoraage,
+          source: VariantSource.SecondaryLocalStorage,
         };
       }
       if (!isNullOrUndefined(fallback)) {
@@ -495,7 +495,6 @@ export class ExperimentClient implements Client {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private debug(message?: any, ...optionalParams: any[]): void {
     if (this.config.debug) {
-      console.debug(message, ...optionalParams);
     }
   }
 }
