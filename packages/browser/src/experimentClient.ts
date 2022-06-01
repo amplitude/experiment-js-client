@@ -8,7 +8,6 @@ import { version as PACKAGE_VERSION } from '../package.json';
 import { ExperimentConfig, Defaults } from './config';
 import { ConnectorUserProvider } from './integration/connector';
 import { LocalStorage } from './storage/localStorage';
-import { FetchHttpClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
 import { Client } from './types/client';
 import { ExposureTrackingProvider } from './types/exposure';
@@ -495,6 +494,7 @@ export class ExperimentClient implements Client {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private debug(message?: any, ...optionalParams: any[]): void {
     if (this.config.debug) {
+      console.debug(message, ...optionalParams);
     }
   }
 }
