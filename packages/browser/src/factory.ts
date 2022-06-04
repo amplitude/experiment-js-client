@@ -7,8 +7,7 @@ import {
   ConnectorUserProvider,
 } from './integration/connector';
 import { DefaultUserProvider } from './integration/default';
-
-const instances = {};
+import { safeGlobal } from './util/global';
 
 /**
  * Initializes a singleton {@link ExperimentClient} identified by the configured
@@ -21,21 +20,17 @@ const initialize = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
-  // Store instances by appending the instance name and api key. Allows for
-  // initializing multiple default instances for different api keys.
-  const instanceName = config?.instanceName || Defaults.instanceName;
-  const instanceKey = `${instanceName}.${apiKey}`;
-  const connector = AnalyticsConnector.getInstance(instanceName);
-  if (!instances[instanceKey]) {
+  return getInstance(apiKey, config, () => {
+    const instanceName = getInstanceName(config);
+    const connector = AnalyticsConnector.getInstance(instanceName);
     config = {
       userProvider: new DefaultUserProvider(
         connector.applicationContextProvider,
       ),
       ...config,
     };
-    instances[instanceKey] = new ExperimentClient(apiKey, config);
-  }
-  return instances[instanceKey];
+    return new ExperimentClient(apiKey, config);
+  });
 };
 
 /**
@@ -53,12 +48,9 @@ const initializeWithAmplitudeAnalytics = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
-  // Store instances by appending the instance name and api key. Allows for
-  // initializing multiple default instances for different api keys.
-  const instanceName = config?.instanceName || Defaults.instanceName;
-  const instanceKey = `${instanceName}.${apiKey}`;
-  const connector = AnalyticsConnector.getInstance(instanceName);
-  if (!instances[instanceKey]) {
+  return getInstance(apiKey, config, () => {
+    const instanceName = getInstanceName(config);
+    const connector = AnalyticsConnector.getInstance(instanceName);
     config = {
       userProvider: new ConnectorUserProvider(connector.identityStore),
       exposureTrackingProvider: new ConnectorExposureTrackingProvider(
@@ -66,14 +58,12 @@ const initializeWithAmplitudeAnalytics = (
       ),
       ...config,
     };
-    instances[instanceKey] = new ExperimentClient(apiKey, config);
+    const client = new ExperimentClient(apiKey, config);
     if (config.automaticFetchOnAmplitudeIdentityChange) {
-      connector.identityStore.addIdentityListener(() => {
-        instances[instanceKey].fetch();
-      });
+      connector.identityStore.addIdentityListener(() => client.fetch());
     }
-  }
-  return instances[instanceKey];
+    return client;
+  });
 };
 
 /**
@@ -83,4 +73,29 @@ const initializeWithAmplitudeAnalytics = (
 export const Experiment = {
   initialize,
   initializeWithAmplitudeAnalytics,
+};
+
+/*
+ * Global instances
+ */
+const instancesKey = 'ampExpInstances';
+const getInstanceName = (config?: ExperimentConfig): string => {
+  return config?.instanceName || Defaults.instanceName;
+};
+const getInstance = (
+  apiKey: string,
+  config?: ExperimentConfig,
+  factory?: () => ExperimentClient,
+): ExperimentClient => {
+  // Store instances by appending the instance name and api key. Allows for
+  // initializing multiple default instances for different api keys.
+  const instanceName = getInstanceName(config);
+  const instanceKey = `${instanceName}.${apiKey}`;
+  if (!safeGlobal[instancesKey]) {
+    safeGlobal[instancesKey] = {};
+  }
+  if (!safeGlobal[instancesKey][instanceKey] && factory) {
+    safeGlobal[instancesKey][instanceKey] = factory();
+  }
+  return safeGlobal[instancesKey][instanceKey];
 };
