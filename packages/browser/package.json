@@ -3,6 +3,8 @@
   "version": "1.5.3",
   "description": "Javascript Client SDK for Amplitude Experiment",
   "main": "dist/experiment.umd.js",
+  "module": "dist/experiment.esm.js",
+  "es2015": "dist/experiment.es2015.js",
   "types": "dist/types/src/index.d.ts",
   "files": [
     "dist"
