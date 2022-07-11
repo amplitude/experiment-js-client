@@ -23,18 +23,17 @@ const getCommonBrowserConfig = (target) => ({
     json(),
     commonjs(),
     typescript({
-      target: target,
+      ...(target === 'es2015' ? { target: 'es2015' } : {}),
       declaration: true,
       declarationDir: 'dist/types',
       include: tsConfig.include,
       rootDir: '.',
     }),
     babel({
-      configFile: pathResolve(
-        __dirname,
-        '../..',
-        target === 'es2015' ? 'babel.es2015.config.js' : 'babel.config.js',
-      ),
+      configFile:
+        target === 'es2015'
+          ? pathResolve(__dirname, '../..', 'babel.es2015.config.js')
+          : undefined,
       babelHelpers: 'bundled',
       exclude: ['node_modules/**'],
     }),
