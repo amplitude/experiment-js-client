@@ -3,6 +3,8 @@
   "version": "1.5.2",
   "description": "Connector package for Amplitude SDKs",
   "main": "dist/analyticsConnector.umd.js",
+  "module": "dist/analyticsConnector.esm.js",
+  "es2015": "dist/analyticsConnector.es2015.js",
   "types": "dist/types/src/index.d.ts",
   "files": [
     "dist"
