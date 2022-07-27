@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.4](https://github.com/amplitude/experiment-js-client/compare/v1.5.3...v1.5.4) (2022-07-27)
+
+
+### Bug Fixes
+
+* add guard for navigator for use in envs that do no support navigator ([#36](https://github.com/amplitude/experiment-js-client/issues/36)) ([2c8d398](https://github.com/amplitude/experiment-js-client/commit/2c8d3982a33caa088d6cfe74212cae8f07b1ac06))
+* update analytics connector dependency ([e699a90](https://github.com/amplitude/experiment-js-client/commit/e699a90a7ba37dd40532eaf195b0983e8975f798))
+
+
+
+
+
 ## [1.5.3](https://github.com/amplitude/experiment-js-client/compare/v1.5.2...v1.5.3) (2022-06-01)
 
 
