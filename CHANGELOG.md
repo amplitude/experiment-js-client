@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.5](https://github.com/amplitude/experiment-js-client/compare/v1.5.4...v1.5.5) (2022-08-03)
+
+
+### Bug Fixes
+
+* increase timeout for experiment integration to 10 seconds ([#39](https://github.com/amplitude/experiment-js-client/issues/39)) ([1172ccb](https://github.com/amplitude/experiment-js-client/commit/1172ccb643ebe1c6b3076429ffde68563a1a4a92))
+
+
+
+
+
 ## [1.5.4](https://github.com/amplitude/experiment-js-client/compare/v1.5.3...v1.5.4) (2022-07-27)
 
 
