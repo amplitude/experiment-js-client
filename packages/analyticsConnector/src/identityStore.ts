@@ -127,4 +127,3 @@ export class IdentityStoreImpl implements IdentityStore {
     this.listeners.delete(listener);
   }
 }
-
