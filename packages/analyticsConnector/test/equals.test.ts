@@ -15,4 +15,9 @@ describe('isEqual', () => {
     const actual = isEqual('non-null', 'non-null');
     expect(actual).toEqual(true);
   });
+
+  test('isEqual, user objects with null user ids, is true', () => {
+    const actual = isEqual({ user_id: null }, { user_id: null });
+    expect(actual).toEqual(true);
+  });
 });
