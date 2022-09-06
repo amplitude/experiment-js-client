@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.6](https://github.com/amplitude/experiment-js-client/compare/v1.5.5...v1.5.6) (2022-09-06)
+
+
+### Bug Fixes
+
+* move isEqual to util, add null check ([#42](https://github.com/amplitude/experiment-js-client/issues/42)) ([f8eec48](https://github.com/amplitude/experiment-js-client/commit/f8eec48a104ed8e2e34b823279b4e8100d290c46))
+
+
+
+
+
 ## [1.5.4](https://github.com/amplitude/experiment-js-client/compare/v1.5.3...v1.5.4) (2022-07-27)
 
 
