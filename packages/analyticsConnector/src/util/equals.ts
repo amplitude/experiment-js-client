@@ -1,5 +1,12 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const isEqual = (obj1: any, obj2: any): boolean => {
+  // check null / undefined
+  if (!obj1 && !obj2) {
+    return true;
+  } else if (!obj1 || !obj2) {
+    return false;
+  }
+
   const primitive = ['string', 'number', 'boolean', 'undefined'];
   const typeA = typeof obj1;
   const typeB = typeof obj2;
@@ -11,12 +18,7 @@ export const isEqual = (obj1: any, obj2: any): boolean => {
       return obj1 === obj2;
     }
   }
-  // check null
-  if (obj1 == null && obj2 == null) {
-    return true;
-  } else if (obj1 == null || obj2 == null) {
-    return false;
-  }
+
   // if got here - objects
   if (obj1.length !== obj2.length) {
     return false;
