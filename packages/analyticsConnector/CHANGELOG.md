@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.7](https://github.com/amplitude/experiment-js-client/compare/v1.5.6...v1.5.7) (2022-09-26)
+
+
+### Bug Fixes
+
+* [#44](https://github.com/amplitude/experiment-js-client/issues/44) ReferenceError: global is not defined ([#45](https://github.com/amplitude/experiment-js-client/issues/45)) ([8722d18](https://github.com/amplitude/experiment-js-client/commit/8722d18045497825111d3a4e64feef4dd7aeaa98))
+
+
+
+
+
 ## [1.5.6](https://github.com/amplitude/experiment-js-client/compare/v1.5.5...v1.5.6) (2022-09-06)
 
 
