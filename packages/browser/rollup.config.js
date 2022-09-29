@@ -6,6 +6,7 @@ import json from '@rollup/plugin-json';
 import resolve from '@rollup/plugin-node-resolve';
 import replace from '@rollup/plugin-replace';
 import typescript from '@rollup/plugin-typescript';
+import analyze from 'rollup-plugin-analyzer';
 
 import tsConfig from './tsconfig.json';
 
@@ -36,6 +37,9 @@ const getCommonBrowserConfig = (target) => ({
           : undefined,
       babelHelpers: 'bundled',
       exclude: ['node_modules/**'],
+    }),
+    analyze({
+      summaryOnly: true,
     }),
   ],
 });
