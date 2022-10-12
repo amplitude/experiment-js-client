@@ -1,4 +1,4 @@
-This is a demo project for instrumenting events using Amplitude Analytics SDK in an basic HTML page.
+This is a demo project for implementing Amplitude Experiment using Amplitude Analytics SDK integration in a basic HTML page.
 
 ## Getting Started
 
