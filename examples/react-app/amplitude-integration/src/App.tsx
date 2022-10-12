@@ -19,11 +19,7 @@ function App() {
         </p>
 
         <button onClick={() => {
-          void experiment.fetch({
-            user_id: 'user@company.com',
-            device_id:'abc123',
-            user_properties:{ premium: true }
-          });
+          void experiment.fetch();
         }}>Fetch</button>
 
         <button onClick={() => {
