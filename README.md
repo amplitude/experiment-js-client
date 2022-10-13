@@ -26,6 +26,9 @@ another with an example for integrating with the amplitude analytics SDK.
  * Script Tag (HTML)
    * [Basic Example](https://github.com/amplitude/experiment-js-client/tree/main/examples/html-app/basic)
    * [Amplitude Analytics SDK Integration](https://github.com/amplitude/experiment-js-client/tree/main/examples/html-app/amplitude-integration)
+* React
+   * [Basic Example](https://github.com/amplitude/experiment-js-client/tree/main/examples/react-app/basic)
+   * [Amplitude Analytics SDK Integration](https://github.com/amplitude/experiment-js-client/tree/main/examples/react-app/amplitude-integration)
 
 ## Browser Compatibility
 
