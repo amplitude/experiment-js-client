@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Experiment Example - Basic</title>
+  </head>
+  <script src="https://unpkg.com/@amplitude/experiment-js-client@1.5.6/dist/experiment.umd.js"></script>
+  <script>
+    /**
+     * Initialize the experiment client and set a variable on the window.
+     */
+    // TODO Replace DEPLOYMENT_KEY with your own deployment
+    window.experiment = Experiment.Experiment.initialize('DEPLOYMENT_KEY', { debug: true });
+  </script>
+  </script>
+  <body>
+    <h2>Amplitude Experiment Browser Example - Basic</h2>
+
+    <p>Click "Fetch" to fetch variants, then "Variant" or "All" to access variants from the SDK.</p>
+    <p>Open the console to view debug output from the SDK.</p>
+
+    <button onclick="window.experiment.fetch({ user_id: 'user@company.com', device_id:'abc123', user_properties:{ premium: true }})">
+      Fetch
+    </button>
+
+    <!-- TODO Replace FLAG_KEY with your flag key -->
+    <button onclick="
+      const variants = window.experiment.variant('FLAG_KEY');
+      document.getElementById('output').innerText = JSON.stringify(variants);
+    ">Variant</button>
+
+    <button onclick="
+      const variants = window.experiment.all();
+      document.getElementById('output').innerText = JSON.stringify(variants);
+    ">All</button>
+
+    <br />
+
+    <pre id="output"></pre>
+  </body>
+</html>
