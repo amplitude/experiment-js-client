@@ -5,9 +5,9 @@
   "author": "Amplitude",
   "homepage": "https://github.com/amplitude/experiment-js-client",
   "license": "MIT",
-  "main": "dist/analyticsConnector.umd.js",
-  "module": "dist/analyticsConnector.esm.js",
-  "es2015": "dist/analyticsConnector.es2015.js",
+  "main": "dist/analytics-connector.umd.js",
+  "module": "dist/analytics-connector.esm.js",
+  "es2015": "dist/analytics-connector.es2015.js",
   "types": "dist/types/src/index.d.ts",
   "publishConfig": {
     "access": "public"
@@ -15,7 +15,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/amplitude/experiment-js-client.git",
-    "directory": "packages/analyticsConnector"
+    "directory": "packages/analytics-connector"
   },
   "scripts": {
     "build": "rm -rf dist && rollup -c",

@@ -16,7 +16,7 @@
   dependencies:
     "@amplitude/ua-parser-js" "0.7.31"
 
-"@amplitude/experiment-js-client@file:packages/browser":
+"@amplitude/experiment-js-client@file:packages/experiment-browser":
   version "1.5.6"
   dependencies:
     "@amplitude/analytics-connector" "1.4.5"
