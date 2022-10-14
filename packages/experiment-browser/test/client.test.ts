@@ -163,6 +163,19 @@ test('ExperimentClient.all, initial variants returned', async () => {
 });
 
 /**
+ * Call clear() to clear the flag configs in storage..
+ */
+ test('ExperimentClient.clear, clear the variants in storage', async () => {
+  const client = new ExperimentClient(API_KEY, {});
+  await client.fetch(testUser);
+  const variant = client.variant('sdk-ci-test');
+  expect(variant).toEqual({ value: 'on', payload: 'payload' });
+  client.clear();
+  const clearedVariants = client.all();
+  expect(clearedVariants).toEqual({});
+});
+
+/**
  * Setting source to initial variants will prioritize variants in initial
  * variants over those stored in local storage.
  */

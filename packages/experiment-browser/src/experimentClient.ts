@@ -183,6 +183,15 @@ export class ExperimentClient implements Client {
   }
 
   /**
+   * Clear the flag configs in storage.
+   *
+   */
+  public clear(): void {
+    this.storage.clear();
+    this.storage.save();
+  }
+
+  /**
    * Get a copy of the internal {@link ExperimentUser} object if it is set.
    *
    * @returns a copy of the internal user object if set.
