@@ -1,6 +1,17 @@
 {
-  "version": "1.5.7",
-  "packages": "packages/*",
+  "packages": [
+    "packages/*"
+  ],
+  "version": "independent",
   "npmClient": "yarn",
-  "useWorkspaces": true
+  "useWorkspaces": true,
+  "command": {
+    "version": {
+      "allowBranch": "main",
+      "conventionalCommits": true,
+      "createRelease": "github",
+      "message": "chore(release): publish",
+      "preid": "beta"
+    }
+  }
 }

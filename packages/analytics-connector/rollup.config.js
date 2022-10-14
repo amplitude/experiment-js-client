@@ -57,7 +57,7 @@ const configs = [
   {
     ...getCommonBrowserConfig('es5'),
     ...getOutputConfig({
-      entryFileNames: 'analyticsConnector.umd.js',
+      entryFileNames: 'analytics-connector.umd.js',
       exports: 'named',
       format: 'umd',
     }),
@@ -68,7 +68,7 @@ const configs = [
   {
     ...getCommonBrowserConfig('es5'),
     ...getOutputConfig({
-      entryFileNames: 'analyticsConnector.esm.js',
+      entryFileNames: 'analytics-connector.esm.js',
       format: 'esm',
     }),
     external: ['@amplitude/ua-parser-js'],
@@ -78,7 +78,7 @@ const configs = [
   {
     ...getCommonBrowserConfig('es2015'),
     ...getOutputConfig({
-      entryFileNames: 'analyticsConnector.es2015.js',
+      entryFileNames: 'analytics-connector.es2015.js',
       format: 'esm',
     }),
     external: ['@amplitude/ua-parser-js'],
