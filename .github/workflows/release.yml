@@ -42,7 +42,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v2
         with:
-          node-version: '10'
+          node-version: '16'
 
       - name: Install
         run: yarn install --frozen-lockfile
@@ -63,8 +63,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          yarn lerna version -m "chore(release): publish %s" \
-            --conventional-commits \
+          yarn lerna version 
             --no-push \
             --no-git-tag-version \
             --loglevel silly \
@@ -81,9 +80,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          yarn lerna version -m "chore(release): publish %s" \
-            --conventional-commits \
-            --create-release github \
-            --loglevel silly \
-            --yes
+          yarn lerna version --yes
           yarn lerna publish from-git --yes --loglevel silly
