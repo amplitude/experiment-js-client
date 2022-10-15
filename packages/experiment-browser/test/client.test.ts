@@ -165,7 +165,7 @@ test('ExperimentClient.all, initial variants returned', async () => {
 /**
  * Call clear() to clear the flag configs in storage..
  */
- test('ExperimentClient.clear, clear the variants in storage', async () => {
+test('ExperimentClient.clear, clear the variants in storage', async () => {
   const client = new ExperimentClient(API_KEY, {});
   await client.fetch(testUser);
   const variant = client.variant('sdk-ci-test');
