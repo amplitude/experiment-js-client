@@ -183,7 +183,7 @@ export class ExperimentClient implements Client {
   }
 
   /**
-   * Clear the flag configs in storage.
+   * Clear all variants in the cache and storage.
    *
    */
   public clear(): void {

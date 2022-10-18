@@ -163,7 +163,7 @@ test('ExperimentClient.all, initial variants returned', async () => {
 });
 
 /**
- * Call clear() to clear the flag configs in storage..
+ * Call clear() to clear all variants in the cache and storage.
  */
 test('ExperimentClient.clear, clear the variants in storage', async () => {
   const client = new ExperimentClient(API_KEY, {});
