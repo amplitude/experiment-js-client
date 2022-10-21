@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# 1.6.0 (2022-10-21)
+
+
+### Features
+
+* add clear method to clear flag configs ([#51](https://github.com/amplitude/experiment-js-client/issues/51)) ([ceddb50](https://github.com/amplitude/experiment-js-client/commit/ceddb5082589e28cd6b5eaff4ddd1cfd20b69b9d))
+
+
+
+
+
 ## [1.5.6](https://github.com/amplitude/experiment-js-client/compare/v1.5.5...v1.5.6) (2022-09-06)
 
 **Note:** Version bump only for package @amplitude/experiment-js-client
