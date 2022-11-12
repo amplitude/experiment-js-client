@@ -386,30 +386,27 @@ test('configure httpClient, success', async () => {
 });
 
 // Testing with local api server, need to updated to use the production data.
-const LOCAL_TEST_API = 'server-VY0FufBsdITI1Gv9y7RyUopLzk9m8t0n';
-const local_test_user = { user_id: 'brian.giori@amplitude.com' };
+const LOCAL_TEST_API = API_KEY; //'server-qz35UwzJ5akieoAdIgzM4m9MIiOLXLoz'; //'server-VY0FufBsdITI1Gv9y7RyUopLzk9m8t0n';
+const local_test_user = testUser; //{ user_id: 'brian.giori@amplitude.com' };
 
 const flagKeysTestVariantPartial = {
-  'asdf-1': { payload: undefined, value: 'on' },
+  'sdk-ci-test': serverVariant,
 };
 const flagKeysTestVariants = {
-  'asdf-1': { payload: undefined, value: 'on' },
-  'join-loyalty-program': {
-    value: 'treatment',
-    payload: { feed_name: 'FeedPromote_ROW_B' },
-  },
+  'sdk-ci-test-2': { payload: undefined, value: 'on' },
+  'sdk-ci-test': serverVariant,
 };
 
 test('ExperimentClient.fetch with partial flag keys in fetch options, should return the fetched variant', async () => {
-  const client = new ExperimentClient(LOCAL_TEST_API, {});
-  const option: FetchOptions = { flagKeys: ['asdf-1'] };
+  const client = new ExperimentClient(API_KEY, {});
+  const option: FetchOptions = { flagKeys: ['sdk-ci-test'] };
   await client.fetch(local_test_user, option);
   const variant = client.all();
   expect(variant).toEqual(flagKeysTestVariantPartial);
 });
 
 test('ExperimentClient.fetch without fetch options, should return all variants', async () => {
-  const client = new ExperimentClient(LOCAL_TEST_API, {});
+  const client = new ExperimentClient(API_KEY, {});
   await client.fetch(local_test_user);
   const variant = client.all();
   expect(variant).toEqual(flagKeysTestVariants);
