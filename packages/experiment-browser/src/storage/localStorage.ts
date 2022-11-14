@@ -31,6 +31,10 @@ export class LocalStorage implements Storage {
     this.map = {};
   }
 
+  remove(key: string): void {
+    delete this.map[key];
+  }
+
   getAll(): Variants {
     return this.map;
   }
