@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.7.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.6.0...@amplitude/experiment-js-client@1.7.0) (2022-11-18)
+
+
+### Features
+
+* sub flag key config support ([#53](https://github.com/amplitude/experiment-js-client/issues/53)) ([ef9fdf6](https://github.com/amplitude/experiment-js-client/commit/ef9fdf61e98fda676b2827b43baed712893089bd))
+
+
+
+
+
 # 1.6.0 (2022-10-21)
 
 
