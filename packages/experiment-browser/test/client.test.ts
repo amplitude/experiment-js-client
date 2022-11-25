@@ -385,6 +385,16 @@ test('configure httpClient, success', async () => {
   expect(v).toEqual({ value: 'key' });
 });
 
+test('existing storage variant removed when fetch without flag keys response stored', async () => {
+  const client = new ExperimentClient(API_KEY, {});
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  client.storage.put('not-fetched-variant', { value: 'on' });
+  await client.fetch(testUser);
+  const variant = client.variant('not-fetched-variant');
+  expect(variant).toEqual({});
+});
+
 // Testing with local api server, need to updated to use the production data.
 const LOCAL_TEST_API = API_KEY; //'server-qz35UwzJ5akieoAdIgzM4m9MIiOLXLoz'; //'server-VY0FufBsdITI1Gv9y7RyUopLzk9m8t0n';
 const local_test_user = testUser; //{ user_id: 'brian.giori@amplitude.com' };

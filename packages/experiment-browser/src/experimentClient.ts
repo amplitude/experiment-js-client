@@ -407,7 +407,9 @@ export class ExperimentClient implements Client {
 
   private storeVariants(variants: Variants, options?: FetchOptions): void {
     let failedFlagKeys = options && options.flagKeys ? options.flagKeys : [];
-
+    if (failedFlagKeys.length === 0) {
+      this.storage.clear();
+    }
     for (const key in variants) {
       failedFlagKeys = failedFlagKeys.filter((flagKey) => flagKey !== key);
       this.storage.put(key, variants[key]);
