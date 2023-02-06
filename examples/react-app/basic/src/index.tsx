@@ -8,7 +8,7 @@ import { Experiment } from '@amplitude/experiment-js-client';
  * Initialize the Amplitude Experiment SDK and export the initialized client.
  */
 export const experiment = Experiment.initialize(
-  'client-QQEu7NCkqMmhdGdWl3Y4post5mZaVkCL',
+  'DEPLOYMENT_KEY',
   { debug: true }
 );
 

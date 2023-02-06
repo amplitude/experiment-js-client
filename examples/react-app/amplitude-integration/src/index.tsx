@@ -8,7 +8,7 @@ import { Experiment } from '@amplitude/experiment-js-client';
 /**
  * Initialize the Amplitude Analytics SDK.
  */
-amplitude.init('a6dd847b9d2f03c816d4f3f8458cdc1d', 'user@company.com');
+amplitude.init('API_KEY', 'user@company.com');
 amplitude.identify(new amplitude.Identify().set('premium', true))
 
 /**
@@ -19,7 +19,7 @@ amplitude.identify(new amplitude.Identify().set('premium', true))
  * automatically be used by the Experiment SDK on fetch().
  */
 export const experiment = Experiment.initializeWithAmplitudeAnalytics(
-  'client-QQEu7NCkqMmhdGdWl3Y4post5mZaVkCL',
+  'DEPLOYMENT_KEY',
   { debug: true }
 );
 
