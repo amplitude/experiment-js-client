@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Experiment Example - Basic</title>
   </head>
-  <script src="https://unpkg.com/@amplitude/experiment-js-client@1.5.6/dist/experiment.umd.js"></script>
+  <script src="https://unpkg.com/@amplitude/experiment-js-client@1.7.0/dist/experiment.umd.js"></script>
   <script>
     /**
      * Initialize the experiment client and set a variable on the window.
@@ -27,7 +27,14 @@
 
     <!-- TODO Replace FLAG_KEY with your flag key -->
     <button onclick="
-      const variants = window.experiment.variant('FLAG_KEY');
+      const variant = window.experiment.variant('space-permissions');
+      if (variant?.value === 'admin') {
+        // redirect to admin.amplitude.com
+      } else if (variant?.value === 'on') {
+        // redirect to ...
+      } else {
+        // off
+      }
       document.getElementById('output').innerText = JSON.stringify(variants);
     ">Variant</button>
 

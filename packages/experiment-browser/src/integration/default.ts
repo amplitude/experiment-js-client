@@ -5,11 +5,17 @@ import { ExperimentUser } from '../types/user';
 
 export class DefaultUserProvider implements ExperimentUserProvider {
   private readonly contextProvider: ApplicationContextProvider;
-  constructor(applicationContextProvider: ApplicationContextProvider) {
+  private readonly userProvider: ExperimentUserProvider | undefined;
+  constructor(
+    applicationContextProvider: ApplicationContextProvider,
+    userProvider?: ExperimentUserProvider,
+  ) {
     this.contextProvider = applicationContextProvider;
+    this.userProvider = userProvider;
   }
 
   getUser(): ExperimentUser {
+    const user = this.userProvider?.getUser() || {};
     const context = this.contextProvider.getApplicationContext();
     return {
       version: context.versionName,
@@ -17,6 +23,7 @@ export class DefaultUserProvider implements ExperimentUserProvider {
       platform: context.platform,
       os: context.os,
       device_model: context.deviceModel,
+      ...user,
     };
   }
 }

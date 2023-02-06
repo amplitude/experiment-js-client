@@ -30,6 +30,7 @@ const initialize = (
     config = {
       userProvider: new DefaultUserProvider(
         connector.applicationContextProvider,
+        config?.userProvider,
       ),
       ...config,
     };
@@ -60,7 +61,10 @@ const initializeWithAmplitudeAnalytics = (
   const connector = AnalyticsConnector.getInstance(instanceName);
   if (!instances[instanceKey]) {
     config = {
-      userProvider: new ConnectorUserProvider(connector.identityStore),
+      userProvider: new DefaultUserProvider(
+        connector.applicationContextProvider,
+        new ConnectorUserProvider(connector.identityStore),
+      ),
       exposureTrackingProvider: new ConnectorExposureTrackingProvider(
         connector.eventBridge,
       ),
