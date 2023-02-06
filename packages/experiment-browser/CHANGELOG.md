@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.7.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.7.1...@amplitude/experiment-js-client@1.7.2) (2023-02-06)
+
+
+### Bug Fixes
+
+* device tracking with amplitude integration ([#56](https://github.com/amplitude/experiment-js-client/issues/56)) ([3bc567f](https://github.com/amplitude/experiment-js-client/commit/3bc567f4d73f877f7037c1015caf08c15d961dce))
+
+
+
+
+
 ## [1.7.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.7.0...@amplitude/experiment-js-client@1.7.1) (2022-11-25)
 
 
