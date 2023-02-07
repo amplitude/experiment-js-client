@@ -7,6 +7,7 @@ import { version as PACKAGE_VERSION } from '../package.json';
 
 import { ExperimentConfig, Defaults } from './config';
 import { ConnectorUserProvider } from './integration/connector';
+import { DefaultUserProvider } from './integration/default';
 import { LocalStorage } from './storage/localStorage';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
@@ -23,7 +24,6 @@ import { urlSafeBase64Encode } from './util/base64';
 import { randomString } from './util/randomstring';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
 import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
-import { DefaultUserProvider } from "./integration/default";
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
