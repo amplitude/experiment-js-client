@@ -7,6 +7,7 @@ import { version as PACKAGE_VERSION } from '../package.json';
 
 import { ExperimentConfig, Defaults } from './config';
 import { ConnectorUserProvider } from './integration/connector';
+import { DefaultUserProvider } from './integration/default';
 import { LocalStorage } from './storage/localStorage';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
@@ -462,9 +463,12 @@ export class ExperimentClient implements Client {
     user: ExperimentUser,
     ms: number,
   ): Promise<ExperimentUser> {
-    if (this.userProvider instanceof ConnectorUserProvider) {
-      await this.userProvider.identityReady(ms);
+    if (this.userProvider instanceof DefaultUserProvider) {
+      if (this.userProvider.userProvider instanceof ConnectorUserProvider) {
+        await this.userProvider.userProvider.identityReady(ms);
+      }
     }
+
     return this.addContext(user);
   }
 
