@@ -5,7 +5,7 @@ import { ExperimentUser } from '../types/user';
 
 export class DefaultUserProvider implements ExperimentUserProvider {
   private readonly contextProvider: ApplicationContextProvider;
-  private readonly userProvider: ExperimentUserProvider | undefined;
+  public readonly userProvider: ExperimentUserProvider | undefined;
   constructor(
     applicationContextProvider: ApplicationContextProvider,
     userProvider?: ExperimentUserProvider,

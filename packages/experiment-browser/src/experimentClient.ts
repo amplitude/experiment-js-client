@@ -23,6 +23,7 @@ import { urlSafeBase64Encode } from './util/base64';
 import { randomString } from './util/randomstring';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
 import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
+import { DefaultUserProvider } from "./integration/default";
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
@@ -462,9 +463,12 @@ export class ExperimentClient implements Client {
     user: ExperimentUser,
     ms: number,
   ): Promise<ExperimentUser> {
-    if (this.userProvider instanceof ConnectorUserProvider) {
-      await this.userProvider.identityReady(ms);
+    if (this.userProvider instanceof DefaultUserProvider) {
+      if (this.userProvider.userProvider instanceof ConnectorUserProvider) {
+        await this.userProvider.userProvider.identityReady(ms);
+      }
     }
+
     return this.addContext(user);
   }
 
