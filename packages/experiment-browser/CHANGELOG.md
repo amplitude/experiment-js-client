@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.7.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.7.2...@amplitude/experiment-js-client@1.7.3) (2023-02-07)
+
+
+### Bug Fixes
+
+* unwrap default user provider before connector ([#57](https://github.com/amplitude/experiment-js-client/issues/57)) ([393c43e](https://github.com/amplitude/experiment-js-client/commit/393c43ef0ef30e550721bc6bb5570363e2ce4ffc))
+
+
+
+
+
 ## [1.7.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.7.1...@amplitude/experiment-js-client@1.7.2) (2023-02-06)
 
 
