@@ -43,6 +43,7 @@
     "typescript": "^5.0.4"
   },
   "resolutions": {
-    "@testing-library/dom": "7.26.0"
+    "@testing-library/dom": "7.26.0",
+    "minimatch": "3.0.5"
   }
 }
