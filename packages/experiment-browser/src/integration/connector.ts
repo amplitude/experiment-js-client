@@ -22,7 +22,7 @@ export class ConnectorUserProvider implements ExperimentUserProvider {
       return Promise.race([
         new Promise((resolve) => {
           const listener = () => {
-            resolve();
+            resolve(undefined);
             this.identityStore.removeIdentityListener(listener);
           };
           this.identityStore.addIdentityListener(listener);
