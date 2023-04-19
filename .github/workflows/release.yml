@@ -70,7 +70,6 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
-          git update-index --assume-unchanged .npmrc
 
       - name: Release
         if: ${{ github.event.inputs.dryRun == 'false'}}
