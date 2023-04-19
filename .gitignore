@@ -21,3 +21,6 @@ dist/
 
 # WebStorm IDE
 .idea
+
+# For CI to ignore .npmrc file when publishing
+.npmrc
