@@ -82,6 +82,8 @@ export class ExperimentClient implements Client {
       );
     }
     this.httpClient = this.config.httpClient;
+    // Fetch all variants and update the text with sub in the page
+    this.fetchAndLoadAutoTexts();
     this.storage = new LocalStorage(this.config.instanceName, apiKey);
     this.storage.load();
   }
@@ -114,16 +116,132 @@ export class ExperimentClient implements Client {
   ): Promise<ExperimentClient> {
     this.setUser(user || {});
     try {
-      await this.fetchInternal(
+      const variants = await this.fetchInternal(
         user,
         this.config.fetchTimeoutMillis,
         this.config.retryFetchOnFailure,
         options,
       );
+      if (variants) {
+        this.handleTextSubWithVariants(variants);
+      }
     } catch (e) {
       console.error(e);
     }
     return this;
+  }
+
+  private async fetchAndLoadAutoTexts(): Promise<ExperimentClient> {
+    try {
+      const variants = await this.doFetch(
+        null,
+        this.config.fetchTimeoutMillis,
+        null,
+      );
+      if (variants) {
+        this.handleTextSubWithVariants(variants);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return this;
+  }
+
+  private handleTextSubWithVariants(variants: Variants) {
+    for (const variant of Object.values(variants)) {
+      const autoTextConfig = variant?.payload ?? {};
+      try {
+        // if not enabled, return
+        if (autoTextConfig.autoTextOpt !== true) {
+          continue;
+        }
+        // if no text, cssSelectors or sub, return as there is no way to match
+        if (
+          !autoTextConfig.text ||
+          !autoTextConfig.cssSelectors ||
+          !autoTextConfig.sub
+        ) {
+          continue;
+        }
+        // check all existing elements
+        const allElements = Array.from(document.body.getElementsByTagName('*'));
+        allElements.forEach((element) =>
+          this.updateElementWithSubText(
+            element as HTMLElement,
+            autoTextConfig.location,
+            autoTextConfig.text,
+            autoTextConfig.cssSelectors,
+            autoTextConfig.sub,
+          ),
+        );
+        // check new elements added dynamically to the DOM
+        if (typeof MutationObserver !== 'undefined') {
+          const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              mutation.addedNodes.forEach((node) => {
+                // check added parent node
+                this.updateElementWithSubText(
+                  node as HTMLElement,
+                  autoTextConfig.location,
+                  autoTextConfig.text,
+                  autoTextConfig.cssSelectors,
+                  autoTextConfig.sub,
+                );
+                // check added child nodes
+                if (
+                  'getElementsByTagName' in node &&
+                  typeof node.getElementsByTagName === 'function'
+                ) {
+                  Array.from(
+                    node.getElementsByTagName('*') as Element[],
+                  ).forEach((element) =>
+                    this.updateElementWithSubText(
+                      element as HTMLElement,
+                      autoTextConfig.location,
+                      autoTextConfig.text,
+                      autoTextConfig.cssSelectors,
+                      autoTextConfig.sub,
+                    ),
+                  );
+                }
+              });
+            });
+          });
+          observer.observe(document.body, {
+            subtree: true,
+            childList: true,
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  private updateElementWithSubText(
+    element: HTMLElement,
+    location: string,
+    text: string,
+    cssSelectors: string[],
+    sub: string,
+  ) {
+    // check the location, if not match, return
+    // check per invocation, as the location may change
+    // if location is not configured, skip the check
+    if (location) {
+      const re = new RegExp(location);
+      if (!re.test(window.location.href)) {
+        return;
+      }
+    }
+    // check text, if not match, return
+    if (element.innerText !== text) {
+      return;
+    }
+    // check css selectors
+    if (cssSelectors.some((selector) => element.matches(selector))) {
+      element.innerText = sub;
+    }
   }
 
   /**
