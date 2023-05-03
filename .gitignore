@@ -12,6 +12,10 @@ jspm_packages/
 # Output folders
 build/
 dist/
+# temp change for testing with jsdelivr cdn
+!packages/experiment-browser/dist
+packages/experiment-browser/dist/*
+!packages/experiment-browser/dist/visual-selector.js
 
 # caches
 .cache
