@@ -1,5 +1,3 @@
-import { UAParser } from '@amplitude/ua-parser-js';
-
 export type ApplicationContext = {
   versionName?: string;
   language?: string;
@@ -16,30 +14,17 @@ export interface ApplicationContextProvider {
 export class ApplicationContextProviderImpl
   implements ApplicationContextProvider
 {
-  private readonly ua = new UAParser(
-    typeof navigator !== 'undefined' ? navigator.userAgent : null,
-  ).getResult();
   public versionName: string;
   getApplicationContext(): ApplicationContext {
     return {
       versionName: this.versionName,
       language: getLanguage(),
       platform: 'Web',
-      os: getOs(this.ua),
-      deviceModel: getDeviceModel(this.ua),
+      os: undefined,
+      deviceModel: undefined,
     };
   }
 }
-
-const getOs = (ua: UAParser): string => {
-  return [ua.browser?.name, ua.browser?.major]
-    .filter((e) => e !== null && e !== undefined)
-    .join(' ');
-};
-
-const getDeviceModel = (ua: UAParser): string => {
-  return ua.os?.name;
-};
 
 const getLanguage = (): string => {
   return (

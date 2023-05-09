@@ -71,7 +71,7 @@ const configs = [
       entryFileNames: 'analytics-connector.esm.js',
       format: 'esm',
     }),
-    external: ['@amplitude/ua-parser-js'],
+    external: [],
   },
 
   // modern build for field "es2015" - not ie, esm, es2015 syntax
@@ -81,7 +81,7 @@ const configs = [
       entryFileNames: 'analytics-connector.es2015.js',
       format: 'esm',
     }),
-    external: ['@amplitude/ua-parser-js'],
+    external: [],
   },
 ];
 
