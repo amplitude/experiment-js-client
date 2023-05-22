@@ -1,21 +1,23 @@
 /**
- * Improved exposure event for tracking exposures to Amplitude Experiment.
+ * Event object for tracking exposures to Amplitude Experiment.
  *
  * This object contains all the required information to send an `$exposure`
- * event through any SDK or CDP to experiment. The resulting exposure event
- * must follow the following definition:
+ * event through any SDK or CDP to experiment.
+ *
+ * The resulting exposure event must follow the following definition:
  * ```
  * {
  *   "event_type": "$exposure",
  *   "event_properties": {
  *     "flag_key": "<flagKey>",
- *     "variant": "<variant>"
+ *     "variant": "<variant>",
+ *     "experiment_key": "<expKey>",
  *   }
  * }
  * ```
  *
- * Where `<flagKey>` and `<variant>` are the {@link flag_key} and
- * {@link variant} variant` members on this type.
+ * Where `<flagKey>`, `<variant>`, and `<expKey>` are the {@link flag_key},
+ * {@link variant}, and {@link experiment_key} variant members on this type:
  *
  * For example, if you're using Segment for analytics:
  *
@@ -24,8 +26,20 @@
  * ```
  */
 export type Exposure = {
+  /**
+   * (Required) The key for the flag the user was exposed to.
+   */
   flag_key: string;
+  /**
+   * (Optional) The variant the user was exposed to. If null or missing, the
+   * event will not be persisted, and will unset the user property.
+   */
   variant?: string;
+  /**
+   * (Optional) The experiment key used to differentiate between multiple
+   * experiments associated with the same flag.
+   */
+  experiment_key?: string;
 };
 
 /**
@@ -72,7 +86,8 @@ export interface ExposureTrackingProvider {
    *   "event_type": "$exposure",
    *   "event_properties": {
    *     "flag_key": "<flagKey>",
-   *     "variant": "<variant>"
+   *     "variant": "<variant>",
+   *     "experiment_key": "<expKey>"
    *   }
    * }
    * ```
