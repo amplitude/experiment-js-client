@@ -5,7 +5,7 @@ import { HttpClient, SimpleResponse } from 'src/types/transport';
 import { ExperimentClient } from '../src/experimentClient';
 import { ExperimentAnalyticsProvider } from '../src/types/analytics';
 import { FetchOptions } from '../src/types/client';
-import { ExposureTrackingProvider } from '../src/types/exposure';
+import { Exposure, ExposureTrackingProvider } from '../src/types/exposure';
 import { ExperimentUserProvider } from '../src/types/provider';
 import { Source } from '../src/types/source';
 import { ExperimentUser } from '../src/types/user';
@@ -428,4 +428,20 @@ test('ExperimentClient.fetch with not exist flagKeys in fetch options', async ()
   await client.fetch(local_test_user, option);
   const variant = client.all();
   expect(variant).toEqual({});
+});
+
+test('ExperimentClient.variant experiment key passed from variant to exposure', async () => {
+  let didTrack = false;
+  const client = new ExperimentClient(LOCAL_TEST_API, {
+    exposureTrackingProvider: {
+      track: (exposure: Exposure) => {
+        expect(exposure.experiment_key).toEqual('expKey');
+        didTrack = true;
+      },
+    },
+    source: Source.InitialVariants,
+    initialVariants: { flagKey: { value: 'value', expKey: 'expKey' } },
+  });
+  client.variant('flagKey');
+  expect(didTrack).toEqual(true);
 });
