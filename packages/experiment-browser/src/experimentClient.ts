@@ -400,6 +400,7 @@ export class ExperimentClient implements Client {
       variants[key] = {
         value: json[key].key,
         payload: json[key].payload,
+        expKey: json[key].expKey,
       };
     }
     this.debug('[Experiment] Received variants: ', variants);
