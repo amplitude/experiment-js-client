@@ -400,6 +400,7 @@ export class ExperimentClient implements Client {
       variants[key] = {
         value: json[key].key,
         payload: json[key].payload,
+        expKey: json[key].expKey,
       };
     }
     this.debug('[Experiment] Received variants: ', variants);
@@ -518,6 +519,7 @@ export class ExperimentClient implements Client {
       this.exposureTrackingProvider?.track({
         flag_key: key,
         variant: variant.value,
+        experiment_key: variant.expKey,
       });
       this.analyticsProvider?.setUserProperty?.(event);
       this.analyticsProvider?.track(event);
