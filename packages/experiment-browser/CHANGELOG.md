@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.8.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.7.5...@amplitude/experiment-js-client@1.8.0) (2023-06-02)
+
+
+### Features
+
+* support expeirment key on variant and exposure event ([#72](https://github.com/amplitude/experiment-js-client/issues/72)) ([6d55f90](https://github.com/amplitude/experiment-js-client/commit/6d55f90535e03ca2ef309db582c82f8255216525))
+
+
+
+
+
 ## [1.7.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.7.4...@amplitude/experiment-js-client@1.7.5) (2023-05-09)
 
 **Note:** Version bump only for package @amplitude/experiment-js-client
