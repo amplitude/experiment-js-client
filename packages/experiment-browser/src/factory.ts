@@ -28,11 +28,11 @@ const initialize = (
   const connector = AnalyticsConnector.getInstance(instanceName);
   if (!instances[instanceKey]) {
     config = {
+      ...config,
       userProvider: new DefaultUserProvider(
         connector.applicationContextProvider,
         config?.userProvider,
       ),
-      ...config,
     };
     instances[instanceKey] = new ExperimentClient(apiKey, config);
   }
