@@ -30,3 +30,15 @@ test('Experiment.initialize, same instance name, different api key, different ob
   const client2 = Experiment.initialize(OTHER_KEY);
   expect(client2).not.toBe(client1);
 });
+
+test('Experiment.initialize, custom user provider wrapped correctly', async () => {
+  const customUserProvider = {
+    getUser: () => {
+      return { user_id: 'user_id' };
+    },
+  };
+  const client1 = Experiment.initialize(API_KEY, {
+    userProvider: customUserProvider,
+  });
+  expect(client1.getUserProvider()).not.toStrictEqual(customUserProvider);
+});
