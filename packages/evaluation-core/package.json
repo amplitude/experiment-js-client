@@ -1,0 +1,43 @@
+{
+  "name": "@amplitude/evaluation-core",
+  "version": "2.0.0-alpha.1",
+  "description": "Amplitude Experiment evaluation JavaScript implementation.",
+  "keywords": [
+    "experiment",
+    "amplitude",
+    "evaluation"
+  ],
+  "author": "Amplitude",
+  "homepage": "https://github.com/amplitude/experiment-js-client",
+  "license": "MIT",
+  "main": "dist/evaluation-core.umd.js",
+  "module": "dist/evaluation-core.esm.js",
+  "es2015": "dist/evaluation-core.es2015.js",
+  "types": "dist/types/src/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amplitude/experiment-js-client.git",
+    "directory": "packages/evaluation-core"
+  },
+  "scripts": {
+    "build": "rm -rf dist && rollup -c",
+    "clean": "rimraf node_modules dist",
+    "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
+    "test": "jest",
+    "prepublish": "yarn build"
+  },
+  "bugs": {
+    "url": "https://github.com/amplitude/experiment-js-client/issues"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "unfetch": "^4.1.0"
+  },
+  "files": [
+    "dist"
+  ]
+}
