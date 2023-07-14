@@ -12,13 +12,6 @@ import { SemanticVersion } from './semantic-version';
 const MAX_HASH_VALUE = 4294967295;
 const MAX_VARIANT_HASH_VALUE = Math.floor(MAX_HASH_VALUE / 100);
 
-const logger = {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  debug: (...msgs: unknown[]) => {
-    // console.debug(...msgs);
-  },
-};
-
 type EvaluationTarget = {
   context: Record<string, unknown>;
   result: Record<string, EvaluationVariant>;
@@ -29,12 +22,6 @@ export class EvaluationEngine {
     context: Record<string, unknown>,
     flags: EvaluationFlag[],
   ): Record<string, EvaluationVariant> {
-    logger.debug(
-      'Evaluating flags',
-      flags.map((it) => it.key),
-      'with context',
-      context,
-    );
     const results: Record<string, EvaluationVariant> = {};
     const target: EvaluationTarget = {
       context: context,
@@ -45,11 +32,8 @@ export class EvaluationEngine {
       const variant = this.evaluateFlag(target, flag);
       if (variant) {
         results[flag.key] = variant;
-      } else {
-        logger.debug('Flag', flag.key, 'evaluation returned a null result');
       }
     }
-    logger.debug('Evaluation completed.', results);
     return results;
   }
 
@@ -57,7 +41,6 @@ export class EvaluationEngine {
     target: EvaluationTarget,
     flag: EvaluationFlag,
   ): EvaluationVariant | undefined {
-    logger.debug('Evaluating flag', flag, 'with target', target);
     let result: EvaluationVariant | undefined;
     for (const segment of flag.segments) {
       result = this.evaluateSegment(target, flag, segment);
@@ -69,12 +52,6 @@ export class EvaluationEngine {
           ...result.metadata,
         };
         result = { ...result, metadata: metadata };
-        logger.debug(
-          'Flag evaluation returned result',
-          result,
-          'on segment',
-          segment,
-        );
         break;
       }
     }
@@ -86,9 +63,7 @@ export class EvaluationEngine {
     flag: EvaluationFlag,
     segment: EvaluationSegment,
   ): EvaluationVariant | undefined {
-    logger.debug('Evaluating segment', segment, 'with target', target);
     if (!segment.conditions) {
-      logger.debug('Segment conditions are null, bucketing target.');
       // Null conditions always match
       const variantKey = this.bucket(target, segment);
       if (variantKey !== undefined) {
@@ -103,15 +78,11 @@ export class EvaluationEngine {
       for (const condition of conditions) {
         match = this.matchCondition(target, condition);
         if (!match) {
-          logger.debug('Segment condition', condition, 'did not match target.');
           break;
-        } else {
-          logger.debug('Segment condition', condition, 'matched target.');
         }
       }
       // On match, bucket the user.
       if (match) {
-        logger.debug('Segment conditions matched, bucketing target.');
         const variantKey = this.bucket(target, segment);
         if (variantKey !== undefined) {
           return flag.variants[variantKey];
@@ -161,25 +132,18 @@ export class EvaluationEngine {
     target: EvaluationTarget,
     segment: EvaluationSegment,
   ): string | undefined {
-    logger.debug('Bucketing segment', segment, 'with target', target);
     if (!segment.bucket) {
       // A null bucket means the segment is fully rolled out. Select the
       // default variant.
-      logger.debug(
-        'Segment bucket is null, returning the default variant.',
-        segment.defaultVariant,
-      );
       return segment.defaultVariant;
     }
     // Select the bucketing value.
     const bucketingValue = this.coerceString(
       select(target, segment.bucket.selector),
     );
-    logger.debug('Selected bucketing value', bucketingValue, 'from target');
     if (!bucketingValue || bucketingValue.length === 0) {
       // A null or empty bucketing value cannot be bucketed. Select the
       // default variant.
-      logger.debug('Selected bucketing value is null or empty.');
       return segment.defaultVariant;
     }
     // Salt and has the value, and compute the allocation and distribution
@@ -210,10 +174,6 @@ export class EvaluationEngine {
             distributionValue >= distributionStart &&
             distributionValue < distributionEnd
           ) {
-            logger.debug(
-              'Bucketing hit allocation and distribution, returning variant',
-              distribution.variant,
-            );
             return distribution.variant;
           }
         }
