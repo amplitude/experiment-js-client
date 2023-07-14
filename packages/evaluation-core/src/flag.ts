@@ -3,21 +3,21 @@ export type EvaluationFlag = {
   variants: Record<string, EvaluationVariant>;
   segments: EvaluationSegment[];
   dependencies?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 };
 
 export type EvaluationVariant = {
   key: string;
-  value?: any;
-  payload?: Record<string, any>;
-  metadata?: Record<string, any>;
+  value?: unknown;
+  payload?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 };
 
 export type EvaluationSegment = {
   bucket?: EvaluationBucket;
   conditions?: EvaluationCondition[][];
   defaultVariant?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 };
 
 export type EvaluationBucket = {

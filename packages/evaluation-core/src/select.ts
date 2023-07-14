@@ -1,7 +1,7 @@
 export const select = (
-  selectable: any,
+  selectable: unknown,
   selector: string[] | undefined,
-): any | undefined => {
+): unknown | undefined => {
   if (!selector || selector.length === 0) {
     return undefined;
   }
@@ -9,7 +9,7 @@ export const select = (
     if (!selectorElement || !selectable || typeof selectable !== 'object') {
       return undefined;
     }
-    selectable = selectable[selectorElement];
+    selectable = (selectable as Record<string, unknown>)[selectorElement];
   }
   if (!selectable) {
     return undefined;

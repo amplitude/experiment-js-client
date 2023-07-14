@@ -450,8 +450,8 @@ const userContext = (
   userId?: string,
   deviceId?: string,
   amplitudeId?: string,
-  userProperties?: Record<string, any>,
-): Record<string, any> => {
+  userProperties?: Record<string, unknown>,
+): Record<string, unknown> => {
   const context = { user: {} };
   if (userId) context.user['user_id'] = userId;
   if (deviceId) context.user['device_id'] = deviceId;
@@ -463,8 +463,8 @@ const userContext = (
 const groupContext = (
   groupType: string,
   groupName: string,
-  groupProperties?: Record<string, any>,
-): Record<string, any> => {
+  groupProperties?: Record<string, unknown>,
+): Record<string, unknown> => {
   return {
     groups: {
       [`${groupType}`]: {
@@ -476,6 +476,7 @@ const groupContext = (
 };
 
 const getFlags = async (deploymentKey: string): Promise<EvaluationFlag[]> => {
+  // TODO use prod url once skylab-api is deployed
   // const serverUrl = 'https://api.lab.amplitude.com';
   const serverUrl = 'http://localhost:3034';
   const response = await fetch(`${serverUrl}/sdk/v2/flags?eval_mode=remote`, {

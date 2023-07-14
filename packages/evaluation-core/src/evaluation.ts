@@ -13,19 +13,20 @@ const MAX_HASH_VALUE = 4294967295;
 const MAX_VARIANT_HASH_VALUE = Math.floor(MAX_HASH_VALUE / 100);
 
 const logger = {
-  debug: (...msgs) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  debug: (...msgs: unknown[]) => {
     // console.debug(...msgs);
   },
 };
 
 type EvaluationTarget = {
-  context: Record<string, any>;
+  context: Record<string, unknown>;
   result: Record<string, EvaluationVariant>;
 };
 
 export class EvaluationEngine {
   public evaluate(
-    context: Record<string, any>,
+    context: Record<string, unknown>,
     flags: EvaluationFlag[],
   ): Record<string, EvaluationVariant> {
     logger.debug(
@@ -57,7 +58,7 @@ export class EvaluationEngine {
     flag: EvaluationFlag,
   ): EvaluationVariant | undefined {
     logger.debug('Evaluating flag', flag, 'with target', target);
-    let result: EvaluationVariant;
+    let result: EvaluationVariant | undefined;
     for (const segment of flag.segments) {
       result = this.evaluateSegment(target, flag, segment);
       if (result) {
@@ -90,7 +91,11 @@ export class EvaluationEngine {
       logger.debug('Segment conditions are null, bucketing target.');
       // Null conditions always match
       const variantKey = this.bucket(target, segment);
-      return flag.variants[variantKey];
+      if (variantKey !== undefined) {
+        return flag.variants[variantKey];
+      } else {
+        return undefined;
+      }
     }
     // Outer list logic is "or" (||)
     for (const conditions of segment.conditions) {
@@ -108,7 +113,11 @@ export class EvaluationEngine {
       if (match) {
         logger.debug('Segment conditions matched, bucketing target.');
         const variantKey = this.bucket(target, segment);
-        return flag.variants[variantKey];
+        if (variantKey !== undefined) {
+          return flag.variants[variantKey];
+        } else {
+          return undefined;
+        }
       }
     }
     return undefined;
@@ -132,7 +141,15 @@ export class EvaluationEngine {
       return this.matchSet(propValueStringList, condition.op, condition.values);
     } else {
       const propValueString = this.coerceString(propValue);
-      return this.matchString(propValueString, condition.op, condition.values);
+      if (propValueString !== undefined) {
+        return this.matchString(
+          propValueString,
+          condition.op,
+          condition.values,
+        );
+      } else {
+        return false;
+      }
     }
   }
 
@@ -249,6 +266,8 @@ export class EvaluationEngine {
         return !this.setContainsAll(filterValuesSet, propValuesSet);
       case EvaluationOperator.SET_CONTAINS_ANY:
         return this.setContainsAny(filterValuesSet, propValuesSet);
+      default:
+        return false;
     }
   }
 
@@ -317,7 +336,7 @@ export class EvaluationEngine {
     propValue: string,
     op: string,
     filterValues: string[],
-    typeTransformer: (string) => T | undefined,
+    typeTransformer: (value: string) => T | undefined,
     typeComparator: (propValue: T, op: string, filterValue: T) => boolean,
   ) {
     const propValueTransformed = typeTransformer(propValue);
@@ -411,7 +430,7 @@ export class EvaluationEngine {
     return Number(value) ?? undefined;
   }
 
-  private coerceString(value: any | undefined): string | undefined {
+  private coerceString(value: unknown | undefined): string | undefined {
     if (!value) {
       return undefined;
     }
@@ -421,17 +440,21 @@ export class EvaluationEngine {
     return String(value);
   }
 
-  private coerceStringArray(value: any): string[] | undefined {
+  private coerceStringArray(value: unknown): string[] | undefined {
     if (Array.isArray(value)) {
-      const anyArray = value as any[];
-      return anyArray.map((e) => this.coerceString(e)).filter(Boolean);
+      const anyArray = value as unknown[];
+      return anyArray
+        .map((e) => this.coerceString(e))
+        .filter(Boolean) as string[];
     }
     const stringValue = String(value);
     try {
       const parsedValue = JSON.parse(stringValue);
       if (Array.isArray(parsedValue)) {
         const anyArray = value as any[];
-        return anyArray.map((e) => this.coerceString(e)).filter(Boolean);
+        return anyArray
+          .map((e) => this.coerceString(e))
+          .filter(Boolean) as string[];
       } else {
         return undefined;
       }
