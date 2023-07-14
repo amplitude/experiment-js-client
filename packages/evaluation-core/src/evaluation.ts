@@ -451,7 +451,7 @@ export class EvaluationEngine {
     try {
       const parsedValue = JSON.parse(stringValue);
       if (Array.isArray(parsedValue)) {
-        const anyArray = value as any[];
+        const anyArray = value as unknown[];
         return anyArray
           .map((e) => this.coerceString(e))
           .filter(Boolean) as string[];

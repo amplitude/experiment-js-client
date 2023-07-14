@@ -32,8 +32,7 @@
   "bugs": {
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
     "unfetch": "^4.1.0"
   },
