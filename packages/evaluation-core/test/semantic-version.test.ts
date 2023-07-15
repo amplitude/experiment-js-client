@@ -21,7 +21,7 @@ test('invalid versions', () => {
   assertInvalidVersion('23!');
   assertInvalidVersion('23.#5');
   assertInvalidVersion('');
-  assertInvalidVersion(null);
+  assertInvalidVersion(undefined);
 
   // more numbers
   assertInvalidVersion('2.3.4.567');
@@ -146,18 +146,19 @@ test('version comparison', () => {
   );
 });
 
-const assertInvalidVersion = (version: string): void => {
+const assertInvalidVersion = (version: string | undefined): void => {
   expect(SemanticVersion.parse(version)).toBeUndefined();
 };
 const assertValidVersion = (version: string): void => {
   expect(SemanticVersion.parse(version)).not.toBeUndefined();
 };
 
-const assertVersionComparison = (v1: string, op: string, v2): void => {
+const assertVersionComparison = (v1: string, op: string, v2: string): void => {
   const sv1 = SemanticVersion.parse(v1);
   const sv2 = SemanticVersion.parse(v2);
   expect(sv1).not.toBeUndefined();
   expect(sv2).not.toBeUndefined();
+  if (!sv1 || !sv2) return;
   if (op === EvaluationOperator.IS) {
     expect(sv1.compareTo(sv2)).toEqual(0);
   } else if (op === EvaluationOperator.IS_NOT) {

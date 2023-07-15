@@ -273,7 +273,7 @@ const topologicalSort = (
   flags: EvaluationFlag[],
   flagKeys?: string[],
 ): EvaluationFlag[] => {
-  const flagsMap = flags.reduce((map, flag) => {
+  const flagsMap = flags.reduce((map: Record<string, EvaluationFlag>, flag) => {
     map[flag.key] = flag;
     return map;
   }, {});

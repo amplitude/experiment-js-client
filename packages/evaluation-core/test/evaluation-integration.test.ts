@@ -31,12 +31,12 @@ test('test individual inclusions match', () => {
   let user = userContext('user_id');
   let result = engine.evaluate(user, flags)['test-individual-inclusions'];
   expect(result?.key).toEqual('on');
-  expect(result?.metadata['segmentName']).toEqual('individual-inclusions');
+  expect(result?.metadata?.segmentName).toEqual('individual-inclusions');
   // Match device ID
   user = userContext(undefined, 'device_id');
   result = engine.evaluate(user, flags)['test-individual-inclusions'];
   expect(result?.key).toEqual('on');
-  expect(result?.metadata['segmentName']).toEqual('individual-inclusions');
+  expect(result?.metadata?.segmentName).toEqual('individual-inclusions');
   // Doesn't match user ID
   user = userContext('not_user_id');
   result = engine.evaluate(user, flags)['test-individual-inclusions'];
@@ -57,7 +57,7 @@ test('test flag dependencies off', () => {
   const user = userContext('user_id', 'device_id');
   const result = engine.evaluate(user, flags)['test-flag-dependencies-off'];
   expect(result?.key).toEqual('off');
-  expect(result?.metadata['segmentName']).toEqual('flag-dependencies');
+  expect(result?.metadata?.segmentName).toEqual('flag-dependencies');
 });
 
 test('test sticky bucketing', () => {
@@ -67,21 +67,21 @@ test('test sticky bucketing', () => {
   });
   let result = engine.evaluate(user, flags)['test-sticky-bucketing'];
   expect(result?.key).toEqual('on');
-  expect(result?.metadata['segmentName']).toEqual('sticky-bucketing');
+  expect(result?.metadata?.segmentName).toEqual('sticky-bucketing');
   // Off
   user = userContext('user_id', 'device_id', undefined, {
     '[Experiment] test-sticky-bucketing': 'off',
   });
   result = engine.evaluate(user, flags)['test-sticky-bucketing'];
   expect(result?.key).toEqual('off');
-  expect(result?.metadata['segmentName']).toEqual('All Other Users');
+  expect(result?.metadata?.segmentName).toEqual('All Other Users');
   // Non-variant
   user = userContext('user_id', 'device_id', undefined, {
     '[Experiment] test-sticky-bucketing': 'not-a-variant',
   });
   result = engine.evaluate(user, flags)['test-sticky-bucketing'];
   expect(result?.key).toEqual('off');
-  expect(result?.metadata['segmentName']).toEqual('All Other Users');
+  expect(result?.metadata?.segmentName).toEqual('All Other Users');
 });
 
 // Experiment and Flag Segment Tests
@@ -90,14 +90,14 @@ test('test experiment', () => {
   const user = userContext('user_id', 'device_id');
   const result = engine.evaluate(user, flags)['test-experiment'];
   expect(result?.key).toEqual('on');
-  expect(result?.metadata['experimentKey']).toEqual('exp-1');
+  expect(result?.metadata?.experimentKey).toEqual('exp-1');
 });
 
 test('test flag', () => {
   const user = userContext('user_id', 'device_id');
   const result = engine.evaluate(user, flags)['test-flag'];
   expect(result?.key).toEqual('on');
-  expect(result?.metadata['experimentKey']).toBeUndefined();
+  expect(result?.metadata?.experimentKey).toBeUndefined();
 });
 
 // Conditional Logic Tests
@@ -130,6 +130,15 @@ test('test amplitude property targeting', () => {
     'test-amplitude-property-targeting'
   ];
   expect(result?.key).toEqual('on');
+});
+
+test('test cohort targeting', () => {
+  let user = userContext('user_id', undefined, undefined, undefined, ['u0qtvwla']);
+  let result = engine.evaluate(user, flags)['test-cohort-targeting'];
+  expect(result?.key).toEqual('on');
+  user = userContext('user_id', undefined, undefined, undefined, ['12345678']);
+  result = engine.evaluate(user, flags)['test-cohort-targeting'];
+  expect(result?.key).toEqual('off');
 });
 
 test('test group name targeting', () => {
@@ -451,13 +460,17 @@ const userContext = (
   deviceId?: string,
   amplitudeId?: string,
   userProperties?: Record<string, unknown>,
+  cohortIds?: string[],
 ): Record<string, unknown> => {
-  const context = { user: {} };
-  if (userId) context.user['user_id'] = userId;
-  if (deviceId) context.user['device_id'] = deviceId;
-  if (amplitudeId) context.user['amplitude_id'] = amplitudeId;
-  if (userProperties) context.user['user_properties'] = userProperties;
-  return context;
+  return {
+    user: {
+      user_id: userId,
+      device_id: deviceId,
+      amplitude_id: amplitudeId,
+      user_properties: userProperties,
+      cohort_ids: cohortIds,
+    },
+  };
 };
 
 const groupContext = (
@@ -476,9 +489,7 @@ const groupContext = (
 };
 
 const getFlags = async (deploymentKey: string): Promise<EvaluationFlag[]> => {
-  // TODO use prod url once skylab-api is deployed
-  // const serverUrl = 'https://api.lab.amplitude.com';
-  const serverUrl = 'http://localhost:3034';
+  const serverUrl = 'https://api.lab.amplitude.com';
   const response = await fetch(`${serverUrl}/sdk/v2/flags?eval_mode=remote`, {
     method: 'GET',
     headers: {
