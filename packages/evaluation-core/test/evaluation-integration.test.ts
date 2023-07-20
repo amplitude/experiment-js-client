@@ -133,10 +133,16 @@ test('test amplitude property targeting', () => {
 });
 
 test('test cohort targeting', () => {
-  let user = userContext('user_id', undefined, undefined, undefined, ['u0qtvwla']);
+  let user = userContext(undefined, undefined, undefined, undefined, [
+    'u0qdval',
+    '12345678',
+  ]);
   let result = engine.evaluate(user, flags)['test-cohort-targeting'];
   expect(result?.key).toEqual('on');
-  user = userContext('user_id', undefined, undefined, undefined, ['12345678']);
+  user = userContext(undefined, undefined, undefined, undefined, [
+    '12345678',
+    '87654321',
+  ]);
   result = engine.evaluate(user, flags)['test-cohort-targeting'];
   expect(result?.key).toEqual('off');
 });
@@ -436,6 +442,24 @@ test('test set does not contain', () => {
     key: ['1', '2', '4'],
   });
   const result = engine.evaluate(user, flags)['test-set-does-not-contain'];
+  expect(result?.key).toEqual('on');
+});
+
+test('test set contains any', () => {
+  const user = userContext(undefined, undefined, undefined, undefined, [
+    'u0qdval',
+    '12345678',
+  ]);
+  const result = engine.evaluate(user, flags)['test-cohort-targeting'];
+  expect(result?.key).toEqual('on');
+});
+
+test('test set does not contain any', () => {
+  const user = userContext(undefined, undefined, undefined, undefined, [
+    '12345678',
+    '87654321',
+  ]);
+  const result = engine.evaluate(user, flags)['test-cohort-targeting'];
   expect(result?.key).toEqual('on');
 });
 

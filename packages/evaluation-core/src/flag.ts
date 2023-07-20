@@ -60,6 +60,7 @@ export const EvaluationOperator = {
   SET_CONTAINS: 'set contains',
   SET_DOES_NOT_CONTAIN: 'set does not contain',
   SET_CONTAINS_ANY: 'set contains any',
+  SET_DOES_NOT_CONTAIN_ANY: 'set does not contain any',
   REGEX_MATCH: 'regex match',
   REGEX_DOES_NOT_MATCH: 'regex does not match',
 };

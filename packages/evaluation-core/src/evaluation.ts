@@ -202,6 +202,7 @@ export class EvaluationEngine {
       case EvaluationOperator.IS_NOT:
       case EvaluationOperator.DOES_NOT_CONTAIN:
       case EvaluationOperator.SET_DOES_NOT_CONTAIN:
+      case EvaluationOperator.SET_DOES_NOT_CONTAIN_ANY:
         return !containsNone;
       default:
         return false;
@@ -226,6 +227,8 @@ export class EvaluationEngine {
         return !this.setContainsAll(filterValuesSet, propValuesSet);
       case EvaluationOperator.SET_CONTAINS_ANY:
         return this.setContainsAny(filterValuesSet, propValuesSet);
+      case EvaluationOperator.SET_DOES_NOT_CONTAIN_ANY:
+        return !this.setContainsAny(filterValuesSet, propValuesSet);
       default:
         return false;
     }
@@ -430,6 +433,7 @@ export class EvaluationEngine {
       case EvaluationOperator.SET_CONTAINS:
       case EvaluationOperator.SET_DOES_NOT_CONTAIN:
       case EvaluationOperator.SET_CONTAINS_ANY:
+      case EvaluationOperator.SET_DOES_NOT_CONTAIN_ANY:
         return true;
       default:
         return false;
