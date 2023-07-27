@@ -33,6 +33,7 @@ export enum VariantSource {
   SecondaryInitialVariants = 'secondary-initial',
   FallbackInline = 'fallback-inline',
   FallbackConfig = 'fallback-config',
+  LocalEvaluation = 'local-evaluation',
 }
 
 /**

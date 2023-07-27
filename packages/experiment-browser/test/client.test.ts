@@ -49,7 +49,7 @@ beforeEach(() => {
  * Basic test that fetching variants for a user succeeds.
  */
 test('ExperimentClient.fetch, success', async () => {
-  const client = new ExperimentClient(API_KEY, {});
+  const client = new ExperimentClient(API_KEY, {debug:true});
   await client.fetch(testUser);
   const variant = client.variant(serverKey);
   expect(variant).toEqual(serverVariant);
@@ -444,4 +444,25 @@ test('ExperimentClient.variant experiment key passed from variant to exposure', 
   });
   client.variant('flagKey');
   expect(didTrack).toEqual(true);
+});
+
+describe('local evaluation', () => {
+  test('start loads flags into local storage', async () => {
+    const client = new ExperimentClient(API_KEY, {});
+    await client.start({ device_id: 'test_device' });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.flags.get('sdk-ci-test-local')).not.toBeUndefined();
+  });
+  test('variant after start returns expected locally evaluated variant', async () => {
+    const client = new ExperimentClient(API_KEY, {});
+    await client.start({ device_id: 'test_device' });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line no-console
+    console.info(JSON.stringify(client.flags.getAll()));
+    expect(client.variant('sdk-ci-test-local')).toEqual({ value: 'on' });
+    client.setUser({});
+    expect(client.variant('sdk-ci-test-local')).toEqual({});
+  });
 });

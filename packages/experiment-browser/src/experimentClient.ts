@@ -3,17 +3,16 @@
  * @module experiment-js-client
  */
 
-import { SdkEvaluationApi } from '@amplitude/experiment-core';
 import {
   EvaluationApi,
   EvaluationEngine,
   EvaluationFlag,
   FlagApi,
   Poller,
+  SdkEvaluationApi,
+  SdkFlagApi,
   topologicalSort,
 } from '@amplitude/experiment-core';
-import { SdkFlagApi } from '@amplitude/experiment-core';
-import { VERSION } from 'rollup';
 
 import { version as PACKAGE_VERSION } from '../package.json';
 
@@ -199,11 +198,12 @@ export class ExperimentClient implements Client {
     if (!this.apiKey) {
       return { value: undefined };
     }
-    const { source, variant } = this.variantAndSource(key, fallback);
+    let { source, variant } = this.variantAndSource(key, fallback);
     if (isFallback(source)) {
-      const flag = this.flags[key];
+      const flag = this.flags.get(key);
       if (flag) {
-        this.evaluate(flag.key);
+        variant = this.evaluate(flag.key);
+        source = VariantSource.LocalEvaluation;
       }
     }
     if (this.config.automaticExposureTracking) {
@@ -462,7 +462,7 @@ export class ExperimentClient implements Client {
   private async doFlags(): Promise<void> {
     const flags = await this.flagApi.getFlags({
       libraryName: 'experiment-js-client',
-      libraryVersion: VERSION,
+      libraryVersion: PACKAGE_VERSION,
       timeoutMillis: this.config.fetchTimeoutMillis,
     });
     this.flags.clear();
