@@ -1,4 +1,4 @@
-import { select } from '../src/select';
+import { select } from '../../src/evaluation/select';
 
 const primitiveObject = {
   null: null,

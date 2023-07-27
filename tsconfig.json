@@ -9,6 +9,7 @@
     "target": "es5",
     "noEmit": true,
     "rootDir": ".",
-    "baseUrl": "."
+    "baseUrl": ".",
+    "downlevelIteration": true
   }
 }

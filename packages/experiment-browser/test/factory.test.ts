@@ -1,4 +1,4 @@
-import { Experiment } from 'src/factory';
+import { Experiment } from '../src';
 
 const API_KEY = 'client-DvWljIjiiuqLbyjqdvBaLFfEBrAvGuA3';
 const OTHER_KEY = 'some-other-key';

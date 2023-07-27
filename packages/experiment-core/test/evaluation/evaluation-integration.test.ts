@@ -1,6 +1,6 @@
 import fetch from 'unfetch';
 
-import { EvaluationEngine, EvaluationFlag } from '../src';
+import { EvaluationEngine, EvaluationFlag } from '../../src';
 
 const deploymentKey = 'server-NgJxxvg8OGwwBsWVXqyxQbdiflbhvugy';
 const engine = new EvaluationEngine();
@@ -134,7 +134,7 @@ test('test amplitude property targeting', () => {
 
 test('test cohort targeting', () => {
   let user = userContext(undefined, undefined, undefined, undefined, [
-    'u0qdval',
+    'u0qtvwla',
     '12345678',
   ]);
   let result = engine.evaluate(user, flags)['test-cohort-targeting'];
@@ -447,10 +447,10 @@ test('test set does not contain', () => {
 
 test('test set contains any', () => {
   const user = userContext(undefined, undefined, undefined, undefined, [
-    'u0qdval',
+    'u0qtvwla',
     '12345678',
   ]);
-  const result = engine.evaluate(user, flags)['test-cohort-targeting'];
+  const result = engine.evaluate(user, flags)['test-set-contains-any'];
   expect(result?.key).toEqual('on');
 });
 
@@ -459,7 +459,7 @@ test('test set does not contain any', () => {
     '12345678',
     '87654321',
   ]);
-  const result = engine.evaluate(user, flags)['test-cohort-targeting'];
+  const result = engine.evaluate(user, flags)['test-set-does-not-contain-any'];
   expect(result?.key).toEqual('on');
 });
 
@@ -476,6 +476,29 @@ test('test glob does not match', () => {
     key: '/path/1/2/3',
   });
   const result = engine.evaluate(user, flags)['test-glob-does-not-match'];
+  expect(result?.key).toEqual('on');
+});
+
+// Test specific functionality
+
+test('test is with booleans', () => {
+  let user = userContext(undefined, undefined, undefined, {
+    true: 'TRUE',
+    false: 'FALSE',
+  });
+  let result = engine.evaluate(user, flags)['test-is-with-booleans'];
+  expect(result?.key).toEqual('on');
+  user = userContext(undefined, undefined, undefined, {
+    true: 'True',
+    false: 'False',
+  });
+  result = engine.evaluate(user, flags)['test-is-with-booleans'];
+  expect(result?.key).toEqual('on');
+  user = userContext(undefined, undefined, undefined, {
+    true: 'true',
+    false: 'false',
+  });
+  result = engine.evaluate(user, flags)['test-is-with-booleans'];
   expect(result?.key).toEqual('on');
 });
 

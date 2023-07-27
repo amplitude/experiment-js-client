@@ -1,4 +1,4 @@
-import { hash32x86 } from '../src/murmur3';
+import { hash32x86 } from '../../src/evaluation/murmur3';
 
 const MURMUR_SEED = 0x7f3a21ea;
 

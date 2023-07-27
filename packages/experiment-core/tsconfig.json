@@ -5,6 +5,7 @@
     "declaration": true,
     "declarationDir": "dist/types",
     "downlevelIteration": true,
-    "strict": true
+    "strict": true,
+    "baseUrl": "./src"
   }
 }

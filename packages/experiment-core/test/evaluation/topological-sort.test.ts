@@ -1,5 +1,5 @@
-import { EvaluationFlag } from '../src';
-import { topologicalSort as _topologicalSort } from '../src/topological-sort';
+import { EvaluationFlag } from '../../src';
+import { topologicalSort as _topologicalSort } from '../../src/evaluation/topological-sort';
 
 test('empty', () => {
   // No flag keys

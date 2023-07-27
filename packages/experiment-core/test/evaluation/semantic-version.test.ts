@@ -1,5 +1,5 @@
-import { EvaluationOperator } from '../src';
-import { SemanticVersion } from '../src/semantic-version';
+import { EvaluationOperator } from '../../src';
+import { SemanticVersion } from '../../src/evaluation/semantic-version';
 
 test('invalid versions', () => {
   // just major

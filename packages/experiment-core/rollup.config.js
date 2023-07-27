@@ -30,7 +30,7 @@ const getCommonBrowserConfig = (target) => ({
 const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
-    name: 'evaluation-core',
+    name: 'experiment-core',
     ...outputOptions,
   },
 });
@@ -40,7 +40,7 @@ const configs = [
   {
     ...getCommonBrowserConfig('es5'),
     ...getOutputConfig({
-      entryFileNames: 'evaluation-core.umd.js',
+      entryFileNames: 'experiment-core.umd.js',
       exports: 'named',
       format: 'umd',
     }),
@@ -51,20 +51,20 @@ const configs = [
   {
     ...getCommonBrowserConfig('es5'),
     ...getOutputConfig({
-      entryFileNames: 'evaluation-core.esm.js',
+      entryFileNames: 'experiment-core.esm.js',
       format: 'esm',
     }),
-    external: [],
+    external: ['unfetch'],
   },
 
   // modern build for field "es2015" - not ie, esm, es2015 syntax
   {
     ...getCommonBrowserConfig('es2015'),
     ...getOutputConfig({
-      entryFileNames: 'evaluation-core.es2015.js',
+      entryFileNames: 'experiment-core.es2015.js',
       format: 'esm',
     }),
-    external: [],
+    external: ['unfetch'],
   },
 ];
 

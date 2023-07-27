@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@amplitude/analytics-browser": "^1.5.4",
+    "@amplitude/analytics-browser": "^1.12.1",
     "@amplitude/experiment-js-client": "^1.5.6",
     "@types/node": "^16.11.29",
     "@types/react": "^18.0.7",

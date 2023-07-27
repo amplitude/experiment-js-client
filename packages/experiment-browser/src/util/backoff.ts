@@ -1,4 +1,4 @@
-import { safeGlobal } from './global';
+import { safeGlobal } from '@amplitude/experiment-core';
 
 export class Backoff {
   private readonly attempts: number;

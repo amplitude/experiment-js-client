@@ -3,10 +3,15 @@
  * @internal
  */
 
+import { safeGlobal } from '@amplitude/experiment-core';
+import {
+  HttpClient as CoreHttpClient,
+  HttpRequest,
+  HttpResponse,
+} from '@amplitude/experiment-core';
 import unfetch from 'unfetch';
 
 import { HttpClient, SimpleResponse } from '../types/transport';
-import { safeGlobal } from '../util/global';
 
 const fetch = safeGlobal.fetch || unfetch;
 
@@ -30,7 +35,7 @@ const timeout = (
   });
 };
 
-const request: HttpClient['request'] = (
+const _request = (
   requestUrl: string,
   method: string,
   headers: Record<string, string>,
@@ -52,4 +57,25 @@ const request: HttpClient['request'] = (
   return timeout(call(), timeoutMillis);
 };
 
-export const FetchHttpClient: HttpClient = { request };
+/**
+ * Wrap the exposed HttpClient in a CoreClient implementation to work with
+ * FlagsApi and EvaluationApi.
+ */
+export class WrapperClient implements CoreHttpClient {
+  private readonly client: HttpClient;
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+  async request(request: HttpRequest): Promise<HttpResponse> {
+    return await this.client.request(
+      request.requestUrl,
+      request.method,
+      request.headers,
+      null,
+      request.timeoutMillis,
+    );
+  }
+}
+
+export const FetchHttpClient: HttpClient = { request: _request };

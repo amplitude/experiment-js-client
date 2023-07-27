@@ -1,6 +1,7 @@
 import { ApplicationContext } from '@amplitude/analytics-connector';
-import { DefaultUserProvider } from 'src/integration/default';
-import { ExperimentUser } from 'src/types/user';
+
+import { ExperimentUser } from '../src';
+import { DefaultUserProvider } from '../src/integration/default';
 
 const applicationContext: ApplicationContext = {
   versionName: 'versionName',

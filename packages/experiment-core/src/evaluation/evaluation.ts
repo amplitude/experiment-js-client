@@ -276,14 +276,13 @@ export class EvaluationEngine {
   }
 
   private matchesIs(propValue: string, filterValues: string[]): boolean {
-    let transformedPropValue = propValue;
     if (this.containsBooleans(filterValues)) {
       const lower = propValue.toLowerCase();
       if (lower === 'true' || lower === 'false') {
-        transformedPropValue = lower;
+        return filterValues.some((value) => value.toLowerCase() === lower);
       }
     }
-    return filterValues.some((value) => transformedPropValue === value);
+    return filterValues.some((value) => propValue === value);
   }
 
   private matchesContains(propValue: string, filterValues: string[]): boolean {

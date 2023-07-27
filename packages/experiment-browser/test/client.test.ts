@@ -1,15 +1,15 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { ConnectorExposureTrackingProvider } from 'src/integration/connector';
-import { HttpClient, SimpleResponse } from 'src/types/transport';
 
-import { ExperimentClient } from '../src/experimentClient';
-import { ExperimentAnalyticsProvider } from '../src/types/analytics';
-import { FetchOptions } from '../src/types/client';
-import { Exposure, ExposureTrackingProvider } from '../src/types/exposure';
-import { ExperimentUserProvider } from '../src/types/provider';
-import { Source } from '../src/types/source';
-import { ExperimentUser } from '../src/types/user';
-import { Variant, Variants } from '../src/types/variant';
+import { ExperimentClient } from '../src';
+import { ExperimentAnalyticsProvider } from '../src';
+import { FetchOptions } from '../src';
+import { Exposure, ExposureTrackingProvider } from '../src';
+import { ExperimentUserProvider } from '../src';
+import { Source } from '../src';
+import { ExperimentUser } from '../src';
+import { Variant, Variants } from '../src';
+import { ConnectorExposureTrackingProvider } from '../src/integration/connector';
+import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
