@@ -112,6 +112,6 @@ export class LoadStoreCache<V> {
   }
 
   public async store(values: Record<string, V> = this.cache): Promise<void> {
-    await this.storage.put(this.namespace, JSON.stringify({ ...values }));
+    await this.storage.put(this.namespace, JSON.stringify(values));
   }
 }

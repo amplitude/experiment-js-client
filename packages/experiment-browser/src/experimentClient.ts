@@ -7,6 +7,7 @@ import {
   EvaluationApi,
   EvaluationEngine,
   EvaluationFlag,
+  EvaluationVariant,
   FlagApi,
   Poller,
   SdkEvaluationApi,
@@ -45,6 +46,7 @@ const fetchBackoffAttempts = 8;
 const fetchBackoffMinMillis = 500;
 const fetchBackoffMaxMillis = 10000;
 const fetchBackoffScalar = 1.5;
+const flagPollerIntervalMillis = 60000;
 
 /**
  * The default {@link Client} used to fetch variations from Experiment's
@@ -64,7 +66,10 @@ export class ExperimentClient implements Client {
   private userProvider: ExperimentUserProvider | undefined;
   private exposureTrackingProvider: ExposureTrackingProvider | undefined;
   private retriesBackoff: Backoff | undefined;
-  private poller: Poller = new Poller(this.doFlags);
+  private poller: Poller = new Poller(
+    () => this.doFlags(),
+    flagPollerIntervalMillis,
+  );
 
   // Deprecated
   private analyticsProvider: SessionAnalyticsProvider | undefined;
@@ -121,6 +126,31 @@ export class ExperimentClient implements Client {
     void this.variants.load();
   }
 
+  /**
+   * Start the SDK by getting flag configurations from the server. The promise
+   * returned by this function resolves when the SDK has received updated flag
+   * configurations and is ready to locally evaluate flags when the
+   * {@link variant} function is called. This function also starts polling
+   * for flag configuration updates at an interval.
+   *
+   * <p />
+   *
+   * If you also have remote evaluation flags, use {@link fetch} to evaluate
+   * those flags remotely and await both the promises.
+   *
+   * <p />
+   *
+   * For example, to await both local and remote evaluation readiness:
+   *
+   * <pre>
+   *   const p1 = client.start();
+   *   const p2 = client.fetch();
+   *   await Promise.all([p1, p2]);
+   * </pre>
+   * <p />
+   * @param user
+   * @see {@link variant}, {@link fetch}
+   */
   public async start(user?: ExperimentUser): Promise<Client> {
     if (this.poller.isRunning()) {
       return this;
@@ -129,9 +159,13 @@ export class ExperimentClient implements Client {
     const analyticsReadyPromise = this.addContextOrWait(user, 10000);
     const flagsReadyPromise = this.doFlags();
     await Promise.all([analyticsReadyPromise, flagsReadyPromise]);
+    this.poller.start();
     return this;
   }
 
+  /**
+   * Stop the local flag configuration poller.
+   */
   public stop() {
     if (!this.poller.isRunning()) {
       return;
@@ -202,7 +236,7 @@ export class ExperimentClient implements Client {
     if (isFallback(source)) {
       const flag = this.flags.get(key);
       if (flag) {
-        variant = this.evaluate(flag.key);
+        variant = this.evaluate([flag.key])[key];
         source = VariantSource.LocalEvaluation;
       }
     }
@@ -211,24 +245,6 @@ export class ExperimentClient implements Client {
     }
     this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
     return variant;
-  }
-
-  private evaluate(key: string): Variant {
-    const user = this.addContext(this.user);
-    const flags = topologicalSort(this.flags.getAll(), [key]);
-    const evaluationVariant = this.engine.evaluate({ user: user }, flags)[key];
-    if (!evaluationVariant) {
-      return {};
-    }
-    let experimentKey = undefined;
-    if (evaluationVariant.metadata) {
-      experimentKey = evaluationVariant.metadata['experimentKey'];
-    }
-    return {
-      value: evaluationVariant.key,
-      payload: evaluationVariant.value,
-      expKey: experimentKey,
-    };
   }
 
   /**
@@ -260,7 +276,12 @@ export class ExperimentClient implements Client {
     if (!this.apiKey) {
       return {};
     }
-    return { ...this.secondaryVariants(), ...this.sourceVariants() };
+    const evaluatedVariants = this.evaluate();
+    return {
+      ...this.secondaryVariants(),
+      ...evaluatedVariants,
+      ...this.sourceVariants(),
+    };
   }
 
   /**
@@ -330,6 +351,36 @@ export class ExperimentClient implements Client {
   public setUserProvider(userProvider: ExperimentUserProvider): Client {
     this.userProvider = userProvider;
     return this;
+  }
+
+  private evaluate(flagKeys?: string[]): Variants {
+    const user = this.addContext(this.user);
+    const flags = topologicalSort(this.flags.getAll(), flagKeys);
+    const evaluationVariants = this.engine.evaluate({ user: user }, flags);
+    const variants: Variants = {};
+    for (const flagKey of Object.keys(evaluationVariants)) {
+      variants[flagKey] = this.convertEvaluationVariant(
+        evaluationVariants[flagKey],
+      );
+    }
+    return variants;
+  }
+
+  private convertEvaluationVariant(
+    evaluationVariant: EvaluationVariant,
+  ): Variant {
+    if (!evaluationVariant) {
+      return {};
+    }
+    let experimentKey = undefined;
+    if (evaluationVariant.metadata) {
+      experimentKey = evaluationVariant.metadata['experimentKey'];
+    }
+    return {
+      value: evaluationVariant.value,
+      payload: evaluationVariant.payload,
+      expKey: experimentKey,
+    };
   }
 
   private variantAndSource(
@@ -440,8 +491,8 @@ export class ExperimentClient implements Client {
     timeoutMillis: number,
     options?: FetchOptions,
   ): Promise<Variants> {
-    const userContext = await this.addContextOrWait(user, 10000);
-    this.debug('[Experiment] Fetch variants for user: ', userContext);
+    user = await this.addContextOrWait(user, 10000);
+    this.debug('[Experiment] Fetch variants for user: ', user);
     const results = await this.evaluationApi.getVariants(user, {
       timeoutMillis: timeoutMillis,
       flagKeys: options?.flagKeys,

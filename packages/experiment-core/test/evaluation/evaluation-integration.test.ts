@@ -10,6 +10,15 @@ beforeAll(async () => {
   flags = await getFlags(deploymentKey);
 });
 
+test('test', async () => {
+  const otherFlags = await getFlags('client-DvWljIjiiuqLbyjqdvBaLFfEBrAvGuA3');
+  const result = engine.evaluate(
+    { user: { device_id: 'test_device' } },
+    otherFlags,
+  )['sdk-ci-test-local'];
+  expect(result.key).toEqual('off');
+});
+
 // Basic Tests
 
 test('test off', () => {

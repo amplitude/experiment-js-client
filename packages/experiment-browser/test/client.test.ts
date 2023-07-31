@@ -21,6 +21,7 @@ class TestUserProvider implements ExperimentUserProvider {
 }
 
 const API_KEY = 'client-DvWljIjiiuqLbyjqdvBaLFfEBrAvGuA3';
+const SERVER_API_KEY = 'server-qz35UwzJ5akieoAdIgzM4m9MIiOLXLoz';
 
 const testUser: ExperimentUser = { user_id: 'test_user' };
 
@@ -49,7 +50,7 @@ beforeEach(() => {
  * Basic test that fetching variants for a user succeeds.
  */
 test('ExperimentClient.fetch, success', async () => {
-  const client = new ExperimentClient(API_KEY, {debug:true});
+  const client = new ExperimentClient(API_KEY, {});
   await client.fetch(testUser);
   const variant = client.variant(serverKey);
   expect(variant).toEqual(serverVariant);
@@ -389,7 +390,7 @@ test('existing storage variant removed when fetch without flag keys response sto
   const client = new ExperimentClient(API_KEY, {});
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
-  client.storage.put('not-fetched-variant', { value: 'on' });
+  client.variants.put('not-fetched-variant', { value: 'on' });
   await client.fetch(testUser);
   const variant = client.variant('not-fetched-variant');
   expect(variant).toEqual({});
@@ -448,21 +449,35 @@ test('ExperimentClient.variant experiment key passed from variant to exposure', 
 
 describe('local evaluation', () => {
   test('start loads flags into local storage', async () => {
-    const client = new ExperimentClient(API_KEY, {});
+    const client = new ExperimentClient(SERVER_API_KEY, {});
     await client.start({ device_id: 'test_device' });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    expect(client.flags.get('sdk-ci-test-local')).not.toBeUndefined();
+    expect(client.flags.get('sdk-ci-test-local').key).toEqual(
+      'sdk-ci-test-local',
+    );
+    client.stop();
   });
+
   test('variant after start returns expected locally evaluated variant', async () => {
-    const client = new ExperimentClient(API_KEY, {});
+    const client = new ExperimentClient(SERVER_API_KEY, {});
     await client.start({ device_id: 'test_device' });
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    // eslint-disable-next-line no-console
-    console.info(JSON.stringify(client.flags.getAll()));
     expect(client.variant('sdk-ci-test-local')).toEqual({ value: 'on' });
     client.setUser({});
     expect(client.variant('sdk-ci-test-local')).toEqual({});
+    client.stop();
+  });
+
+  test('remote evaluation variant preferred over local evaluation variant', async () => {
+    const client = new ExperimentClient(SERVER_API_KEY, {});
+    const user = { user_id: 'test_user', device_id: 'test_device' };
+    await client.start(user);
+    expect(client.variant('sdk-ci-test')).toEqual({});
+    await client.fetch(user);
+    expect(client.variant('sdk-ci-test')).toEqual({
+      value: 'on',
+      payload: 'payload',
+    });
+    client.stop();
   });
 });
