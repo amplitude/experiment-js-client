@@ -259,7 +259,14 @@ export class ExperimentClient implements Client {
    * @param key The flag/experiment key to track an exposure for.
    */
   public exposure(key: string): void {
-    const { source, variant } = this.variantAndSource(key, null);
+    let { source, variant } = this.variantAndSource(key, null);
+    if (isFallback(source)) {
+      const flag = this.flags.get(key);
+      if (flag) {
+        variant = this.evaluate([flag.key])[key];
+        source = VariantSource.LocalEvaluation;
+      }
+    }
     this.exposureInternal(key, variant, source);
   }
 
@@ -377,7 +384,7 @@ export class ExperimentClient implements Client {
       experimentKey = evaluationVariant.metadata['experimentKey'];
     }
     return {
-      value: evaluationVariant.value,
+      value: evaluationVariant.value as string,
       payload: evaluationVariant.payload,
       expKey: experimentKey,
     };
