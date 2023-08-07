@@ -91,11 +91,11 @@ export class ExperimentClient implements Client {
     this.apiKey = apiKey;
     // Merge configs with defaults and wrap providers
     const serverUrl =
-      config?.serverUrl || config?.serverZone.toLowerCase() === 'eu'
+      config?.serverUrl || config?.serverZone?.toLowerCase() === 'eu'
         ? euServerUrl
         : undefined;
     const flagsServerUrl =
-      config?.flagsServerUrl || config?.serverZone.toLowerCase() === 'eu'
+      config?.flagsServerUrl || config?.serverZone?.toLowerCase() === 'eu'
         ? euFlagsServerUrl
         : undefined;
     this.config = { ...Defaults, ...config, serverUrl, flagsServerUrl };
