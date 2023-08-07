@@ -48,6 +48,10 @@ const fetchBackoffMaxMillis = 10000;
 const fetchBackoffScalar = 1.5;
 const flagPollerIntervalMillis = 60000;
 
+const euServerUrl = 'https://api.lab.eu.amplitude.com';
+const euFlagsServerUrl = 'https://api.flag.eu.amplitude.com';
+
+
 /**
  * The default {@link Client} used to fetch variations from Experiment's
  * servers.
@@ -86,7 +90,15 @@ export class ExperimentClient implements Client {
   public constructor(apiKey: string, config: ExperimentConfig) {
     this.apiKey = apiKey;
     // Merge configs with defaults and wrap providers
-    this.config = { ...Defaults, ...config };
+    const serverUrl =
+      config?.serverUrl || config?.serverZone.toLowerCase() === 'eu'
+        ? euServerUrl
+        : undefined;
+    const flagsServerUrl =
+      config?.flagsServerUrl || config?.serverZone.toLowerCase() === 'eu'
+        ? euFlagsServerUrl
+        : undefined;
+    this.config = { ...Defaults, ...config, serverUrl, flagsServerUrl };
     if (this.config.userProvider) {
       this.userProvider = this.config.userProvider;
     }

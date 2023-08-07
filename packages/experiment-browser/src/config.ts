@@ -43,9 +43,21 @@ export interface ExperimentConfig {
   source?: Source;
 
   /**
-   * The server endpoint from which to request variants.
+   * The domain from which to request variants using remote evaluation.
    */
   serverUrl?: string;
+
+  /**
+   * The domain to request flag configurations used in local evaluation from.
+   */
+  flagsServerUrl?: string;
+
+  /**
+   * The amplitude data center to fetch flags and variants from. If set,
+   * automatically sets the {@link serverUrl} and {@link flagsServerUrl}
+   * configurations.
+   */
+  serverZone?: string;
 
   /**
    * The request timeout, in milliseconds, when fetching variants.
@@ -120,6 +132,8 @@ export interface ExperimentConfig {
  | **initialVariants**         | `null`                 |
  | **source** | `Source.LocalStorage` |
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
+ | **flagsServerUrl**    | `"https://api.flag.amplitude.com"` |
+ | **serverZone**    | `"US"` |
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
  | **automaticExposureTracking** | `true` |
@@ -138,6 +152,8 @@ export const Defaults: ExperimentConfig = {
   initialVariants: {},
   source: Source.LocalStorage,
   serverUrl: 'https://api.lab.amplitude.com',
+  flagsServerUrl: 'https://api.flag.amplitude.com',
+  serverZone: 'US',
   fetchTimeoutMillis: 10000,
   retryFetchOnFailure: true,
   automaticExposureTracking: true,
