@@ -481,3 +481,65 @@ describe('local evaluation', () => {
     client.stop();
   });
 });
+
+describe('server zone', () => {
+  test('no config uses defaults', () => {
+    const client = new ExperimentClient(API_KEY, {});
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.config.serverUrl).toEqual('https://api.lab.amplitude.com');
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.config.flagsServerUrl).toEqual(
+      'https://api.flag.amplitude.com',
+    );
+  });
+  test('us server zone config uses defaults', () => {
+    const client = new ExperimentClient(API_KEY, { serverZone: 'US' });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.config.serverUrl).toEqual('https://api.lab.amplitude.com');
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.config.flagsServerUrl).toEqual(
+      'https://api.flag.amplitude.com',
+    );
+  });
+  test('us server zone with explicit config uses explicit config', () => {
+    const client = new ExperimentClient(API_KEY, {
+      serverZone: 'US',
+      serverUrl: 'https://experiment.company.com',
+      flagsServerUrl: 'https://flags.company.com',
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.config.serverUrl).toEqual('https://experiment.company.com');
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.config.flagsServerUrl).toEqual('https://flags.company.com');
+  });
+  test('eu server zone uses eu defaults', () => {
+    const client = new ExperimentClient(API_KEY, { serverZone: 'EU' });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.config.serverUrl).toEqual('https://api.lab.eu.amplitude.com');
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.config.flagsServerUrl).toEqual(
+      'https://api.flag.eu.amplitude.com',
+    );
+  });
+  test('eu server zone with explicit config uses explicit config', () => {
+    const client = new ExperimentClient(API_KEY, {
+      serverZone: 'EU',
+      serverUrl: 'https://expeirment.company.com',
+      flagsServerUrl: 'https://flags.company.com',
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.config.serverUrl).toEqual('https://expeirment.company.com');
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(client.config.flagsServerUrl).toEqual('https://flags.company.com');
+  });
+});

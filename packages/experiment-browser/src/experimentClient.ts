@@ -90,15 +90,21 @@ export class ExperimentClient implements Client {
   public constructor(apiKey: string, config: ExperimentConfig) {
     this.apiKey = apiKey;
     // Merge configs with defaults and wrap providers
-    const serverUrl =
-      config?.serverUrl || config?.serverZone?.toLowerCase() === 'eu'
-        ? euServerUrl
-        : undefined;
-    const flagsServerUrl =
-      config?.flagsServerUrl || config?.serverZone?.toLowerCase() === 'eu'
-        ? euFlagsServerUrl
-        : undefined;
-    this.config = { ...Defaults, ...config, serverUrl, flagsServerUrl };
+    this.config = {
+      ...Defaults,
+      ...config,
+      // Set server URLs separately
+      serverUrl:
+        config?.serverUrl ||
+        (config?.serverZone?.toLowerCase() === 'eu'
+          ? euServerUrl
+          : Defaults.serverUrl),
+      flagsServerUrl:
+        config?.flagsServerUrl ||
+        (config?.serverZone?.toLowerCase() === 'eu'
+          ? euFlagsServerUrl
+          : Defaults.flagsServerUrl),
+    };
     if (this.config.userProvider) {
       this.userProvider = this.config.userProvider;
     }
