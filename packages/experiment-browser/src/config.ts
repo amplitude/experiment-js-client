@@ -132,7 +132,7 @@ export interface ExperimentConfig {
  | **initialVariants**         | `null`                 |
  | **source** | `Source.LocalStorage` |
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
- | **flagsServerUrl**    | `"https://api.flag.amplitude.com"` |
+ | **flagsServerUrl**    | `"https://flag.lab.amplitude.com"` |
  | **serverZone**    | `"US"` |
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
@@ -152,7 +152,7 @@ export const Defaults: ExperimentConfig = {
   initialVariants: {},
   source: Source.LocalStorage,
   serverUrl: 'https://api.lab.amplitude.com',
-  flagsServerUrl: 'https://api.flag.amplitude.com',
+  flagsServerUrl: 'https://flag.lab.amplitude.com',
   serverZone: 'US',
   fetchTimeoutMillis: 10000,
   retryFetchOnFailure: true,

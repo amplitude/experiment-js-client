@@ -491,7 +491,7 @@ describe('server zone', () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     expect(client.config.flagsServerUrl).toEqual(
-      'https://api.flag.amplitude.com',
+      'https://flag.lab.amplitude.com',
     );
   });
   test('us server zone config uses defaults', () => {
@@ -502,7 +502,7 @@ describe('server zone', () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     expect(client.config.flagsServerUrl).toEqual(
-      'https://api.flag.amplitude.com',
+      'https://flag.lab.amplitude.com',
     );
   });
   test('us server zone with explicit config uses explicit config', () => {
@@ -526,7 +526,7 @@ describe('server zone', () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     expect(client.config.flagsServerUrl).toEqual(
-      'https://api.flag.eu.amplitude.com',
+      'https://flag.lab.eu.amplitude.com',
     );
   });
   test('eu server zone with explicit config uses explicit config', () => {

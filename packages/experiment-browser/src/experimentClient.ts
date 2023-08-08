@@ -49,7 +49,7 @@ const fetchBackoffScalar = 1.5;
 const flagPollerIntervalMillis = 60000;
 
 const euServerUrl = 'https://api.lab.eu.amplitude.com';
-const euFlagsServerUrl = 'https://api.flag.eu.amplitude.com';
+const euFlagsServerUrl = 'https://flag.lab.eu.amplitude.com';
 
 
 /**
@@ -124,7 +124,7 @@ export class ExperimentClient implements Client {
     );
     this.flagApi = new SdkFlagApi(
       this.apiKey,
-      this.config.serverUrl,
+      this.config.flagsServerUrl,
       httpClient,
     );
     this.evaluationApi = new SdkEvaluationApi(
