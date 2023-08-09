@@ -250,13 +250,14 @@ export class ExperimentClient implements Client {
     if (!this.apiKey) {
       return { value: undefined };
     }
+    const flag = this.flags.get(key);
     let { source, variant } = this.variantAndSource(key, fallback);
-    if (isFallback(source)) {
-      const flag = this.flags.get(key);
-      if (flag) {
-        variant = this.evaluate([flag.key])[key];
-        source = VariantSource.LocalEvaluation;
-      }
+    if (
+      flag?.metadata?.evaluationMode === 'local' ||
+      (flag && isFallback(source))
+    ) {
+      variant = this.evaluate([flag.key])[key];
+      source = VariantSource.LocalEvaluation;
     }
     if (this.config.automaticExposureTracking) {
       this.exposureInternal(key, variant, source);
@@ -277,13 +278,14 @@ export class ExperimentClient implements Client {
    * @param key The flag/experiment key to track an exposure for.
    */
   public exposure(key: string): void {
+    const flag = this.flags.get(key);
     let { source, variant } = this.variantAndSource(key, null);
-    if (isFallback(source)) {
-      const flag = this.flags.get(key);
-      if (flag) {
-        variant = this.evaluate([flag.key])[key];
-        source = VariantSource.LocalEvaluation;
-      }
+    if (
+      flag?.metadata?.evaluationMode === 'local' ||
+      (flag && isFallback(source))
+    ) {
+      variant = this.evaluate([flag.key])[key];
+      source = VariantSource.LocalEvaluation;
     }
     this.exposureInternal(key, variant, source);
   }

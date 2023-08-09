@@ -56,7 +56,7 @@ export class LoadStoreCache<V> {
     this.transformer = transformer;
   }
 
-  public get(key: string): V {
+  public get(key: string): V | undefined {
     return this.cache[key];
   }
 
