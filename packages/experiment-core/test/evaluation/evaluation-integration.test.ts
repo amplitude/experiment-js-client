@@ -440,7 +440,7 @@ test('test set is not', () => {
 
 test('test set contains', () => {
   const user = userContext(undefined, undefined, undefined, {
-    key: ['1', '2'],
+    key: ['1', '2', '3', '4'],
   });
   const result = engine.evaluate(user, flags)['test-set-contains'];
   expect(result?.key).toEqual('on');

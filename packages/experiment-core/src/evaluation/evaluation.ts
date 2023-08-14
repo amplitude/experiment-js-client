@@ -210,25 +210,23 @@ export class EvaluationEngine {
   }
 
   private matchSet(
-    propValue: string[],
+    propValues: string[],
     op: string,
     filterValues: string[],
   ): boolean {
-    const propValuesSet = new Set(propValue);
-    const filterValuesSet = new Set(filterValues);
     switch (op) {
       case EvaluationOperator.SET_IS:
-        return this.setEquals(filterValuesSet, propValuesSet);
+        return this.setEquals(propValues, filterValues);
       case EvaluationOperator.SET_IS_NOT:
-        return !this.setEquals(filterValuesSet, propValuesSet);
+        return !this.setEquals(propValues, filterValues);
       case EvaluationOperator.SET_CONTAINS:
-        return this.setContainsAll(filterValuesSet, propValuesSet);
+        return this.matchesSetContainsAll(propValues, filterValues);
       case EvaluationOperator.SET_DOES_NOT_CONTAIN:
-        return !this.setContainsAll(filterValuesSet, propValuesSet);
+        return !this.matchesSetContainsAll(propValues, filterValues);
       case EvaluationOperator.SET_CONTAINS_ANY:
-        return this.setContainsAny(filterValuesSet, propValuesSet);
+        return this.matchesSetContainsAny(propValues, filterValues);
       case EvaluationOperator.SET_DOES_NOT_CONTAIN_ANY:
-        return !this.setContainsAny(filterValuesSet, propValuesSet);
+        return !this.matchesSetContainsAny(propValues, filterValues);
       default:
         return false;
     }
@@ -439,15 +437,36 @@ export class EvaluationEngine {
     }
   }
 
-  private setEquals(xs: Set<string>, ys: Set<string>): boolean {
+  private setEquals(xa: string[], ya: string[]): boolean {
+    const xs = new Set(xa);
+    const ys = new Set(ya);
     return xs.size === ys.size && [...ys].every((y) => xs.has(y));
   }
 
-  private setContainsAll(xs: Set<string>, ys: Set<string>): boolean {
-    return xs.size >= ys.size && [...ys].every((y) => xs.has(y));
+  private matchesSetContainsAll(
+    propValues: string[],
+    filterValues: string[],
+  ): boolean {
+    if (propValues.length < filterValues.length) {
+      return false;
+    }
+    for (const filterValue of filterValues) {
+      if (!this.matchesIs(filterValue, propValues)) {
+        return false;
+      }
+    }
+    return true;
   }
 
-  private setContainsAny(xs: Set<string>, ys: Set<string>): boolean {
-    return [...ys].some((y) => xs.has(y));
+  private matchesSetContainsAny(
+    propValues: string[],
+    filterValues: string[],
+  ): boolean {
+    for (const filterValue of filterValues) {
+      if (this.matchesIs(filterValue, propValues)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
