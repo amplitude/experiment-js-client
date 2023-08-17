@@ -40,6 +40,11 @@ export type Exposure = {
    * experiments associated with the same flag.
    */
   experiment_key?: string;
+  /**
+   * (Optional) Flag, segment, and variant metadata produced as a result of
+   * evaluation for the user. Used for system purposes.
+   */
+  metadata?: Record<string, unknown>;
 };
 
 /**

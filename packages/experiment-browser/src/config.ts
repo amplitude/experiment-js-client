@@ -78,6 +78,11 @@ export interface ExperimentConfig {
   automaticExposureTracking?: boolean;
 
   /**
+   * Enable or disable local evaluation flag configuration polling on `start()`.
+   */
+  pollOnStart?: boolean;
+
+  /**
    * This config only matters if you are using the amplitude analytics SDK
    * integration initialized by calling
    * `Experiment.initializeWithAmplitudeAnalytics()`.
@@ -137,6 +142,7 @@ export interface ExperimentConfig {
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
  | **automaticExposureTracking** | `true` |
+ | **pollOnStart** | `true` |
  | **automaticFetchOnAmplitudeIdentityChange** | `false` |
  | **userProvider**    | `null` |
  | **analyticsProvider**    | `null` |
@@ -157,6 +163,7 @@ export const Defaults: ExperimentConfig = {
   fetchTimeoutMillis: 10000,
   retryFetchOnFailure: true,
   automaticExposureTracking: true,
+  pollOnStart: true,
   automaticFetchOnAmplitudeIdentityChange: false,
   userProvider: null,
   analyticsProvider: null,

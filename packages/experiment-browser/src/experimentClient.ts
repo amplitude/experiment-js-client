@@ -29,7 +29,7 @@ import { LocalStorage } from './storage/local-storage';
 import { FetchHttpClient, WrapperClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
-import { ExposureTrackingProvider } from './types/exposure';
+import { Exposure, ExposureTrackingProvider } from './types/exposure';
 import { ExperimentUserProvider } from './types/provider';
 import { isFallback, Source, VariantSource } from './types/source';
 import { ExperimentUser } from './types/user';
@@ -50,7 +50,6 @@ const flagPollerIntervalMillis = 60000;
 
 const euServerUrl = 'https://api.lab.eu.amplitude.com';
 const euFlagsServerUrl = 'https://flag.lab.eu.amplitude.com';
-
 
 /**
  * The default {@link Client} used to fetch variations from Experiment's
@@ -74,6 +73,7 @@ export class ExperimentClient implements Client {
     () => this.doFlags(),
     flagPollerIntervalMillis,
   );
+  private isRunning = false;
 
   // Deprecated
   private analyticsProvider: SessionAnalyticsProvider | undefined;
@@ -161,23 +161,24 @@ export class ExperimentClient implements Client {
    * For example, to await both local and remote evaluation readiness:
    *
    * <pre>
-   *   const p1 = client.start();
-   *   const p2 = client.fetch();
-   *   await Promise.all([p1, p2]);
+   *   await Promise.all([client.start(), client.fetch()]);
    * </pre>
    * <p />
    * @param user
    * @see {@link variant}, {@link fetch}
    */
   public async start(user?: ExperimentUser): Promise<Client> {
-    if (this.poller.isRunning()) {
+    if (this.isRunning) {
       return this;
     }
     this.setUser(user);
     const analyticsReadyPromise = this.addContextOrWait(user, 10000);
     const flagsReadyPromise = this.doFlags();
     await Promise.all([analyticsReadyPromise, flagsReadyPromise]);
-    this.poller.start();
+    if (this.config.pollOnStart) {
+      this.poller.start();
+    }
+    this.isRunning = true;
     return this;
   }
 
@@ -185,10 +186,11 @@ export class ExperimentClient implements Client {
    * Stop the local flag configuration poller.
    */
   public stop() {
-    if (!this.poller.isRunning()) {
+    if (!this.isRunning) {
       return;
     }
     this.poller.stop();
+    this.isRunning = false;
   }
 
   /**
@@ -209,6 +211,7 @@ export class ExperimentClient implements Client {
    * from the server, you generally do not need to call `fetch`.
    *
    * @param user The user to fetch variants for.
+   * @param options Options for this specific fetch call.
    * @returns Promise that resolves when the request for variants completes.
    * @see ExperimentUser
    * @see ExperimentUserProvider
@@ -386,28 +389,11 @@ export class ExperimentClient implements Client {
     const evaluationVariants = this.engine.evaluate({ user: user }, flags);
     const variants: Variants = {};
     for (const flagKey of Object.keys(evaluationVariants)) {
-      variants[flagKey] = this.convertEvaluationVariant(
+      variants[flagKey] = this.translateFromEvaluationVariant(
         evaluationVariants[flagKey],
       );
     }
     return variants;
-  }
-
-  private convertEvaluationVariant(
-    evaluationVariant: EvaluationVariant,
-  ): Variant {
-    if (!evaluationVariant) {
-      return {};
-    }
-    let experimentKey = undefined;
-    if (evaluationVariant.metadata) {
-      experimentKey = evaluationVariant.metadata['experimentKey'];
-    }
-    return {
-      value: evaluationVariant.value as string,
-      payload: evaluationVariant.payload,
-      expKey: experimentKey,
-    };
   }
 
   private variantAndSource(
@@ -526,12 +512,7 @@ export class ExperimentClient implements Client {
     });
     const variants: Variants = {};
     for (const key of Object.keys(results)) {
-      const variant = results[key];
-      variants[key] = {
-        value: variant.key,
-        payload: variant.payload,
-        expKey: variant.expKey,
-      };
+      variants[key] = this.translateFromEvaluationVariant(results[key]);
     }
     this.debug('[Experiment] Received variants: ', variants);
     return variants;
@@ -623,11 +604,47 @@ export class ExperimentClient implements Client {
     }
     if (typeof value == 'string') {
       return {
+        key: value,
         value: value,
       };
     } else {
       return value;
     }
+  }
+
+  private translateFromEvaluationVariant(
+    evaluationVariant: EvaluationVariant,
+  ): Variant {
+    if (!evaluationVariant) {
+      return {};
+    }
+    let experimentKey = undefined;
+    if (evaluationVariant.metadata) {
+      experimentKey = evaluationVariant.metadata['experimentKey'];
+    }
+    return {
+      key: evaluationVariant.key,
+      value: evaluationVariant.value as string,
+      payload: evaluationVariant.payload,
+      expKey: experimentKey,
+      metadata: evaluationVariant.metadata,
+    };
+  }
+
+  private translateToEvaluationVariant(variant: Variant): EvaluationVariant {
+    if (!variant) {
+      return {};
+    }
+    let metadata = undefined;
+    if (variant.expKey) {
+      metadata = { experimentKey: variant.expKey };
+    }
+    return {
+      key: variant.key || variant.value,
+      value: variant.value,
+      payload: variant.payload,
+      metadata: metadata,
+    };
   }
 
   private sourceVariants(): Variants {
@@ -651,20 +668,34 @@ export class ExperimentClient implements Client {
     variant: Variant,
     source: VariantSource,
   ): void {
+    this.legacyExposureInternal(key, variant, source);
+    const exposure: Exposure = { flag_key: key };
+    if (isFallback(source)) {
+      this.exposureTrackingProvider?.track(exposure);
+    } else {
+      if (variant?.expKey) exposure.experiment_key = variant?.expKey;
+      if (!variant?.metadata?.default) {
+        if (variant?.key) {
+          exposure.variant = variant.key;
+        } else if (variant?.value) {
+          exposure.variant = variant.value;
+        }
+      }
+      exposure.metadata = variant?.metadata;
+      this.exposureTrackingProvider?.track(exposure);
+    }
+  }
+
+  private legacyExposureInternal(
+    key: string,
+    variant: Variant,
+    source: VariantSource,
+  ): void {
     const user = this.addContext(this.getUser());
     const event = exposureEvent(user, key, variant, source);
     if (isFallback(source) || !variant?.value) {
-      // fallbacks indicate not being allocated into an experiment, so
-      // we can unset the property
-      this.exposureTrackingProvider?.track({ flag_key: key });
       this.analyticsProvider?.unsetUserProperty?.(event);
     } else if (variant?.value) {
-      // only track when there's a value for a non fallback variant
-      this.exposureTrackingProvider?.track({
-        flag_key: key,
-        variant: variant.value,
-        experiment_key: variant.expKey,
-      });
       this.analyticsProvider?.setUserProperty?.(event);
       this.analyticsProvider?.track(event);
     }

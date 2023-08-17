@@ -25,8 +25,4 @@ export class Poller {
     safeGlobal.clearInterval(this.poller);
     this.poller = undefined;
   }
-
-  public isRunning(): boolean {
-    return this.poller !== undefined;
-  }
 }

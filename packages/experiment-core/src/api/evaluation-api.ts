@@ -1,5 +1,6 @@
 import { Base64 } from 'js-base64';
 
+import { EvaluationVariant } from '../evaluation/flag';
 import { HttpClient } from '../transport/http';
 
 export type RemoteVariant = {
@@ -18,7 +19,7 @@ export interface EvaluationApi {
   getVariants(
     user: Record<string, unknown>,
     options?: GetVariantsOptions,
-  ): Promise<Record<string, RemoteVariant>>;
+  ): Promise<Record<string, EvaluationVariant>>;
 }
 
 export class SdkEvaluationApi implements EvaluationApi {
@@ -39,7 +40,7 @@ export class SdkEvaluationApi implements EvaluationApi {
   async getVariants(
     user: Record<string, unknown>,
     options?: GetVariantsOptions,
-  ): Promise<Record<string, RemoteVariant>> {
+  ): Promise<Record<string, EvaluationVariant>> {
     const userJsonBase64 = Base64.encodeURL(JSON.stringify(user));
     const headers: Record<string, string> = {
       Authorization: `Api-Key ${this.deploymentKey}`,
@@ -54,7 +55,7 @@ export class SdkEvaluationApi implements EvaluationApi {
       headers['X-Amp-Exp-Track'] = options.trackingOption;
     }
     const response = await this.httpClient.request({
-      requestUrl: `${this.serverUrl}/sdk/vardata`,
+      requestUrl: `${this.serverUrl}/sdk/v2/vardata?v=0`,
       method: 'GET',
       headers: headers,
       timeoutMillis: options?.timeoutMillis,

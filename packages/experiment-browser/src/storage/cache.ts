@@ -15,18 +15,7 @@ export const getVariantStorage = (
   return new LoadStoreCache<Variant>(
     namespace,
     storage,
-    (value: unknown): Variant => {
-      if (typeof value === 'string') {
-        // old format
-        return { value: value };
-      } else if (typeof value === 'object') {
-        // new format
-        return {
-          value: value['value'],
-          payload: value['payload'],
-        };
-      }
-    },
+    transformVariantFromStorage,
   );
 };
 
@@ -115,3 +104,36 @@ export class LoadStoreCache<V> {
     await this.storage.put(this.namespace, JSON.stringify(values));
   }
 }
+
+export const transformVariantFromStorage = (storageValue: unknown): Variant => {
+  if (typeof storageValue === 'string') {
+    // From v0 string format
+    return {
+      key: storageValue,
+      value: storageValue,
+      payload: undefined,
+      expKey: undefined,
+      metadata: undefined,
+    };
+  } else if (typeof storageValue === 'object') {
+    // From v1 or v2 object format
+    const key = storageValue['key'];
+    const value = storageValue['value'];
+    const payload = storageValue['payload'];
+    let metadata = storageValue['metadata'];
+    let experimentKey = storageValue['expKey'];
+    if (metadata && metadata.experimentKey) {
+      experimentKey = metadata.experimentKey;
+    } else if (experimentKey) {
+      metadata = metadata || {};
+      metadata['experimentKey'] = experimentKey;
+    }
+    return {
+      key: key || value,
+      value: value,
+      payload: payload,
+      expKey: experimentKey,
+      metadata: metadata,
+    };
+  }
+};
