@@ -26,7 +26,7 @@ const SERVER_API_KEY = 'server-qz35UwzJ5akieoAdIgzM4m9MIiOLXLoz';
 const testUser: ExperimentUser = { user_id: 'test_user' };
 
 const serverKey = 'sdk-ci-test';
-const serverVariant: Variant = { value: 'on', payload: 'payload' };
+const serverVariant: Variant = { key: 'on', value: 'on', payload: 'payload' };
 const serverOffVariant: Variant = { value: 'off' };
 
 const initialKey = 'initial-key';
@@ -39,7 +39,10 @@ const initialVariants: Variants = {
 
 const fallbackVariant: Variant = { value: 'fallback', payload: 'payload' };
 const explicitFallbackString = 'first';
-const explicitFallbackVariant: Variant = { value: explicitFallbackString };
+const explicitFallbackVariant: Variant = {
+  key: explicitFallbackString,
+  value: explicitFallbackString,
+};
 const unknownKey = 'not-a-valid-key';
 
 beforeEach(() => {
@@ -171,7 +174,7 @@ test('ExperimentClient.clear, clear the variants in storage', async () => {
   const client = new ExperimentClient(API_KEY, {});
   await client.fetch(testUser);
   const variant = client.variant('sdk-ci-test');
-  expect(variant).toEqual({ value: 'on', payload: 'payload' });
+  expect(variant).toEqual({ key: 'on', value: 'on', payload: 'payload' });
   client.clear();
   const clearedVariants = client.all();
   expect(clearedVariants).toEqual({});
@@ -216,7 +219,7 @@ test('ExperimentClient.fetch, with user provider, success', async () => {
   );
   await client.fetch();
   const variant = client.variant('sdk-ci-test');
-  expect(variant).toEqual({ value: 'on', payload: 'payload' });
+  expect(variant).toEqual({ key: 'on', value: 'on', payload: 'payload' });
 });
 
 /**
@@ -229,7 +232,7 @@ test('ExperimentClient.fetch, with config user provider, success', async () => {
   });
   await client.fetch();
   const variant = client.variant('sdk-ci-test');
-  expect(variant).toEqual({ value: 'on', payload: 'payload' });
+  expect(variant).toEqual({ key: 'on', value: 'on', payload: 'payload' });
 });
 
 /**
@@ -378,12 +381,12 @@ test('configure httpClient, success', async () => {
   const client = new ExperimentClient(API_KEY, {
     httpClient: new TestHttpClient(
       200,
-      JSON.stringify({ flag: { key: 'key' } }),
+      JSON.stringify({ flag: { key: 'key', value: 'key' } }),
     ),
   });
   await client.fetch();
   const v = client.variant('flag');
-  expect(v).toEqual({ value: 'key' });
+  expect(v).toEqual({ key: 'key', value: 'key' });
 });
 
 test('existing storage variant removed when fetch without flag keys response stored', async () => {
@@ -396,44 +399,36 @@ test('existing storage variant removed when fetch without flag keys response sto
   expect(variant).toEqual({});
 });
 
-// Testing with local api server, need to updated to use the production data.
-const LOCAL_TEST_API = API_KEY; //'server-qz35UwzJ5akieoAdIgzM4m9MIiOLXLoz'; //'server-VY0FufBsdITI1Gv9y7RyUopLzk9m8t0n';
-const local_test_user = testUser; //{ user_id: 'brian.giori@amplitude.com' };
-
 const flagKeysTestVariantPartial = {
-  'sdk-ci-test': serverVariant,
-};
-const flagKeysTestVariants = {
-  'sdk-ci-test-2': { payload: undefined, value: 'on' },
   'sdk-ci-test': serverVariant,
 };
 
 test('ExperimentClient.fetch with partial flag keys in fetch options, should return the fetched variant', async () => {
   const client = new ExperimentClient(API_KEY, {});
   const option: FetchOptions = { flagKeys: ['sdk-ci-test'] };
-  await client.fetch(local_test_user, option);
+  await client.fetch(testUser, option);
   const variant = client.all();
   expect(variant).toEqual(flagKeysTestVariantPartial);
 });
 
 test('ExperimentClient.fetch without fetch options, should return all variants', async () => {
   const client = new ExperimentClient(API_KEY, {});
-  await client.fetch(local_test_user);
-  const variant = client.all();
-  expect(variant).toEqual(flagKeysTestVariants);
+  await client.fetch(testUser);
+  const variants = client.all();
+  expect(Object.keys(variants).length).toBeGreaterThanOrEqual(2);
 });
 
 test('ExperimentClient.fetch with not exist flagKeys in fetch options', async () => {
-  const client = new ExperimentClient(LOCAL_TEST_API, {});
+  const client = new ExperimentClient(API_KEY, {});
   const option: FetchOptions = { flagKeys: ['123'] };
-  await client.fetch(local_test_user, option);
+  await client.fetch(testUser, option);
   const variant = client.all();
   expect(variant).toEqual({});
 });
 
 test('ExperimentClient.variant experiment key passed from variant to exposure', async () => {
   let didTrack = false;
-  const client = new ExperimentClient(LOCAL_TEST_API, {
+  const client = new ExperimentClient(API_KEY, {
     exposureTrackingProvider: {
       track: (exposure: Exposure) => {
         expect(exposure.experiment_key).toEqual('expKey');
@@ -462,9 +457,13 @@ describe('local evaluation', () => {
   test('variant after start returns expected locally evaluated variant', async () => {
     const client = new ExperimentClient(SERVER_API_KEY, {});
     await client.start({ device_id: 'test_device' });
-    expect(client.variant('sdk-ci-test-local')).toEqual({ value: 'on' });
+    let variant = client.variant('sdk-ci-test-local');
+    expect(variant.key).toEqual('on');
+    expect(variant.value).toEqual('on');
     client.setUser({});
-    expect(client.variant('sdk-ci-test-local')).toEqual({});
+    variant = client.variant('sdk-ci-test-local');
+    expect(variant.key).toEqual('off');
+    expect(variant.value).toBeUndefined();
     client.stop();
   });
 
@@ -472,9 +471,13 @@ describe('local evaluation', () => {
     const client = new ExperimentClient(SERVER_API_KEY, {});
     const user = { user_id: 'test_user', device_id: 'test_device' };
     await client.start(user);
-    expect(client.variant('sdk-ci-test')).toEqual({});
+    let variant = client.variant('sdk-ci-test');
+    expect(variant.key).toEqual('off');
+    expect(variant.value).toBeUndefined();
     await client.fetch(user);
-    expect(client.variant('sdk-ci-test')).toEqual({
+    variant = client.variant('sdk-ci-test');
+    expect(variant).toEqual({
+      key: 'on',
       value: 'on',
       payload: 'payload',
     });

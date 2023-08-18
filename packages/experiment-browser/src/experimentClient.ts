@@ -622,13 +622,15 @@ export class ExperimentClient implements Client {
     if (evaluationVariant.metadata) {
       experimentKey = evaluationVariant.metadata['experimentKey'];
     }
-    return {
-      key: evaluationVariant.key,
-      value: evaluationVariant.value as string,
-      payload: evaluationVariant.payload,
-      expKey: experimentKey,
-      metadata: evaluationVariant.metadata,
-    };
+    const variant: Variant = {};
+    if (evaluationVariant.key) variant.key = evaluationVariant.key;
+    if (evaluationVariant.value)
+      variant.value = evaluationVariant.value as string;
+    if (evaluationVariant.payload) variant.payload = evaluationVariant.payload;
+    if (experimentKey) variant.expKey = experimentKey;
+    if (evaluationVariant.metadata)
+      variant.metadata = evaluationVariant.metadata;
+    return variant;
   }
 
   private translateToEvaluationVariant(variant: Variant): EvaluationVariant {

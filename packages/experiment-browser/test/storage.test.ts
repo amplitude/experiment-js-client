@@ -6,9 +6,6 @@ describe('transformVariantFromStorage', () => {
     expect(transformVariantFromStorage(storedVariant)).toEqual({
       key: 'on',
       value: 'on',
-      payload: undefined,
-      expKey: undefined,
-      metadata: undefined,
     });
   });
   test('v1 variant transformation', () => {
@@ -18,9 +15,6 @@ describe('transformVariantFromStorage', () => {
     expect(transformVariantFromStorage(storedVariant)).toEqual({
       key: 'on',
       value: 'on',
-      payload: undefined,
-      expKey: undefined,
-      metadata: undefined,
     });
   });
   test('v1 variant transformation, with payload', () => {
@@ -32,8 +26,6 @@ describe('transformVariantFromStorage', () => {
       key: 'on',
       value: 'on',
       payload: { k: 'v' },
-      expKey: undefined,
-      metadata: undefined,
     });
   });
   test('v1 variant transformation, with payload and experiment key', () => {
@@ -60,9 +52,6 @@ describe('transformVariantFromStorage', () => {
     expect(transformVariantFromStorage(storedVariant)).toEqual({
       key: 'treatment',
       value: 'on',
-      payload: undefined,
-      expKey: undefined,
-      metadata: undefined,
     });
   });
   test('v2 variant transformation, with payload', () => {
@@ -75,8 +64,6 @@ describe('transformVariantFromStorage', () => {
       key: 'treatment',
       value: 'on',
       payload: { k: 'v' },
-      expKey: undefined,
-      metadata: undefined,
     });
   });
   test('v2 variant transformation, with payload and experiment key', () => {

@@ -111,9 +111,6 @@ export const transformVariantFromStorage = (storageValue: unknown): Variant => {
     return {
       key: storageValue,
       value: storageValue,
-      payload: undefined,
-      expKey: undefined,
-      metadata: undefined,
     };
   } else if (typeof storageValue === 'object') {
     // From v1 or v2 object format
@@ -128,12 +125,16 @@ export const transformVariantFromStorage = (storageValue: unknown): Variant => {
       metadata = metadata || {};
       metadata['experimentKey'] = experimentKey;
     }
-    return {
-      key: key || value,
-      value: value,
-      payload: payload,
-      expKey: experimentKey,
-      metadata: metadata,
-    };
+    const variant: Variant = {};
+    if (key) {
+      variant.key = key;
+    } else if (value) {
+      variant.key = value;
+    }
+    if (value) variant.value = value;
+    if (metadata) variant.metadata = metadata;
+    if (payload) variant.payload = payload;
+    if (experimentKey) variant.expKey = experimentKey;
+    return variant;
   }
 };

@@ -3,12 +3,6 @@ import { Base64 } from 'js-base64';
 import { EvaluationVariant } from '../evaluation/flag';
 import { HttpClient } from '../transport/http';
 
-export type RemoteVariant = {
-  key?: string;
-  payload?: unknown;
-  expKey?: string;
-};
-
 export type GetVariantsOptions = {
   flagKeys?: string[];
   trackingOption?: string;
