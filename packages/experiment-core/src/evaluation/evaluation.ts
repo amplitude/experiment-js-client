@@ -153,23 +153,17 @@ export class EvaluationEngine {
     const allocationValue = hash % 100;
     const distributionValue = Math.floor(hash / 100);
     for (const allocation of segment.bucket.allocations) {
-      const allocationRangeFrom = allocation.range[0];
-      const allocationRangeTo = allocation.range[1];
-      const allocationStart = Math.floor(allocationRangeFrom / 100);
-      const allocationEnd = Math.floor(allocationRangeTo / 100);
+      const allocationStart = allocation.range[0];
+      const allocationEnd = allocation.range[1];
       if (
         allocationValue >= allocationStart &&
         allocationValue < allocationEnd
       ) {
         for (const distribution of allocation.distributions) {
-          const distributionRangeFrom = distribution.range[0];
-          const distributionRangeTo = distribution.range[1];
-          // Add 1 to max to allow for range [0, max+1 when comparing the
-          // upper bound (which uses <, not <=)
-          const distributionStart =
-            (distributionRangeFrom / 10000.0) * (MAX_VARIANT_HASH_VALUE + 1);
-          const distributionEnd =
-            (distributionRangeTo / 10000.0) * (MAX_VARIANT_HASH_VALUE + 1);
+          const distributionStart = distribution.range[0];
+          // Add 1 to end to allow for range [start, end+1) when
+          // comparing the upper bound (which uses <, not <=)
+          const distributionEnd = distribution.range[1] + 1;
           if (
             distributionValue >= distributionStart &&
             distributionValue < distributionEnd
