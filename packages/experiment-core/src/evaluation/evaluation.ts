@@ -294,19 +294,25 @@ export class EvaluationEngine {
     typeComparator: (propValue: T, op: string, filterValue: T) => boolean,
   ) {
     const propValueTransformed = typeTransformer(propValue);
-    return filterValues.some((filterValue) => {
-      if (propValueTransformed != null) {
-        const filterValueTransformed = typeTransformer(filterValue);
-        if (filterValueTransformed != null) {
-          return typeComparator(
-            propValueTransformed,
-            op,
-            filterValueTransformed,
-          );
-        }
+    const filterValuesTransformed = filterValues
+      .map((filterValue) => {
+        return typeTransformer(filterValue);
+      })
+      .filter((filterValue) => {
+        return filterValue !== undefined;
+      }) as T[];
+    if (
+      propValueTransformed === undefined ||
+      filterValuesTransformed.length === 0
+    ) {
+      return filterValues.some((filterValue) => {
         return this.comparator(propValue, op, filterValue);
-      }
-    });
+      });
+    } else {
+      return filterValuesTransformed.some((filterValueTransformed) => {
+        return typeComparator(propValueTransformed, op, filterValueTransformed);
+      });
+    }
   }
 
   private comparator(
