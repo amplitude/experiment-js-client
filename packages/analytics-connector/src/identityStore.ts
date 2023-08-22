@@ -21,6 +21,7 @@ export type Identity = {
   userId?: string;
   deviceId?: string;
   userProperties?: Record<string, unknown>;
+  optOut?: boolean;
 };
 
 export type IdentityListener = (identity: Identity) => void;
@@ -37,6 +38,7 @@ export interface IdentityEditor {
   setUserId(userId: string): IdentityEditor;
   setDeviceId(deviceId: string): IdentityEditor;
   setUserProperties(userProperties: Record<string, unknown>): IdentityEditor;
+  setOptOut(optOut: boolean): IdentityEditor;
   updateUserProperties(
     actions: Record<string, Record<string, unknown>>,
   ): IdentityEditor;
@@ -70,6 +72,11 @@ export class IdentityStoreImpl implements IdentityStore {
         userProperties: Record<string, unknown>,
       ): IdentityEditor {
         actingIdentity.userProperties = userProperties;
+        return this;
+      },
+
+      setOptOut(optOut: boolean): IdentityEditor {
+        actingIdentity.optOut = optOut;
         return this;
       },
 
