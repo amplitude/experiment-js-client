@@ -161,9 +161,7 @@ export class EvaluationEngine {
       ) {
         for (const distribution of allocation.distributions) {
           const distributionStart = distribution.range[0];
-          // Add 1 to end to allow for range [start, end+1) when
-          // comparing the upper bound (which uses <, not <=)
-          const distributionEnd = distribution.range[1] + 1;
+          const distributionEnd = distribution.range[1];
           if (
             distributionValue >= distributionStart &&
             distributionValue < distributionEnd
