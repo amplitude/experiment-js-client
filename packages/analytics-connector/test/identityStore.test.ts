@@ -9,12 +9,14 @@ test('editIdentity, setUserId setDeviceId, success', async () => {
     .editIdentity()
     .setUserId('user_id')
     .setDeviceId('device_id')
+    .setOptOut(true)
     .commit();
   const identity = identityStore.getIdentity();
   expect(identity).toEqual({
     userId: 'user_id',
     deviceId: 'device_id',
     userProperties: {},
+    optOut: true,
   });
 });
 
