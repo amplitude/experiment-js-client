@@ -9,7 +9,7 @@ export type EvaluationFlag = {
 export type EvaluationVariant = {
   key?: string;
   value?: unknown;
-  payload?: Record<string, unknown>;
+  payload?: unknown;
   metadata?: Record<string, unknown>;
 };
 

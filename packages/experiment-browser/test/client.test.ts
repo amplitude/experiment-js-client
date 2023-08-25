@@ -1,13 +1,17 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
 
-import { ExperimentClient } from '../src';
-import { ExperimentAnalyticsProvider } from '../src';
-import { FetchOptions } from '../src';
-import { Exposure, ExposureTrackingProvider } from '../src';
-import { ExperimentUserProvider } from '../src';
-import { Source } from '../src';
-import { ExperimentUser } from '../src';
-import { Variant, Variants } from '../src';
+import {
+  ExperimentAnalyticsProvider,
+  ExperimentClient,
+  ExperimentUser,
+  ExperimentUserProvider,
+  Exposure,
+  ExposureTrackingProvider,
+  FetchOptions,
+  Source,
+  Variant,
+  Variants,
+} from '../src';
 import { ConnectorExposureTrackingProvider } from '../src/integration/connector';
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
@@ -267,26 +271,19 @@ test('ExperimentClient.variant, with exposure tracking provider, track called on
     client.variant('key-that-does-not-exist');
   }
 
-  expect(trackSpy).toBeCalledTimes(1);
-  expect(trackSpy).toHaveBeenCalledWith({
-    flag_key: 'key-that-does-not-exist',
-  });
-  expect(logEventSpy).toBeCalledTimes(1);
-  expect(logEventSpy).toHaveBeenCalledWith({
-    eventType: '$exposure',
-    eventProperties: { flag_key: 'key-that-does-not-exist' },
-  });
+  expect(trackSpy).toBeCalledTimes(0);
+  expect(logEventSpy).toBeCalledTimes(0);
 
   for (let i = 0; i < 10; i++) {
     client.variant(serverKey);
   }
 
-  expect(trackSpy).toBeCalledTimes(2);
+  expect(trackSpy).toBeCalledTimes(1);
   expect(trackSpy).toHaveBeenCalledWith({
     flag_key: serverKey,
     variant: serverVariant.value,
   });
-  expect(logEventSpy).toBeCalledTimes(2);
+  expect(logEventSpy).toBeCalledTimes(1);
   expect(logEventSpy).toHaveBeenCalledWith({
     eventType: '$exposure',
     eventProperties: {
@@ -545,4 +542,179 @@ describe('server zone', () => {
     // @ts-ignore
     expect(client.config.flagsServerUrl).toEqual('https://flags.company.com');
   });
+});
+
+describe('variant fallbacks', () => {
+  describe('local storage source', () => {
+    test('variant accessed from local storage primary', async () => {
+      const user = { user_id: 'test_user' };
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.LocalStorage,
+      });
+      // Start and fetch
+      await Promise.all([client.start(user), client.fetch(user)]);
+      // Variant is result of fetch
+      const variant = client.variant('sdk-ci-test');
+      expect(variant).toEqual({ key: 'on', value: 'on', payload: 'payload' });
+    });
+
+    test('variant accessed from inline fallback before initial variants secondary', async () => {
+      const user = {};
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.LocalStorage,
+        initialVariants: {
+          'sdk-ci-test': { key: 'initial', value: 'initial' },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start
+      await Promise.all([client.start(user), client.fetch(user)]);
+      // Variant is result of inline fallback string
+      const variantString = client.variant('sdk-ci-test', 'inline');
+      expect(variantString).toEqual({ key: 'inline', value: 'inline' });
+      // Variant is result of inline fallback object
+      const variantObject = client.variant('sdk-ci-test', { value: 'inline' });
+      expect(variantObject).toEqual({ value: 'inline' });
+    });
+
+    test('variant accessed from initial variants when no explicit fallback provided', async () => {
+      const user = {};
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.LocalStorage,
+        initialVariants: {
+          'sdk-ci-test': { key: 'initial', value: 'initial' },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const variant = client.variant('sdk-ci-test');
+      // Variant is result of initialVariants
+      expect(variant).toEqual({ key: 'initial', value: 'initial' });
+    });
+
+    test('variant accessed from configured fallback when no initial variants or explicit fallback provided', async () => {
+      const user = {};
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.LocalStorage,
+        initialVariants: {
+          'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const variant = client.variant('sdk-ci-test');
+      // Variant is result of fallbackVariant
+      expect(variant).toEqual({ key: 'fallback', value: 'fallback' });
+    });
+
+    test('default variant returned when no other fallback is provided', async () => {
+      const user = {};
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.LocalStorage,
+      });
+      // Start
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const variant = client.variant('sdk-ci-test');
+      expect(variant).toEqual({
+        key: 'off',
+        metadata: { default: true },
+      });
+    });
+  });
+
+  describe('initial variants source', () => {
+    test('variant accessed from initial variants primary', async () => {
+      const user = { user_id: 'test_user' };
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.InitialVariants,
+        initialVariants: {
+          'sdk-ci-test': { key: 'initial', value: 'initial' },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start and fetch
+      await Promise.all([client.start(user), client.fetch(user)]);
+      // Variant is result of fetch
+      const variant = client.variant('sdk-ci-test');
+      expect(variant).toEqual({ key: 'initial', value: 'initial' });
+    });
+
+    test('variant accessed from local storage secondary', async () => {
+      const user = { user_id: 'test_user' };
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.InitialVariants,
+        initialVariants: {
+          'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start
+      await Promise.all([client.start(user), client.fetch(user)]);
+      // Variant is result of inline fallback string
+      const variantString = client.variant('sdk-ci-test', 'inline');
+      expect(variantString).toEqual({
+        key: 'on',
+        value: 'on',
+        payload: 'payload',
+      });
+    });
+
+    test('variant accessed from inline fallback', async () => {
+      const user = {};
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.InitialVariants,
+        initialVariants: {
+          'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start
+      await Promise.all([client.start(user), client.fetch(user)]);
+      // Variant is result of inline fallback string
+      const variantString = client.variant('sdk-ci-test', 'inline');
+      expect(variantString).toEqual({ key: 'inline', value: 'inline' });
+      // Variant is result of inline fallback object
+      const variantObject = client.variant('sdk-ci-test', { value: 'inline' });
+      expect(variantObject).toEqual({ value: 'inline' });
+    });
+
+    test('variant accessed from configured fallback when no initial variants or explicit fallback provided', async () => {
+      const user = {};
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.InitialVariants,
+        initialVariants: {
+          'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const variant = client.variant('sdk-ci-test');
+      // Variant is result of fallbackVariant
+      expect(variant).toEqual({ key: 'fallback', value: 'fallback' });
+    });
+
+    test('default variant returned when no other fallback is provided', async () => {
+      const user = {};
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.InitialVariants,
+        initialVariants: {
+          'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
+        },
+      });
+      // Start
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const variant = client.variant('sdk-ci-test');
+      expect(variant).toEqual({
+        key: 'off',
+        metadata: { default: true },
+      });
+    });
+  });
+
+  describe('local evaluation flags', () => {
+
+  })
 });

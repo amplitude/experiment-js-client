@@ -17,7 +17,7 @@ import {
 
 import { version as PACKAGE_VERSION } from '../package.json';
 
-import { ExperimentConfig, Defaults } from './config';
+import { Defaults, ExperimentConfig } from './config';
 import { ConnectorUserProvider } from './integration/connector';
 import { DefaultUserProvider } from './integration/default';
 import {
@@ -34,7 +34,11 @@ import { ExperimentUserProvider } from './types/provider';
 import { isFallback, Source, VariantSource } from './types/source';
 import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
-import { isNullOrUndefined } from './util';
+import {
+  isLocalEvaluationMode,
+  isNullOrUndefined,
+  isNullUndefinedOrEmpty,
+} from './util';
 import { Backoff } from './util/backoff';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
 import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
@@ -254,19 +258,18 @@ export class ExperimentClient implements Client {
       return { value: undefined };
     }
     const flag = this.flags.get(key);
-    let { source, variant } = this.variantAndSource(key, fallback);
-    if (
-      flag?.metadata?.evaluationMode === 'local' ||
-      (flag && isFallback(source))
-    ) {
+    const sourceVariant = this.variantAndSource(key, fallback);
+    let variant = sourceVariant?.variant;
+    let source = sourceVariant?.source;
+    if (isLocalEvaluationMode(flag) || (!sourceVariant && flag)) {
       variant = this.evaluate([flag.key])[key];
       source = VariantSource.LocalEvaluation;
     }
     if (this.config.automaticExposureTracking) {
       this.exposureInternal(key, variant, source);
     }
-    this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
-    return variant;
+    this.debug(`[Experiment] variant for ${key} is ${variant?.value}`);
+    return variant || {};
   }
 
   /**
@@ -282,11 +285,10 @@ export class ExperimentClient implements Client {
    */
   public exposure(key: string): void {
     const flag = this.flags.get(key);
-    let { source, variant } = this.variantAndSource(key, null);
-    if (
-      flag?.metadata?.evaluationMode === 'local' ||
-      (flag && isFallback(source))
-    ) {
+    const sourceVariant = this.variantAndSource(key);
+    let variant = sourceVariant?.variant;
+    let source = sourceVariant?.source;
+    if (isLocalEvaluationMode(flag) || !sourceVariant) {
       variant = this.evaluate([flag.key])[key];
       source = VariantSource.LocalEvaluation;
     }
@@ -307,10 +309,16 @@ export class ExperimentClient implements Client {
       return {};
     }
     const evaluatedVariants = this.evaluate();
+    for (const flagKey in evaluatedVariants) {
+      const flag = this.flags.get(flagKey);
+      if (!isLocalEvaluationMode(flag)) {
+        delete evaluatedVariants[flagKey];
+      }
+    }
     return {
       ...this.secondaryVariants(),
-      ...evaluatedVariants,
       ...this.sourceVariants(),
+      ...evaluatedVariants,
     };
   }
 
@@ -396,76 +404,90 @@ export class ExperimentClient implements Client {
     return variants;
   }
 
+  // For source = LocalStorage, fallback order goes:
+  // 1. Local Storage (primary)
+  // 2. Inline function fallback
+  // 3. InitialFlags (secondary)
+  // 4. Config fallback
+  // 5. Source default.
+  //
+  // For source = InitialVariants, fallback order goes:
+  // 1. InitialFlags (primary)
+  // 2. Local Storage (secondary)
+  // 3. Inline function fallback
+  // 4. Config fallback
+  //
+  // If there is a default variant and no fallback, return the default
+  // variant with preference for source over secondary default.
   private variantAndSource(
     key: string,
-    fallback: string | Variant,
-  ): {
-    variant: Variant;
-    source: VariantSource;
-  } {
-    if (this.config.source === Source.InitialVariants) {
-      // for source = InitialVariants, fallback order goes:
-      // 1. InitialFlags
-      // 2. Local Storage
-      // 3. Function fallback
-      // 4. Config fallback
-
-      const sourceVariant = this.sourceVariants()[key];
-      if (!isNullOrUndefined(sourceVariant)) {
-        return {
-          variant: this.convertVariant(sourceVariant),
-          source: VariantSource.InitialVariants,
-        };
-      }
-      const secondaryVariant = this.secondaryVariants()[key];
-      if (!isNullOrUndefined(secondaryVariant)) {
-        return {
-          variant: this.convertVariant(secondaryVariant),
-          source: VariantSource.SecondaryLocalStorage,
-        };
-      }
-      if (!isNullOrUndefined(fallback)) {
-        return {
-          variant: this.convertVariant(fallback),
-          source: VariantSource.FallbackInline,
-        };
-      }
+    fallback?: string | Variant,
+  ): { variant: Variant; source: VariantSource } | undefined {
+    let defaultVariantSource = undefined;
+    // Primary source.
+    const primarySource =
+      this.config.source === Source.LocalStorage
+        ? VariantSource.LocalStorage
+        : VariantSource.InitialVariants;
+    const primaryVariant = this.sourceVariants()[key];
+    const primaryDefault = primaryVariant?.metadata?.default;
+    if (!isNullOrUndefined(primaryVariant) && !primaryDefault) {
       return {
-        variant: this.convertVariant(this.config.fallbackVariant),
-        source: VariantSource.FallbackConfig,
+        variant: this.convertVariant(primaryVariant),
+        source: primarySource,
       };
-    } else {
-      // for source = LocalStorage, fallback order goes:
-      // 1. Local Storage
-      // 2. Function fallback
-      // 3. InitialFlags
-      // 4. Config fallback
-
-      const sourceVariant = this.sourceVariants()[key];
-      if (!isNullOrUndefined(sourceVariant)) {
-        return {
-          variant: this.convertVariant(sourceVariant),
-          source: VariantSource.LocalStorage,
-        };
-      }
-      if (!isNullOrUndefined(fallback)) {
-        return {
-          variant: this.convertVariant(fallback),
-          source: VariantSource.FallbackInline,
-        };
-      }
-      const secondaryVariant = this.secondaryVariants()[key];
-      if (!isNullOrUndefined(secondaryVariant)) {
-        return {
-          variant: this.convertVariant(secondaryVariant),
-          source: VariantSource.SecondaryInitialVariants,
-        };
-      }
-      return {
-        variant: this.convertVariant(this.config.fallbackVariant),
-        source: VariantSource.FallbackConfig,
+    } else if (primaryDefault && !defaultVariantSource) {
+      defaultVariantSource = {
+        variant: this.convertVariant(primaryVariant),
+        source: primarySource,
       };
     }
+    // Handle inline function fallback for local storage source
+    if (this.config.source === Source.LocalStorage) {
+      if (!isNullOrUndefined(fallback)) {
+        return {
+          variant: this.convertVariant(fallback),
+          source: VariantSource.FallbackInline,
+        };
+      }
+    }
+    // Secondary source.
+    const secondarySource =
+      this.config.source === Source.LocalStorage
+        ? VariantSource.SecondaryInitialVariants
+        : VariantSource.SecondaryLocalStorage;
+    const secondaryVariant = this.secondaryVariants()[key];
+    const secondaryDefault = secondaryVariant?.metadata?.default;
+    if (!isNullOrUndefined(secondaryVariant) && !secondaryDefault) {
+      return {
+        variant: this.convertVariant(secondaryVariant),
+        source: secondarySource,
+      };
+    } else if (secondaryDefault && !defaultVariantSource) {
+      defaultVariantSource = {
+        variant: this.convertVariant(secondaryVariant),
+        source: secondarySource,
+      };
+    }
+    // Handle inline function fallback for initial variants source
+    if (this.config.source === Source.InitialVariants) {
+      if (!isNullOrUndefined(fallback)) {
+        return {
+          variant: this.convertVariant(fallback),
+          source: VariantSource.FallbackInline,
+        };
+      }
+    }
+    // Configured fallback, or default variant
+    const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
+    const fallbackSourceVariant = {
+      variant: fallbackVariant,
+      source: VariantSource.FallbackConfig,
+    };
+    if (!isNullUndefinedOrEmpty(fallbackVariant)) {
+      return fallbackSourceVariant;
+    }
+    return defaultVariantSource;
   }
 
   private async fetchInternal(
@@ -633,23 +655,7 @@ export class ExperimentClient implements Client {
     return variant;
   }
 
-  private translateToEvaluationVariant(variant: Variant): EvaluationVariant {
-    if (!variant) {
-      return {};
-    }
-    let metadata = undefined;
-    if (variant.expKey) {
-      metadata = { experimentKey: variant.expKey };
-    }
-    return {
-      key: variant.key || variant.value,
-      value: variant.value,
-      payload: variant.payload,
-      metadata: metadata,
-    };
-  }
-
-  private sourceVariants(): Variants {
+  private sourceVariants(): Variants | undefined {
     if (this.config.source == Source.LocalStorage) {
       return this.variants.getAll();
     } else if (this.config.source == Source.InitialVariants) {
@@ -657,7 +663,7 @@ export class ExperimentClient implements Client {
     }
   }
 
-  private secondaryVariants(): Variants {
+  private secondaryVariants(): Variants | undefined {
     if (this.config.source == Source.LocalStorage) {
       return this.config.initialVariants;
     } else if (this.config.source == Source.InitialVariants) {
@@ -667,31 +673,31 @@ export class ExperimentClient implements Client {
 
   private exposureInternal(
     key: string,
-    variant: Variant,
-    source: VariantSource,
+    variant: Variant | undefined,
+    source: VariantSource | undefined,
   ): void {
     this.legacyExposureInternal(key, variant, source);
     const exposure: Exposure = { flag_key: key };
+    // Do not track exposure for fallback variants.
     if (isFallback(source)) {
-      this.exposureTrackingProvider?.track(exposure);
-    } else {
-      if (variant?.expKey) exposure.experiment_key = variant?.expKey;
-      if (!variant?.metadata?.default) {
-        if (variant?.key) {
-          exposure.variant = variant.key;
-        } else if (variant?.value) {
-          exposure.variant = variant.value;
-        }
-      }
-      exposure.metadata = variant?.metadata;
-      this.exposureTrackingProvider?.track(exposure);
+      return;
     }
+    if (variant?.expKey) exposure.experiment_key = variant?.expKey;
+    if (!variant?.metadata?.default) {
+      if (variant?.key) {
+        exposure.variant = variant.key;
+      } else if (variant?.value) {
+        exposure.variant = variant.value;
+      }
+    }
+    exposure.metadata = variant?.metadata;
+    this.exposureTrackingProvider?.track(exposure);
   }
 
   private legacyExposureInternal(
     key: string,
-    variant: Variant,
-    source: VariantSource,
+    variant: Variant | undefined,
+    source: VariantSource | undefined,
   ): void {
     const user = this.addContext(this.getUser());
     const event = exposureEvent(user, key, variant, source);
