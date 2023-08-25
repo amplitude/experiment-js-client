@@ -9,9 +9,6 @@ import { hash32x86 } from './murmur3';
 import { select } from './select';
 import { SemanticVersion } from './semantic-version';
 
-const MAX_HASH_VALUE = 4294967295;
-const MAX_VARIANT_HASH_VALUE = Math.floor(MAX_HASH_VALUE / 100);
-
 type EvaluationTarget = {
   context: Record<string, unknown>;
   result: Record<string, EvaluationVariant>;
