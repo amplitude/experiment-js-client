@@ -382,7 +382,7 @@ test('test greater or equal', () => {
 });
 
 test('test version less', () => {
-  const user = userContext(undefined, undefined, undefined, {
+  const user = freeformUserContext({
     version: '1.9.0',
   });
   const result = engine.evaluate(user, flags)['test-version-less'];
@@ -390,7 +390,7 @@ test('test version less', () => {
 });
 
 test('test version less or equal', () => {
-  const user = userContext(undefined, undefined, undefined, {
+  const user = freeformUserContext({
     version: '1.10.0',
   });
   const result = engine.evaluate(user, flags)['test-version-less-or-equal'];
@@ -398,7 +398,7 @@ test('test version less or equal', () => {
 });
 
 test('test version greater', () => {
-  const user = userContext(undefined, undefined, undefined, {
+  const user = freeformUserContext({
     version: '1.10.0',
   });
   const result = engine.evaluate(user, flags)['test-version-greater'];
@@ -406,7 +406,7 @@ test('test version greater', () => {
 });
 
 test('test version greater or equal', () => {
-  const user = userContext(undefined, undefined, undefined, {
+  const user = freeformUserContext({
     version: '1.9.0',
   });
   const result = engine.evaluate(user, flags)['test-version-greater-or-equal'];
@@ -519,6 +519,14 @@ const userContext = (
     },
   };
 };
+
+const freeformUserContext = (
+  user: Record<string, unknown>,
+): Record<string, unknown> => {
+  return {
+    user: user,
+  };
+}
 
 const groupContext = (
   groupType: string,
