@@ -135,7 +135,7 @@ export class EvaluationEngine {
     if (!segment.bucket) {
       // A null bucket means the segment is fully rolled out. Select the
       // default variant.
-      return segment.defaultVariant;
+      return segment.variant;
     }
     // Select the bucketing value.
     const bucketingValue = this.coerceString(
@@ -144,7 +144,7 @@ export class EvaluationEngine {
     if (!bucketingValue || bucketingValue.length === 0) {
       // A null or empty bucketing value cannot be bucketed. Select the
       // default variant.
-      return segment.defaultVariant;
+      return segment.variant;
     }
     // Salt and has the value, and compute the allocation and distribution
     // values.
@@ -171,7 +171,7 @@ export class EvaluationEngine {
         }
       }
     }
-    return segment.defaultVariant;
+    return segment.variant;
   }
 
   private matchNull(op: string, filterValues: string[]): boolean {
