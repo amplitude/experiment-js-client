@@ -152,17 +152,14 @@ export class ExperimentClient implements Client {
    * Start the SDK by getting flag configurations from the server. The promise
    * returned by this function resolves when the SDK has received updated flag
    * configurations and is ready to locally evaluate flags when the
-   * {@link variant} function is called. This function also starts polling
+   * {@link variant} function is called. This function then starts polling
    * for flag configuration updates at an interval.
    *
    * <p />
    *
    * If you also have remote evaluation flags, use {@link fetch} to evaluate
-   * those flags remotely and await both the promises.
-   *
-   * <p />
-   *
-   * For example, to await both local and remote evaluation readiness:
+   * those flags remotely and await both the promises. For example, to await
+   * both local and remote evaluation readiness:
    *
    * <pre>
    *   await Promise.all([client.start(), client.fetch()]);
