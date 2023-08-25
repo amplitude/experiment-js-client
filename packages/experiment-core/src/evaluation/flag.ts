@@ -16,7 +16,7 @@ export type EvaluationVariant = {
 export type EvaluationSegment = {
   bucket?: EvaluationBucket;
   conditions?: EvaluationCondition[][];
-  defaultVariant?: string;
+  variant?: string;
   metadata?: Record<string, unknown>;
 };
 
