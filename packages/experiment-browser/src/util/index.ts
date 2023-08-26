@@ -14,3 +14,9 @@ export const isLocalEvaluationMode = (
 ): boolean => {
   return flag?.metadata?.evaluationMode === 'local';
 };
+
+export const isRemoteEvaluationMode = (
+  flag: EvaluationFlag | undefined,
+): boolean => {
+  return flag?.metadata?.evaluationMode === 'remote';
+};

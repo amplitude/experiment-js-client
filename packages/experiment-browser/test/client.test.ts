@@ -465,7 +465,9 @@ describe('local evaluation', () => {
   });
 
   test('remote evaluation variant preferred over local evaluation variant', async () => {
-    const client = new ExperimentClient(SERVER_API_KEY, {});
+    const client = new ExperimentClient(SERVER_API_KEY, {
+      fetchOnStart: false,
+    });
     const user = { user_id: 'test_user', device_id: 'test_device' };
     await client.start(user);
     let variant = client.variant('sdk-ci-test');
@@ -891,5 +893,48 @@ describe('variant fallbacks', () => {
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
+  });
+});
+
+describe('start', () => {
+  test('with local and remote evaluation, calls fetch', async () => {
+    const client = new ExperimentClient(API_KEY, {});
+    const fetchSpy = jest.spyOn(client, 'fetch');
+    await client.start();
+    expect(fetchSpy).toBeCalledTimes(1);
+  });
+  test('with local evaluation only, does not call fetch', async () => {
+    const client = new ExperimentClient(API_KEY, {});
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    client.flags.getAll = () => {
+      return {};
+    };
+    const fetchSpy = jest.spyOn(client, 'fetch');
+    await client.start();
+    expect(fetchSpy).toBeCalledTimes(0);
+  });
+
+  test('with local evaluation only, fetchOnStart enabled, calls fetch', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      fetchOnStart: true,
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    client.flags.getAll = () => {
+      return {};
+    };
+    const fetchSpy = jest.spyOn(client, 'fetch');
+    await client.start();
+    expect(fetchSpy).toBeCalledTimes(1);
+  });
+
+  test('with local and remote evaluation, fetchOnStart disabled, does not call fetch', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      fetchOnStart: false,
+    });
+    const fetchSpy = jest.spyOn(client, 'fetch');
+    await client.start();
+    expect(fetchSpy).toBeCalledTimes(0);
   });
 });

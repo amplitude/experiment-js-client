@@ -14,8 +14,8 @@ export class StubExperimentClient implements Client {
     return {};
   }
 
-  public async start(user?: ExperimentUser): Promise<Client> {
-    return this;
+  public async start(user?: ExperimentUser): Promise<void> {
+    return;
   }
 
   public stop() {}

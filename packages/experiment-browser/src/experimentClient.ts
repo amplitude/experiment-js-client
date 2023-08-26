@@ -37,7 +37,7 @@ import { Variant, Variants } from './types/variant';
 import {
   isLocalEvaluationMode,
   isNullOrUndefined,
-  isNullUndefinedOrEmpty,
+  isNullUndefinedOrEmpty, isRemoteEvaluationMode
 } from './util';
 import { Backoff } from './util/backoff';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
@@ -149,55 +149,65 @@ export class ExperimentClient implements Client {
   }
 
   /**
-   * Start the SDK by getting flag configurations from the server. The promise
-   * returned by this function resolves when the SDK has received updated flag
-   * configurations and is ready to locally evaluate flags when the
-   * {@link variant} function is called. This function then starts polling
-   * for flag configuration updates at an interval.
+   * Start the SDK by getting flag configurations from the server and fetching
+   * variants for the user. The promise returned by this function resolves when
+   * local flag configurations have been updated, and the {@link fetch()}
+   * result has been received (if the request was made).
    *
-   * <p />
+   * This function determines whether to {@link fetch()} based on the result of
+   * the flag configurations cached locally or received in the initial flag
+   * configuration response.
    *
-   * If you also have remote evaluation flags, use {@link startAndFetch} to
-   * evaluate those flags remotely and await both promises:
+   * To explicitly force this request to fetch or not, set the
+   * {@link fetchOnStart} configuration option when initializing the SDK.
    *
-   * <pre>
-   *   await client.startAndFetch(user);
-   * </pre>
-   * <p />
+   * Finally, this function will start polling for flag configurations at a
+   * fixed interval. To disable polling, set the {@link pollOnStart}
+   * configuration option to `false` on initialization.
+   *
    * @param user The user to set in the SDK.
-   * @see {@link startAndFetch}, {@link variant}, {@link fetch}
+   * @see fetchOnStart
+   * @see pollOnStart
+   * @see fetch
+   * @see variant
    */
-  public async start(user?: ExperimentUser): Promise<Client> {
+  public async start(user?: ExperimentUser): Promise<void> {
     if (this.isRunning) {
-      return this;
+      return;
     } else {
       this.isRunning = true;
     }
     this.setUser(user);
-    const analyticsReadyPromise = this.addContextOrWait(user, 10000);
+    // Get flag configurations, and simultaneously check the local cache for
+    // remote evaluation flags.
     const flagsReadyPromise = this.doFlags();
-    await Promise.all([analyticsReadyPromise, flagsReadyPromise]);
+    let remoteFlags =
+      this.config.fetchOnStart ??
+      Object.values(this.flags.getAll()).some((flag) =>
+        isRemoteEvaluationMode(flag),
+      );
+    if (remoteFlags) {
+      // We already have remote flags in our flag cache, so we know we need to
+      // evaluate remotely even before we've updated our flags.
+      await Promise.all([this.fetch(user), flagsReadyPromise]);
+    } else {
+      // We don't know if remote evaluation is required, await the flag promise,
+      // and recheck for remote flags.
+      await flagsReadyPromise;
+      remoteFlags =
+        this.config.fetchOnStart ??
+        Object.values(this.flags.getAll()).some((flag) =>
+          isRemoteEvaluationMode(flag),
+        );
+      if (remoteFlags) {
+        // We already have remote flags in our flag cache, so we know we need to
+        // evaluate remotely even before we've updated our flags.
+        await this.fetch(user);
+      }
+    }
     if (this.config.pollOnStart) {
       this.poller.start();
     }
-    return this;
-  }
-
-  /**
-   * {@link start} the client and perform a remote evaluation {@link fetch}
-   * simultaneously. The promise returned by this function resolves after both
-   * start and fetch promises have resolved.
-   * <p />
-   * If you would rather not wait for remote evaluation to resolve, you may
-   * choose to call {@link start} and {@link fetch} separately, and only await
-   * start.
-   *
-   * @param user The user to set in the SDK and fetch variants for.
-   * @see {@link start}, {@link fetch}
-   */
-  public async startAndFetch(user?: ExperimentUser): Promise<Client> {
-    await Promise.all([this.start(user), this.fetch(user)]);
-    return this;
   }
 
   /**
@@ -258,14 +268,15 @@ export class ExperimentClient implements Client {
    * Access the variant from {@link Source}, falling back  on the given
    * fallback, then the configured fallbackVariant.
    *
-   * If an {@link ExperimentAnalyticsProvider} is configured and trackExposure is
-   * true, this function will call the provider with an {@link ExposureEvent}.
-   * The exposure event does not count towards your event volume within Amplitude.
+   * If an {@link ExposureTrackingProvider} is configured and the
+   * {@link automaticExposureTracking} configuration option is `true`, this
+   * function will call the provider with an {@link Exposure} event. The
+   * exposure event does not count towards your event volume within Amplitude.
    *
    * @param key The key to get the variant for.
    * @param fallback The highest priority fallback.
    * @see ExperimentConfig
-   * @see ExperimentAnalyticsProvider
+   * @see ExposureTrackingProvider
    */
   public variant(key: string, fallback?: string | Variant): Variant {
     if (!this.apiKey) {
@@ -285,12 +296,13 @@ export class ExperimentClient implements Client {
    * Track an exposure event for the variant associated with the flag/experiment
    * {@link key}.
    *
-   * This method requires that an {@link ExperimentAnalyticsProvider} be
+   * This method requires that an {@link ExposureTrackingProvider} be
    * configured when this client is initialized, either manually, or through the
    * Amplitude Analytics SDK integration from set up using
    * {@link Experiment.initializeWithAmplitudeAnalytics}.
    *
    * @param key The flag/experiment key to track an exposure for.
+   * @see ExposureTrackingProvider
    */
   public exposure(key: string): void {
     const sourceVariant = this.variantAndSource(key);
@@ -326,7 +338,6 @@ export class ExperimentClient implements Client {
 
   /**
    * Clear all variants in the cache and storage.
-   *
    */
   public clear(): void {
     this.variants.clear();

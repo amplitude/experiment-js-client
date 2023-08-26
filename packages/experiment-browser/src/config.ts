@@ -83,6 +83,16 @@ export interface ExperimentConfig {
   pollOnStart?: boolean;
 
   /**
+   * Explicitly enable or disable calling {@link fetch()} on {@link start()}:
+   *
+   *  - `true`:      fetch will always be called on start.
+   *  - `false`:     fetch will never be called on start.
+   *  - `undefined`: the SDK will determine whether to call fetch based on the
+   *                 flags returned in the result.
+   */
+  fetchOnStart?: boolean;
+
+  /**
    * This config only matters if you are using the amplitude analytics SDK
    * integration initialized by calling
    * `Experiment.initializeWithAmplitudeAnalytics()`.
@@ -143,6 +153,7 @@ export interface ExperimentConfig {
  | **retryFailedAssignment**    | `true` |
  | **automaticExposureTracking** | `true` |
  | **pollOnStart** | `true` |
+ | **fetchOnStart** | `undefined` |
  | **automaticFetchOnAmplitudeIdentityChange** | `false` |
  | **userProvider**    | `null` |
  | **analyticsProvider**    | `null` |
@@ -164,6 +175,7 @@ export const Defaults: ExperimentConfig = {
   retryFetchOnFailure: true,
   automaticExposureTracking: true,
   pollOnStart: true,
+  fetchOnStart: undefined,
   automaticFetchOnAmplitudeIdentityChange: false,
   userProvider: null,
   analyticsProvider: null,
