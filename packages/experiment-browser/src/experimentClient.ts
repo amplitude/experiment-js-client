@@ -157,20 +157,21 @@ export class ExperimentClient implements Client {
    *
    * <p />
    *
-   * If you also have remote evaluation flags, use {@link fetch} to evaluate
-   * those flags remotely and await both the promises. For example, to await
-   * both local and remote evaluation readiness:
+   * If you also have remote evaluation flags, use {@link startAndFetch} to
+   * evaluate those flags remotely and await both promises:
    *
    * <pre>
-   *   await Promise.all([client.start(), client.fetch()]);
+   *   await client.startAndFetch(user);
    * </pre>
    * <p />
-   * @param user
-   * @see {@link variant}, {@link fetch}
+   * @param user The user to set in the SDK.
+   * @see {@link startAndFetch}, {@link variant}, {@link fetch}
    */
   public async start(user?: ExperimentUser): Promise<Client> {
     if (this.isRunning) {
       return this;
+    } else {
+      this.isRunning = true;
     }
     this.setUser(user);
     const analyticsReadyPromise = this.addContextOrWait(user, 10000);
@@ -179,7 +180,23 @@ export class ExperimentClient implements Client {
     if (this.config.pollOnStart) {
       this.poller.start();
     }
-    this.isRunning = true;
+    return this;
+  }
+
+  /**
+   * {@link start} the client and perform a remote evaluation {@link fetch}
+   * simultaneously. The promise returned by this function resolves after both
+   * start and fetch promises have resolved.
+   * <p />
+   * If you would rather not wait for remote evaluation to resolve, you may
+   * choose to call {@link start} and {@link fetch} separately, and only await
+   * start.
+   *
+   * @param user The user to set in the SDK and fetch variants for.
+   * @see {@link start}, {@link fetch}
+   */
+  public async startAndFetch(user?: ExperimentUser): Promise<Client> {
+    await Promise.all([this.start(user), this.fetch(user)]);
     return this;
   }
 
@@ -208,7 +225,7 @@ export class ExperimentClient implements Client {
    * Variants received from a successful retry are stored in local storage for
    * access.
    *
-   * If you are using the `initialVariants` config option to pre-load this SDK
+   * If you are using the `initialVariants` config option to preload this SDK
    * from the server, you generally do not need to call `fetch`.
    *
    * @param user The user to fetch variants for.
@@ -595,106 +612,6 @@ export class ExperimentClient implements Client {
     }
     return defaultSourceVariant;
   }
-
-  // /**
-  //  * Get a remove evaluated variant, either
-  //  *
-  //  * For source = LocalStorage, fallback order goes:
-  //  *  1. Local Storage (primary)
-  //  *  2. Inline function fallback
-  //  *  3. InitialFlags (secondary)
-  //  *  4. Config fallback
-  //  *  5. Source default.
-  //  *
-  //  * For source = InitialVariants, fallback order goes:
-  //  *  1. InitialFlags (primary)
-  //  *  2. Local Storage (secondary)
-  //  *  3. Inline function fallback
-  //  *  4. Config fallback
-  //  *
-  //  * If there is a default variant and no fallback, return the default variant
-  //  * with preference for source over secondary default.
-  //  * @param key
-  //  * @param fallback
-  //  * @private
-  //  */
-  // private remoteVariantAndSource(
-  //   key: string,
-  //   fallback?: string | Variant,
-  // ): SourceVariant {
-  //   let defaultVariantSource: SourceVariant | undefined = undefined;
-  //   // Primary source.
-  //   const primarySource =
-  //     this.config.source === Source.LocalStorage
-  //       ? VariantSource.LocalStorage
-  //       : VariantSource.InitialVariants;
-  //   const primaryVariant = this.sourceVariants()[key];
-  //   const primaryDefault = primaryVariant?.metadata?.default as boolean;
-  //   if (!isNullOrUndefined(primaryVariant) && !primaryDefault) {
-  //     return {
-  //       variant: this.convertVariant(primaryVariant),
-  //       source: primarySource,
-  //       hasDefaultVariant: primaryDefault,
-  //     };
-  //   } else if (primaryDefault) {
-  //     defaultVariantSource = {
-  //       variant: this.convertVariant(primaryVariant),
-  //       source: primarySource,
-  //       hasDefaultVariant: true,
-  //     };
-  //   }
-  //   // Handle inline function fallback for local storage source
-  //   if (this.config.source === Source.LocalStorage) {
-  //     if (!isNullOrUndefined(fallback)) {
-  //       return {
-  //         variant: this.convertVariant(fallback),
-  //         source: VariantSource.FallbackInline,
-  //         hasDefaultVariant: defaultVariantSource?.hasDefaultVariant,
-  //       };
-  //     }
-  //   }
-  //   // Secondary source.
-  //   const secondarySource =
-  //     this.config.source === Source.LocalStorage
-  //       ? VariantSource.SecondaryInitialVariants
-  //       : VariantSource.SecondaryLocalStorage;
-  //   const secondaryVariant = this.secondaryVariants()[key];
-  //   const secondaryDefault = secondaryVariant?.metadata?.default as boolean;
-  //   if (!isNullOrUndefined(secondaryVariant) && !secondaryDefault) {
-  //     return {
-  //       variant: this.convertVariant(secondaryVariant),
-  //       source: secondarySource,
-  //       hasDefaultVariant: defaultVariantSource?.hasDefaultVariant,
-  //     };
-  //   } else if (secondaryDefault && !defaultVariantSource) {
-  //     defaultVariantSource = {
-  //       variant: this.convertVariant(secondaryVariant),
-  //       source: secondarySource,
-  //       hasDefaultVariant: true,
-  //     };
-  //   }
-  //   // Handle inline function fallback for initial variants source
-  //   if (this.config.source === Source.InitialVariants) {
-  //     if (!isNullOrUndefined(fallback)) {
-  //       return {
-  //         variant: this.convertVariant(fallback),
-  //         source: VariantSource.FallbackInline,
-  //         hasDefaultVariant: defaultVariantSource?.hasDefaultVariant,
-  //       };
-  //     }
-  //   }
-  //   // Configured fallback, or default variant
-  //   const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
-  //   const fallbackSourceVariant = {
-  //     variant: fallbackVariant,
-  //     source: VariantSource.FallbackConfig,
-  //     hasDefaultVariant: defaultVariantSource?.hasDefaultVariant,
-  //   };
-  //   if (!isNullUndefinedOrEmpty(fallbackVariant)) {
-  //     return fallbackSourceVariant;
-  //   }
-  //   return defaultVariantSource || {};
-  // }
 
   private async fetchInternal(
     user: ExperimentUser,

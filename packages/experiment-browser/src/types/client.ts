@@ -12,6 +12,7 @@ export type FetchOptions = {
  */
 export interface Client {
   start(user?: ExperimentUser): Promise<Client>;
+  startAndFetch(user?: ExperimentUser): Promise<Client>;
   stop(): void;
   fetch(user?: ExperimentUser, options?: FetchOptions): Promise<Client>;
   variant(key: string, fallback?: string | Variant): Variant;
