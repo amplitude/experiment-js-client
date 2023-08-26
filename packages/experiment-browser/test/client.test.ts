@@ -544,30 +544,47 @@ describe('server zone', () => {
   });
 });
 
+class TestExposureTrackingProvider implements ExposureTrackingProvider {
+  track(exposure: Exposure): void {
+    // Do nothing
+  }
+}
+
 describe('variant fallbacks', () => {
   describe('local storage source', () => {
     test('variant accessed from local storage primary', async () => {
       const user = { user_id: 'test_user' };
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
       const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
       });
       // Start and fetch
       await Promise.all([client.start(user), client.fetch(user)]);
       // Variant is result of fetch
       const variant = client.variant('sdk-ci-test');
-      expect(variant).toEqual({ key: 'on', value: 'on', payload: 'payload' });
+      expect(variant.key).toEqual('on');
+      expect(variant.value).toEqual('on');
+      expect(variant.payload).toEqual('payload');
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+      expect(spy.mock.calls[0][0].variant).toEqual('on');
     });
 
     test('variant accessed from inline fallback before initial variants secondary', async () => {
       const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
       const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
         initialVariants: {
           'sdk-ci-test': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
-      // Start
+      // Start and fetch
       await Promise.all([client.start(user), client.fetch(user)]);
       // Variant is result of inline fallback string
       const variantString = client.variant('sdk-ci-test', 'inline');
@@ -575,59 +592,82 @@ describe('variant fallbacks', () => {
       // Variant is result of inline fallback object
       const variantObject = client.variant('sdk-ci-test', { value: 'inline' });
       expect(variantObject).toEqual({ value: 'inline' });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
 
     test('variant accessed from initial variants when no explicit fallback provided', async () => {
       const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
       const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
         initialVariants: {
           'sdk-ci-test': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
-      // Start
+      // Start and fetch
       await Promise.all([client.start(user), client.fetch(user)]);
       const variant = client.variant('sdk-ci-test');
       // Variant is result of initialVariants
       expect(variant).toEqual({ key: 'initial', value: 'initial' });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
 
     test('variant accessed from configured fallback when no initial variants or explicit fallback provided', async () => {
       const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
       const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
         initialVariants: {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
-      // Start
+      // Start and fetch
       await Promise.all([client.start(user), client.fetch(user)]);
       const variant = client.variant('sdk-ci-test');
       // Variant is result of fallbackVariant
       expect(variant).toEqual({ key: 'fallback', value: 'fallback' });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
 
     test('default variant returned when no other fallback is provided', async () => {
       const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
       const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
       });
-      // Start
+      // Start and fetch
       await Promise.all([client.start(user), client.fetch(user)]);
       const variant = client.variant('sdk-ci-test');
-      expect(variant).toEqual({
-        key: 'off',
-        metadata: { default: true },
-      });
+      expect(variant.key).toEqual('off');
+      expect(variant.value).toBeUndefined();
+      expect(variant.metadata?.default).toEqual(true);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
   });
 
   describe('initial variants source', () => {
     test('variant accessed from initial variants primary', async () => {
       const user = { user_id: 'test_user' };
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
       const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
         source: Source.InitialVariants,
         initialVariants: {
           'sdk-ci-test': { key: 'initial', value: 'initial' },
@@ -639,18 +679,24 @@ describe('variant fallbacks', () => {
       // Variant is result of fetch
       const variant = client.variant('sdk-ci-test');
       expect(variant).toEqual({ key: 'initial', value: 'initial' });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+      expect(spy.mock.calls[0][0].variant).toEqual('initial');
     });
 
     test('variant accessed from local storage secondary', async () => {
       const user = { user_id: 'test_user' };
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
       const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
         source: Source.InitialVariants,
         initialVariants: {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
-      // Start
+      // Start and fetch
       await Promise.all([client.start(user), client.fetch(user)]);
       // Variant is result of inline fallback string
       const variantString = client.variant('sdk-ci-test', 'inline');
@@ -659,18 +705,24 @@ describe('variant fallbacks', () => {
         value: 'on',
         payload: 'payload',
       });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+      expect(spy.mock.calls[0][0].variant).toEqual('on');
     });
 
     test('variant accessed from inline fallback', async () => {
       const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
       const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
         source: Source.InitialVariants,
         initialVariants: {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
-      // Start
+      // Start and fetch
       await Promise.all([client.start(user), client.fetch(user)]);
       // Variant is result of inline fallback string
       const variantString = client.variant('sdk-ci-test', 'inline');
@@ -678,43 +730,166 @@ describe('variant fallbacks', () => {
       // Variant is result of inline fallback object
       const variantObject = client.variant('sdk-ci-test', { value: 'inline' });
       expect(variantObject).toEqual({ value: 'inline' });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
 
     test('variant accessed from configured fallback when no initial variants or explicit fallback provided', async () => {
       const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
       const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
         source: Source.InitialVariants,
         initialVariants: {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
-      // Start
+      // Start and fetch
       await Promise.all([client.start(user), client.fetch(user)]);
       const variant = client.variant('sdk-ci-test');
       // Variant is result of fallbackVariant
       expect(variant).toEqual({ key: 'fallback', value: 'fallback' });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
 
     test('default variant returned when no other fallback is provided', async () => {
       const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
       const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
         source: Source.InitialVariants,
         initialVariants: {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
       });
-      // Start
+      // Start and fetch
       await Promise.all([client.start(user), client.fetch(user)]);
       const variant = client.variant('sdk-ci-test');
       expect(variant).toEqual({
         key: 'off',
         metadata: { default: true },
       });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
   });
 
   describe('local evaluation flags', () => {
+    test('returns locally evaluated variant over remote and all other fallbacks', async () => {
+      const user = { device_id: '0123456789' };
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
+      const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
+        source: Source.LocalStorage,
+        initialVariants: {
+          'sdk-ci-test-local': { key: 'initial', value: 'initial' },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start and fetch
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const variant = client.variant('sdk-ci-test-local', 'inline');
+      expect(variant.key).toEqual('on');
+      expect(variant.value).toEqual('on');
+      expect(variant.metadata.evaluationMode).toEqual('local');
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
+      expect(spy.mock.calls[0][0].variant).toEqual('on');
+    });
 
-  })
+    test('locally evaluated default variant with inline fallback', async () => {
+      const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
+      const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
+        source: Source.LocalStorage,
+        initialVariants: {
+          'sdk-ci-test-local': { key: 'initial', value: 'initial' },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start and fetch
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const variant = client.variant('sdk-ci-test-local', 'inline');
+      expect(variant.key).toEqual('inline');
+      expect(variant.value).toEqual('inline');
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
+    });
+
+    test('locally evaluated default variant with initial variants', async () => {
+      const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
+      const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
+        source: Source.LocalStorage,
+        initialVariants: {
+          'sdk-ci-test-local': { key: 'initial', value: 'initial' },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start and fetch
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const variant = client.variant('sdk-ci-test-local');
+      expect(variant.key).toEqual('initial');
+      expect(variant.value).toEqual('initial');
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
+    });
+
+    test('locally evaluated default variant with configured fallback', async () => {
+      const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
+      const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
+        source: Source.LocalStorage,
+        initialVariants: {
+          'sdk-ci-test-local-not-selected': {
+            key: 'initial',
+            value: 'initial',
+          },
+        },
+        fallbackVariant: { key: 'fallback', value: 'fallback' },
+      });
+      // Start and fetch
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const variant = client.variant('sdk-ci-test-local');
+      expect(variant.key).toEqual('fallback');
+      expect(variant.value).toEqual('fallback');
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
+    });
+
+    test('default variant returned when no other fallback is provided', async () => {
+      const user = {};
+      const exposureTrackingProvider = new TestExposureTrackingProvider();
+      const spy = jest.spyOn(exposureTrackingProvider, 'track');
+      const client = new ExperimentClient(API_KEY, {
+        exposureTrackingProvider: exposureTrackingProvider,
+        source: Source.LocalStorage,
+      });
+      // Start and fetch
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const variant = client.variant('sdk-ci-test-local');
+      expect(variant.key).toEqual('off');
+      expect(variant.value).toBeUndefined();
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
+      expect(spy.mock.calls[0][0].variant).toBeUndefined();
+    });
+  });
 });

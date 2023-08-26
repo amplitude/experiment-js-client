@@ -254,19 +254,14 @@ export class ExperimentClient implements Client {
     if (!this.apiKey) {
       return { value: undefined };
     }
-    const flag = this.flags.get(key);
     const sourceVariant = this.variantAndSource(key, fallback);
-    let variant = sourceVariant?.variant;
-    let source = sourceVariant?.source;
-    if (isLocalEvaluationMode(flag) || (!sourceVariant && flag)) {
-      variant = this.evaluate([flag.key])[key];
-      source = VariantSource.LocalEvaluation;
-    }
     if (this.config.automaticExposureTracking) {
-      this.exposureInternal(key, variant, source);
+      this.exposureInternal(key, sourceVariant);
     }
-    this.debug(`[Experiment] variant for ${key} is ${variant?.value}`);
-    return variant || {};
+    this.debug(
+      `[Experiment] variant for ${key} is ${sourceVariant.variant?.value}`,
+    );
+    return sourceVariant.variant || {};
   }
 
   /**
@@ -281,15 +276,8 @@ export class ExperimentClient implements Client {
    * @param key The flag/experiment key to track an exposure for.
    */
   public exposure(key: string): void {
-    const flag = this.flags.get(key);
     const sourceVariant = this.variantAndSource(key);
-    let variant = sourceVariant?.variant;
-    let source = sourceVariant?.source;
-    if (isLocalEvaluationMode(flag) || !sourceVariant) {
-      variant = this.evaluate([flag.key])[key];
-      source = VariantSource.LocalEvaluation;
-    }
-    this.exposureInternal(key, variant, source);
+    this.exposureInternal(key, sourceVariant);
   }
 
   /**
@@ -401,91 +389,312 @@ export class ExperimentClient implements Client {
     return variants;
   }
 
-  // For source = LocalStorage, fallback order goes:
-  // 1. Local Storage (primary)
-  // 2. Inline function fallback
-  // 3. InitialFlags (secondary)
-  // 4. Config fallback
-  // 5. Source default.
-  //
-  // For source = InitialVariants, fallback order goes:
-  // 1. InitialFlags (primary)
-  // 2. Local Storage (secondary)
-  // 3. Inline function fallback
-  // 4. Config fallback
-  //
-  // If there is a default variant and no fallback, return the default
-  // variant with preference for source over secondary default.
   private variantAndSource(
     key: string,
     fallback?: string | Variant,
-  ): { variant: Variant; source: VariantSource } | undefined {
-    let defaultVariantSource = undefined;
-    // Primary source.
-    const primarySource =
-      this.config.source === Source.LocalStorage
-        ? VariantSource.LocalStorage
-        : VariantSource.InitialVariants;
-    const primaryVariant = this.sourceVariants()[key];
-    const primaryDefault = primaryVariant?.metadata?.default;
-    if (!isNullOrUndefined(primaryVariant) && !primaryDefault) {
-      return {
-        variant: this.convertVariant(primaryVariant),
-        source: primarySource,
-      };
-    } else if (primaryDefault && !defaultVariantSource) {
-      defaultVariantSource = {
-        variant: this.convertVariant(primaryVariant),
-        source: primarySource,
-      };
-    }
-    // Handle inline function fallback for local storage source
+  ): SourceVariant {
+    let sourceVariant: SourceVariant = {};
     if (this.config.source === Source.LocalStorage) {
-      if (!isNullOrUndefined(fallback)) {
-        return {
-          variant: this.convertVariant(fallback),
-          source: VariantSource.FallbackInline,
-        };
-      }
+      sourceVariant = this.localStorageVariantAndSource(key, fallback);
+    } else if (this.config.source === Source.InitialVariants) {
+      sourceVariant = this.initialVariantsVariantAndSource(key, fallback);
     }
-    // Secondary source.
-    const secondarySource =
-      this.config.source === Source.LocalStorage
-        ? VariantSource.SecondaryInitialVariants
-        : VariantSource.SecondaryLocalStorage;
-    const secondaryVariant = this.secondaryVariants()[key];
-    const secondaryDefault = secondaryVariant?.metadata?.default;
-    if (!isNullOrUndefined(secondaryVariant) && !secondaryDefault) {
+    const flag = this.flags.get(key);
+    if (isLocalEvaluationMode(flag) || (!sourceVariant.variant && flag)) {
+      sourceVariant = this.localEvaluationVariantAndSource(key, flag, fallback);
+    }
+    return sourceVariant;
+  }
+
+  // TODO variant and source for both local and remote needs to be cleaned up.
+
+  /**
+   * This function assumes the flag exists and is local evaluation mode. For
+   * local evaluation, fallback order goes:
+   *
+   *  1. Local evaluation
+   *  2. Inline function fallback
+   *  3. Initial variants
+   *  4. Config fallback
+   *
+   * If there is a default variant and no fallback, return the default variant.
+   */
+  private localEvaluationVariantAndSource(
+    key: string,
+    flag: EvaluationFlag,
+    fallback?: string | Variant,
+  ): SourceVariant {
+    let defaultSourceVariant: SourceVariant = {};
+    // Local evaluation
+    const variant = this.evaluate([flag.key])[key];
+    const source = VariantSource.LocalEvaluation;
+    const isLocalEvaluationDefault = variant.metadata?.default as boolean;
+    if (!isNullOrUndefined(variant) && !isLocalEvaluationDefault) {
       return {
-        variant: this.convertVariant(secondaryVariant),
-        source: secondarySource,
+        variant: this.convertVariant(variant),
+        source: source,
+        hasDefaultVariant: false,
       };
-    } else if (secondaryDefault && !defaultVariantSource) {
-      defaultVariantSource = {
-        variant: this.convertVariant(secondaryVariant),
-        source: secondarySource,
+    } else if (isLocalEvaluationDefault) {
+      defaultSourceVariant = {
+        variant: this.convertVariant(variant),
+        source: source,
+        hasDefaultVariant: true,
       };
     }
-    // Handle inline function fallback for initial variants source
-    if (this.config.source === Source.InitialVariants) {
-      if (!isNullOrUndefined(fallback)) {
-        return {
-          variant: this.convertVariant(fallback),
-          source: VariantSource.FallbackInline,
-        };
-      }
+    // Inline fallback
+    if (!isNullOrUndefined(fallback)) {
+      return {
+        variant: this.convertVariant(fallback),
+        source: VariantSource.FallbackInline,
+        hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+      };
+    }
+    // Initial variants
+    const initialVariant = this.config.initialVariants[key];
+    if (!isNullOrUndefined(initialVariant)) {
+      return {
+        variant: this.convertVariant(initialVariant),
+        source: VariantSource.SecondaryInitialVariants,
+        hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+      };
     }
     // Configured fallback, or default variant
     const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
     const fallbackSourceVariant = {
       variant: fallbackVariant,
       source: VariantSource.FallbackConfig,
+      hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
     };
     if (!isNullUndefinedOrEmpty(fallbackVariant)) {
       return fallbackSourceVariant;
     }
-    return defaultVariantSource;
+    return defaultSourceVariant;
   }
+
+  /**
+   * For Source.LocalStorage, fallback order goes:
+   *
+   *  1. Local Storage
+   *  2. Inline function fallback
+   *  3. InitialFlags
+   *  4. Config fallback
+   *
+   * If there is a default variant and no fallback, return the default variant.
+   */
+  private localStorageVariantAndSource(
+    key: string,
+    fallback?: string | Variant,
+  ): SourceVariant {
+    let defaultSourceVariant: SourceVariant = {};
+    // Local storage
+    const localStorageVariant = this.variants.getAll()[key];
+    const isLocalStorageDefault = localStorageVariant?.metadata
+      ?.default as boolean;
+    if (!isNullOrUndefined(localStorageVariant) && !isLocalStorageDefault) {
+      return {
+        variant: this.convertVariant(localStorageVariant),
+        source: VariantSource.LocalStorage,
+        hasDefaultVariant: false,
+      };
+    } else if (isLocalStorageDefault) {
+      defaultSourceVariant = {
+        variant: this.convertVariant(localStorageVariant),
+        source: VariantSource.LocalStorage,
+        hasDefaultVariant: true,
+      };
+    }
+    // Inline fallback
+    if (!isNullOrUndefined(fallback)) {
+      return {
+        variant: this.convertVariant(fallback),
+        source: VariantSource.FallbackInline,
+        hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+      };
+    }
+    // Initial variants
+    const initialVariant = this.config.initialVariants[key];
+    if (!isNullOrUndefined(initialVariant)) {
+      return {
+        variant: this.convertVariant(initialVariant),
+        source: VariantSource.SecondaryInitialVariants,
+        hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+      };
+    }
+    // Configured fallback, or default variant
+    const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
+    const fallbackSourceVariant = {
+      variant: fallbackVariant,
+      source: VariantSource.FallbackConfig,
+      hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+    };
+    if (!isNullUndefinedOrEmpty(fallbackVariant)) {
+      return fallbackSourceVariant;
+    }
+    return defaultSourceVariant;
+  }
+
+  /**
+   * For Source.InitialVariants, fallback order goes:
+   *
+   *  1. Initial variants
+   *  2. Local storage
+   *  3. Inline function fallback
+   *  4. Config fallback
+   *
+   * If there is a default variant and no fallback, return the default variant.
+   */
+  private initialVariantsVariantAndSource(
+    key: string,
+    fallback?: string | Variant,
+  ): SourceVariant {
+    let defaultSourceVariant: SourceVariant = {};
+    // Initial variants
+    const initialVariantsVariant = this.config.initialVariants[key];
+    if (!isNullOrUndefined(initialVariantsVariant)) {
+      return {
+        variant: this.convertVariant(initialVariantsVariant),
+        source: VariantSource.InitialVariants,
+        hasDefaultVariant: false,
+      };
+    }
+    // Local storage
+    const localStorageVariant = this.variants.getAll()[key];
+    const isLocalStorageDefault = localStorageVariant?.metadata
+      ?.default as boolean;
+    if (!isNullOrUndefined(localStorageVariant) && !isLocalStorageDefault) {
+      return {
+        variant: this.convertVariant(localStorageVariant),
+        source: VariantSource.LocalStorage,
+        hasDefaultVariant: false,
+      };
+    } else if (isLocalStorageDefault) {
+      defaultSourceVariant = {
+        variant: this.convertVariant(localStorageVariant),
+        source: VariantSource.LocalStorage,
+        hasDefaultVariant: true,
+      };
+    }
+    // Inline fallback
+    if (!isNullOrUndefined(fallback)) {
+      return {
+        variant: this.convertVariant(fallback),
+        source: VariantSource.FallbackInline,
+        hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+      };
+    }
+    // Configured fallback, or default variant
+    const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
+    const fallbackSourceVariant = {
+      variant: fallbackVariant,
+      source: VariantSource.FallbackConfig,
+      hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+    };
+    if (!isNullUndefinedOrEmpty(fallbackVariant)) {
+      return fallbackSourceVariant;
+    }
+    return defaultSourceVariant;
+  }
+
+  // /**
+  //  * Get a remove evaluated variant, either
+  //  *
+  //  * For source = LocalStorage, fallback order goes:
+  //  *  1. Local Storage (primary)
+  //  *  2. Inline function fallback
+  //  *  3. InitialFlags (secondary)
+  //  *  4. Config fallback
+  //  *  5. Source default.
+  //  *
+  //  * For source = InitialVariants, fallback order goes:
+  //  *  1. InitialFlags (primary)
+  //  *  2. Local Storage (secondary)
+  //  *  3. Inline function fallback
+  //  *  4. Config fallback
+  //  *
+  //  * If there is a default variant and no fallback, return the default variant
+  //  * with preference for source over secondary default.
+  //  * @param key
+  //  * @param fallback
+  //  * @private
+  //  */
+  // private remoteVariantAndSource(
+  //   key: string,
+  //   fallback?: string | Variant,
+  // ): SourceVariant {
+  //   let defaultVariantSource: SourceVariant | undefined = undefined;
+  //   // Primary source.
+  //   const primarySource =
+  //     this.config.source === Source.LocalStorage
+  //       ? VariantSource.LocalStorage
+  //       : VariantSource.InitialVariants;
+  //   const primaryVariant = this.sourceVariants()[key];
+  //   const primaryDefault = primaryVariant?.metadata?.default as boolean;
+  //   if (!isNullOrUndefined(primaryVariant) && !primaryDefault) {
+  //     return {
+  //       variant: this.convertVariant(primaryVariant),
+  //       source: primarySource,
+  //       hasDefaultVariant: primaryDefault,
+  //     };
+  //   } else if (primaryDefault) {
+  //     defaultVariantSource = {
+  //       variant: this.convertVariant(primaryVariant),
+  //       source: primarySource,
+  //       hasDefaultVariant: true,
+  //     };
+  //   }
+  //   // Handle inline function fallback for local storage source
+  //   if (this.config.source === Source.LocalStorage) {
+  //     if (!isNullOrUndefined(fallback)) {
+  //       return {
+  //         variant: this.convertVariant(fallback),
+  //         source: VariantSource.FallbackInline,
+  //         hasDefaultVariant: defaultVariantSource?.hasDefaultVariant,
+  //       };
+  //     }
+  //   }
+  //   // Secondary source.
+  //   const secondarySource =
+  //     this.config.source === Source.LocalStorage
+  //       ? VariantSource.SecondaryInitialVariants
+  //       : VariantSource.SecondaryLocalStorage;
+  //   const secondaryVariant = this.secondaryVariants()[key];
+  //   const secondaryDefault = secondaryVariant?.metadata?.default as boolean;
+  //   if (!isNullOrUndefined(secondaryVariant) && !secondaryDefault) {
+  //     return {
+  //       variant: this.convertVariant(secondaryVariant),
+  //       source: secondarySource,
+  //       hasDefaultVariant: defaultVariantSource?.hasDefaultVariant,
+  //     };
+  //   } else if (secondaryDefault && !defaultVariantSource) {
+  //     defaultVariantSource = {
+  //       variant: this.convertVariant(secondaryVariant),
+  //       source: secondarySource,
+  //       hasDefaultVariant: true,
+  //     };
+  //   }
+  //   // Handle inline function fallback for initial variants source
+  //   if (this.config.source === Source.InitialVariants) {
+  //     if (!isNullOrUndefined(fallback)) {
+  //       return {
+  //         variant: this.convertVariant(fallback),
+  //         source: VariantSource.FallbackInline,
+  //         hasDefaultVariant: defaultVariantSource?.hasDefaultVariant,
+  //       };
+  //     }
+  //   }
+  //   // Configured fallback, or default variant
+  //   const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
+  //   const fallbackSourceVariant = {
+  //     variant: fallbackVariant,
+  //     source: VariantSource.FallbackConfig,
+  //     hasDefaultVariant: defaultVariantSource?.hasDefaultVariant,
+  //   };
+  //   if (!isNullUndefinedOrEmpty(fallbackVariant)) {
+  //     return fallbackSourceVariant;
+  //   }
+  //   return defaultVariantSource || {};
+  // }
 
   private async fetchInternal(
     user: ExperimentUser,
@@ -668,26 +877,31 @@ export class ExperimentClient implements Client {
     }
   }
 
-  private exposureInternal(
-    key: string,
-    variant: Variant | undefined,
-    source: VariantSource | undefined,
-  ): void {
-    this.legacyExposureInternal(key, variant, source);
+  private exposureInternal(key: string, sourceVariant: SourceVariant): void {
+    this.legacyExposureInternal(
+      key,
+      sourceVariant.variant,
+      sourceVariant.source,
+    );
     const exposure: Exposure = { flag_key: key };
-    // Do not track exposure for fallback variants.
-    if (isFallback(source)) {
+    // Do not track exposure for fallback variants that are not associated with
+    // a default variant.
+    const fallback = isFallback(sourceVariant.source);
+    if (fallback && !sourceVariant.hasDefaultVariant) {
       return;
     }
-    if (variant?.expKey) exposure.experiment_key = variant?.expKey;
-    if (!variant?.metadata?.default) {
-      if (variant?.key) {
-        exposure.variant = variant.key;
-      } else if (variant?.value) {
-        exposure.variant = variant.value;
+    if (sourceVariant.variant?.expKey) {
+      exposure.experiment_key = sourceVariant.variant?.expKey;
+    }
+    const metadata = sourceVariant.variant?.metadata;
+    if (!fallback && !metadata?.default) {
+      if (sourceVariant.variant?.key) {
+        exposure.variant = sourceVariant.variant.key;
+      } else if (sourceVariant.variant?.value) {
+        exposure.variant = sourceVariant.variant.value;
       }
     }
-    exposure.metadata = variant?.metadata;
+    if (metadata) exposure.metadata = metadata;
     this.exposureTrackingProvider?.track(exposure);
   }
 
@@ -713,3 +927,9 @@ export class ExperimentClient implements Client {
     }
   }
 }
+
+type SourceVariant = {
+  variant?: Variant | undefined;
+  source?: VariantSource | undefined;
+  hasDefaultVariant?: boolean | undefined;
+};
