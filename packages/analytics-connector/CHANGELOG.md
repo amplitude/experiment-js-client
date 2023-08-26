@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.5.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/analytics-connector@1.4.8...@amplitude/analytics-connector@1.5.0) (2023-08-22)
+
+
+### Features
+
+* **analytics-connector:** add support for setting opt out in identity store ([#86](https://github.com/amplitude/experiment-js-client/issues/86)) ([f37c277](https://github.com/amplitude/experiment-js-client/commit/f37c277764d434a1daada356d51e6a13a494d771))
+
+
+
+
+
 ## [1.4.8](https://github.com/amplitude/experiment-js-client/compare/@amplitude/analytics-connector@1.4.7...@amplitude/analytics-connector@1.4.8) (2023-05-09)
 
 **Note:** Version bump only for package @amplitude/analytics-connector

@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.8.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.8.1...@amplitude/experiment-js-client@1.8.2) (2023-08-22)
+
+
+### Bug Fixes
+
+* remove duplicated user agent parser from build ([#74](https://github.com/amplitude/experiment-js-client/issues/74)) ([c639c27](https://github.com/amplitude/experiment-js-client/commit/c639c279bbbb198be9b7512d18af686aec0317f9))
+
+
+
+
+
 ## [1.8.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.8.0...@amplitude/experiment-js-client@1.8.1) (2023-06-23)
 
 
