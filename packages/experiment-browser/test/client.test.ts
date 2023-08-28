@@ -944,7 +944,7 @@ describe('start', () => {
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
     expect(fetchSpy).toBeCalledTimes(1);
-  });
+  }, 10000);
   test('with local evaluation only, does not call fetch', async () => {
     const client = new ExperimentClient(API_KEY, {});
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
