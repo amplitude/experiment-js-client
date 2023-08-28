@@ -893,6 +893,47 @@ describe('variant fallbacks', () => {
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
+
+    test('all returns local evaluation variant over remote or initialVariants with local storage source', async () => {
+      const user = { user_id: 'test_user', device_id: '0123456789' };
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.LocalStorage,
+        initialVariants: {
+          'sdk-ci-test': { key: 'initial', value: 'initial' },
+          'sdk-ci-test-local': { key: 'initial', value: 'initial' },
+        },
+      });
+      // Start and fetch
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const allVariants = client.all();
+      const localVariant = allVariants['sdk-ci-test-local'];
+      expect(localVariant.key).toEqual('on');
+      expect(localVariant.value).toEqual('on');
+      expect(localVariant.metadata?.evaluationMode).toEqual('local');
+      const remoteVariant = allVariants['sdk-ci-test'];
+      expect(remoteVariant.key).toEqual('on');
+      expect(remoteVariant.value).toEqual('on');
+    });
+    test('all returns local evaluation variant over remote or initialVariants with initial variants source', async () => {
+      const user = { user_id: 'test_user', device_id: '0123456789' };
+      const client = new ExperimentClient(API_KEY, {
+        source: Source.InitialVariants,
+        initialVariants: {
+          'sdk-ci-test': { key: 'initial', value: 'initial' },
+          'sdk-ci-test-local': { key: 'initial', value: 'initial' },
+        },
+      });
+      // Start and fetch
+      await Promise.all([client.start(user), client.fetch(user)]);
+      const allVariants = client.all();
+      const localVariant = allVariants['sdk-ci-test-local'];
+      expect(localVariant.key).toEqual('on');
+      expect(localVariant.value).toEqual('on');
+      expect(localVariant.metadata?.evaluationMode).toEqual('local');
+      const remoteVariant = allVariants['sdk-ci-test'];
+      expect(remoteVariant.key).toEqual('initial');
+      expect(remoteVariant.value).toEqual('initial');
+    });
   });
 });
 
