@@ -37,7 +37,8 @@ import { Variant, Variants } from './types/variant';
 import {
   isLocalEvaluationMode,
   isNullOrUndefined,
-  isNullUndefinedOrEmpty, isRemoteEvaluationMode
+  isNullUndefinedOrEmpty,
+  isRemoteEvaluationMode,
 } from './util';
 import { Backoff } from './util/backoff';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';

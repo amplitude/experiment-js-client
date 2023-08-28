@@ -547,6 +547,7 @@ describe('server zone', () => {
 });
 
 class TestExposureTrackingProvider implements ExposureTrackingProvider {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   track(exposure: Exposure): void {
     // Do nothing
   }
