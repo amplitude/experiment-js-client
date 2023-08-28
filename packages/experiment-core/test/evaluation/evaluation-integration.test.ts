@@ -526,7 +526,7 @@ const freeformUserContext = (
   return {
     user: user,
   };
-}
+};
 
 const groupContext = (
   groupType: string,
