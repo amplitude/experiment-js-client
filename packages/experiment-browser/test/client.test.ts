@@ -49,8 +49,16 @@ const explicitFallbackVariant: Variant = {
 };
 const unknownKey = 'not-a-valid-key';
 
+let mockStorage = {};
+beforeAll(() => {
+  global.Storage.prototype.setItem = jest.fn((key, value) => {
+    mockStorage[key] = value;
+  });
+  global.Storage.prototype.getItem = jest.fn((key) => mockStorage[key]);
+});
+
 beforeEach(() => {
-  localStorage.clear();
+  mockStorage = {};
 });
 
 /**
