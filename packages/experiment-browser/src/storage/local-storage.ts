@@ -8,9 +8,11 @@ export class LocalStorage implements Storage {
 
   async put(key: string, value: string): Promise<void> {
     safeGlobal.localStorage.setItem(key, value);
+    return;
   }
 
   async delete(key: string): Promise<void> {
     safeGlobal.localStorage.removeItem(key);
+    return;
   }
 }
