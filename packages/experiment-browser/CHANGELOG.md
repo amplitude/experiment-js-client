@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.9.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.8.2...@amplitude/experiment-js-client@1.9.0) (2023-08-29)
+
+
+### Features
+
+* client-side local evaluation and core evaluation package ([#81](https://github.com/amplitude/experiment-js-client/issues/81)) ([91b24c5](https://github.com/amplitude/experiment-js-client/commit/91b24c56a92d38e87448084fc44d2c28005add60))
+
+
+
+
+
 ## [1.8.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.8.1...@amplitude/experiment-js-client@1.8.2) (2023-08-22)
 
 
