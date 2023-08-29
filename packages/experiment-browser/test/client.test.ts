@@ -15,7 +15,6 @@ import {
 import { ConnectorExposureTrackingProvider } from '../src/integration/connector';
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
-import mock = jest.mock;
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -456,7 +455,9 @@ test('ExperimentClient.variant experiment key passed from variant to exposure', 
 
 describe('local evaluation', () => {
   test('start loads flags into local storage', async () => {
-    const client = new ExperimentClient(SERVER_API_KEY, {});
+    const client = new ExperimentClient(SERVER_API_KEY, {
+      fetchOnStart: true,
+    });
     await client.start({ device_id: 'test_device' });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -467,7 +468,9 @@ describe('local evaluation', () => {
   });
 
   test('variant after start returns expected locally evaluated variant', async () => {
-    const client = new ExperimentClient(SERVER_API_KEY, {});
+    const client = new ExperimentClient(SERVER_API_KEY, {
+      fetchOnStart: true,
+    });
     await client.start({ device_id: 'test_device' });
     let variant = client.variant('sdk-ci-test-local');
     expect(variant.key).toEqual('on');
@@ -577,9 +580,10 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
+        fetchOnStart: true,
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       // Variant is result of fetch
       const variant = client.variant('sdk-ci-test');
       expect(variant.key).toEqual('on');
@@ -597,13 +601,14 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       // Variant is result of inline fallback string
       const variantString = client.variant('sdk-ci-test', 'inline');
       expect(variantString).toEqual({ key: 'inline', value: 'inline' });
@@ -622,13 +627,14 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const variant = client.variant('sdk-ci-test');
       // Variant is result of initialVariants
       expect(variant).toEqual({ key: 'initial', value: 'initial' });
@@ -644,13 +650,14 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const variant = client.variant('sdk-ci-test');
       // Variant is result of fallbackVariant
       expect(variant).toEqual({ key: 'fallback', value: 'fallback' });
@@ -666,9 +673,10 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
+        fetchOnStart: true,
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const variant = client.variant('sdk-ci-test');
       expect(variant.key).toEqual('off');
       expect(variant.value).toBeUndefined();
@@ -687,13 +695,14 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.InitialVariants,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       // Variant is result of fetch
       const variant = client.variant('sdk-ci-test');
       expect(variant).toEqual({ key: 'initial', value: 'initial' });
@@ -709,13 +718,14 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.InitialVariants,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       // Variant is result of inline fallback string
       const variantString = client.variant('sdk-ci-test', 'inline');
       expect(variantString).toEqual({
@@ -735,13 +745,14 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.InitialVariants,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       // Variant is result of inline fallback string
       const variantString = client.variant('sdk-ci-test', 'inline');
       expect(variantString).toEqual({ key: 'inline', value: 'inline' });
@@ -760,13 +771,14 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.InitialVariants,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const variant = client.variant('sdk-ci-test');
       // Variant is result of fallbackVariant
       expect(variant).toEqual({ key: 'fallback', value: 'fallback' });
@@ -782,12 +794,13 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.InitialVariants,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const variant = client.variant('sdk-ci-test');
       expect(variant).toEqual({
         key: 'off',
@@ -807,13 +820,14 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test-local': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const variant = client.variant('sdk-ci-test-local', 'inline');
       expect(variant.key).toEqual('on');
       expect(variant.value).toEqual('on');
@@ -830,13 +844,14 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test-local': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const variant = client.variant('sdk-ci-test-local', 'inline');
       expect(variant.key).toEqual('inline');
       expect(variant.value).toEqual('inline');
@@ -852,13 +867,14 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test-local': { key: 'initial', value: 'initial' },
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const variant = client.variant('sdk-ci-test-local');
       expect(variant.key).toEqual('initial');
       expect(variant.value).toEqual('initial');
@@ -874,6 +890,7 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test-local-not-selected': {
             key: 'initial',
@@ -883,7 +900,7 @@ describe('variant fallbacks', () => {
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const variant = client.variant('sdk-ci-test-local');
       expect(variant.key).toEqual('fallback');
       expect(variant.value).toEqual('fallback');
@@ -899,9 +916,10 @@ describe('variant fallbacks', () => {
       const client = new ExperimentClient(API_KEY, {
         exposureTrackingProvider: exposureTrackingProvider,
         source: Source.LocalStorage,
+        fetchOnStart: true,
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const variant = client.variant('sdk-ci-test-local');
       expect(variant.key).toEqual('off');
       expect(variant.value).toBeUndefined();
@@ -914,13 +932,14 @@ describe('variant fallbacks', () => {
       const user = { user_id: 'test_user', device_id: '0123456789' };
       const client = new ExperimentClient(API_KEY, {
         source: Source.LocalStorage,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test': { key: 'initial', value: 'initial' },
           'sdk-ci-test-local': { key: 'initial', value: 'initial' },
         },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const allVariants = client.all();
       const localVariant = allVariants['sdk-ci-test-local'];
       expect(localVariant.key).toEqual('on');
@@ -934,13 +953,14 @@ describe('variant fallbacks', () => {
       const user = { user_id: 'test_user', device_id: '0123456789' };
       const client = new ExperimentClient(API_KEY, {
         source: Source.InitialVariants,
+        fetchOnStart: true,
         initialVariants: {
           'sdk-ci-test': { key: 'initial', value: 'initial' },
           'sdk-ci-test-local': { key: 'initial', value: 'initial' },
         },
       });
       // Start and fetch
-      await Promise.all([client.start(user), client.fetch(user)]);
+      await client.start(user);
       const allVariants = client.all();
       const localVariant = allVariants['sdk-ci-test-local'];
       expect(localVariant.key).toEqual('on');
