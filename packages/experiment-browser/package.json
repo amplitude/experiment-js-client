@@ -34,8 +34,8 @@
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
   "dependencies": {
-    "@amplitude/experiment-core": "^0.6.0",
     "@amplitude/analytics-connector": "^1.5.0",
+    "@amplitude/experiment-core": "^0.6.0",
     "@amplitude/ua-parser-js": "^0.7.31",
     "base64-js": "1.5.1",
     "unfetch": "4.1.0"

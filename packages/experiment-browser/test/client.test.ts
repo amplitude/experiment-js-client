@@ -16,7 +16,7 @@ import { ConnectorExposureTrackingProvider } from '../src/integration/connector'
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
 
-import { mockStorage } from './util/mock';
+import { mockClientStorage } from './util/mock';
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -51,19 +51,12 @@ const explicitFallbackVariant: Variant = {
 };
 const unknownKey = 'not-a-valid-key';
 
-beforeAll(() => {
-  mockStorage();
-});
-
-beforeEach(() => {
-  localStorage.clear();
-});
-
 /**
  * Basic test that fetching variants for a user succeeds.
  */
 test('ExperimentClient.fetch, success', async () => {
   const client = new ExperimentClient(API_KEY, {});
+  mockClientStorage(client);
   await client.fetch(testUser);
   const variant = client.variant(serverKey);
   expect(variant).toEqual(serverVariant);
@@ -78,6 +71,7 @@ test('ExperimentClient.fetch, no retries, timeout failure', async () => {
     retryFetchOnFailure: false,
     fetchTimeoutMillis: 1,
   });
+  mockClientStorage(client);
   await client.fetch(testUser);
   const variants = client.all();
   expect(variants).toEqual({});
@@ -92,6 +86,7 @@ test('ExperimentClient.fetch, with retries, retry success', async () => {
     fallbackVariant: fallbackVariant,
     fetchTimeoutMillis: 1,
   });
+  mockClientStorage(client);
   await client.fetch(testUser);
   let variant = client.variant(serverKey);
   expect(variant).toEqual(fallbackVariant);
@@ -111,6 +106,7 @@ test('ExperimentClient.variant, no stored variants, explicit fallback returned',
     fallbackVariant: fallbackVariant,
     initialVariants: initialVariants,
   });
+  mockClientStorage(client);
 
   variant = client.variant(unknownKey, explicitFallbackVariant);
   expect(variant).toEqual(explicitFallbackVariant);
@@ -134,6 +130,7 @@ test('ExperimentClient.variant, unknown key returns default fallback', () => {
     fallbackVariant: fallbackVariant,
     initialVariants: initialVariants,
   });
+  mockClientStorage(client);
   const variant: Variant = client.variant(unknownKey);
   expect(variant).toEqual(fallbackVariant);
 });
@@ -149,6 +146,7 @@ test('ExperimentClient.variant, initial variants fallback before fetch, no fallb
     fallbackVariant: fallbackVariant,
     initialVariants: initialVariants,
   });
+  mockClientStorage(client);
 
   variant = client.variant(initialKey);
   expect(variant).toEqual(initialVariant);
@@ -173,6 +171,7 @@ test('ExperimentClient.all, initial variants returned', async () => {
   const client = new ExperimentClient(API_KEY, {
     initialVariants: initialVariants,
   });
+  mockClientStorage(client);
 
   const variants = client.all();
   expect(variants).toEqual(initialVariants);
@@ -183,6 +182,7 @@ test('ExperimentClient.all, initial variants returned', async () => {
  */
 test('ExperimentClient.clear, clear the variants in storage', async () => {
   const client = new ExperimentClient(API_KEY, {});
+  mockClientStorage(client);
   await client.fetch(testUser);
   const variant = client.variant('sdk-ci-test');
   expect(variant).toEqual({ key: 'on', value: 'on', payload: 'payload' });
@@ -200,6 +200,7 @@ test('ExperimentClient.fetch, initial variants source, prefer initial', async ()
     source: Source.InitialVariants,
     initialVariants: initialVariants,
   });
+  mockClientStorage(client);
   let variant = client.variant(serverKey);
   expect(variant).toEqual(serverOffVariant);
   await client.fetch(testUser);
@@ -213,6 +214,7 @@ test('ExperimentClient.fetch, initial variants source, prefer initial', async ()
  */
 test('ExperimentClient.fetch, sets user, setUser overrides', async () => {
   const client = new ExperimentClient(API_KEY, {});
+  mockClientStorage(client);
   await client.fetch(testUser);
   expect(client.getUser()).toEqual(testUser);
   const newUser = { user_id: 'new_test_user' };
@@ -228,6 +230,7 @@ test('ExperimentClient.fetch, with user provider, success', async () => {
   const client = new ExperimentClient(API_KEY, {}).setUserProvider(
     new TestUserProvider(),
   );
+  mockClientStorage(client);
   await client.fetch();
   const variant = client.variant('sdk-ci-test');
   expect(variant).toEqual({ key: 'on', value: 'on', payload: 'payload' });
@@ -241,6 +244,7 @@ test('ExperimentClient.fetch, with config user provider, success', async () => {
   const client = new ExperimentClient(API_KEY, {
     userProvider: new TestUserProvider(),
   });
+  mockClientStorage(client);
   await client.fetch();
   const variant = client.variant('sdk-ci-test');
   expect(variant).toEqual({ key: 'on', value: 'on', payload: 'payload' });
@@ -273,6 +277,7 @@ test('ExperimentClient.variant, with exposure tracking provider, track called on
   const client = new ExperimentClient(API_KEY, {
     exposureTrackingProvider: exposureTrackingProvider,
   });
+  mockClientStorage(client);
   await client.fetch(testUser);
   for (let i = 0; i < 10; i++) {
     client.variant('key-that-does-not-exist');
@@ -312,6 +317,7 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked, unset
   const client = new ExperimentClient(API_KEY, {
     analyticsProvider: analyticsProvider,
   });
+  mockClientStorage(client);
   await client.fetch(testUser);
   client.variant(serverKey);
 
@@ -359,6 +365,7 @@ test('ExperimentClient.variant, with analytics provider, exposure not tracked on
   const client = new ExperimentClient(API_KEY, {
     analyticsProvider: analyticsProvider,
   });
+  mockClientStorage(client);
   client.variant(initialKey);
   client.variant(unknownKey);
 
@@ -388,6 +395,7 @@ test('configure httpClient, success', async () => {
       JSON.stringify({ flag: { key: 'key', value: 'key' } }),
     ),
   });
+  mockClientStorage(client);
   await client.fetch();
   const v = client.variant('flag');
   expect(v).toEqual({ key: 'key', value: 'key' });
@@ -395,6 +403,7 @@ test('configure httpClient, success', async () => {
 
 test('existing storage variant removed when fetch without flag keys response stored', async () => {
   const client = new ExperimentClient(API_KEY, {});
+  mockClientStorage(client);
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   client.variants.put('not-fetched-variant', { value: 'on' });
@@ -409,6 +418,7 @@ const flagKeysTestVariantPartial = {
 
 test('ExperimentClient.fetch with partial flag keys in fetch options, should return the fetched variant', async () => {
   const client = new ExperimentClient(API_KEY, {});
+  mockClientStorage(client);
   const option: FetchOptions = { flagKeys: ['sdk-ci-test'] };
   await client.fetch(testUser, option);
   const variant = client.all();
@@ -417,6 +427,7 @@ test('ExperimentClient.fetch with partial flag keys in fetch options, should ret
 
 test('ExperimentClient.fetch without fetch options, should return all variants', async () => {
   const client = new ExperimentClient(API_KEY, {});
+  mockClientStorage(client);
   await client.fetch(testUser);
   const variants = client.all();
   expect(Object.keys(variants).length).toBeGreaterThanOrEqual(2);
@@ -442,6 +453,7 @@ test('ExperimentClient.variant experiment key passed from variant to exposure', 
     source: Source.InitialVariants,
     initialVariants: { flagKey: { value: 'value', expKey: 'expKey' } },
   });
+  mockClientStorage(client);
   client.variant('flagKey');
   expect(didTrack).toEqual(true);
 });
@@ -451,6 +463,7 @@ describe('local evaluation', () => {
     const client = new ExperimentClient(SERVER_API_KEY, {
       fetchOnStart: true,
     });
+    mockClientStorage(client);
     await client.start({ device_id: 'test_device' });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -464,6 +477,7 @@ describe('local evaluation', () => {
     const client = new ExperimentClient(SERVER_API_KEY, {
       fetchOnStart: true,
     });
+    mockClientStorage(client);
     await client.start({ device_id: 'test_device' });
     let variant = client.variant('sdk-ci-test-local');
     expect(variant.key).toEqual('on');
@@ -479,6 +493,7 @@ describe('local evaluation', () => {
     const client = new ExperimentClient(SERVER_API_KEY, {
       fetchOnStart: false,
     });
+    mockClientStorage(client);
     const user = { user_id: 'test_user', device_id: 'test_device' };
     await client.start(user);
     let variant = client.variant('sdk-ci-test');
@@ -498,6 +513,7 @@ describe('local evaluation', () => {
 describe('server zone', () => {
   test('no config uses defaults', () => {
     const client = new ExperimentClient(API_KEY, {});
+    mockClientStorage(client);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     expect(client.config.serverUrl).toEqual('https://api.lab.amplitude.com');
@@ -509,6 +525,7 @@ describe('server zone', () => {
   });
   test('us server zone config uses defaults', () => {
     const client = new ExperimentClient(API_KEY, { serverZone: 'US' });
+    mockClientStorage(client);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     expect(client.config.serverUrl).toEqual('https://api.lab.amplitude.com');
@@ -524,6 +541,7 @@ describe('server zone', () => {
       serverUrl: 'https://experiment.company.com',
       flagsServerUrl: 'https://flags.company.com',
     });
+    mockClientStorage(client);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     expect(client.config.serverUrl).toEqual('https://experiment.company.com');
@@ -548,6 +566,7 @@ describe('server zone', () => {
       serverUrl: 'https://expeirment.company.com',
       flagsServerUrl: 'https://flags.company.com',
     });
+    mockClientStorage(client);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     expect(client.config.serverUrl).toEqual('https://expeirment.company.com');
@@ -575,6 +594,7 @@ describe('variant fallbacks', () => {
         source: Source.LocalStorage,
         fetchOnStart: true,
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       // Variant is result of fetch
@@ -600,6 +620,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       // Variant is result of inline fallback string
@@ -626,6 +647,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const variant = client.variant('sdk-ci-test');
@@ -649,6 +671,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const variant = client.variant('sdk-ci-test');
@@ -668,6 +691,7 @@ describe('variant fallbacks', () => {
         source: Source.LocalStorage,
         fetchOnStart: true,
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const variant = client.variant('sdk-ci-test');
@@ -694,6 +718,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       // Variant is result of fetch
@@ -717,6 +742,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       // Variant is result of inline fallback string
@@ -744,6 +770,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       // Variant is result of inline fallback string
@@ -770,6 +797,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const variant = client.variant('sdk-ci-test');
@@ -792,6 +820,7 @@ describe('variant fallbacks', () => {
           'sdk-ci-test-not-selected': { key: 'initial', value: 'initial' },
         },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const variant = client.variant('sdk-ci-test');
@@ -819,6 +848,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const variant = client.variant('sdk-ci-test-local', 'inline');
@@ -843,6 +873,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const variant = client.variant('sdk-ci-test-local', 'inline');
@@ -866,6 +897,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const variant = client.variant('sdk-ci-test-local');
@@ -892,6 +924,7 @@ describe('variant fallbacks', () => {
         },
         fallbackVariant: { key: 'fallback', value: 'fallback' },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const variant = client.variant('sdk-ci-test-local');
@@ -911,6 +944,7 @@ describe('variant fallbacks', () => {
         source: Source.LocalStorage,
         fetchOnStart: true,
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const variant = client.variant('sdk-ci-test-local');
@@ -931,6 +965,7 @@ describe('variant fallbacks', () => {
           'sdk-ci-test-local': { key: 'initial', value: 'initial' },
         },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const allVariants = client.all();
@@ -952,6 +987,7 @@ describe('variant fallbacks', () => {
           'sdk-ci-test-local': { key: 'initial', value: 'initial' },
         },
       });
+      mockClientStorage(client);
       // Start and fetch
       await client.start(user);
       const allVariants = client.all();
@@ -969,12 +1005,14 @@ describe('variant fallbacks', () => {
 describe('start', () => {
   test('with local and remote evaluation, calls fetch', async () => {
     const client = new ExperimentClient(API_KEY, {});
+    mockClientStorage(client);
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
     expect(fetchSpy).toBeCalledTimes(1);
   }, 10000);
   test('with local evaluation only, does not call fetch', async () => {
     const client = new ExperimentClient(API_KEY, {});
+    mockClientStorage(client);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     client.flags.getAll = () => {
@@ -989,6 +1027,7 @@ describe('start', () => {
     const client = new ExperimentClient(API_KEY, {
       fetchOnStart: true,
     });
+    mockClientStorage(client);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     client.flags.getAll = () => {
@@ -1003,6 +1042,7 @@ describe('start', () => {
     const client = new ExperimentClient(API_KEY, {
       fetchOnStart: false,
     });
+    mockClientStorage(client);
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
     expect(fetchSpy).toBeCalledTimes(0);
