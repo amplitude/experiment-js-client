@@ -43,9 +43,21 @@ export interface ExperimentConfig {
   source?: Source;
 
   /**
-   * The server endpoint from which to request variants.
+   * The domain from which to request variants using remote evaluation.
    */
   serverUrl?: string;
+
+  /**
+   * The domain to request flag configurations used in local evaluation from.
+   */
+  flagsServerUrl?: string;
+
+  /**
+   * The amplitude data center to fetch flags and variants from. If set,
+   * automatically sets the {@link serverUrl} and {@link flagsServerUrl}
+   * configurations.
+   */
+  serverZone?: string;
 
   /**
    * The request timeout, in milliseconds, when fetching variants.
@@ -64,6 +76,21 @@ export interface ExperimentConfig {
    * option does nothing.
    */
   automaticExposureTracking?: boolean;
+
+  /**
+   * Enable or disable local evaluation flag configuration polling on `start()`.
+   */
+  pollOnStart?: boolean;
+
+  /**
+   * Explicitly enable or disable calling {@link fetch()} on {@link start()}:
+   *
+   *  - `true`:      fetch will always be called on start.
+   *  - `false`:     fetch will never be called on start.
+   *  - `undefined`: the SDK will determine whether to call fetch based on the
+   *                 flags returned in the result.
+   */
+  fetchOnStart?: boolean;
 
   /**
    * This config only matters if you are using the amplitude analytics SDK
@@ -120,9 +147,13 @@ export interface ExperimentConfig {
  | **initialVariants**         | `null`                 |
  | **source** | `Source.LocalStorage` |
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
+ | **flagsServerUrl**    | `"https://flag.lab.amplitude.com"` |
+ | **serverZone**    | `"US"` |
  | **assignmentTimeoutMillis**    | `10000` |
  | **retryFailedAssignment**    | `true` |
  | **automaticExposureTracking** | `true` |
+ | **pollOnStart** | `true` |
+ | **fetchOnStart** | `undefined` |
  | **automaticFetchOnAmplitudeIdentityChange** | `false` |
  | **userProvider**    | `null` |
  | **analyticsProvider**    | `null` |
@@ -138,9 +169,13 @@ export const Defaults: ExperimentConfig = {
   initialVariants: {},
   source: Source.LocalStorage,
   serverUrl: 'https://api.lab.amplitude.com',
+  flagsServerUrl: 'https://flag.lab.amplitude.com',
+  serverZone: 'US',
   fetchTimeoutMillis: 10000,
   retryFetchOnFailure: true,
   automaticExposureTracking: true,
+  pollOnStart: true,
+  fetchOnStart: undefined,
   automaticFetchOnAmplitudeIdentityChange: false,
   userProvider: null,
   analyticsProvider: null,

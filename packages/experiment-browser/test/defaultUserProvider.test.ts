@@ -1,14 +1,7 @@
 import { ApplicationContext } from '@amplitude/analytics-connector';
-import { DefaultUserProvider } from 'src/integration/default';
-import { ExperimentUser } from 'src/types/user';
 
-const applicationContext: ApplicationContext = {
-  versionName: 'versionName',
-  language: 'language',
-  platform: 'platform',
-  os: 'os',
-  deviceModel: 'deviceModel',
-};
+import { ExperimentUser } from '../src';
+import { DefaultUserProvider } from '../src/integration/default';
 
 describe('DefaultUserProvider', () => {
   test('basic wrapped provider', async () => {

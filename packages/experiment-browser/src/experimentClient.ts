@@ -3,25 +3,44 @@
  * @module experiment-js-client
  */
 
+import {
+  EvaluationApi,
+  EvaluationEngine,
+  EvaluationFlag,
+  EvaluationVariant,
+  FlagApi,
+  Poller,
+  SdkEvaluationApi,
+  SdkFlagApi,
+  topologicalSort,
+} from '@amplitude/experiment-core';
+
 import { version as PACKAGE_VERSION } from '../package.json';
 
-import { ExperimentConfig, Defaults } from './config';
+import { Defaults, ExperimentConfig } from './config';
 import { ConnectorUserProvider } from './integration/connector';
 import { DefaultUserProvider } from './integration/default';
-import { LocalStorage } from './storage/localStorage';
+import {
+  getFlagStorage,
+  getVariantStorage,
+  LoadStoreCache,
+} from './storage/cache';
+import { LocalStorage } from './storage/local-storage';
+import { FetchHttpClient, WrapperClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
-import { ExposureTrackingProvider } from './types/exposure';
+import { Exposure, ExposureTrackingProvider } from './types/exposure';
 import { ExperimentUserProvider } from './types/provider';
 import { isFallback, Source, VariantSource } from './types/source';
-import { Storage } from './types/storage';
-import { HttpClient, SimpleResponse } from './types/transport';
 import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
-import { isNullOrUndefined } from './util';
+import {
+  isLocalEvaluationMode,
+  isNullOrUndefined,
+  isNullUndefinedOrEmpty,
+  isRemoteEvaluationMode,
+} from './util';
 import { Backoff } from './util/backoff';
-import { urlSafeBase64Encode } from './util/base64';
-import { randomString } from './util/randomstring';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
 import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
 
@@ -32,6 +51,10 @@ const fetchBackoffAttempts = 8;
 const fetchBackoffMinMillis = 500;
 const fetchBackoffMaxMillis = 10000;
 const fetchBackoffScalar = 1.5;
+const flagPollerIntervalMillis = 60000;
+
+const euServerUrl = 'https://api.lab.eu.amplitude.com';
+const euFlagsServerUrl = 'https://flag.lab.eu.amplitude.com';
 
 /**
  * The default {@link Client} used to fetch variations from Experiment's
@@ -42,19 +65,23 @@ const fetchBackoffScalar = 1.5;
 export class ExperimentClient implements Client {
   private readonly apiKey: string;
   private readonly config: ExperimentConfig;
-  private readonly httpClient: HttpClient;
-  private readonly storage: Storage;
+  private readonly variants: LoadStoreCache<Variant>;
+  private readonly flags: LoadStoreCache<EvaluationFlag>;
+  private readonly flagApi: FlagApi;
+  private readonly evaluationApi: EvaluationApi;
+  private readonly engine: EvaluationEngine = new EvaluationEngine();
+  private user: ExperimentUser | undefined;
+  private userProvider: ExperimentUserProvider | undefined;
+  private exposureTrackingProvider: ExposureTrackingProvider | undefined;
+  private retriesBackoff: Backoff | undefined;
+  private poller: Poller = new Poller(
+    () => this.doFlags(),
+    flagPollerIntervalMillis,
+  );
+  private isRunning = false;
 
-  private user: ExperimentUser = null;
-  private retriesBackoff: Backoff;
-
-  /**
-   * @deprecated
-   */
-  private userProvider: ExperimentUserProvider = null;
-
-  private analyticsProvider: SessionAnalyticsProvider;
-  private exposureTrackingProvider: ExposureTrackingProvider;
+  // Deprecated
+  private analyticsProvider: SessionAnalyticsProvider | undefined;
 
   /**
    * Creates a new ExperimentClient instance.
@@ -67,7 +94,22 @@ export class ExperimentClient implements Client {
    */
   public constructor(apiKey: string, config: ExperimentConfig) {
     this.apiKey = apiKey;
-    this.config = { ...Defaults, ...config };
+    // Merge configs with defaults and wrap providers
+    this.config = {
+      ...Defaults,
+      ...config,
+      // Set server URLs separately
+      serverUrl:
+        config?.serverUrl ||
+        (config?.serverZone?.toLowerCase() === 'eu'
+          ? euServerUrl
+          : Defaults.serverUrl),
+      flagsServerUrl:
+        config?.flagsServerUrl ||
+        (config?.serverZone?.toLowerCase() === 'eu'
+          ? euFlagsServerUrl
+          : Defaults.flagsServerUrl),
+    };
     if (this.config.userProvider) {
       this.userProvider = this.config.userProvider;
     }
@@ -81,9 +123,103 @@ export class ExperimentClient implements Client {
         this.config.exposureTrackingProvider,
       );
     }
-    this.httpClient = this.config.httpClient;
-    this.storage = new LocalStorage(this.config.instanceName, apiKey);
-    this.storage.load();
+    // Setup Remote APIs
+    const httpClient = new WrapperClient(
+      this.config.httpClient || FetchHttpClient,
+    );
+    this.flagApi = new SdkFlagApi(
+      this.apiKey,
+      this.config.flagsServerUrl,
+      httpClient,
+    );
+    this.evaluationApi = new SdkEvaluationApi(
+      this.apiKey,
+      this.config.serverUrl,
+      httpClient,
+    );
+    // Storage & Caching
+    const storage = new LocalStorage();
+    this.variants = getVariantStorage(
+      this.apiKey,
+      this.config.instanceName,
+      storage,
+    );
+    this.flags = getFlagStorage(this.apiKey, this.config.instanceName, storage);
+    void this.flags.load();
+    void this.variants.load();
+  }
+
+  /**
+   * Start the SDK by getting flag configurations from the server and fetching
+   * variants for the user. The promise returned by this function resolves when
+   * local flag configurations have been updated, and the {@link fetch()}
+   * result has been received (if the request was made).
+   *
+   * This function determines whether to {@link fetch()} based on the result of
+   * the flag configurations cached locally or received in the initial flag
+   * configuration response.
+   *
+   * To explicitly force this request to fetch or not, set the
+   * {@link fetchOnStart} configuration option when initializing the SDK.
+   *
+   * Finally, this function will start polling for flag configurations at a
+   * fixed interval. To disable polling, set the {@link pollOnStart}
+   * configuration option to `false` on initialization.
+   *
+   * @param user The user to set in the SDK.
+   * @see fetchOnStart
+   * @see pollOnStart
+   * @see fetch
+   * @see variant
+   */
+  public async start(user?: ExperimentUser): Promise<void> {
+    if (this.isRunning) {
+      return;
+    } else {
+      this.isRunning = true;
+    }
+    this.setUser(user);
+    // Get flag configurations, and simultaneously check the local cache for
+    // remote evaluation flags.
+    const flagsReadyPromise = this.doFlags();
+    let remoteFlags =
+      this.config.fetchOnStart ??
+      Object.values(this.flags.getAll()).some((flag) =>
+        isRemoteEvaluationMode(flag),
+      );
+    if (remoteFlags) {
+      // We already have remote flags in our flag cache, so we know we need to
+      // evaluate remotely even before we've updated our flags.
+      await Promise.all([this.fetch(user), flagsReadyPromise]);
+    } else {
+      // We don't know if remote evaluation is required, await the flag promise,
+      // and recheck for remote flags.
+      await flagsReadyPromise;
+      remoteFlags =
+        this.config.fetchOnStart ??
+        Object.values(this.flags.getAll()).some((flag) =>
+          isRemoteEvaluationMode(flag),
+        );
+      if (remoteFlags) {
+        // We already have remote flags in our flag cache, so we know we need to
+        // evaluate remotely even before we've updated our flags.
+        await this.fetch(user);
+      }
+    }
+    if (this.config.pollOnStart) {
+      this.poller.start();
+    }
+  }
+
+  /**
+   * Stop the local flag configuration poller.
+   */
+  public stop() {
+    if (!this.isRunning) {
+      return;
+    }
+    this.poller.stop();
+    this.isRunning = false;
   }
 
   /**
@@ -100,10 +236,11 @@ export class ExperimentClient implements Client {
    * Variants received from a successful retry are stored in local storage for
    * access.
    *
-   * If you are using the `initialVariants` config option to pre-load this SDK
+   * If you are using the `initialVariants` config option to preload this SDK
    * from the server, you generally do not need to call `fetch`.
    *
    * @param user The user to fetch variants for.
+   * @param options Options for this specific fetch call.
    * @returns Promise that resolves when the request for variants completes.
    * @see ExperimentUser
    * @see ExperimentUserProvider
@@ -132,41 +269,45 @@ export class ExperimentClient implements Client {
    * Access the variant from {@link Source}, falling back  on the given
    * fallback, then the configured fallbackVariant.
    *
-   * If an {@link ExperimentAnalyticsProvider} is configured and trackExposure is
-   * true, this function will call the provider with an {@link ExposureEvent}.
-   * The exposure event does not count towards your event volume within Amplitude.
+   * If an {@link ExposureTrackingProvider} is configured and the
+   * {@link automaticExposureTracking} configuration option is `true`, this
+   * function will call the provider with an {@link Exposure} event. The
+   * exposure event does not count towards your event volume within Amplitude.
    *
    * @param key The key to get the variant for.
    * @param fallback The highest priority fallback.
    * @see ExperimentConfig
-   * @see ExperimentAnalyticsProvider
+   * @see ExposureTrackingProvider
    */
   public variant(key: string, fallback?: string | Variant): Variant {
     if (!this.apiKey) {
       return { value: undefined };
     }
-    const { source, variant } = this.variantAndSource(key, fallback);
+    const sourceVariant = this.variantAndSource(key, fallback);
     if (this.config.automaticExposureTracking) {
-      this.exposureInternal(key, variant, source);
+      this.exposureInternal(key, sourceVariant);
     }
-    this.debug(`[Experiment] variant for ${key} is ${variant.value}`);
-    return variant;
+    this.debug(
+      `[Experiment] variant for ${key} is ${sourceVariant.variant?.value}`,
+    );
+    return sourceVariant.variant || {};
   }
 
   /**
    * Track an exposure event for the variant associated with the flag/experiment
    * {@link key}.
    *
-   * This method requires that an {@link ExperimentAnalyticsProvider} be
+   * This method requires that an {@link ExposureTrackingProvider} be
    * configured when this client is initialized, either manually, or through the
    * Amplitude Analytics SDK integration from set up using
    * {@link Experiment.initializeWithAmplitudeAnalytics}.
    *
    * @param key The flag/experiment key to track an exposure for.
+   * @see ExposureTrackingProvider
    */
   public exposure(key: string): void {
-    const { source, variant } = this.variantAndSource(key, null);
-    this.exposureInternal(key, variant, source);
+    const sourceVariant = this.variantAndSource(key);
+    this.exposureInternal(key, sourceVariant);
   }
 
   /**
@@ -182,16 +323,26 @@ export class ExperimentClient implements Client {
     if (!this.apiKey) {
       return {};
     }
-    return { ...this.secondaryVariants(), ...this.sourceVariants() };
+    const evaluatedVariants = this.evaluate();
+    for (const flagKey in evaluatedVariants) {
+      const flag = this.flags.get(flagKey);
+      if (!isLocalEvaluationMode(flag)) {
+        delete evaluatedVariants[flagKey];
+      }
+    }
+    return {
+      ...this.secondaryVariants(),
+      ...this.sourceVariants(),
+      ...evaluatedVariants,
+    };
   }
 
   /**
    * Clear all variants in the cache and storage.
-   *
    */
   public clear(): void {
-    this.storage.clear();
-    this.storage.save();
+    this.variants.clear();
+    void this.variants.store();
   }
 
   /**
@@ -254,76 +405,224 @@ export class ExperimentClient implements Client {
     return this;
   }
 
+  private evaluate(flagKeys?: string[]): Variants {
+    const user = this.addContext(this.user);
+    const flags = topologicalSort(this.flags.getAll(), flagKeys);
+    const evaluationVariants = this.engine.evaluate({ user: user }, flags);
+    const variants: Variants = {};
+    for (const flagKey of Object.keys(evaluationVariants)) {
+      variants[flagKey] = this.translateFromEvaluationVariant(
+        evaluationVariants[flagKey],
+      );
+    }
+    return variants;
+  }
+
   private variantAndSource(
     key: string,
-    fallback: string | Variant,
-  ): {
-    variant: Variant;
-    source: VariantSource;
-  } {
-    if (this.config.source === Source.InitialVariants) {
-      // for source = InitialVariants, fallback order goes:
-      // 1. InitialFlags
-      // 2. Local Storage
-      // 3. Function fallback
-      // 4. Config fallback
+    fallback?: string | Variant,
+  ): SourceVariant {
+    let sourceVariant: SourceVariant = {};
+    if (this.config.source === Source.LocalStorage) {
+      sourceVariant = this.localStorageVariantAndSource(key, fallback);
+    } else if (this.config.source === Source.InitialVariants) {
+      sourceVariant = this.initialVariantsVariantAndSource(key, fallback);
+    }
+    const flag = this.flags.get(key);
+    if (isLocalEvaluationMode(flag) || (!sourceVariant.variant && flag)) {
+      sourceVariant = this.localEvaluationVariantAndSource(key, flag, fallback);
+    }
+    return sourceVariant;
+  }
 
-      const sourceVariant = this.sourceVariants()[key];
-      if (!isNullOrUndefined(sourceVariant)) {
-        return {
-          variant: this.convertVariant(sourceVariant),
-          source: VariantSource.InitialVariants,
-        };
-      }
-      const secondaryVariant = this.secondaryVariants()[key];
-      if (!isNullOrUndefined(secondaryVariant)) {
-        return {
-          variant: this.convertVariant(secondaryVariant),
-          source: VariantSource.SecondaryLocalStorage,
-        };
-      }
-      if (!isNullOrUndefined(fallback)) {
-        return {
-          variant: this.convertVariant(fallback),
-          source: VariantSource.FallbackInline,
-        };
-      }
+  // TODO variant and source for both local and remote needs to be cleaned up.
+
+  /**
+   * This function assumes the flag exists and is local evaluation mode. For
+   * local evaluation, fallback order goes:
+   *
+   *  1. Local evaluation
+   *  2. Inline function fallback
+   *  3. Initial variants
+   *  4. Config fallback
+   *
+   * If there is a default variant and no fallback, return the default variant.
+   */
+  private localEvaluationVariantAndSource(
+    key: string,
+    flag: EvaluationFlag,
+    fallback?: string | Variant,
+  ): SourceVariant {
+    let defaultSourceVariant: SourceVariant = {};
+    // Local evaluation
+    const variant = this.evaluate([flag.key])[key];
+    const source = VariantSource.LocalEvaluation;
+    const isLocalEvaluationDefault = variant.metadata?.default as boolean;
+    if (!isNullOrUndefined(variant) && !isLocalEvaluationDefault) {
       return {
-        variant: this.convertVariant(this.config.fallbackVariant),
-        source: VariantSource.FallbackConfig,
+        variant: this.convertVariant(variant),
+        source: source,
+        hasDefaultVariant: false,
       };
-    } else {
-      // for source = LocalStorage, fallback order goes:
-      // 1. Local Storage
-      // 2. Function fallback
-      // 3. InitialFlags
-      // 4. Config fallback
-
-      const sourceVariant = this.sourceVariants()[key];
-      if (!isNullOrUndefined(sourceVariant)) {
-        return {
-          variant: this.convertVariant(sourceVariant),
-          source: VariantSource.LocalStorage,
-        };
-      }
-      if (!isNullOrUndefined(fallback)) {
-        return {
-          variant: this.convertVariant(fallback),
-          source: VariantSource.FallbackInline,
-        };
-      }
-      const secondaryVariant = this.secondaryVariants()[key];
-      if (!isNullOrUndefined(secondaryVariant)) {
-        return {
-          variant: this.convertVariant(secondaryVariant),
-          source: VariantSource.SecondaryInitialVariants,
-        };
-      }
-      return {
-        variant: this.convertVariant(this.config.fallbackVariant),
-        source: VariantSource.FallbackConfig,
+    } else if (isLocalEvaluationDefault) {
+      defaultSourceVariant = {
+        variant: this.convertVariant(variant),
+        source: source,
+        hasDefaultVariant: true,
       };
     }
+    // Inline fallback
+    if (!isNullOrUndefined(fallback)) {
+      return {
+        variant: this.convertVariant(fallback),
+        source: VariantSource.FallbackInline,
+        hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+      };
+    }
+    // Initial variants
+    const initialVariant = this.config.initialVariants[key];
+    if (!isNullOrUndefined(initialVariant)) {
+      return {
+        variant: this.convertVariant(initialVariant),
+        source: VariantSource.SecondaryInitialVariants,
+        hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+      };
+    }
+    // Configured fallback, or default variant
+    const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
+    const fallbackSourceVariant = {
+      variant: fallbackVariant,
+      source: VariantSource.FallbackConfig,
+      hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+    };
+    if (!isNullUndefinedOrEmpty(fallbackVariant)) {
+      return fallbackSourceVariant;
+    }
+    return defaultSourceVariant;
+  }
+
+  /**
+   * For Source.LocalStorage, fallback order goes:
+   *
+   *  1. Local Storage
+   *  2. Inline function fallback
+   *  3. InitialFlags
+   *  4. Config fallback
+   *
+   * If there is a default variant and no fallback, return the default variant.
+   */
+  private localStorageVariantAndSource(
+    key: string,
+    fallback?: string | Variant,
+  ): SourceVariant {
+    let defaultSourceVariant: SourceVariant = {};
+    // Local storage
+    const localStorageVariant = this.variants.getAll()[key];
+    const isLocalStorageDefault = localStorageVariant?.metadata
+      ?.default as boolean;
+    if (!isNullOrUndefined(localStorageVariant) && !isLocalStorageDefault) {
+      return {
+        variant: this.convertVariant(localStorageVariant),
+        source: VariantSource.LocalStorage,
+        hasDefaultVariant: false,
+      };
+    } else if (isLocalStorageDefault) {
+      defaultSourceVariant = {
+        variant: this.convertVariant(localStorageVariant),
+        source: VariantSource.LocalStorage,
+        hasDefaultVariant: true,
+      };
+    }
+    // Inline fallback
+    if (!isNullOrUndefined(fallback)) {
+      return {
+        variant: this.convertVariant(fallback),
+        source: VariantSource.FallbackInline,
+        hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+      };
+    }
+    // Initial variants
+    const initialVariant = this.config.initialVariants[key];
+    if (!isNullOrUndefined(initialVariant)) {
+      return {
+        variant: this.convertVariant(initialVariant),
+        source: VariantSource.SecondaryInitialVariants,
+        hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+      };
+    }
+    // Configured fallback, or default variant
+    const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
+    const fallbackSourceVariant = {
+      variant: fallbackVariant,
+      source: VariantSource.FallbackConfig,
+      hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+    };
+    if (!isNullUndefinedOrEmpty(fallbackVariant)) {
+      return fallbackSourceVariant;
+    }
+    return defaultSourceVariant;
+  }
+
+  /**
+   * For Source.InitialVariants, fallback order goes:
+   *
+   *  1. Initial variants
+   *  2. Local storage
+   *  3. Inline function fallback
+   *  4. Config fallback
+   *
+   * If there is a default variant and no fallback, return the default variant.
+   */
+  private initialVariantsVariantAndSource(
+    key: string,
+    fallback?: string | Variant,
+  ): SourceVariant {
+    let defaultSourceVariant: SourceVariant = {};
+    // Initial variants
+    const initialVariantsVariant = this.config.initialVariants[key];
+    if (!isNullOrUndefined(initialVariantsVariant)) {
+      return {
+        variant: this.convertVariant(initialVariantsVariant),
+        source: VariantSource.InitialVariants,
+        hasDefaultVariant: false,
+      };
+    }
+    // Local storage
+    const localStorageVariant = this.variants.getAll()[key];
+    const isLocalStorageDefault = localStorageVariant?.metadata
+      ?.default as boolean;
+    if (!isNullOrUndefined(localStorageVariant) && !isLocalStorageDefault) {
+      return {
+        variant: this.convertVariant(localStorageVariant),
+        source: VariantSource.LocalStorage,
+        hasDefaultVariant: false,
+      };
+    } else if (isLocalStorageDefault) {
+      defaultSourceVariant = {
+        variant: this.convertVariant(localStorageVariant),
+        source: VariantSource.LocalStorage,
+        hasDefaultVariant: true,
+      };
+    }
+    // Inline fallback
+    if (!isNullOrUndefined(fallback)) {
+      return {
+        variant: this.convertVariant(fallback),
+        source: VariantSource.FallbackInline,
+        hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+      };
+    }
+    // Configured fallback, or default variant
+    const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
+    const fallbackSourceVariant = {
+      variant: fallbackVariant,
+      source: VariantSource.FallbackConfig,
+      hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
+    };
+    if (!isNullUndefinedOrEmpty(fallbackVariant)) {
+      return fallbackSourceVariant;
+    }
+    return defaultSourceVariant;
   }
 
   private async fetchInternal(
@@ -347,11 +646,11 @@ export class ExperimentClient implements Client {
 
     try {
       const variants = await this.doFetch(user, timeoutMillis, options);
-      this.storeVariants(variants, options);
+      await this.storeVariants(variants, options);
       return variants;
     } catch (e) {
       if (retry) {
-        this.startRetries(user, options);
+        void this.startRetries(user, options);
       }
       throw e;
     }
@@ -362,65 +661,48 @@ export class ExperimentClient implements Client {
     timeoutMillis: number,
     options?: FetchOptions,
   ): Promise<Variants> {
-    const userContext = await this.addContextOrWait(user, 10000);
-    const encodedContext = urlSafeBase64Encode(JSON.stringify(userContext));
-    let queryString = '';
-    if (this.config.debug) {
-      queryString = `?d=${randomString(8)}`;
-    }
-    const endpoint = `${this.config.serverUrl}/sdk/vardata${queryString}`;
-    const headers = {
-      Authorization: `Api-Key ${this.apiKey}`,
-      'X-Amp-Exp-User': encodedContext,
-    };
-    if (options && options.flagKeys) {
-      headers['X-Amp-Exp-Flag-Keys'] = urlSafeBase64Encode(
-        JSON.stringify(options.flagKeys),
-      );
-    }
-    this.debug('[Experiment] Fetch variants for user: ', userContext);
-    const response = await this.httpClient.request(
-      endpoint,
-      'GET',
-      headers,
-      null,
-      timeoutMillis,
-    );
-    if (response.status != 200) {
-      throw Error(`Fetch error response: status=${response.status}`);
-    }
-    this.debug('[Experiment] Received fetch response: ', response);
-    return this.parseResponse(response);
-  }
-
-  private parseResponse(response: SimpleResponse): Variants {
-    const json = JSON.parse(response.body);
+    user = await this.addContextOrWait(user, 10000);
+    this.debug('[Experiment] Fetch variants for user: ', user);
+    const results = await this.evaluationApi.getVariants(user, {
+      timeoutMillis: timeoutMillis,
+      flagKeys: options?.flagKeys,
+    });
     const variants: Variants = {};
-    for (const key of Object.keys(json)) {
-      variants[key] = {
-        value: json[key].key,
-        payload: json[key].payload,
-        expKey: json[key].expKey,
-      };
+    for (const key of Object.keys(results)) {
+      variants[key] = this.translateFromEvaluationVariant(results[key]);
     }
     this.debug('[Experiment] Received variants: ', variants);
     return variants;
   }
 
-  private storeVariants(variants: Variants, options?: FetchOptions): void {
+  private async doFlags(): Promise<void> {
+    const flags = await this.flagApi.getFlags({
+      libraryName: 'experiment-js-client',
+      libraryVersion: PACKAGE_VERSION,
+      timeoutMillis: this.config.fetchTimeoutMillis,
+    });
+    this.flags.clear();
+    this.flags.putAll(flags);
+    await this.flags.store();
+  }
+
+  private async storeVariants(
+    variants: Variants,
+    options?: FetchOptions,
+  ): Promise<void> {
     let failedFlagKeys = options && options.flagKeys ? options.flagKeys : [];
     if (failedFlagKeys.length === 0) {
-      this.storage.clear();
+      this.variants.clear();
     }
     for (const key in variants) {
       failedFlagKeys = failedFlagKeys.filter((flagKey) => flagKey !== key);
-      this.storage.put(key, variants[key]);
+      this.variants.put(key, variants[key]);
     }
 
     for (const key in failedFlagKeys) {
-      this.storage.remove(key);
+      this.variants.remove(key);
     }
-    this.storage.save();
+    await this.variants.store();
     this.debug('[Experiment] Stored variants: ', variants);
   }
 
@@ -435,13 +717,13 @@ export class ExperimentClient implements Client {
       fetchBackoffMaxMillis,
       fetchBackoffScalar,
     );
-    this.retriesBackoff.start(async () => {
+    void this.retriesBackoff.start(async () => {
       await this.fetchInternal(user, fetchBackoffTimeout, false, options);
     });
   }
 
   private stopRetries(): void {
-    if (this.retriesBackoff != null) {
+    if (this.retriesBackoff) {
       this.retriesBackoff.cancel();
     }
   }
@@ -479,6 +761,7 @@ export class ExperimentClient implements Client {
     }
     if (typeof value == 'string') {
       return {
+        key: value,
         value: value,
       };
     } else {
@@ -486,41 +769,81 @@ export class ExperimentClient implements Client {
     }
   }
 
-  private sourceVariants(): Variants {
+  private translateFromEvaluationVariant(
+    evaluationVariant: EvaluationVariant,
+  ): Variant {
+    if (!evaluationVariant) {
+      return {};
+    }
+    let experimentKey = undefined;
+    if (evaluationVariant.metadata) {
+      experimentKey = evaluationVariant.metadata['experimentKey'];
+    }
+    const variant: Variant = {};
+    if (evaluationVariant.key) variant.key = evaluationVariant.key;
+    if (evaluationVariant.value)
+      variant.value = evaluationVariant.value as string;
+    if (evaluationVariant.payload) variant.payload = evaluationVariant.payload;
+    if (experimentKey) variant.expKey = experimentKey;
+    if (evaluationVariant.metadata)
+      variant.metadata = evaluationVariant.metadata;
+    return variant;
+  }
+
+  private sourceVariants(): Variants | undefined {
     if (this.config.source == Source.LocalStorage) {
-      return this.storage.getAll();
+      return this.variants.getAll();
     } else if (this.config.source == Source.InitialVariants) {
       return this.config.initialVariants;
     }
   }
 
-  private secondaryVariants(): Variants {
+  private secondaryVariants(): Variants | undefined {
     if (this.config.source == Source.LocalStorage) {
       return this.config.initialVariants;
     } else if (this.config.source == Source.InitialVariants) {
-      return this.storage.getAll();
+      return this.variants.getAll();
     }
   }
 
-  private exposureInternal(
+  private exposureInternal(key: string, sourceVariant: SourceVariant): void {
+    this.legacyExposureInternal(
+      key,
+      sourceVariant.variant,
+      sourceVariant.source,
+    );
+    const exposure: Exposure = { flag_key: key };
+    // Do not track exposure for fallback variants that are not associated with
+    // a default variant.
+    const fallback = isFallback(sourceVariant.source);
+    if (fallback && !sourceVariant.hasDefaultVariant) {
+      return;
+    }
+    if (sourceVariant.variant?.expKey) {
+      exposure.experiment_key = sourceVariant.variant?.expKey;
+    }
+    const metadata = sourceVariant.variant?.metadata;
+    if (!fallback && !metadata?.default) {
+      if (sourceVariant.variant?.key) {
+        exposure.variant = sourceVariant.variant.key;
+      } else if (sourceVariant.variant?.value) {
+        exposure.variant = sourceVariant.variant.value;
+      }
+    }
+    if (metadata) exposure.metadata = metadata;
+    this.exposureTrackingProvider?.track(exposure);
+  }
+
+  private legacyExposureInternal(
     key: string,
-    variant: Variant,
-    source: VariantSource,
+    variant: Variant | undefined,
+    source: VariantSource | undefined,
   ): void {
     const user = this.addContext(this.getUser());
     const event = exposureEvent(user, key, variant, source);
     if (isFallback(source) || !variant?.value) {
-      // fallbacks indicate not being allocated into an experiment, so
-      // we can unset the property
-      this.exposureTrackingProvider?.track({ flag_key: key });
       this.analyticsProvider?.unsetUserProperty?.(event);
     } else if (variant?.value) {
-      // only track when there's a value for a non fallback variant
-      this.exposureTrackingProvider?.track({
-        flag_key: key,
-        variant: variant.value,
-        experiment_key: variant.expKey,
-      });
       this.analyticsProvider?.setUserProperty?.(event);
       this.analyticsProvider?.track(event);
     }
@@ -533,3 +856,9 @@ export class ExperimentClient implements Client {
     }
   }
 }
+
+type SourceVariant = {
+  variant?: Variant | undefined;
+  source?: VariantSource | undefined;
+  hasDefaultVariant?: boolean | undefined;
+};

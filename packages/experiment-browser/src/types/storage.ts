@@ -1,11 +1,5 @@
-import { Variant, Variants } from './variant';
-
 export interface Storage {
-  put(key: string, value: Variant): void;
-  get(key: string): Variant;
-  clear(): void;
-  remove(key: string): void;
-  getAll(): Variants;
-  save(): void;
-  load(): void;
+  get(key: string): Promise<string>;
+  put(key: string, value: string): Promise<void>;
+  delete(key: string): Promise<void>;
 }

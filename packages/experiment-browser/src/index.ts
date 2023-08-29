@@ -13,7 +13,7 @@ export {
 export { Experiment } from './factory';
 export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';
-export { Client } from './types/client';
+export { Client, FetchOptions } from './types/client';
 export {
   ExperimentAnalyticsProvider,
   ExperimentAnalyticsEvent,

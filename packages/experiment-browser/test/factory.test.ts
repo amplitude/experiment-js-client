@@ -1,11 +1,7 @@
-import { Experiment } from 'src/factory';
+import { Experiment } from '../src';
 
 const API_KEY = 'client-DvWljIjiiuqLbyjqdvBaLFfEBrAvGuA3';
 const OTHER_KEY = 'some-other-key';
-
-beforeEach(() => {
-  localStorage.clear();
-});
 
 test('Experiment.initialize, default instance name and api key, same object', async () => {
   const client1 = Experiment.initialize(API_KEY);

@@ -3,6 +3,10 @@
  */
 export type Variant = {
   /**
+   * The key of the variant.
+   */
+  key?: string;
+  /**
    * The value of the variant.
    */
   value?: string;
@@ -17,6 +21,12 @@ export type Variant = {
    * The experiment key. Used to distinguish two experiments associated with the same flag.
    */
   expKey?: string;
+
+  /**
+   * Flag, segment, and variant metadata produced as a result of
+   * evaluation for the user. Used for system purposes.
+   */
+  metadata?: Record<string, unknown>;
 };
 
 /**

@@ -33,6 +33,7 @@ export enum VariantSource {
   SecondaryInitialVariants = 'secondary-initial',
   FallbackInline = 'fallback-inline',
   FallbackConfig = 'fallback-config',
+  LocalEvaluation = 'local-evaluation',
 }
 
 /**
@@ -41,8 +42,9 @@ export enum VariantSource {
  * @param source a {@link VariantSource}
  * @returns true if source is {@link VariantSource.FallbackInline} or {@link VariantSource.FallbackConfig}
  */
-export const isFallback = (source: VariantSource): boolean => {
+export const isFallback = (source: VariantSource | undefined): boolean => {
   return (
+    !source ||
     source === VariantSource.FallbackInline ||
     source === VariantSource.FallbackConfig ||
     source === VariantSource.SecondaryInitialVariants
