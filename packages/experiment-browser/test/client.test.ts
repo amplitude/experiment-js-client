@@ -50,7 +50,8 @@ const explicitFallbackVariant: Variant = {
 const unknownKey = 'not-a-valid-key';
 
 let mockStorage = {};
-beforeAll(() => {
+
+beforeEach(() => {
   global.Storage.prototype.setItem = jest.fn((key, value) => {
     mockStorage[key] = value;
   });
@@ -61,9 +62,6 @@ beforeAll(() => {
   global.Storage.prototype.clear = jest.fn(() => {
     mockStorage = {};
   });
-});
-
-beforeEach(() => {
   mockStorage = {};
 });
 
