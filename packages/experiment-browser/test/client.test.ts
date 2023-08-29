@@ -15,6 +15,7 @@ import {
 import { ConnectorExposureTrackingProvider } from '../src/integration/connector';
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
+import mock = jest.mock;
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -55,6 +56,12 @@ beforeAll(() => {
     mockStorage[key] = value;
   });
   global.Storage.prototype.getItem = jest.fn((key) => mockStorage[key]);
+  global.Storage.prototype.removeItem = jest.fn(
+    (key) => delete mockStorage[key],
+  );
+  global.Storage.prototype.clear = jest.fn(() => {
+    mockStorage = {};
+  });
 });
 
 beforeEach(() => {
