@@ -16,6 +16,8 @@ import { ConnectorExposureTrackingProvider } from '../src/integration/connector'
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
 
+import { mockStorage } from './util/mock';
+
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 class TestUserProvider implements ExperimentUserProvider {
@@ -49,20 +51,12 @@ const explicitFallbackVariant: Variant = {
 };
 const unknownKey = 'not-a-valid-key';
 
-let mockStorage = {};
+beforeAll(() => {
+  mockStorage();
+});
 
 beforeEach(() => {
-  global.Storage.prototype.setItem = jest.fn((key, value) => {
-    mockStorage[key] = value;
-  });
-  global.Storage.prototype.getItem = jest.fn((key) => mockStorage[key]);
-  global.Storage.prototype.removeItem = jest.fn(
-    (key) => delete mockStorage[key],
-  );
-  global.Storage.prototype.clear = jest.fn(() => {
-    mockStorage = {};
-  });
-  mockStorage = {};
+  localStorage.clear();
 });
 
 /**
@@ -179,6 +173,7 @@ test('ExperimentClient.all, initial variants returned', async () => {
   const client = new ExperimentClient(API_KEY, {
     initialVariants: initialVariants,
   });
+
   const variants = client.all();
   expect(variants).toEqual(initialVariants);
 });

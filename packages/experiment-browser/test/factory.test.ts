@@ -1,7 +1,13 @@
 import { Experiment } from '../src';
 
+import { mockStorage } from './util/mock';
+
 const API_KEY = 'client-DvWljIjiiuqLbyjqdvBaLFfEBrAvGuA3';
 const OTHER_KEY = 'some-other-key';
+
+beforeAll(() => {
+  mockStorage();
+});
 
 beforeEach(() => {
   localStorage.clear();
