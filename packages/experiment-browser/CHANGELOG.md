@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.0...@amplitude/experiment-js-client@1.9.1) (2023-09-18)
+
+
+### Bug Fixes
+
+* optimize variant cache access, legacy exposure ([#88](https://github.com/amplitude/experiment-js-client/issues/88)) ([bf40f9b](https://github.com/amplitude/experiment-js-client/commit/bf40f9b806c92f03fe33ce99791061cf0dd18bb1))
+
+
+
+
+
 # [1.9.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.8.2...@amplitude/experiment-js-client@1.9.0) (2023-08-29)
 
 
