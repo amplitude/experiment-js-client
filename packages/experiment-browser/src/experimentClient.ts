@@ -517,7 +517,7 @@ export class ExperimentClient implements Client {
   ): SourceVariant {
     let defaultSourceVariant: SourceVariant = {};
     // Local storage
-    const localStorageVariant = this.variants.getAll()[key];
+    const localStorageVariant = this.variants.get(key);
     const isLocalStorageDefault = localStorageVariant?.metadata
       ?.default as boolean;
     if (!isNullOrUndefined(localStorageVariant) && !isLocalStorageDefault) {
@@ -588,7 +588,7 @@ export class ExperimentClient implements Client {
       };
     }
     // Local storage
-    const localStorageVariant = this.variants.getAll()[key];
+    const localStorageVariant = this.variants.get(key);
     const isLocalStorageDefault = localStorageVariant?.metadata
       ?.default as boolean;
     if (!isNullOrUndefined(localStorageVariant) && !isLocalStorageDefault) {
@@ -839,13 +839,15 @@ export class ExperimentClient implements Client {
     variant: Variant | undefined,
     source: VariantSource | undefined,
   ): void {
-    const user = this.addContext(this.getUser());
-    const event = exposureEvent(user, key, variant, source);
-    if (isFallback(source) || !variant?.value) {
-      this.analyticsProvider?.unsetUserProperty?.(event);
-    } else if (variant?.value) {
-      this.analyticsProvider?.setUserProperty?.(event);
-      this.analyticsProvider?.track(event);
+    if (this.analyticsProvider) {
+      const user = this.addContext(this.getUser());
+      const event = exposureEvent(user, key, variant, source);
+      if (isFallback(source) || !variant?.value) {
+        this.analyticsProvider?.unsetUserProperty?.(event);
+      } else if (variant?.value) {
+        this.analyticsProvider?.setUserProperty?.(event);
+        this.analyticsProvider?.track(event);
+      }
     }
   }
 
