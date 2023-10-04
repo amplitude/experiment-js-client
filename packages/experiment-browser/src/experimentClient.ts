@@ -457,7 +457,7 @@ export class ExperimentClient implements Client {
     // Local evaluation
     const variant = this.evaluate([flag.key])[key];
     const source = VariantSource.LocalEvaluation;
-    const isLocalEvaluationDefault = variant.metadata?.default as boolean;
+    const isLocalEvaluationDefault = variant?.metadata?.default as boolean;
     if (!isNullOrUndefined(variant) && !isLocalEvaluationDefault) {
       return {
         variant: this.convertVariant(variant),
