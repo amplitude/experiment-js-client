@@ -7,7 +7,6 @@ import {
   EvaluationApi,
   EvaluationEngine,
   EvaluationFlag,
-  EvaluationVariant,
   FlagApi,
   Poller,
   SdkEvaluationApi,
@@ -41,6 +40,11 @@ import {
   isRemoteEvaluationMode,
 } from './util';
 import { Backoff } from './util/backoff';
+import {
+  convertEvaluationVariantToVariant,
+  convertUserToContext,
+  convertVariant,
+} from './util/convert';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
 import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
 
@@ -408,10 +412,11 @@ export class ExperimentClient implements Client {
   private evaluate(flagKeys?: string[]): Variants {
     const user = this.addContext(this.user);
     const flags = topologicalSort(this.flags.getAll(), flagKeys);
-    const evaluationVariants = this.engine.evaluate({ user: user }, flags);
+    const context = convertUserToContext(user);
+    const evaluationVariants = this.engine.evaluate(context, flags);
     const variants: Variants = {};
     for (const flagKey of Object.keys(evaluationVariants)) {
-      variants[flagKey] = this.translateFromEvaluationVariant(
+      variants[flagKey] = convertEvaluationVariantToVariant(
         evaluationVariants[flagKey],
       );
     }
@@ -460,13 +465,13 @@ export class ExperimentClient implements Client {
     const isLocalEvaluationDefault = variant?.metadata?.default as boolean;
     if (!isNullOrUndefined(variant) && !isLocalEvaluationDefault) {
       return {
-        variant: this.convertVariant(variant),
+        variant: convertVariant(variant),
         source: source,
         hasDefaultVariant: false,
       };
     } else if (isLocalEvaluationDefault) {
       defaultSourceVariant = {
-        variant: this.convertVariant(variant),
+        variant: convertVariant(variant),
         source: source,
         hasDefaultVariant: true,
       };
@@ -474,7 +479,7 @@ export class ExperimentClient implements Client {
     // Inline fallback
     if (!isNullOrUndefined(fallback)) {
       return {
-        variant: this.convertVariant(fallback),
+        variant: convertVariant(fallback),
         source: VariantSource.FallbackInline,
         hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
       };
@@ -483,13 +488,13 @@ export class ExperimentClient implements Client {
     const initialVariant = this.config.initialVariants[key];
     if (!isNullOrUndefined(initialVariant)) {
       return {
-        variant: this.convertVariant(initialVariant),
+        variant: convertVariant(initialVariant),
         source: VariantSource.SecondaryInitialVariants,
         hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
       };
     }
     // Configured fallback, or default variant
-    const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
+    const fallbackVariant = convertVariant(this.config.fallbackVariant);
     const fallbackSourceVariant = {
       variant: fallbackVariant,
       source: VariantSource.FallbackConfig,
@@ -522,13 +527,13 @@ export class ExperimentClient implements Client {
       ?.default as boolean;
     if (!isNullOrUndefined(localStorageVariant) && !isLocalStorageDefault) {
       return {
-        variant: this.convertVariant(localStorageVariant),
+        variant: convertVariant(localStorageVariant),
         source: VariantSource.LocalStorage,
         hasDefaultVariant: false,
       };
     } else if (isLocalStorageDefault) {
       defaultSourceVariant = {
-        variant: this.convertVariant(localStorageVariant),
+        variant: convertVariant(localStorageVariant),
         source: VariantSource.LocalStorage,
         hasDefaultVariant: true,
       };
@@ -536,7 +541,7 @@ export class ExperimentClient implements Client {
     // Inline fallback
     if (!isNullOrUndefined(fallback)) {
       return {
-        variant: this.convertVariant(fallback),
+        variant: convertVariant(fallback),
         source: VariantSource.FallbackInline,
         hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
       };
@@ -545,13 +550,13 @@ export class ExperimentClient implements Client {
     const initialVariant = this.config.initialVariants[key];
     if (!isNullOrUndefined(initialVariant)) {
       return {
-        variant: this.convertVariant(initialVariant),
+        variant: convertVariant(initialVariant),
         source: VariantSource.SecondaryInitialVariants,
         hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
       };
     }
     // Configured fallback, or default variant
-    const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
+    const fallbackVariant = convertVariant(this.config.fallbackVariant);
     const fallbackSourceVariant = {
       variant: fallbackVariant,
       source: VariantSource.FallbackConfig,
@@ -582,7 +587,7 @@ export class ExperimentClient implements Client {
     const initialVariantsVariant = this.config.initialVariants[key];
     if (!isNullOrUndefined(initialVariantsVariant)) {
       return {
-        variant: this.convertVariant(initialVariantsVariant),
+        variant: convertVariant(initialVariantsVariant),
         source: VariantSource.InitialVariants,
         hasDefaultVariant: false,
       };
@@ -593,13 +598,13 @@ export class ExperimentClient implements Client {
       ?.default as boolean;
     if (!isNullOrUndefined(localStorageVariant) && !isLocalStorageDefault) {
       return {
-        variant: this.convertVariant(localStorageVariant),
+        variant: convertVariant(localStorageVariant),
         source: VariantSource.LocalStorage,
         hasDefaultVariant: false,
       };
     } else if (isLocalStorageDefault) {
       defaultSourceVariant = {
-        variant: this.convertVariant(localStorageVariant),
+        variant: convertVariant(localStorageVariant),
         source: VariantSource.LocalStorage,
         hasDefaultVariant: true,
       };
@@ -607,13 +612,13 @@ export class ExperimentClient implements Client {
     // Inline fallback
     if (!isNullOrUndefined(fallback)) {
       return {
-        variant: this.convertVariant(fallback),
+        variant: convertVariant(fallback),
         source: VariantSource.FallbackInline,
         hasDefaultVariant: defaultSourceVariant.hasDefaultVariant,
       };
     }
     // Configured fallback, or default variant
-    const fallbackVariant = this.convertVariant(this.config.fallbackVariant);
+    const fallbackVariant = convertVariant(this.config.fallbackVariant);
     const fallbackSourceVariant = {
       variant: fallbackVariant,
       source: VariantSource.FallbackConfig,
@@ -669,7 +674,7 @@ export class ExperimentClient implements Client {
     });
     const variants: Variants = {};
     for (const key of Object.keys(results)) {
-      variants[key] = this.translateFromEvaluationVariant(results[key]);
+      variants[key] = convertEvaluationVariantToVariant(results[key]);
     }
     this.debug('[Experiment] Received variants: ', variants);
     return variants;
@@ -753,41 +758,6 @@ export class ExperimentClient implements Client {
     }
 
     return this.addContext(user);
-  }
-
-  private convertVariant(value: string | Variant): Variant {
-    if (value === null || value === undefined) {
-      return {};
-    }
-    if (typeof value == 'string') {
-      return {
-        key: value,
-        value: value,
-      };
-    } else {
-      return value;
-    }
-  }
-
-  private translateFromEvaluationVariant(
-    evaluationVariant: EvaluationVariant,
-  ): Variant {
-    if (!evaluationVariant) {
-      return {};
-    }
-    let experimentKey = undefined;
-    if (evaluationVariant.metadata) {
-      experimentKey = evaluationVariant.metadata['experimentKey'];
-    }
-    const variant: Variant = {};
-    if (evaluationVariant.key) variant.key = evaluationVariant.key;
-    if (evaluationVariant.value)
-      variant.value = evaluationVariant.value as string;
-    if (evaluationVariant.payload) variant.payload = evaluationVariant.payload;
-    if (experimentKey) variant.expKey = experimentKey;
-    if (evaluationVariant.metadata)
-      variant.metadata = evaluationVariant.metadata;
-    return variant;
   }
 
   private sourceVariants(): Variants | undefined {
