@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.1...@amplitude/experiment-js-client@1.9.2) (2023-10-06)
+
+
+### Bug Fixes
+
+* add support for groups with client-side local eval ([#89](https://github.com/amplitude/experiment-js-client/issues/89)) ([cd47bcf](https://github.com/amplitude/experiment-js-client/commit/cd47bcf151235c891b0082e5c35c0c35405bc21a))
+* fix nullptr if local evaluation does not return variant ([ed99791](https://github.com/amplitude/experiment-js-client/commit/ed99791fe20ee0d82670a54795e5f3c8bbee2e20))
+
+
+
+
+
 ## [1.9.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.0...@amplitude/experiment-js-client@1.9.1) (2023-09-18)
 
 
