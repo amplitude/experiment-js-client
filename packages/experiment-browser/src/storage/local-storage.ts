@@ -1,16 +1,14 @@
 import { Storage } from '../types/storage';
 export class LocalStorage implements Storage {
-  async get(key: string): Promise<string> {
+  get(key: string): string {
     return localStorage.getItem(key);
   }
 
-  async put(key: string, value: string): Promise<void> {
+  put(key: string, value: string): void {
     localStorage.setItem(key, value);
-    return;
   }
 
-  async delete(key: string): Promise<void> {
+  delete(key: string): void {
     localStorage.removeItem(key);
-    return;
   }
 }

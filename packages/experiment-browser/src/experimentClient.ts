@@ -149,8 +149,8 @@ export class ExperimentClient implements Client {
       storage,
     );
     this.flags = getFlagStorage(this.apiKey, this.config.instanceName, storage);
-    void this.flags.load();
-    void this.variants.load();
+    this.flags.load();
+    this.variants.load();
   }
 
   /**
@@ -688,7 +688,7 @@ export class ExperimentClient implements Client {
     });
     this.flags.clear();
     this.flags.putAll(flags);
-    await this.flags.store();
+    this.flags.store();
   }
 
   private async storeVariants(
@@ -707,7 +707,7 @@ export class ExperimentClient implements Client {
     for (const key in failedFlagKeys) {
       this.variants.remove(key);
     }
-    await this.variants.store();
+    this.variants.store();
     this.debug('[Experiment] Stored variants: ', variants);
   }
 
