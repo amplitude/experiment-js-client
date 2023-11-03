@@ -71,7 +71,7 @@ export class LoadStoreCache<V> {
     this.cache = {};
   }
 
-  public async load() {
+  public load() {
     const rawValues = this.storage.get(this.namespace);
     let jsonValues: Record<string, unknown>;
     try {
@@ -100,7 +100,7 @@ export class LoadStoreCache<V> {
     this.putAll(values);
   }
 
-  public async store(values: Record<string, V> = this.cache) {
+  public store(values: Record<string, V> = this.cache) {
     this.storage.put(this.namespace, JSON.stringify(values));
   }
 }
