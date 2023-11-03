@@ -13,15 +13,15 @@ export const mockClientStorage = (client: Client) => {
 
 class MockStorage implements Storage {
   private store = {};
-  async delete(key: string): Promise<void> {
+  delete(key: string): void {
     delete this.store[key];
   }
 
-  async get(key: string): Promise<string> {
+  get(key: string): string {
     return this.store[key];
   }
 
-  async put(key: string, value: string): Promise<void> {
+  put(key: string, value: string): void {
     this.store[key] = value;
   }
 }

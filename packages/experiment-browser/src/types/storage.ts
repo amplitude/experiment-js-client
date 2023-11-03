@@ -1,5 +1,5 @@
 export interface Storage {
-  get(key: string): Promise<string>;
-  put(key: string, value: string): Promise<void>;
-  delete(key: string): Promise<void>;
+  get(key: string): string;
+  put(key: string, value: string): void;
+  delete(key: string): void;
 }
