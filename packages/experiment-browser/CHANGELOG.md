@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.3...@amplitude/experiment-js-client@1.9.4) (2023-11-03)
+
+
+### Bug Fixes
+
+* remove async from cache load and store ([0057076](https://github.com/amplitude/experiment-js-client/commit/0057076b7ab67283376ff993ea30f14383dad994))
+
+
+
+
+
 ## [1.9.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.2...@amplitude/experiment-js-client@1.9.3) (2023-11-03)
 
 
