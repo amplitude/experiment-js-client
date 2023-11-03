@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.2...@amplitude/experiment-js-client@1.9.3) (2023-11-03)
+
+
+### Bug Fixes
+
+* make storage synchronous ([#90](https://github.com/amplitude/experiment-js-client/issues/90)) ([f279830](https://github.com/amplitude/experiment-js-client/commit/f279830a11bb2a0a147defb6d28bc3f89808f1f4))
+
+
+
+
+
 ## [1.9.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.1...@amplitude/experiment-js-client@1.9.2) (2023-10-06)
 
 
