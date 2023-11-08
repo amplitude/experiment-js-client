@@ -87,8 +87,7 @@ export interface ExperimentConfig {
    *
    *  - `true`:      fetch will always be called on start.
    *  - `false`:     fetch will never be called on start.
-   *  - `undefined`: the SDK will determine whether to call fetch based on the
-   *                 flags returned in the result.
+   *  - `undefined`: fetch will always be called on start.
    */
   fetchOnStart?: boolean;
 
@@ -175,7 +174,7 @@ export const Defaults: ExperimentConfig = {
   retryFetchOnFailure: true,
   automaticExposureTracking: true,
   pollOnStart: true,
-  fetchOnStart: undefined,
+  fetchOnStart: true,
   automaticFetchOnAmplitudeIdentityChange: false,
   userProvider: null,
   analyticsProvider: null,

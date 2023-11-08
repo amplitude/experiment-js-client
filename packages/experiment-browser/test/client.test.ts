@@ -1010,7 +1010,7 @@ describe('start', () => {
     await client.start();
     expect(fetchSpy).toBeCalledTimes(1);
   }, 10000);
-  test('with local evaluation only, does not call fetch', async () => {
+  test('with local evaluation only, calls fetch', async () => {
     const client = new ExperimentClient(API_KEY, {});
     mockClientStorage(client);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -1020,7 +1020,7 @@ describe('start', () => {
     };
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
-    expect(fetchSpy).toBeCalledTimes(0);
+    expect(fetchSpy).toBeCalledTimes(1);
   });
 
   test('with local evaluation only, fetchOnStart enabled, calls fetch', async () => {
