@@ -159,11 +159,7 @@ export class ExperimentClient implements Client {
    * local flag configurations have been updated, and the {@link fetch()}
    * result has been received (if the request was made).
    *
-   * This function determines whether to {@link fetch()} based on the result of
-   * the flag configurations cached locally or received in the initial flag
-   * configuration response.
-   *
-   * To force this request not to fetch, set the {@link fetchOnStart}
+   * To force this function not to fetch variants, set the {@link fetchOnStart}
    * configuration option to `false` when initializing the SDK.
    *
    * Finally, this function will start polling for flag configurations at a
