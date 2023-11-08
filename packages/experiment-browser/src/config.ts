@@ -152,7 +152,7 @@ export interface ExperimentConfig {
  | **retryFailedAssignment**    | `true` |
  | **automaticExposureTracking** | `true` |
  | **pollOnStart** | `true` |
- | **fetchOnStart** | `undefined` |
+ | **fetchOnStart** | `true` |
  | **automaticFetchOnAmplitudeIdentityChange** | `false` |
  | **userProvider**    | `null` |
  | **analyticsProvider**    | `null` |
