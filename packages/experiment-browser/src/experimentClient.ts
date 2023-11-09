@@ -159,12 +159,8 @@ export class ExperimentClient implements Client {
    * local flag configurations have been updated, and the {@link fetch()}
    * result has been received (if the request was made).
    *
-   * This function determines whether to {@link fetch()} based on the result of
-   * the flag configurations cached locally or received in the initial flag
-   * configuration response.
-   *
-   * To explicitly force this request to fetch or not, set the
-   * {@link fetchOnStart} configuration option when initializing the SDK.
+   * To force this function not to fetch variants, set the {@link fetchOnStart}
+   * configuration option to `false` when initializing the SDK.
    *
    * Finally, this function will start polling for flag configurations at a
    * fixed interval. To disable polling, set the {@link pollOnStart}
@@ -183,32 +179,12 @@ export class ExperimentClient implements Client {
       this.isRunning = true;
     }
     this.setUser(user);
-    // Get flag configurations, and simultaneously check the local cache for
-    // remote evaluation flags.
     const flagsReadyPromise = this.doFlags();
-    let remoteFlags =
-      this.config.fetchOnStart ??
-      Object.values(this.flags.getAll()).some((flag) =>
-        isRemoteEvaluationMode(flag),
-      );
-    if (remoteFlags) {
-      // We already have remote flags in our flag cache, so we know we need to
-      // evaluate remotely even before we've updated our flags.
+    const fetchOnStart = this.config.fetchOnStart ?? true;
+    if (fetchOnStart) {
       await Promise.all([this.fetch(user), flagsReadyPromise]);
     } else {
-      // We don't know if remote evaluation is required, await the flag promise,
-      // and recheck for remote flags.
       await flagsReadyPromise;
-      remoteFlags =
-        this.config.fetchOnStart ??
-        Object.values(this.flags.getAll()).some((flag) =>
-          isRemoteEvaluationMode(flag),
-        );
-      if (remoteFlags) {
-        // We already have remote flags in our flag cache, so we know we need to
-        // evaluate remotely even before we've updated our flags.
-        await this.fetch(user);
-      }
     }
     if (this.config.pollOnStart) {
       this.poller.start();
