@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.4...@amplitude/experiment-js-client@1.9.5) (2023-11-09)
+
+
+### Bug Fixes
+
+* call fetch on start by default ([#91](https://github.com/amplitude/experiment-js-client/issues/91)) ([8bb93fa](https://github.com/amplitude/experiment-js-client/commit/8bb93faa162e730fa5f1492875556585f359cd38))
+
+
+
+
+
 ## [1.9.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.3...@amplitude/experiment-js-client@1.9.4) (2023-11-03)
 
 
