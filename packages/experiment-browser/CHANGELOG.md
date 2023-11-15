@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.6](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.5...@amplitude/experiment-js-client@1.9.6) (2023-11-15)
+
+
+### Bug Fixes
+
+* Handle localStorage errors from iframe ([#92](https://github.com/amplitude/experiment-js-client/issues/92)) ([159947e](https://github.com/amplitude/experiment-js-client/commit/159947e6f2824895118c45aeec6d9a102c015a44))
+
+
+
+
+
 ## [1.9.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.4...@amplitude/experiment-js-client@1.9.5) (2023-11-09)
 
 
