@@ -149,8 +149,12 @@ export class ExperimentClient implements Client {
       storage,
     );
     this.flags = getFlagStorage(this.apiKey, this.config.instanceName, storage);
-    this.flags.load();
-    this.variants.load();
+    try {
+      this.flags.load();
+      this.variants.load();
+    } catch (e) {
+      console.warn('Failed to load flags and variants from localStorage', e);
+    }
   }
 
   /**
@@ -322,7 +326,11 @@ export class ExperimentClient implements Client {
    */
   public clear(): void {
     this.variants.clear();
-    void this.variants.store();
+    try {
+      void this.variants.store();
+    } catch (e) {
+      console.warn('Failed to store variants in localStorage', e);
+    }
   }
 
   /**
@@ -664,7 +672,11 @@ export class ExperimentClient implements Client {
     });
     this.flags.clear();
     this.flags.putAll(flags);
-    this.flags.store();
+    try {
+      this.flags.store();
+    } catch (e) {
+      console.warn('Failed to store flags in localStorage', e);
+    }
   }
 
   private async storeVariants(
@@ -683,7 +695,11 @@ export class ExperimentClient implements Client {
     for (const key in failedFlagKeys) {
       this.variants.remove(key);
     }
-    this.variants.store();
+    try {
+      this.variants.store();
+    } catch (e) {
+      console.warn('Failed to store variants in localStorage', e);
+    }
     this.debug('[Experiment] Stored variants: ', variants);
   }
 
