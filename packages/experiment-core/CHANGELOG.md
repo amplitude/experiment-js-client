@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.7.0...@amplitude/experiment-core@0.7.1) (2023-11-21)
+
+
+### Bug Fixes
+
+* experiment-core types ([f8da426](https://github.com/amplitude/experiment-js-client/commit/f8da426f0f9ed1cc85afebe7ada6ec6819fa24d0))
+
+
+
+
+
 # 0.7.0 (2023-08-29)
 
 
