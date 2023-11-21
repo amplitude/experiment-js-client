@@ -6,6 +6,7 @@
     "declarationDir": "dist/types",
     "downlevelIteration": true,
     "strict": true,
-    "baseUrl": "./src"
+    "baseUrl": "./src",
+    "rootDir": "."
   }
 }
