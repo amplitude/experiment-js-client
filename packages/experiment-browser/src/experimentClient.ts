@@ -155,6 +155,7 @@ export class ExperimentClient implements Client {
     } catch (e) {
       console.warn('Failed to load flags and variants from localStorage', e);
     }
+    this.mergeInitialFlagsWithStorage();
   }
 
   /**
@@ -391,6 +392,17 @@ export class ExperimentClient implements Client {
   public setUserProvider(userProvider: ExperimentUserProvider): Client {
     this.userProvider = userProvider;
     return this;
+  }
+
+  private mergeInitialFlagsWithStorage(): void {
+    if (this.config.initialFlags) {
+      const initialFlags = JSON.parse(this.config.initialFlags);
+      for (const key in initialFlags) {
+        if (!this.flags.get(initialFlags[key].key)) {
+          this.flags.put(initialFlags[key].key, initialFlags[key]);
+        }
+      }
+    }
   }
 
   private evaluate(flagKeys?: string[]): Variants {
@@ -677,6 +689,7 @@ export class ExperimentClient implements Client {
     } catch (e) {
       console.warn('Failed to store flags in localStorage', e);
     }
+    this.mergeInitialFlagsWithStorage();
   }
 
   private async storeVariants(

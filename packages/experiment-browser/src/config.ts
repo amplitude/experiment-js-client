@@ -30,6 +30,11 @@ export interface ExperimentConfig {
   fallbackVariant?: Variant;
 
   /**
+   * Initial values for flags.
+   */
+  initialFlags?: string;
+
+  /**
    * Initial values for variants. This is useful for bootstrapping the
    * client with fallbacks and values evaluated from server-side rendering.
    * @see Variants
@@ -144,6 +149,7 @@ export interface ExperimentConfig {
  | **instanceName** | `$default_instance` |
  | **fallbackVariant**         | `null`                 |
  | **initialVariants**         | `null`                 |
+ | **initialFlags**         | `null`                 |
  | **source** | `Source.LocalStorage` |
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
  | **flagsServerUrl**    | `"https://flag.lab.amplitude.com"` |
@@ -166,6 +172,7 @@ export const Defaults: ExperimentConfig = {
   instanceName: '$default_instance',
   fallbackVariant: {},
   initialVariants: {},
+  initialFlags: null,
   source: Source.LocalStorage,
   serverUrl: 'https://api.lab.amplitude.com',
   flagsServerUrl: 'https://flag.lab.amplitude.com',
