@@ -1049,6 +1049,7 @@ describe('start', () => {
   });
 
   test('initial flags', async () => {
+    // Flag, sdk-ci-test-local is modified to always return off
     const client = new ExperimentClient(API_KEY, {
       fetchOnStart: false,
       initialFlags: `
@@ -1064,15 +1065,18 @@ describe('start', () => {
     let variant2 = client.variant('sdk-ci-test-local-2');
     expect(variant.key).toEqual('off');
     expect(variant2.key).toEqual('on');
+    // Call start to update the flag, overwrites the initial flag to return on
     await client.start(user);
     variant = client.variant('sdk-ci-test-local');
     variant2 = client.variant('sdk-ci-test-local-2');
     expect(variant.key).toEqual('on');
     expect(variant2.key).toEqual('on');
+    // Initialize a second client with the same storage to simulate an app restart
     const client2 = new ExperimentClient(API_KEY, {
       fetchOnStart: false,
     });
     client2.setUser(user);
+    // Storage flag should take precedent over initial flag
     variant = client.variant('sdk-ci-test-local');
     variant2 = client.variant('sdk-ci-test-local-2');
     expect(variant.key).toEqual('on');
