@@ -37,7 +37,6 @@ import {
   isLocalEvaluationMode,
   isNullOrUndefined,
   isNullUndefinedOrEmpty,
-  isRemoteEvaluationMode,
 } from './util';
 import { Backoff } from './util/backoff';
 import {
