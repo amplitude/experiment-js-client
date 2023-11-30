@@ -1,10 +1,10 @@
-import { FetchHttpClient } from './transport/http';
-import { ExperimentAnalyticsProvider } from './types/analytics';
-import { ExposureTrackingProvider } from './types/exposure';
-import { ExperimentUserProvider } from './types/provider';
-import { Source } from './types/source';
-import { HttpClient } from './types/transport';
-import { Variant, Variants } from './types/variant';
+import {FetchHttpClient} from './transport/http';
+import {ExperimentAnalyticsProvider} from './types/analytics';
+import {ExposureTrackingProvider} from './types/exposure';
+import {ExperimentUserProvider} from './types/provider';
+import {Source} from './types/source';
+import {HttpClient} from './types/transport';
+import {Variant, Variants} from './types/variant';
 
 /**
  * @category Configuration
@@ -30,16 +30,17 @@ export interface ExperimentConfig {
   fallbackVariant?: Variant;
 
   /**
-   * Initial values for flags.
-   */
-  initialFlags?: string;
-
-  /**
    * Initial values for variants. This is useful for bootstrapping the
    * client with fallbacks and values evaluated from server-side rendering.
    * @see Variants
    */
   initialVariants?: Variants;
+
+  /**
+   * Initial values for flags. This is useful for bootstrapping the
+   * client with fallbacks for flag configs.
+   */
+  initialFlags?: string;
 
   /**
    * Determines the primary source of variants and variants before falling back.
