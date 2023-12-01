@@ -150,7 +150,7 @@ export interface ExperimentConfig {
  | **instanceName** | `$default_instance` |
  | **fallbackVariant**         | `null`                 |
  | **initialVariants**         | `null`                 |
- | **initialFlags**         | `null`                 |
+ | **initialFlags**         | `undefined`                 |
  | **source** | `Source.LocalStorage` |
  | **serverUrl**    | `"https://api.lab.amplitude.com"` |
  | **flagsServerUrl**    | `"https://flag.lab.amplitude.com"` |
@@ -173,7 +173,7 @@ export const Defaults: ExperimentConfig = {
   instanceName: '$default_instance',
   fallbackVariant: {},
   initialVariants: {},
-  initialFlags: null,
+  initialFlags: undefined,
   source: Source.LocalStorage,
   serverUrl: 'https://api.lab.amplitude.com',
   flagsServerUrl: 'https://flag.lab.amplitude.com',

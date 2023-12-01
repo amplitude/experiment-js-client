@@ -396,9 +396,9 @@ export class ExperimentClient implements Client {
   private mergeInitialFlagsWithStorage(): void {
     if (this.config.initialFlags) {
       const initialFlags = JSON.parse(this.config.initialFlags);
-      for (const key in initialFlags) {
-        if (!this.flags.get(initialFlags[key].key)) {
-          this.flags.put(initialFlags[key].key, initialFlags[key]);
+      for (const flag of initialFlags) {
+        if (!this.flags.get(flag.key)) {
+          this.flags.put(flag.key, flag);
         }
       }
     }
