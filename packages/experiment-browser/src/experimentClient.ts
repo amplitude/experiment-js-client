@@ -435,8 +435,6 @@ export class ExperimentClient implements Client {
     return sourceVariant;
   }
 
-  // TODO variant and source for both local and remote needs to be cleaned up.
-
   /**
    * This function assumes the flag exists and is local evaluation mode. For
    * local evaluation, fallback order goes:
