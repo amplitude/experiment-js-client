@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.8](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.7...@amplitude/experiment-js-client@1.9.8) (2024-01-11)
+
+
+### Bug Fixes
+
+* remove localStorage undefined warning message ([#95](https://github.com/amplitude/experiment-js-client/issues/95)) ([19fdf19](https://github.com/amplitude/experiment-js-client/commit/19fdf197c2959b70ce7c100b25f225088f693ac0))
+
+
+
+
+
 ## [1.9.7](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.6...@amplitude/experiment-js-client@1.9.7) (2023-11-21)
 
 **Note:** Version bump only for package @amplitude/experiment-js-client
