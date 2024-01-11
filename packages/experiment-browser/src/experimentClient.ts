@@ -153,7 +153,7 @@ export class ExperimentClient implements Client {
       this.flags.load();
       this.variants.load();
     } catch (e) {
-      console.warn('Failed to load flags and variants from localStorage', e);
+      // catch localStorage undefined error
     }
   }
 
@@ -329,7 +329,7 @@ export class ExperimentClient implements Client {
     try {
       void this.variants.store();
     } catch (e) {
-      console.warn('Failed to store variants in localStorage', e);
+      // catch localStorage undefined error
     }
   }
 
@@ -675,7 +675,7 @@ export class ExperimentClient implements Client {
     try {
       this.flags.store();
     } catch (e) {
-      console.warn('Failed to store flags in localStorage', e);
+      // catch localStorage undefined error
     }
   }
 
@@ -698,7 +698,7 @@ export class ExperimentClient implements Client {
     try {
       this.variants.store();
     } catch (e) {
-      console.warn('Failed to store variants in localStorage', e);
+      // catch localStorage undefined error
     }
     this.debug('[Experiment] Stored variants: ', variants);
   }
