@@ -1,5 +1,6 @@
 import { Base64 } from 'js-base64';
 
+import { FetchError } from '../evaluation/error';
 import { EvaluationVariant } from '../evaluation/flag';
 import { HttpClient } from '../transport/http';
 
@@ -55,7 +56,10 @@ export class SdkEvaluationApi implements EvaluationApi {
       timeoutMillis: options?.timeoutMillis,
     });
     if (response.status != 200) {
-      throw Error(`Fetch error response: status=${response.status}`);
+      throw new FetchError(
+        response.status,
+        `Fetch error response: status=${response.status}`,
+      );
     }
     return JSON.parse(response.body);
   }

@@ -7,6 +7,7 @@ import {
   EvaluationApi,
   EvaluationEngine,
   EvaluationFlag,
+  FetchError,
   FlagApi,
   Poller,
   SdkEvaluationApi,
@@ -37,7 +38,6 @@ import {
   isLocalEvaluationMode,
   isNullOrUndefined,
   isNullUndefinedOrEmpty,
-  isRemoteEvaluationMode,
 } from './util';
 import { Backoff } from './util/backoff';
 import {
@@ -638,7 +638,7 @@ export class ExperimentClient implements Client {
       await this.storeVariants(variants, options);
       return variants;
     } catch (e) {
-      if (retry) {
+      if (retry && this.shouldRetryFetch(e)) {
         void this.startRetries(user, options);
       }
       throw e;
@@ -818,6 +818,13 @@ export class ExperimentClient implements Client {
     if (this.config.debug) {
       console.debug(message, ...optionalParams);
     }
+  }
+
+  private shouldRetryFetch(e: Error): boolean {
+    if (e instanceof FetchError) {
+      return e.statusCode < 400 || e.statusCode >= 500 || e.statusCode === 429;
+    }
+    return true;
   }
 }
 
