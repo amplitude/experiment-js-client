@@ -627,7 +627,7 @@ export class ExperimentClient implements Client {
 
     this.debug(`[Experiment] Fetch all: retry=${retry}`);
 
-    // Proactively cancel retries if active in order to avoid unecessary API
+    // Proactively cancel retries if active in order to avoid unnecessary API
     // requests. A new failure will restart the retries.
     if (retry) {
       this.stopRetries();
