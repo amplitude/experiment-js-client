@@ -1,4 +1,5 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
+import { FetchError } from '@amplitude/experiment-core';
 
 import {
   ExperimentAnalyticsProvider,
@@ -259,9 +260,11 @@ class TestAnalyticsProvider
   track(): void {
     return;
   }
+
   setUserProperty(): void {
     return;
   }
+
   unsetUserProperty(): void {
     return;
   }
@@ -1047,4 +1050,49 @@ describe('start', () => {
     await client.start();
     expect(fetchSpy).toBeCalledTimes(0);
   });
+});
+
+describe('fetch retry with different response codes', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  test.each([
+    [300, 'Fetch Exception 300', 1],
+    [400, 'Fetch Exception 400', 0],
+    [429, 'Fetch Exception 429', 1],
+    [500, 'Fetch Exception 500', 1],
+    [0, 'Other Exception', 1],
+  ])(
+    'responseCode=%p, errorMessage=%p, retryCalled=%p',
+    async (responseCode, errorMessage, retryCalled) => {
+      const client = new ExperimentClient(API_KEY, {
+        retryFetchOnFailure: true,
+      });
+      mockClientStorage(client);
+
+      jest
+        .spyOn(ExperimentClient.prototype as any, 'doFetch')
+        .mockImplementation(
+          async (user?: ExperimentUser, options?: FetchOptions) => {
+            return new Promise<ExperimentClient>((resolve, reject) => {
+              if (responseCode === 0) {
+                reject(new Error(errorMessage));
+              } else {
+                reject(new FetchError(responseCode, errorMessage));
+              }
+            });
+          },
+        );
+      const retryMock = jest.spyOn(
+        ExperimentClient.prototype as any,
+        'startRetries',
+      );
+      try {
+        await client.fetch({ user_id: 'test_user' });
+      } catch (e) {
+        // catch error
+      }
+      expect(retryMock).toHaveBeenCalledTimes(retryCalled);
+    },
+  );
 });
