@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.9](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.8...@amplitude/experiment-js-client@1.9.9) (2024-01-29)
+
+
+### Bug Fixes
+
+* Improve remote evaluation fetch retry logic ([#96](https://github.com/amplitude/experiment-js-client/issues/96)) ([9b8a559](https://github.com/amplitude/experiment-js-client/commit/9b8a559aed2ea1f594e0f1c94f14d64131ed7eb8))
+
+
+
+
+
 ## [1.9.8](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.7...@amplitude/experiment-js-client@1.9.8) (2024-01-11)
 
 
