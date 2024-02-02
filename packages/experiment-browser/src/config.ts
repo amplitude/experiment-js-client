@@ -162,7 +162,7 @@ export interface ExperimentConfig {
  | **userProvider**    | `null` |
  | **analyticsProvider**    | `null` |
  | **exposureTrackingProvider**    | `null` |
- | **deploymentKey**    | `null` |
+ | **deploymentKey**    | `undefined` |
 
  *
  * @category Configuration
@@ -186,5 +186,5 @@ export const Defaults: ExperimentConfig = {
   analyticsProvider: null,
   exposureTrackingProvider: null,
   httpClient: FetchHttpClient,
-  deploymentKey: null,
+  deploymentKey: undefined,
 };
