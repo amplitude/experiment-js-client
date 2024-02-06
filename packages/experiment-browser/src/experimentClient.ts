@@ -155,6 +155,7 @@ export class ExperimentClient implements Client {
     } catch (e) {
       // catch localStorage undefined error
     }
+    this.mergeInitialFlagsWithStorage();
   }
 
   /**
@@ -393,6 +394,17 @@ export class ExperimentClient implements Client {
     return this;
   }
 
+  private mergeInitialFlagsWithStorage(): void {
+    if (this.config.initialFlags) {
+      const initialFlags = JSON.parse(this.config.initialFlags);
+      initialFlags.forEach((flag: EvaluationFlag) => {
+        if (!this.flags.get(flag.key)) {
+          this.flags.put(flag.key, flag);
+        }
+      });
+    }
+  }
+
   private evaluate(flagKeys?: string[]): Variants {
     const user = this.addContext(this.user);
     const flags = topologicalSort(this.flags.getAll(), flagKeys);
@@ -423,8 +435,6 @@ export class ExperimentClient implements Client {
     }
     return sourceVariant;
   }
-
-  // TODO variant and source for both local and remote needs to be cleaned up.
 
   /**
    * This function assumes the flag exists and is local evaluation mode. For
@@ -677,6 +687,7 @@ export class ExperimentClient implements Client {
     } catch (e) {
       // catch localStorage undefined error
     }
+    this.mergeInitialFlagsWithStorage();
   }
 
   private async storeVariants(
