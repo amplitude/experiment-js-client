@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.10.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.9...@amplitude/experiment-js-client@1.10.0) (2024-02-06)
+
+
+### Features
+
+* bootstrap initial local evaluation flags ([#93](https://github.com/amplitude/experiment-js-client/issues/93)) ([53a9ded](https://github.com/amplitude/experiment-js-client/commit/53a9dedb1f5433f1fb4f1fd510fe1c278d56319b))
+
+
+
+
+
 ## [1.9.9](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.9.8...@amplitude/experiment-js-client@1.9.9) (2024-01-29)
 
 
