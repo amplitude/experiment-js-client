@@ -12,7 +12,6 @@ export {
 export { topologicalSort } from './evaluation/topological-sort';
 export { EvaluationApi, SdkEvaluationApi } from './api/evaluation-api';
 export { FlagApi, SdkFlagApi } from './api/flag-api';
-export { StreamApi, SdkStreamApi, StreamOptions } from './api/stream-api';
 export {
   StreamFlagApi,
   SdkStreamFlagApi,

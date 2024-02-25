@@ -1,6 +1,9 @@
-/* eslint-disable no-console */
 import { EvaluationFlag } from '../evaluation/flag';
-import { StreamEventSourceClass, StreamErrorEvent } from '../transport/stream';
+import {
+  StreamEventSourceClass,
+  StreamErrorEvent,
+  DefaultStreamErrorEvents,
+} from '../transport/stream';
 
 import {
   SdkStreamApi,
@@ -9,16 +12,10 @@ import {
 } from './stream-api';
 
 const DEFAULT_INITIAL_CONN_TIMEOUT = 1000;
+const DEFAULT_TRY_ATTEMPTS = 2;
+const DEFAULT_TRY_WAIT_TIMEOUT = 1000;
 
-// Changing retry params will also need to change tests.
-const TRY_ATTEMPTS = 2;
-const TRY_WAIT_TIMEOUT = 1000;
-
-export type StreamFlagOptions = StreamOptions & {
-  // Timeout for a single try of connection.
-  // Includes streamConnTimeoutMillis and time for receiving initial flag configs.
-  streamFlagConnTimeoutMillis?: number;
-};
+export type StreamFlagOptions = StreamOptions;
 
 export type StreamFlagOnUpdateCallback = (
   flags: Record<string, EvaluationFlag>,
@@ -26,57 +23,106 @@ export type StreamFlagOnUpdateCallback = (
 export type StreamFlagOnErrorCallback = StreamOnErrorCallback;
 
 export interface StreamFlagApi {
-  connect(options?: StreamOptions): void;
+  /**
+   * To connect to the stream flag endpoint.
+   * It will connect the stream and makes sure the initial flag configs are received and valid.
+   * The initial flag configs are delivered through onUpdate.
+   * It attempts to retry up to the attempts specified.
+   * If fatal error happens during connect() call, error will be thrown instead of delivered through onError.
+   * @param options Options for connection.
+   */
+  connect(options?: StreamOptions): Promise<void>;
+  /**
+   * To close the stream.
+   * If application don't call this, the application may not exit as there are underlaying timers.
+   */
   close(): void;
+  /**
+   * Check if the stream is closed and no retry action is happening.
+   */
   isClosed: boolean;
+  /**
+   * Callback for receiving flag configs updates.
+   * Can set this value directly multiple times and effect immediately.
+   */
   onUpdate?: StreamFlagOnUpdateCallback;
+  /**
+   * Callback for receiving fatal errors.
+   * Fatal errors are defined as server returning 501 or retry has reached max attempts.
+   * This callback will not be called when error happens during connect() call. The error will be throwed in connect() instead.
+   * Can set this value directly multiple times and effect immediately.
+   */
   onError?: StreamFlagOnErrorCallback;
 }
 
+/**
+ * This class receives flag config updates from server.
+ * It also handles errors, retries, flag parsing, and initial flags on connection, in addition to SdkStreamApi.
+ */
 export class SdkStreamFlagApi implements StreamFlagApi {
+  // Underlaying SSE api.
   private api: SdkStreamApi;
-  private initConnTimeout?: NodeJS.Timeout;
-  private options?: StreamOptions;
+  // Flag for whether the stream is open and retrying or closed. This is to avoid calling connect() twice.
   private isClosedAndNotTrying = true;
+
+  // Callback for updating flag configs. Can be set or changed multiple times and effect immediately.
   public onUpdate?: StreamFlagOnUpdateCallback;
+  // Callback for notifying user of fatal errors. Can be set or changed multiple times and effect immediately.
   public onError?: StreamFlagOnErrorCallback;
+
+  // Options for streaming.
+  private options?: StreamFlagOptions;
+  // Timeout for a single try of connection. Includes streamConnTimeoutMillis and time for receiving initial flag configs.
+  private streamFlagConnTimeoutMillis: number;
+  // Number of attempts for trying connection.
+  private streamFlagTryAttempts: number;
+  // The delay between attempts.
+  private streamFlagTryDelayMillis: number;
 
   constructor(
     deploymentKey: string,
     serverUrl: string,
     eventSourceClass: StreamEventSourceClass,
-    onUpdate?: StreamFlagOnUpdateCallback,
-    onError?: StreamFlagOnErrorCallback,
+    streamConnTimeoutMillis?: number,
+    streamFlagConnTimeoutMillis: number = DEFAULT_INITIAL_CONN_TIMEOUT,
+    streamFlagTryAttempts: number = DEFAULT_TRY_ATTEMPTS,
+    streamFlagTryDelayMillis: number = DEFAULT_TRY_WAIT_TIMEOUT,
   ) {
     this.api = new SdkStreamApi(
       deploymentKey,
       serverUrl + '/sdk/stream/v1/flags',
       eventSourceClass,
+      streamConnTimeoutMillis,
     );
-    if (onUpdate) {
-      this.onUpdate = onUpdate;
-    }
-    if (onError) {
-      this.onError = onError;
-    }
+    this.streamFlagConnTimeoutMillis = Math.max(0, streamFlagConnTimeoutMillis);
+    this.streamFlagTryAttempts = Math.max(1, streamFlagTryAttempts);
+    this.streamFlagTryDelayMillis = Math.max(0, streamFlagTryDelayMillis);
   }
 
   // A try:
   // Try connect and receive at least one single flag update.
   private connectTry(options?: StreamFlagOptions) {
+    // Timeout for initial connection. Makes sure the connection do not exceed a certain interval.
     let timeout: NodeJS.Timeout | undefined = undefined;
     return new Promise<void>((resolve, reject) => {
       // On connection and receiving first update, success, set future flag update callback and error handling retries.
-      const dealWithFlagUpdateInOneTry = (data: string) => {
-        this.api.onUpdate = (data: string) => this.handleNewMsg(data);
-        this.api.onError = (err: StreamErrorEvent) => this.errorAndRetry(err);
-        console.log('First push here');
+      const dealWithFlagUpdateInOneTry = async (data: string) => {
         if (timeout) {
           clearTimeout(timeout);
         }
+        try {
+          // Make sure valid flag configs.
+          SdkStreamFlagApi.parseFlagConfigs(data);
+        } catch (e) {
+          return reject(DefaultStreamErrorEvents.DATA_UNPARSABLE);
+        }
+        // Update the callbacks.
+        this.api.onUpdate = (data: string) => this.handleNewMsg(data);
+        this.api.onError = (err: StreamErrorEvent) => this.errorAndRetry(err);
+        // Resolve promise which declares client ready.
+        resolve();
+        // Handoff data to application.
         this.handleNewMsg(data);
-
-        resolve(); // Return promise which declares client ready.
       };
       this.api.onUpdate = dealWithFlagUpdateInOneTry;
 
@@ -91,79 +137,79 @@ export class SdkStreamFlagApi implements StreamFlagApi {
       this.api.onError = dealWithErrorInOneTry;
 
       // Try connect.
-      console.log('Connecting');
       this.api.connect(options);
 
       // If it fails to return flag update within limit time, fails try.
       timeout = setTimeout(() => {
-        dealWithErrorInOneTry({ message: 'timeout' });
-      }, options?.streamFlagConnTimeoutMillis ?? DEFAULT_INITIAL_CONN_TIMEOUT);
+        dealWithErrorInOneTry(DefaultStreamErrorEvents.TIMEOUT);
+      }, this.streamFlagConnTimeoutMillis);
     });
   }
 
   // Do try up to 2 times. If any of error is fatal, stop any further tries.
   // If trials times reached, fatal error.
   public async connect(options?: StreamFlagOptions) {
+    // Makes sure there is no other connect running.
     if (!this.isClosedAndNotTrying) {
       return;
     }
     this.isClosedAndNotTrying = false;
 
-    this.options = options;
-    for (let i = 0; i < TRY_ATTEMPTS; i++) {
+    this.options = options; // Save options for retries in case of errors.
+    const attempts = this.streamFlagTryAttempts;
+    const delay = this.streamFlagTryDelayMillis;
+    for (let i = 0; i < attempts; i++) {
       if (this.isClosedAndNotTrying) {
         // There's a call to close while waiting for retry.
         return;
       }
+
       try {
+        // Try.
         return await this.connectTry(options);
       } catch (e) {
-        // connectTry() does not call close or closeForRetry.
-        console.log('connect failed');
+        // connectTry() does not call close or closeForRetry on error.
         const err = e as StreamErrorEvent;
-        if (this.isFatal(err) || i == TRY_ATTEMPTS - 1) {
-          // No fatalErr(). We want to fail instead of call onError.
-          await this.close();
-          throw err; // Failing the connect().
+        if (this.isFatal(err) || i == attempts - 1) {
+          // We want to throw exception instead of call onError callback.
+          this.close();
+          throw err;
         }
-        // Retry
-        await this.closeForRetry();
-        await new Promise((resolve) => setTimeout(resolve, TRY_WAIT_TIMEOUT));
+
+        // Retry.
+        this.closeForRetry();
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
 
   // Close stream.
-  public async close() {
-    await this.closeForRetry();
+  public close() {
+    this.closeForRetry();
     this.isClosedAndNotTrying = true;
   }
 
-  // Close stream.
-  public async closeForRetry() {
+  // Close stream, but we know there will be another try happening very soon.
+  public closeForRetry() {
     this.api.close();
-    if (this.initConnTimeout) {
-      clearTimeout(this.initConnTimeout);
-    }
   }
 
   get isClosed() {
     return this.isClosedAndNotTrying;
   }
 
-  // Fatal error if 501.
+  // Fatal error if 501 Unimplemented.
   private isFatal(err: StreamErrorEvent) {
-    return err && err && err?.status == 501;
+    return err && err?.status == 501;
   }
 
   // If error during normal operation, retry init connection up to 2 times.
   private async errorAndRetry(err: StreamErrorEvent) {
-    console.log('errorAndRetry', err);
     if (this.isFatal(err)) {
-      await this.close();
+      this.close();
       await this.fatalErr(err);
     } else {
-      await this.close(); // Not closeForRetry(), connect checks for isClosedAndNotTrying.
+      this.close(); // Not closeForRetry(), connect checks for isClosedAndNotTrying.
       this.connect(this.options).catch((err) => {
         this.fatalErr(err);
       });
@@ -172,33 +218,41 @@ export class SdkStreamFlagApi implements StreamFlagApi {
 
   // No more retry, 501 unimplemented. Need fallback.
   private async fatalErr(err: StreamErrorEvent) {
-    console.log('Fatal error', err);
     if (this.onError) {
-      this.onError(err);
+      try {
+        this.onError(err);
+        // eslint-disable-next-line no-empty
+      } catch {} // Don't care about application errors after handoff.
     }
   }
 
-  // Parses message and update.
+  // Handles new messages, parse them, and handoff to application. Retries if have parsing error.
   private async handleNewMsg(data: string) {
-    console.log('Got push', data.length);
-
     let flagConfigs;
     try {
-      const flagsArray: EvaluationFlag[] = JSON.parse(data) as EvaluationFlag[];
-      flagConfigs = flagsArray.reduce(
-        (map: Record<string, EvaluationFlag>, flag: EvaluationFlag) => {
-          map[flag.key] = flag;
-          return map;
-        },
-        {},
-      );
-    } catch {
-      this.errorAndRetry({ message: `Stream data parse error: ${data}` });
+      flagConfigs = SdkStreamFlagApi.parseFlagConfigs(data);
+    } catch (e) {
+      this.errorAndRetry(DefaultStreamErrorEvents.DATA_UNPARSABLE);
       return;
     }
     // Put update outside try catch. onUpdate error doesn't mean stream error.
     if (this.onUpdate) {
-      this.onUpdate(flagConfigs);
+      try {
+        this.onUpdate(flagConfigs);
+        // eslint-disable-next-line no-empty
+      } catch {} // Don't care about application errors after handoff.
     }
+  }
+
+  // Parse message. Throws if unparsable.
+  private static parseFlagConfigs(data: string) {
+    const flagsArray: EvaluationFlag[] = JSON.parse(data) as EvaluationFlag[];
+    return flagsArray.reduce(
+      (map: Record<string, EvaluationFlag>, flag: EvaluationFlag) => {
+        map[flag.key] = flag;
+        return map;
+      },
+      {},
+    );
   }
 }

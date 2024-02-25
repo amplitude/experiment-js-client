@@ -1,67 +1,79 @@
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable no-console */
 import {
   StreamEventSource,
   StreamEventSourceClass,
   StreamErrorEvent,
   StreamMessageEvent,
+  DefaultStreamErrorEvents,
 } from '../transport/stream';
 
-const DEFAULT_INITIAL_CONN_TIMEOUT = 1000;
-const MAX_CONN_MS_MIN = 12 * 60 * 1000;
-const MAX_CONN_MS_MAX = 18 * 60 * 1000;
-const KEEP_ALIVE_INTERVAL = (15 + 2) * 1000; // 15 seconds plus 2 seconds grace period.
+const DEFAULT_INITIAL_CONN_TIMEOUT = 1000; // Initial connection timeout.
+const MAX_CONN_MS_MIN = 12 * 60 * 1000; // Max connection timeout and wants to automatically disconnect and reconnects.
+const MAX_CONN_MS_MAX = 18 * 60 * 1000; // Min timeout as above.
+const KEEP_ALIVE_INTERVAL = (15 + 2) * 1000; // 15 seconds plus 2 seconds grace period. // 0 or neg value disables keep alive.
 const KEEP_ALIVE_DATA = ' ';
 
 export type StreamOptions = {
   libraryName: string;
   libraryVersion: string;
-  streamConnTimeoutMillis?: number; // Timeout for connecting the stream. Aka, http connection timeout.
 };
 export type StreamOnUpdateCallback = (data: string) => void;
 export type StreamOnErrorCallback = (err: StreamErrorEvent) => void;
 
 export interface StreamApi {
+  /**
+   * Initiate a connection. If an existing connection exists, it does nothing.
+   */
   connect(options?: StreamOptions): void;
+  /**
+   * Close a connection. If there is no existing connection, it does nothing.
+   */
   close(): void;
+  /**
+   * Any message will be sent to this callback.
+   */
   onUpdate?: StreamOnUpdateCallback;
+  /**
+   * Any error, including connection errors, will be sent to this callback.
+   */
   onError?: StreamOnErrorCallback;
 }
 
+/**
+ * This class handles connecting to an server-side event source.
+ * It handles keep alives from server, automatically disconnect and reconnect after a set random interval.
+ * It will propagate any error to onError. It will not handle any error or retries.
+ * (automatic disconnect does not count as error, but if any reconnect errors will propagate).
+ */
 export class SdkStreamApi implements StreamApi {
-  private readonly eventSourceClass: StreamEventSourceClass;
-  private readonly deploymentKey: string;
-  private readonly serverUrl: string;
   private eventSource: StreamEventSource | undefined;
   private reconnectionTimeout?: NodeJS.Timeout;
   private initConnTimeout?: NodeJS.Timeout;
   private keepAliveTimeout?: NodeJS.Timeout;
+
   public onUpdate?: StreamOnUpdateCallback;
   public onError?: StreamOnErrorCallback;
+
+  private readonly deploymentKey: string;
+  private readonly serverUrl: string;
+  private readonly eventSourceClass: StreamEventSourceClass;
+  private streamConnTimeoutMillis: number; // Timeout for connecting the stream. Aka, http connection timeout.
 
   constructor(
     deploymentKey: string,
     serverUrl: string,
     eventSourceClass: StreamEventSourceClass,
-    onUpdate?: StreamOnUpdateCallback,
-    onError?: StreamOnErrorCallback,
+    streamConnTimeoutMillis: number = DEFAULT_INITIAL_CONN_TIMEOUT, // Timeout for connecting the stream. Aka, http connection timeout.
   ) {
     this.deploymentKey = deploymentKey;
     this.serverUrl = serverUrl;
     this.eventSourceClass = eventSourceClass;
-    if (onUpdate) {
-      this.onUpdate = onUpdate;
-    }
-    if (onError) {
-      this.onError = onError;
-    }
+    this.streamConnTimeoutMillis = streamConnTimeoutMillis;
   }
 
   public async connect(options?: StreamOptions) {
     if (this.eventSource) {
       return;
     }
-    console.log('connect');
 
     const headers: Record<string, string> = {
       Authorization: `Api-Key ${this.deploymentKey}`,
@@ -72,7 +84,7 @@ export class SdkStreamApi implements StreamApi {
       ] = `${options.libraryName}/${options.libraryVersion}`;
     }
 
-    // Create connection.
+    // Create connection. It starts connection on new.
     const es = new this.eventSourceClass(this.serverUrl, {
       headers: headers,
     });
@@ -90,6 +102,9 @@ export class SdkStreamApi implements StreamApi {
       const randomReconnectionTimeout = Math.floor(
         Math.random() * (MAX_CONN_MS_MAX - MAX_CONN_MS_MIN) + MAX_CONN_MS_MIN,
       );
+      if (this.reconnectionTimeout) {
+        clearTimeout(this.reconnectionTimeout);
+      }
       this.reconnectionTimeout = setTimeout(async () => {
         if (es.readyState == this.eventSourceClass.OPEN) {
           // The es is being checked, not this.eventSource. So it won't affect new connections.
@@ -105,15 +120,16 @@ export class SdkStreamApi implements StreamApi {
     // Timeout initial connection, ensures promise returns.
     // Force close after timeout only if stream is still connecting.
     // Error state should already handled by error handler.
-
+    if (this.initConnTimeout) {
+      clearTimeout(this.initConnTimeout);
+    }
     this.initConnTimeout = setTimeout(() => {
       es.readyState == this.eventSourceClass.CONNECTING && // The es is being checked, not this.eventSource. So it won't affect new connections.
-        this.error({ message: 'timeout' });
-    }, options?.streamConnTimeoutMillis ?? DEFAULT_INITIAL_CONN_TIMEOUT);
+        this.error(DefaultStreamErrorEvents.TIMEOUT);
+    }, this.streamConnTimeoutMillis);
   }
 
-  public async close() {
-    console.log('close');
+  public close() {
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = undefined;
@@ -135,10 +151,12 @@ export class SdkStreamApi implements StreamApi {
   }
 
   private async error(err: StreamErrorEvent) {
-    console.log('error', err);
     await this.close();
     if (this.onError) {
-      this.onError(err);
+      try {
+        this.onError(err);
+        // eslint-disable-next-line no-empty
+      } catch {} // Don't care about errors after handoff.
     }
   }
 
@@ -146,14 +164,16 @@ export class SdkStreamApi implements StreamApi {
     if (!response.data) {
       return;
     }
-    console.log('new message');
     this.setKeepAliveExpiry(); // Reset keep alive as there is data.
-    if (response.data == KEEP_ALIVE_DATA) {
+    if (KEEP_ALIVE_INTERVAL > 0 && response.data == KEEP_ALIVE_DATA) {
       // Data solely for keep alive. Don't pass on to client.
       return;
     }
     if (this.onUpdate) {
-      this.onUpdate(response.data);
+      try {
+        this.onUpdate(response.data);
+        // eslint-disable-next-line no-empty
+      } catch {} // Don't care about errors after handoff.
     }
   }
 
@@ -162,10 +182,12 @@ export class SdkStreamApi implements StreamApi {
       clearTimeout(this.keepAliveTimeout);
       this.keepAliveTimeout = undefined;
     }
+    if (KEEP_ALIVE_INTERVAL <= 0) {
+      return;
+    }
     if (this.eventSource) {
       this.keepAliveTimeout = setTimeout(() => {
-        console.log('keep alive fail');
-        this.error({ message: 'keep alive fail' });
+        this.error(DefaultStreamErrorEvents.KEEP_ALIVE_FAILURE);
       }, KEEP_ALIVE_INTERVAL);
     }
   }
