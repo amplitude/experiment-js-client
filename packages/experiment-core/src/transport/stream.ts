@@ -18,6 +18,7 @@ export interface StreamEventSource {
   onopen: (evt: StreamOpenEvent) => any;
   onmessage: (evt: StreamMessageEvent) => any;
   onerror: (evt: StreamErrorEvent) => any;
+  // The following are in specs but not currently used. Uncomment as we start to use them.
   //   addEventListener(type: string, listener: (evt: StreamEvent) => void): void;
   //   dispatchEvent(evt: Event): boolean;
   //   removeEventListener(type: string, listener: (evt: StreamEvent) => void): void;

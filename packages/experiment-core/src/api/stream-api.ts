@@ -7,8 +7,8 @@ import {
 } from '../transport/stream';
 
 const DEFAULT_INITIAL_CONN_TIMEOUT = 1000; // Initial connection timeout.
-const MAX_CONN_MS_MIN = 12 * 60 * 1000; // Max connection timeout and wants to automatically disconnect and reconnects.
-const MAX_CONN_MS_MAX = 18 * 60 * 1000; // Min timeout as above.
+const MAX_CONN_MS_MIN = 12 * 60 * 1000; // Min of max connection timeout and wants to automatically disconnect and reconnects.
+const MAX_CONN_MS_MAX = 18 * 60 * 1000; // Max of the above timeout.
 const KEEP_ALIVE_INTERVAL = (15 + 2) * 1000; // 15 seconds plus 2 seconds grace period. // 0 or neg value disables keep alive.
 const KEEP_ALIVE_DATA = ' ';
 
@@ -108,7 +108,7 @@ export class SdkStreamApi implements StreamApi {
       this.reconnectionTimeout = setTimeout(async () => {
         if (es.readyState == this.eventSourceClass.OPEN) {
           // The es is being checked, not this.eventSource. So it won't affect new connections.
-          await this.close();
+          this.close();
           this.connect();
         }
       }, randomReconnectionTimeout);
@@ -151,7 +151,7 @@ export class SdkStreamApi implements StreamApi {
   }
 
   private async error(err: StreamErrorEvent) {
-    await this.close();
+    this.close();
     if (this.onError) {
       try {
         this.onError(err);
