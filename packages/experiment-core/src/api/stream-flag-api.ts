@@ -19,7 +19,7 @@ export type StreamFlagOptions = StreamOptions;
 
 export type StreamFlagOnUpdateCallback = (
   flags: Record<string, EvaluationFlag>,
-) => void;
+) => unknown;
 export type StreamFlagOnErrorCallback = StreamOnErrorCallback;
 
 export interface StreamFlagApi {
@@ -119,10 +119,10 @@ export class SdkStreamFlagApi implements StreamFlagApi {
         // Update the callbacks.
         this.api.onUpdate = (data: string) => this.handleNewMsg(data);
         this.api.onError = (err: StreamErrorEvent) => this.errorAndRetry(err);
+        // Handoff data to application. Make sure it finishes processing initial new flag configs.
+        await this.handleNewMsg(data);
         // Resolve promise which declares client ready.
         resolve();
-        // Handoff data to application.
-        this.handleNewMsg(data);
       };
       this.api.onUpdate = dealWithFlagUpdateInOneTry;
 
@@ -159,15 +159,15 @@ export class SdkStreamFlagApi implements StreamFlagApi {
     const attempts = this.streamFlagTryAttempts;
     const delay = this.streamFlagTryDelayMillis;
     for (let i = 0; i < attempts; i++) {
-      if (this.isClosedAndNotTrying) {
-        // There's a call to close while waiting for retry.
-        return;
-      }
-
       try {
         // Try.
         return await this.connectTry(options);
       } catch (e) {
+        if (this.isClosedAndNotTrying) {
+          // There's a call to close while waiting for connection.
+          return;
+        }
+
         // connectTry() does not call close or closeForRetry on error.
         const err = e as StreamErrorEvent;
         if (this.isFatal(err) || i == attempts - 1) {
@@ -179,6 +179,11 @@ export class SdkStreamFlagApi implements StreamFlagApi {
         // Retry.
         this.closeForRetry();
         await new Promise((resolve) => setTimeout(resolve, delay));
+
+        if (this.isClosedAndNotTrying) {
+          // There's a call to close while waiting for retry.
+          return;
+        }
       }
     }
   }
@@ -220,7 +225,7 @@ export class SdkStreamFlagApi implements StreamFlagApi {
   private async fatalErr(err: StreamErrorEvent) {
     if (this.onError) {
       try {
-        this.onError(err);
+        await this.onError(err);
         // eslint-disable-next-line no-empty
       } catch {} // Don't care about application errors after handoff.
     }
@@ -238,7 +243,7 @@ export class SdkStreamFlagApi implements StreamFlagApi {
     // Put update outside try catch. onUpdate error doesn't mean stream error.
     if (this.onUpdate) {
       try {
-        this.onUpdate(flagConfigs);
+        await this.onUpdate(flagConfigs);
         // eslint-disable-next-line no-empty
       } catch {} // Don't care about application errors after handoff.
     }

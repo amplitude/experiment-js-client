@@ -16,8 +16,8 @@ export type StreamOptions = {
   libraryName: string;
   libraryVersion: string;
 };
-export type StreamOnUpdateCallback = (data: string) => void;
-export type StreamOnErrorCallback = (err: StreamErrorEvent) => void;
+export type StreamOnUpdateCallback = (data: string) => unknown;
+export type StreamOnErrorCallback = (err: StreamErrorEvent) => unknown;
 
 export interface StreamApi {
   /**
@@ -154,7 +154,7 @@ export class SdkStreamApi implements StreamApi {
     this.close();
     if (this.onError) {
       try {
-        this.onError(err);
+        await this.onError(err);
         // eslint-disable-next-line no-empty
       } catch {} // Don't care about errors after handoff.
     }
@@ -171,7 +171,7 @@ export class SdkStreamApi implements StreamApi {
     }
     if (this.onUpdate) {
       try {
-        this.onUpdate(response.data);
+        await this.onUpdate(response.data);
         // eslint-disable-next-line no-empty
       } catch {} // Don't care about errors after handoff.
     }
