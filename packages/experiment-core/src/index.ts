@@ -20,7 +20,7 @@ export {
 export { HttpClient, HttpRequest, HttpResponse } from './transport/http';
 export {
   StreamEventSource,
-  StreamEventSourceClass,
+  StreamEventSourceFactory,
   StreamOpenEvent,
   StreamMessageEvent,
   StreamErrorEvent,

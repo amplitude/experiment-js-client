@@ -1,15 +1,12 @@
 import { EvaluationFlag } from '../evaluation/flag';
 import {
-  StreamEventSourceClass,
   StreamErrorEvent,
-  DefaultStreamErrorEvents,
-} from '../transport/stream';
-
-import {
-  SdkStreamApi,
+  DEFAULT_STREAM_ERR_EVENTS,
+  StreamEventSourceFactory,
+  SdkStream,
   StreamOnErrorCallback,
   StreamOptions,
-} from './stream-api';
+} from '../transport/stream';
 
 const DEFAULT_INITIAL_CONN_TIMEOUT = 1000;
 const DEFAULT_TRY_ATTEMPTS = 2;
@@ -61,7 +58,7 @@ export interface StreamFlagApi {
  */
 export class SdkStreamFlagApi implements StreamFlagApi {
   // Underlaying SSE api.
-  private api: SdkStreamApi;
+  private api: SdkStream;
   // Flag for whether the stream is open and retrying or closed. This is to avoid calling connect() twice.
   private isClosedAndNotTrying = true;
 
@@ -82,16 +79,16 @@ export class SdkStreamFlagApi implements StreamFlagApi {
   constructor(
     deploymentKey: string,
     serverUrl: string,
-    eventSourceClass: StreamEventSourceClass,
+    eventSourceFactory: StreamEventSourceFactory,
     streamConnTimeoutMillis?: number,
     streamFlagConnTimeoutMillis: number = DEFAULT_INITIAL_CONN_TIMEOUT,
     streamFlagTryAttempts: number = DEFAULT_TRY_ATTEMPTS,
     streamFlagTryDelayMillis: number = DEFAULT_TRY_WAIT_TIMEOUT,
   ) {
-    this.api = new SdkStreamApi(
+    this.api = new SdkStream(
       deploymentKey,
       serverUrl + '/sdk/stream/v1/flags',
-      eventSourceClass,
+      eventSourceFactory,
       streamConnTimeoutMillis,
     );
     this.streamFlagConnTimeoutMillis = Math.max(0, streamFlagConnTimeoutMillis);
@@ -114,7 +111,7 @@ export class SdkStreamFlagApi implements StreamFlagApi {
           // Make sure valid flag configs.
           SdkStreamFlagApi.parseFlagConfigs(data);
         } catch (e) {
-          return reject(DefaultStreamErrorEvents.DATA_UNPARSABLE);
+          return reject(DEFAULT_STREAM_ERR_EVENTS.DATA_UNPARSABLE);
         }
         // Update the callbacks.
         this.api.onUpdate = (data: string) => this.handleNewMsg(data);
@@ -141,7 +138,7 @@ export class SdkStreamFlagApi implements StreamFlagApi {
 
       // If it fails to return flag update within limit time, fails try.
       timeout = setTimeout(() => {
-        dealWithErrorInOneTry(DefaultStreamErrorEvents.TIMEOUT);
+        dealWithErrorInOneTry(DEFAULT_STREAM_ERR_EVENTS.TIMEOUT);
       }, this.streamFlagConnTimeoutMillis);
     });
   }
@@ -237,7 +234,7 @@ export class SdkStreamFlagApi implements StreamFlagApi {
     try {
       flagConfigs = SdkStreamFlagApi.parseFlagConfigs(data);
     } catch (e) {
-      this.errorAndRetry(DefaultStreamErrorEvents.DATA_UNPARSABLE);
+      this.errorAndRetry(DEFAULT_STREAM_ERR_EVENTS.DATA_UNPARSABLE);
       return;
     }
     // Put update outside try catch. onUpdate error doesn't mean stream error.
