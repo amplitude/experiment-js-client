@@ -29,8 +29,8 @@ jobs:
           description: |
             ${{ github.event.issue.html_url }}
           fields: '{
-            "labels": ["experiment-js-client"]
+            "labels": ["experiment-js-client", "sdk-backlog-grooming", "github"]
           }'
 
       - name: Log created issue
-        run: echo "Issue AMP-${{ steps.create.outputs.issue }} was created"
+        run: echo "Issue SKY-${{ steps.create.outputs.issue }} was created"
