@@ -2,10 +2,9 @@ import { Experiment } from '@amplitude/experiment-js-client';
 
 import { CookieStorage } from './cookieStorage';
 import {
-  getFlagToVariantsMapping,
   getGlobalScope,
   getUrlParams,
-  urlWithoutParams,
+  urlWithoutParamsAndAnchor,
   UUID,
 } from './util';
 
@@ -30,30 +29,22 @@ export const initializeExperiment = (apiKey, initialFlags) => {
 
     // Proceed with initializing and using the Experiment SDK
     const urlParams = getUrlParams();
-    const forcedVariantKey = urlParams['variant'];
-    const forcedFlagKey = urlParams['flag'];
     // if we are in preview mode, overwrite segments in initialFlags
-    if (
-      getFlagToVariantsMapping(initialFlags)?.[forcedFlagKey]?.[
-        forcedVariantKey
-      ]
-    ) {
-      const parsedFlags = JSON.parse(initialFlags);
-      parsedFlags.map((flag) => {
-        if (flag.key === forcedFlagKey) {
-          flag.segments = [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: forcedVariantKey,
+    const parsedFlags = JSON.parse(initialFlags);
+    parsedFlags.map((flag) => {
+      if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
+        flag.segments = [
+          {
+            metadata: {
+              segmentName: 'All Other Users',
             },
-          ];
-        }
-        return flag;
-      });
-      initialFlags = JSON.stringify(parsedFlags);
-    }
+            variant: urlParams[flag.key],
+          },
+        ];
+      }
+      return flag;
+    });
+    initialFlags = JSON.stringify(parsedFlags);
 
     globalScope.experiment = Experiment.initializeWithAmplitudeAnalytics(
       apiKey,
@@ -71,8 +62,12 @@ export const initializeExperiment = (apiKey, initialFlags) => {
         for (const action of variant.payload) {
           if (action.action === 'redirect') {
             const urlExactMatch = variant?.metadata?.['urlMatch'];
-            const currentUrl = urlWithoutParams(globalScope.location.href);
-            const referrerUrl = urlWithoutParams(globalScope.document.referrer);
+            const currentUrl = urlWithoutParamsAndAnchor(
+              globalScope.location.href,
+            );
+            const referrerUrl = urlWithoutParamsAndAnchor(
+              globalScope.document.referrer,
+            );
             // if at original url
             if (urlExactMatch.includes(currentUrl)) {
               const redirectUrl = action?.data?.url;

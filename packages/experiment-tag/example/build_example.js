@@ -16,7 +16,7 @@ const initialFlags = `[
         "metadata": {
           "segmentName": "All Other Users"
         },
-        "variant": "on"
+        "variant": "off"
       }
     ],
     "variants": {

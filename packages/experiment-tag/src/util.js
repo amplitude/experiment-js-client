@@ -25,8 +25,9 @@ export const getUrlParams = () => {
   return params;
 };
 
-export const urlWithoutParams = (url) => {
-  return url.split('?')[0];
+export const urlWithoutParamsAndAnchor = (url) => {
+  const urlWithoutQuery = url.split('?')[0];
+  return urlWithoutQuery.split('#')[0];
 };
 
 export // Generate a random UUID
@@ -53,16 +54,4 @@ const UUID = function (a) {
           /[018]/g, // zeroes, ones, and eights with
           UUID,
         );
-};
-
-export const getFlagToVariantsMapping = (flags) => {
-  const flagToVariantMapping = {};
-  // Parse the initialFlags string into a JavaScript object
-  const parsedFlags = JSON.parse(flags);
-
-  // Extract the variants array from the parsed object
-  for (const flag of parsedFlags) {
-    flagToVariantMapping[flag.key] = flag.variants;
-  }
-  return flagToVariantMapping;
 };
