@@ -14,17 +14,19 @@ const instances = {};
  * Initializes a singleton {@link ExperimentClient} identified by the configured
  * instance name.
  *
- * @param apiKey The deployment API Key
+ * @param apiKey The Amplitude Project API Key used in the client. If a deployment key is provided
+ * in the config, it will be used instead.
  * @param config See {@link ExperimentConfig} for config options
  */
 const initialize = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
+  const usedKey = config?.deploymentKey || apiKey;
   // Store instances by appending the instance name and api key. Allows for
   // initializing multiple default instances for different api keys.
   const instanceName = config?.instanceName || Defaults.instanceName;
-  const instanceKey = `${instanceName}.${apiKey}`;
+  const instanceKey = `${instanceName}.${usedKey}`;
   const connector = AnalyticsConnector.getInstance(instanceName);
   if (!instances[instanceKey]) {
     config = {
@@ -34,7 +36,7 @@ const initialize = (
         config?.userProvider,
       ),
     };
-    instances[instanceKey] = new ExperimentClient(apiKey, config);
+    instances[instanceKey] = new ExperimentClient(usedKey, config);
   }
   return instances[instanceKey];
 };
@@ -47,17 +49,19 @@ const initialize = (
  * You must be using amplitude-js SDK version 8.17.0+ for this integration to
  * work.
  *
- * @param apiKey The deployment API Key
+ * @param apiKey The Amplitude Project API Key used in the client. If a deployment key is provided
+ * in the config, it will be used instead.
  * @param config See {@link ExperimentConfig} for config options
  */
 const initializeWithAmplitudeAnalytics = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
+  const usedKey = config?.deploymentKey || apiKey;
   // Store instances by appending the instance name and api key. Allows for
   // initializing multiple default instances for different api keys.
   const instanceName = config?.instanceName || Defaults.instanceName;
-  const instanceKey = `${instanceName}.${apiKey}`;
+  const instanceKey = `${instanceName}.${usedKey}`;
   const connector = AnalyticsConnector.getInstance(instanceName);
   if (!instances[instanceKey]) {
     config = {
@@ -70,7 +74,7 @@ const initializeWithAmplitudeAnalytics = (
       ),
       ...config,
     };
-    instances[instanceKey] = new ExperimentClient(apiKey, config);
+    instances[instanceKey] = new ExperimentClient(usedKey, config);
     if (config.automaticFetchOnAmplitudeIdentityChange) {
       connector.identityStore.addIdentityListener(() => {
         instances[instanceKey].fetch();
