@@ -1,0 +1,1 @@
+run `yarn build` to build minified UMD `experiment-tag.umd.js` (with placeholder variables for `apiKey` and `initialFlags`) and example `script.js` (set `apiKey` and `initialFlags` in `example/build_example.js`).
