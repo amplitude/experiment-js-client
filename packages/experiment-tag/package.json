@@ -1,0 +1,36 @@
+{
+  "name": "@amplitude/experiment-tag",
+  "version": "0.1.0",
+  "description": "Amplitude Experiment Javascript Snippet",
+  "author": "Amplitude",
+  "homepage": "https://github.com/amplitude/experiment-js-client",
+  "license": "MIT",
+  "main": "dist/experiment-tag.umd.js",
+  "module": "dist/experiment-tag.esm.js",
+  "es2015": "dist/experiment-tag.es2015.js",
+  "types": "dist/types/src/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amplitude/experiment-js-client.git",
+    "directory": "packages/experiment-tag"
+  },
+  "scripts": {
+    "build": "rm -rf dist && rollup -c && node example/build_example.js",
+    "clean": "rimraf node_modules dist",
+    "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
+    "test": "jest"
+  },
+  "bugs": {
+    "url": "https://github.com/amplitude/experiment-js-client/issues"
+  },
+  "dependencies": {
+    "@amplitude/experiment-js-client": "^1.10.0",
+    "@rollup/plugin-terser": "^0.4.4"
+  },
+  "files": [
+    "dist"
+  ]
+}
