@@ -1,29 +1,27 @@
-import { Experiment } from '@amplitude/experiment-js-client';
+import {Experiment} from '@amplitude/experiment-js-client';
 
-import { CookieStorage } from './cookieStorage';
 import {
   getGlobalScope,
   getUrlParams,
+  isLocalStorageAvailable, matchesUrl,
   urlWithoutParamsAndAnchor,
   UUID,
 } from './util';
 
-const cookieStorageOptions = {
-  expirationDays: 365,
-  domain: '',
-  secure: false,
-  sameSite: 'Lax',
-};
 export const initializeExperiment = (apiKey, initialFlags) => {
   const globalScope = getGlobalScope();
-  const cookieStorage = new CookieStorage(cookieStorageOptions);
-  if (cookieStorage.isEnabled()) {
-    const experimentCookieName = `EXP_${apiKey.slice(0, 10)}`;
-    let user = cookieStorage.get(experimentCookieName);
+  const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
+  if (isLocalStorageAvailable()) {
+    let user = JSON.parse(
+      globalScope.localStorage.getItem(experimentStorageName),
+    );
     if (!user) {
       user = {};
       user.device_id = UUID();
-      cookieStorage.set(experimentCookieName, user);
+      globalScope.localStorage.setItem(
+        experimentStorageName,
+        JSON.stringify(user),
+      );
     }
     const urlParams = getUrlParams();
     // if we are in preview mode, overwrite segments in initialFlags
@@ -42,7 +40,6 @@ export const initializeExperiment = (apiKey, initialFlags) => {
       return flag;
     });
     initialFlags = JSON.stringify(parsedFlags);
-
     globalScope.experiment = Experiment.initializeWithAmplitudeAnalytics(
       apiKey,
       {
@@ -65,10 +62,10 @@ export const initializeExperiment = (apiKey, initialFlags) => {
             const referrerUrl = urlWithoutParamsAndAnchor(
               globalScope.document.referrer,
             );
+            const redirectUrl = action?.data?.url;
             // if at original url
-            if (urlExactMatch.includes(currentUrl)) {
-              const redirectUrl = action?.data?.url;
-              if (redirectUrl !== currentUrl) {
+            if (matchesUrl(urlExactMatch, currentUrl)) {
+              if (!matchesUrl([redirectUrl], currentUrl)) {
                 globalScope.location.replace(redirectUrl);
               }
               // if no redirect is required
@@ -77,7 +74,10 @@ export const initializeExperiment = (apiKey, initialFlags) => {
               }
             }
             // if at redirected url
-            else if (urlExactMatch.includes(referrerUrl)) {
+            else if (
+              matchesUrl(urlExactMatch, referrerUrl) &&
+              matchesUrl([redirectUrl], currentUrl)
+            ) {
               globalScope.experiment.exposure(key);
             }
           }

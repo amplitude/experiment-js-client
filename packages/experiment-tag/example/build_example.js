@@ -46,7 +46,7 @@ const initialFlags = `[
           {
             "action": "redirect",
             "data": {
-              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index.html"
+              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index.html/"
             }
           }
         ]
@@ -64,7 +64,7 @@ const initialFlags = `[
           {
             "action": "redirect",
             "data": {
-              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index2.html"
+              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index2.html/"
             }
           }
         ]

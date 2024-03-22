@@ -26,8 +26,7 @@ export const getUrlParams = () => {
 };
 
 export const urlWithoutParamsAndAnchor = (url) => {
-  const urlWithoutQuery = url.split('?')[0];
-  return urlWithoutQuery.split('#')[0];
+  return url.split('?')[0].split('#')[0];
 };
 
 export // Generate a random UUID
@@ -54,4 +53,24 @@ const UUID = function (a) {
           /[018]/g, // zeroes, ones, and eights with
           UUID,
         );
+};
+
+export const isLocalStorageAvailable = () => {
+  try {
+    const testKey = 'EXP_test';
+    localStorage.setItem(testKey, testKey);
+    localStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+export const matchesUrl = (urlArray, urlString) => {
+  const cleanUrlString = urlString.replace(/\/$/, '');
+
+  return urlArray.some((url) => {
+    const cleanUrl = url.replace(/\/$/, '');
+    return cleanUrl === cleanUrlString;
+  });
 };
