@@ -1,5 +1,5 @@
 import { initializeExperiment } from './experiment';
 
-const API_KEY = 'EXPERIMENT_TAG_API_KEY';
-const initialFlags = 'EXPERIMENT_TAG_INITIAL_FLAGS';
+const API_KEY = '{{DEPLOYMENT_KEY}}';
+const initialFlags = '{{INITIAL_FLAGS}}';
 initializeExperiment(API_KEY, initialFlags);

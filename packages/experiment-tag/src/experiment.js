@@ -19,15 +19,12 @@ export const initializeExperiment = (apiKey, initialFlags) => {
   const cookieStorage = new CookieStorage(cookieStorageOptions);
   if (cookieStorage.isEnabled()) {
     const experimentCookieName = `EXP_${apiKey.slice(0, 10)}`;
-    // prioritize the experiment cookie over the analytics cookie
     let user = cookieStorage.get(experimentCookieName);
     if (!user) {
       user = {};
-      user.deviceId = UUID();
+      user.device_id = UUID();
       cookieStorage.set(experimentCookieName, user);
     }
-
-    // Proceed with initializing and using the Experiment SDK
     const urlParams = getUrlParams();
     // if we are in preview mode, overwrite segments in initialFlags
     const parsedFlags = JSON.parse(initialFlags);

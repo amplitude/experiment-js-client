@@ -2,7 +2,7 @@ const fs = require('fs');
 const apiKey = 'client-DvWljIjiiuqLbyjqdvBaLFfEBrAvGuA3';
 const initialFlags = `[
   {
-    "key": "test",
+    "key": "split-url-test",
     "metadata": {
       "evaluationMode": "local",
       "flagType": "experiment",
@@ -13,6 +13,25 @@ const initialFlags = `[
     },
     "segments": [
       {
+        "bucket": {
+          "allocations": [
+            {
+              "distributions": [
+                {
+                  "range": [0, 429497],
+                  "variant": "control"
+                },
+                {
+                  "range": [429496, 42949673],
+                  "variant": "treatment"
+                }
+              ],
+              "range": [0, 100]
+            }
+          ],
+          "salt": "r1wFYK2v",
+          "selector": ["context", "user", "device_id"]
+        },
         "metadata": {
           "segmentName": "All Other Users"
         },
@@ -20,9 +39,9 @@ const initialFlags = `[
       }
     ],
     "variants": {
-      "off": {
-        "key": "off",
-        "value": "off",
+      "control": {
+        "key": "control",
+        "value": "control",
         "payload": [
           {
             "action": "redirect",
@@ -30,47 +49,7 @@ const initialFlags = `[
               "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index.html"
             }
           }
-        ],
-        "metadata": {
-          "default": true
-        }
-      },
-      "on": {
-        "key": "on",
-        "value": "on",
-        "payload": [
-          {
-            "action": "redirect",
-            "data": {
-              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index2.html"
-            }
-          }
-        ],
-        "metadata": {}
-      }
-    }
-  },
-  {
-    "key": "tim-test-redesign",
-    "metadata": {
-      "deployed": true,
-      "evaluationMode": "remote",
-      "experimentKey": "exp-1",
-      "flagType": "experiment",
-      "flagVersion": 32
-    },
-    "segments": [
-      {
-        "metadata": {
-          "segmentName": "default"
-        },
-        "variant": "off"
-      }
-    ],
-    "variants": {
-      "control": {
-        "key": "control",
-        "value": "control"
+        ]
       },
       "off": {
         "key": "off",
@@ -80,11 +59,20 @@ const initialFlags = `[
       },
       "treatment": {
         "key": "treatment",
-        "value": "treatment"
+        "value": "treatment",
+        "payload": [
+          {
+            "action": "redirect",
+            "data": {
+              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index2.html"
+            }
+          }
+        ]
       }
     }
   }
-]`.replace(/\n\s*/g, '');
+]
+`.replace(/\n\s*/g, '');
 
 fs.readFile('dist/experiment-tag.umd.js', 'utf8', (err, data) => {
   if (err) {
@@ -94,8 +82,8 @@ fs.readFile('dist/experiment-tag.umd.js', 'utf8', (err, data) => {
 
   // Perform string replacements
   const modifiedData = data
-    .replace(/EXPERIMENT_TAG_API_KEY/g, apiKey)
-    .replace(/"EXPERIMENT_TAG_INITIAL_FLAGS"/g, `'${initialFlags}'`);
+    .replace(/{{DEPLOYMENT_KEY}}/g, apiKey)
+    .replace(/"{{INITIAL_FLAGS}}"/g, `'${initialFlags}'`);
 
   // Write the modified content to a new file
   fs.writeFile('example/script.js', modifiedData, 'utf8', (err) => {
