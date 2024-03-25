@@ -1,4 +1,4 @@
-export const getGlobalScope = () => {
+export const getGlobalScope = (): typeof globalThis | undefined => {
   if (typeof globalThis !== 'undefined') {
     return globalThis;
   }
@@ -15,22 +15,21 @@ export const getGlobalScope = () => {
 };
 
 // Get URL parameters
-export const getUrlParams = () => {
+export const getUrlParams = (): Record<string, string> => {
   const globalScope = getGlobalScope();
   const searchParams = new URLSearchParams(globalScope.location.search);
-  const params = {};
+  const params: Record<string, string> = {};
   for (const [key, value] of searchParams) {
     params[key] = value;
   }
   return params;
 };
 
-export const urlWithoutParamsAndAnchor = (url) => {
+export const urlWithoutParamsAndAnchor = (url: string): string => {
   return url.split('?')[0].split('#')[0];
 };
 
-export // Generate a random UUID
-const UUID = function (a) {
+export const UUID = function (a?: any): string {
   return a // if the placeholder was passed, return
     ? // a random number from 0 to 15
       (
@@ -51,11 +50,20 @@ const UUID = function (a) {
         .replace(
           // replacing
           /[018]/g, // zeroes, ones, and eights with
-          UUID,
+          UUID, // random hex digits
         );
 };
 
-export const isLocalStorageAvailable = () => {
+export const matchesUrl = (urlArray: string[], urlString: string): boolean => {
+  const cleanUrlString = urlString.replace(/\/$/, '');
+
+  return urlArray.some((url) => {
+    const cleanUrl = url.replace(/\/$/, '');
+    return cleanUrl === cleanUrlString;
+  });
+};
+
+export const isLocalStorageAvailable = (): boolean => {
   try {
     const testKey = 'EXP_test';
     localStorage.setItem(testKey, testKey);
@@ -64,13 +72,4 @@ export const isLocalStorageAvailable = () => {
   } catch (e) {
     return false;
   }
-};
-
-export const matchesUrl = (urlArray, urlString) => {
-  const cleanUrlString = urlString.replace(/\/$/, '');
-
-  return urlArray.some((url) => {
-    const cleanUrl = url.replace(/\/$/, '');
-    return cleanUrl === cleanUrlString;
-  });
 };

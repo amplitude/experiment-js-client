@@ -1,15 +1,17 @@
 import { resolve as pathResolve } from 'path';
 
+import tsConfig from '@amplitude/experiment-js-client/tsconfig.json';
 import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import resolve from '@rollup/plugin-node-resolve';
 import replace from '@rollup/plugin-replace';
 import terser from '@rollup/plugin-terser';
+import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
 
 const getCommonBrowserConfig = (target) => ({
-  input: 'src/script.js',
+  input: 'src/script.ts',
   treeshake: {
     moduleSideEffects: 'no-external',
   },
@@ -21,6 +23,13 @@ const getCommonBrowserConfig = (target) => ({
     resolve(),
     json(),
     commonjs(),
+    typescript({
+      ...(target === 'es2015' ? { target: 'es2015', downlevelIteration: true } : { downlevelIteration: true }),
+      declaration: true,
+      declarationDir: 'dist/types',
+      include: tsConfig.include,
+      rootDir: '.',
+    }),
     babel({
       configFile:
         target === 'es2015'

@@ -9,13 +9,15 @@ import {
   UUID,
 } from './util';
 
-export const initializeExperiment = (apiKey, initialFlags) => {
+export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   const globalScope = getGlobalScope();
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
+
   if (isLocalStorageAvailable()) {
     let user = JSON.parse(
-      globalScope.localStorage.getItem(experimentStorageName),
+      globalScope.localStorage.getItem(experimentStorageName) || '{}',
     );
+
     if (!user) {
       user = {};
       user.device_id = UUID();
@@ -24,10 +26,11 @@ export const initializeExperiment = (apiKey, initialFlags) => {
         JSON.stringify(user),
       );
     }
+
     const urlParams = getUrlParams();
-    // if we are in preview mode, overwrite segments in initialFlags
-    const parsedFlags = JSON.parse(initialFlags);
-    parsedFlags.map((flag) => {
+    const parsedFlags = JSON.parse(initialFlags) as any[];
+
+    parsedFlags.forEach((flag) => {
       if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
         flag.segments = [
           {
@@ -38,9 +41,10 @@ export const initializeExperiment = (apiKey, initialFlags) => {
           },
         ];
       }
-      return flag;
     });
+
     initialFlags = JSON.stringify(parsedFlags);
+
     globalScope.experiment = Experiment.initializeWithAmplitudeAnalytics(
       apiKey,
       {
@@ -49,10 +53,14 @@ export const initializeExperiment = (apiKey, initialFlags) => {
         initialFlags: initialFlags,
       },
     );
+
     globalScope.experiment.setUser(user);
+
     const variants = globalScope.experiment.all();
+
     for (const key in variants) {
       const variant = variants[key];
+
       if (Array.isArray(variant?.payload)) {
         for (const action of variant.payload) {
           if (action.action === 'redirect') {
@@ -64,18 +72,14 @@ export const initializeExperiment = (apiKey, initialFlags) => {
               globalScope.document.referrer,
             );
             const redirectUrl = action?.data?.url;
-            // if at original url
+
             if (matchesUrl(urlExactMatch, currentUrl)) {
               if (!matchesUrl([redirectUrl], currentUrl)) {
                 globalScope.location.replace(redirectUrl);
-              }
-              // if no redirect is required
-              else {
+              } else {
                 globalScope.experiment.exposure(key);
               }
-            }
-            // if at redirected url
-            else if (
+            } else if (
               matchesUrl(urlExactMatch, referrerUrl) &&
               matchesUrl([redirectUrl], currentUrl)
             ) {
