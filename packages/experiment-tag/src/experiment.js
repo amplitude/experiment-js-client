@@ -1,9 +1,10 @@
-import {Experiment} from '@amplitude/experiment-js-client';
+import { Experiment } from '@amplitude/experiment-js-client';
 
 import {
   getGlobalScope,
   getUrlParams,
-  isLocalStorageAvailable, matchesUrl,
+  isLocalStorageAvailable,
+  matchesUrl,
   urlWithoutParamsAndAnchor,
   UUID,
 } from './util';
