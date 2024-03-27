@@ -74,14 +74,19 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
             const redirectUrl = action?.data?.url;
 
             if (matchesUrl(urlExactMatch, currentUrl)) {
-              if (!matchesUrl([redirectUrl], currentUrl)) {
+              if (
+                !matchesUrl([redirectUrl], currentUrl) &&
+                currentUrl !== referrerUrl
+              ) {
                 globalScope.location.replace(redirectUrl);
               } else {
                 globalScope.experiment.exposure(key);
               }
             } else if (
               matchesUrl(urlExactMatch, referrerUrl) &&
-              matchesUrl([redirectUrl], currentUrl)
+              (matchesUrl([redirectUrl], currentUrl) ||
+                // case when redirected url has query and anchor
+                matchesUrl([redirectUrl], globalScope.location.href))
             ) {
               globalScope.experiment.exposure(key);
             }
