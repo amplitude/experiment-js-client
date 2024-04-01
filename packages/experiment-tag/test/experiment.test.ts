@@ -1,23 +1,25 @@
-import { ExperimentClient } from '@amplitude/experiment-js-client';
+import {Experiment, ExperimentClient} from '@amplitude/experiment-js-client';
 import { initializeExperiment } from 'src/experiment';
 import * as util from 'src/util';
 
-const mockGetGlobalScope = jest.spyOn(util, 'getGlobalScope');
-
 describe('initializeExperiment', () => {
+  const mockGetGlobalScope = jest.spyOn(util, 'getGlobalScope');
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
-  const mockSetItem = jest.fn();
-  let mockGlobal;
+  const mockGetUrlParams = jest.spyOn(util, 'getUrlParams');
+  jest.spyOn(util, 'UUID').mockReturnValue('mock');
+  jest.spyOn(util, 'isLocalStorageAvailable').mockReturnValue(true);
 
   beforeEach(() => {
-    const mockGetUrlParams = jest.spyOn(util, 'getUrlParams');
-    jest.spyOn(util, 'UUID').mockReturnValue('mock');
-    mockGlobal = {
+    jest.clearAllMocks();
+  });
+
+  test('should initialize experiment with empty user', () => {
+    const mockGlobal = {
       localStorage: {
         getItem: jest.fn().mockReturnValue(undefined),
-        setItem: mockSetItem,
+        setItem: jest.fn(),
       },
       location: {
         href: 'http://test.com',
@@ -26,17 +28,12 @@ describe('initializeExperiment', () => {
       },
       document: { referrer: 'referrer' },
     };
-
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     mockGetUrlParams.mockReturnValue({});
 
-    jest.spyOn(util, 'isLocalStorageAvailable').mockReturnValue(true);
-  });
-
-  test('should initialize experiment with empty user', () => {
     initializeExperiment(
-      'apiKey',
+      'apiKey_1',
       JSON.stringify([
         {
           key: 'test',
@@ -94,15 +91,31 @@ describe('initializeExperiment', () => {
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       device_id: expect.any(String),
     });
-    expect(mockSetItem).toHaveBeenCalledWith(
-      'EXP_apiKey',
+    expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
+      'EXP_apiKey_1',
       JSON.stringify({ device_id: 'mock' }),
     );
   });
 
   test('should redirect and not call exposure', () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      location: {
+        href: 'http://test.com',
+        replace: jest.fn(),
+        search: '',
+      },
+      document: { referrer: 'referrer' },
+    };
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+    mockGetUrlParams.mockReturnValue({});
+
     initializeExperiment(
-      'apiKey',
+      'apiKey_2',
       JSON.stringify([
         {
           key: 'test',
@@ -163,8 +176,24 @@ describe('initializeExperiment', () => {
   });
 
   test('should not redirect but call exposure', () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      location: {
+        href: 'http://test.com',
+        replace: jest.fn(),
+        search: '',
+      },
+      document: { referrer: 'referrer' },
+    };
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+    mockGetUrlParams.mockReturnValue({});
+
     initializeExperiment(
-      'apiKey',
+      'apiKey_3',
       JSON.stringify([
         {
           key: 'test',
@@ -220,13 +249,29 @@ describe('initializeExperiment', () => {
       ]),
     );
 
-    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+    expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
   test('should not redirect or exposure', () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      location: {
+        href: 'http://test.com',
+        replace: jest.fn(),
+        search: '',
+      },
+      document: { referrer: 'referrer' },
+    };
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+    mockGetUrlParams.mockReturnValue({});
+
     initializeExperiment(
-      'apiKey',
+      'apiKey_4',
       JSON.stringify([
         {
           key: 'test',
@@ -282,7 +327,7 @@ describe('initializeExperiment', () => {
       ]),
     );
 
-    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+    expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledTimes(0);
   });
 
@@ -290,7 +335,7 @@ describe('initializeExperiment', () => {
     const mockGlobal = {
       localStorage: {
         getItem: jest.fn().mockReturnValue(undefined),
-        setItem: mockSetItem,
+        setItem: jest.fn(),
       },
       location: {
         href: 'http://test.com/2',
@@ -299,12 +344,12 @@ describe('initializeExperiment', () => {
       },
       document: { referrer: 'http://test.com' },
     };
-
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
+    mockGetUrlParams.mockReturnValue({});
 
     initializeExperiment(
-      'apiKey',
+      'apiKey_5',
       JSON.stringify([
         {
           key: 'test',
@@ -362,9 +407,5 @@ describe('initializeExperiment', () => {
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 });
