@@ -2,54 +2,37 @@ const fs = require('fs');
 const apiKey = 'client-DvWljIjiiuqLbyjqdvBaLFfEBrAvGuA3';
 const initialFlags = `[
   {
-    "key": "split-url-test",
+    "key": "peter-test-default-1",
     "metadata": {
+      "deployed": true,
       "evaluationMode": "local",
+      "experimentKey": "exp-1",
       "flagType": "experiment",
-      "flagVersion": 1,
+      "flagVersion": 20,
       "urlMatch": [
-        "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index.html"
+        "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index.html/"
       ]
     },
     "segments": [
-      {
-        "bucket": {
-          "allocations": [
-            {
-              "distributions": [
-                {
-                  "range": [0, 429497],
-                  "variant": "control"
-                },
-                {
-                  "range": [429496, 42949673],
-                  "variant": "treatment"
-                }
-              ],
-              "range": [0, 100]
-            }
-          ],
-          "salt": "r1wFYK2v",
-          "selector": ["context", "user", "device_id"]
-        },
-        "metadata": {
-          "segmentName": "All Other Users"
-        },
-        "variant": "off"
-      }
-    ],
+          {
+            metadata: {
+              segmentName: 'All Other Users',
+            },
+            variant: treatment,
+          },
+        ],
     "variants": {
       "control": {
         "key": "control",
-        "value": "control",
         "payload": [
           {
             "action": "redirect",
             "data": {
-              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index.html/"
+              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index.html"
             }
           }
-        ]
+        ],
+        "value": "control"
       },
       "off": {
         "key": "off",
@@ -59,15 +42,15 @@ const initialFlags = `[
       },
       "treatment": {
         "key": "treatment",
-        "value": "treatment",
         "payload": [
           {
             "action": "redirect",
             "data": {
-              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index2.html/?test=whata"
+              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index2.html"
             }
           }
-        ]
+        ],
+        "value": "treatment"
       }
     }
   }

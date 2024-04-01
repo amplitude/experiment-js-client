@@ -1,4 +1,4 @@
-import { Experiment } from '@amplitude/experiment-js-client';
+import {Experiment} from '@amplitude/experiment-js-client';
 
 import {
   getGlobalScope,
@@ -14,11 +14,15 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
 
   if (isLocalStorageAvailable()) {
-    let user = JSON.parse(
-      globalScope.localStorage.getItem(experimentStorageName) || '{}',
-    );
+    let user = undefined;
+    try {
+      user = JSON.parse(globalScope.localStorage.getItem(experimentStorageName) || '{}');
+    } catch (error) {
+      user = {};
+    }
 
-    if (!user) {
+    // create new user if it does not exist, or it does not have device_id
+    if (Object.keys(user).length === 0 || !user.device_id) {
       user = {};
       user.device_id = UUID();
       globalScope.localStorage.setItem(
