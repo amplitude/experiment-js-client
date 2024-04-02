@@ -2,7 +2,7 @@ const fs = require('fs');
 const apiKey = 'client-DvWljIjiiuqLbyjqdvBaLFfEBrAvGuA3';
 const initialFlags = `[
   {
-    "key": "peter-test-default-1",
+    "key": "test",
     "metadata": {
       "deployed": true,
       "evaluationMode": "local",
