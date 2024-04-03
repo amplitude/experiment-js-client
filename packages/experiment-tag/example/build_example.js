@@ -10,17 +10,17 @@ const initialFlags = `[
       "flagType": "experiment",
       "flagVersion": 20,
       "urlMatch": [
-        "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index.html/"
+        "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/control.html/"
       ]
     },
     "segments": [
-          {
-            metadata: {
-              segmentName: 'All Other Users',
-            },
-            variant: treatment,
-          },
-        ],
+      {
+        "metadata": {
+          "segmentName": "All Other Users"
+        },
+        "variant": "treatment"
+      }
+    ],
     "variants": {
       "control": {
         "key": "control",
@@ -28,7 +28,7 @@ const initialFlags = `[
           {
             "action": "redirect",
             "data": {
-              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index.html"
+              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/control.html"
             }
           }
         ],
@@ -46,7 +46,7 @@ const initialFlags = `[
           {
             "action": "redirect",
             "data": {
-              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/index2.html"
+              "url": "http://localhost:63342/experiment-js-client/packages/experiment-tag/example/treatment.html"
             }
           }
         ],
