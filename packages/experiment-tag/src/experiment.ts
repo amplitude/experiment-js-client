@@ -1,4 +1,5 @@
-import { Experiment } from '@amplitude/experiment-js-client';
+import { EvaluationFlag } from '@amplitude/experiment-core';
+import { Experiment, ExperimentUser } from '@amplitude/experiment-js-client';
 
 import {
   getGlobalScope,
@@ -13,11 +14,11 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   const globalScope = getGlobalScope();
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
 
-  if (isLocalStorageAvailable()) {
-    let user = undefined;
+  if (isLocalStorageAvailable() && globalScope) {
+    let user: ExperimentUser;
     try {
       user = JSON.parse(
-        globalScope.localStorage.getItem(experimentStorageName) || '{}',
+        globalScope?.localStorage.getItem(experimentStorageName) || '{}',
       );
     } catch (error) {
       user = {};
@@ -27,7 +28,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     if (Object.keys(user).length === 0 || !user.device_id) {
       user = {};
       user.device_id = UUID();
-      globalScope.localStorage.setItem(
+      globalScope?.localStorage.setItem(
         experimentStorageName,
         JSON.stringify(user),
       );
@@ -36,7 +37,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     const urlParams = getUrlParams();
     const parsedFlags = JSON.parse(initialFlags);
 
-    parsedFlags.forEach((flag) => {
+    parsedFlags.forEach((flag: EvaluationFlag) => {
       if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
         flag.segments = [
           {

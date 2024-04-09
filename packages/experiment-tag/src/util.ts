@@ -17,7 +17,7 @@ export const getGlobalScope = (): typeof globalThis | undefined => {
 // Get URL parameters
 export const getUrlParams = (): Record<string, string> => {
   const globalScope = getGlobalScope();
-  const searchParams = new URLSearchParams(globalScope.location.search);
+  const searchParams = new URLSearchParams(globalScope?.location.search);
   const params: Record<string, string> = {};
   for (const [key, value] of searchParams) {
     params[key] = value;
@@ -50,7 +50,7 @@ export const UUID = function (a?: number): string {
         .replace(
           // replacing
           /[018]/g, // zeroes, ones, and eights with
-          UUID, // random hex digits
+          UUID(), // random hex digits
         );
 };
 
@@ -64,12 +64,16 @@ export const matchesUrl = (urlArray: string[], urlString: string): boolean => {
 };
 
 export const isLocalStorageAvailable = (): boolean => {
-  try {
-    const testKey = 'EXP_test';
-    localStorage.setItem(testKey, testKey);
-    localStorage.removeItem(testKey);
-    return true;
-  } catch (e) {
-    return false;
+  const globalScope = getGlobalScope();
+  if (globalScope) {
+    try {
+      const testKey = 'EXP_test';
+      globalScope.localStorage.setItem(testKey, testKey);
+      globalScope.localStorage.removeItem(testKey);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
+  return false;
 };
