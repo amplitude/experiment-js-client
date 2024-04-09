@@ -1,24 +1,12 @@
 {
   "extends": "../../tsconfig.json",
   "include": ["src/**/*.ts", "package.json"],
-  "typedocOptions": {
-    "name": "Experiment JS Client Documentation",
-    "entryPoints": ["./src/index.ts"],
-    "categoryOrder": [
-      "Core Usage",
-      "Configuration",
-      "Context Provider",
-      "Types"
-    ],
-    "categorizeByGroup": false,
-    "disableSources": true,
-    "excludePrivate": true,
-    "excludeProtected": true,
-    "excludeInternal": true,
-    "hideGenerator": true,
-    "includeVersion": true,
-    "out": "../../docs",
-    "readme": "none",
-    "theme": "default",
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "dist/types",
+    "downlevelIteration": true,
+    "strict": true,
+    "baseUrl": "./src",
+    "rootDir": "."
   }
 }
