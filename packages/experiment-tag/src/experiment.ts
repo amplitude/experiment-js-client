@@ -40,6 +40,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
           {
             metadata: {
               segmentName: 'All Other Users',
+              previewMode: true,
             },
             variant: urlParams[flag.key],
           },
@@ -76,7 +77,10 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
               globalScope.document.referrer,
             );
             const redirectUrl = action?.data?.url;
-
+            // if in preview mode, strip query params
+            if (variant.metadata?.previewMode) {
+              globalScope.history.pushState({}, '', currentUrl);
+            }
             if (matchesUrl(urlExactMatch, currentUrl)) {
               if (
                 !matchesUrl([redirectUrl], currentUrl) &&
@@ -84,9 +88,15 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
               ) {
                 globalScope.location.replace(redirectUrl);
               } else {
+                // if in preview mode, strip query params
+                if (variant.metadata?.previewMode) {
+                  globalScope.history.pushState({}, '', currentUrl);
+                }
+                // if redirection is not required
                 globalScope.experiment.exposure(key);
               }
             } else if (
+              // if at the redirected page
               matchesUrl(urlExactMatch, referrerUrl) &&
               (matchesUrl([redirectUrl], currentUrl) ||
                 // case when redirected url has query and anchor

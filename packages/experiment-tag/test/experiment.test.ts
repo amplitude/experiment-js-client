@@ -24,6 +24,7 @@ describe('initializeExperiment', () => {
         search: '',
       },
       document: { referrer: 'referrer' },
+      history: { pushState: jest.fn() },
     };
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -225,6 +226,7 @@ describe('initializeExperiment', () => {
 
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
+    expect(mockGlobal.history.pushState).toBeCalledTimes(0);
   });
 
   test('should not redirect or exposure', () => {
@@ -373,11 +375,12 @@ describe('initializeExperiment', () => {
         setItem: jest.fn(),
       },
       location: {
-        href: 'http://test.com/',
+        href: 'http://test.com',
         replace: jest.fn(),
         search: '?test=control',
       },
       document: { referrer: 'referrer' },
+      history: { pushState: jest.fn() },
     };
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -440,10 +443,15 @@ describe('initializeExperiment', () => {
     );
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+    expect(mockGlobal.history.pushState).toHaveBeenCalledWith(
+      {},
+      '',
+      'http://test.com',
+    );
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
-  test('preview - force treatment variant', () => {
+  test('preview - force treatment variant when on control page', () => {
     const mockGlobal = {
       localStorage: {
         getItem: jest.fn().mockReturnValue(undefined),
@@ -455,6 +463,7 @@ describe('initializeExperiment', () => {
         search: '?test=treatment',
       },
       document: { referrer: 'referrer' },
+      history: { pushState: jest.fn() },
     };
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -520,5 +529,88 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
     expect(mockExposure).toHaveBeenCalledTimes(0);
+  });
+
+  test('preview - force treatment variant when on treatment page', () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      location: {
+        href: 'http://test.com/2',
+        replace: jest.fn(),
+        search: '?test=treatment',
+      },
+      document: { referrer: 'referrer' },
+      history: { pushState: jest.fn() },
+    };
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    initializeExperiment(
+      'prev_treatment',
+      JSON.stringify([
+        {
+          key: 'test',
+          metadata: {
+            deployed: true,
+            evaluationMode: 'local',
+            experimentKey: 'exp-1',
+            flagType: 'experiment',
+            flagVersion: 20,
+            urlMatch: ['http://test.com'],
+          },
+          segments: [
+            {
+              metadata: {
+                segmentName: 'All Other Users',
+              },
+              variant: 'control',
+            },
+          ],
+          variants: {
+            control: {
+              key: 'treatment',
+              payload: [
+                {
+                  action: 'redirect',
+                  data: {
+                    url: 'http://test.com',
+                  },
+                },
+              ],
+              value: 'control',
+            },
+            off: {
+              key: 'off',
+              metadata: {
+                default: true,
+              },
+            },
+            treatment: {
+              key: 'treatment',
+              payload: [
+                {
+                  action: 'redirect',
+                  data: {
+                    url: 'http://test.com/2',
+                  },
+                },
+              ],
+              value: 'treatment',
+            },
+          },
+        },
+      ]),
+    );
+
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+    expect(mockExposure).toHaveBeenCalledTimes(0);
+    expect(mockGlobal.history.pushState).toHaveBeenCalledWith(
+      {},
+      '',
+      'http://test.com/2',
+    );
   });
 });
