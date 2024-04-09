@@ -26,4 +26,4 @@ dist/
 .npmrc
 
 # Example Experiment tag script example
-/packages/experiment-tag/example/
+packages/experiment-tag/example/
