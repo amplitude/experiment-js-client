@@ -24,3 +24,6 @@ dist/
 
 # For CI to ignore .npmrc file when publishing
 .npmrc
+
+# Example Experiment tag script example
+/packages/experiment-tag/example/
