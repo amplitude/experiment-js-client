@@ -1,10 +1,5 @@
-import {
-  getUrlParams,
-  matchesUrl,
-  urlWithoutParamsAndAnchor,
-} from 'src/util';
-
-const util = require('src/util');
+import { getUrlParams, matchesUrl, urlWithoutParamsAndAnchor } from 'src/util';
+import * as util from 'src/util';
 
 // Mock the getGlobalScope function
 const spyGetGlobalScope = jest.spyOn(util, 'getGlobalScope');
@@ -34,21 +29,30 @@ describe('matchesUrl', () => {
   });
 
   it('should handle URLs with paths', () => {
-    const urlArray: string[] = ['http://example.com/page', 'http://example.org/'];
+    const urlArray: string[] = [
+      'http://example.com/page',
+      'http://example.org/',
+    ];
     const urlString = 'http://example.com/page';
 
     expect(matchesUrl(urlArray, urlString)).toBe(true);
   });
 
   it('should handle URLs with query parameters', () => {
-    const urlArray: string[] = ['http://example.com?param=value', 'http://example.org/'];
+    const urlArray: string[] = [
+      'http://example.com?param=value',
+      'http://example.org/',
+    ];
     const urlString = 'http://example.com?param=value';
 
     expect(matchesUrl(urlArray, urlString)).toBe(true);
   });
 
   it('should handle URLs with ports', () => {
-    const urlArray: string[] = ['http://example.com:8080', 'http://example.org/'];
+    const urlArray: string[] = [
+      'http://example.com:8080',
+      'http://example.org/',
+    ];
     const urlString = 'http://example.com:8080';
 
     expect(matchesUrl(urlArray, urlString)).toBe(true);
@@ -87,6 +91,8 @@ describe('getUrlParams', () => {
     };
 
     // Mock the global scope and location
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     spyGetGlobalScope.mockReturnValue(mockGlobal);
 
     expect(getUrlParams()).toEqual({
@@ -103,6 +109,8 @@ describe('getUrlParams', () => {
     };
 
     // Mock the global scope and location
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     spyGetGlobalScope.mockReturnValue(mockGlobal);
 
     expect(getUrlParams()).toEqual({});

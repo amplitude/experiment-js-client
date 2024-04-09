@@ -24,7 +24,9 @@ const getCommonBrowserConfig = (target) => ({
     json(),
     commonjs(),
     typescript({
-      ...(target === 'es2015' ? { target: 'es2015', downlevelIteration: true } : { downlevelIteration: true }),
+      ...(target === 'es2015'
+        ? { target: 'es2015', downlevelIteration: true }
+        : { downlevelIteration: true }),
       declaration: true,
       declarationDir: 'dist/types',
       include: tsConfig.include,

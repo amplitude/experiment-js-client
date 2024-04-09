@@ -1,4 +1,4 @@
-import {Experiment} from '@amplitude/experiment-js-client';
+import { Experiment } from '@amplitude/experiment-js-client';
 
 import {
   getGlobalScope,
@@ -16,7 +16,9 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   if (isLocalStorageAvailable()) {
     let user = undefined;
     try {
-      user = JSON.parse(globalScope.localStorage.getItem(experimentStorageName) || '{}');
+      user = JSON.parse(
+        globalScope.localStorage.getItem(experimentStorageName) || '{}',
+      );
     } catch (error) {
       user = {};
     }
@@ -32,7 +34,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     }
 
     const urlParams = getUrlParams();
-    const parsedFlags = JSON.parse(initialFlags) as any[];
+    const parsedFlags = JSON.parse(initialFlags);
 
     parsedFlags.forEach((flag) => {
       if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {

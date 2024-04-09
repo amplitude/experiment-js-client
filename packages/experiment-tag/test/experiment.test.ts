@@ -26,6 +26,7 @@ describe('initializeExperiment', () => {
       document: { referrer: 'referrer' },
       history: { pushState: jest.fn() },
     };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
   });
@@ -304,6 +305,7 @@ describe('initializeExperiment', () => {
       },
       document: { referrer: 'http://test.com' },
     };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
@@ -382,6 +384,7 @@ describe('initializeExperiment', () => {
       document: { referrer: 'referrer' },
       history: { pushState: jest.fn() },
     };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
@@ -465,6 +468,7 @@ describe('initializeExperiment', () => {
       document: { referrer: 'referrer' },
       history: { pushState: jest.fn() },
     };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
@@ -545,6 +549,7 @@ describe('initializeExperiment', () => {
       document: { referrer: 'referrer' },
       history: { pushState: jest.fn() },
     };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 

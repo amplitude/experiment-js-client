@@ -6,8 +6,6 @@
   "homepage": "https://github.com/amplitude/experiment-js-client",
   "license": "MIT",
   "main": "dist/experiment-tag.umd.js",
-  "module": "dist/experiment-tag.esm.js",
-  "es2015": "dist/experiment-tag.es2015.js",
   "types": "dist/types/src/index.d.ts",
   "publishConfig": {
     "access": "public"

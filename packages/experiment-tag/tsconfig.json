@@ -19,6 +19,6 @@
     "includeVersion": true,
     "out": "../../docs",
     "readme": "none",
-    "theme": "default"
+    "theme": "default",
   }
 }

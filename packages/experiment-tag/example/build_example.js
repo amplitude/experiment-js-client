@@ -1,5 +1,5 @@
 const fs = require('fs');
-const apiKey = 'API_KEY';
+const apiKey = 'a6dd847b9d2f03c816d4f3f8458cdc1d';
 const initialFlags = `[
   {
     "key": "test",
