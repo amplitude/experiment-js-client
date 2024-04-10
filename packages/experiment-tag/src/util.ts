@@ -29,7 +29,7 @@ export const urlWithoutParamsAndAnchor = (url: string): string => {
   return url.split('?')[0].split('#')[0];
 };
 
-export const UUID = function (a?: number): string {
+export const UUID = function (a?: never): string {
   return a // if the placeholder was passed, return
     ? // a random number from 0 to 15
       (
@@ -50,7 +50,7 @@ export const UUID = function (a?: number): string {
         .replace(
           // replacing
           /[018]/g, // zeroes, ones, and eights with
-          UUID(), // random hex digits
+          UUID, // random hex digits
         );
 };
 
