@@ -50,7 +50,7 @@ export const UUID = function (a?: never): string {
         .replace(
           // replacing
           /[018]/g, // zeroes, ones, and eights with
-          UUID, // random hex digits
+          UUID(), // random hex digits
         );
 };
 
