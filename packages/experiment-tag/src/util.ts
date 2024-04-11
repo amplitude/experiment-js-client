@@ -26,7 +26,24 @@ export const getUrlParams = (): Record<string, string> => {
 };
 
 export const urlWithoutParamsAndAnchor = (url: string): string => {
-  return url.split('?')[0].split('#')[0];
+  if (!url) {
+    return '';
+  }
+  const urlObj = new URL(url);
+  urlObj.search = '';
+  urlObj.hash = '';
+  return urlObj.toString();
+};
+
+export const removeQueryParams = (
+  url: string,
+  paramsToRemove: string[],
+): string => {
+  const urlObj = new URL(url);
+  for (const param of paramsToRemove) {
+    urlObj.searchParams.delete(param);
+  }
+  return urlObj.toString();
 };
 
 export const UUID = function (a?: never): string {

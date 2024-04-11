@@ -23,8 +23,8 @@ describe('initializeExperiment', () => {
         replace: jest.fn(),
         search: '',
       },
-      document: { referrer: 'referrer' },
-      history: { pushState: jest.fn() },
+      document: { referrer: '' },
+      history: { replaceState: jest.fn() },
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -227,7 +227,7 @@ describe('initializeExperiment', () => {
 
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
-    expect(mockGlobal.history.pushState).toBeCalledTimes(0);
+    expect(mockGlobal.history.replaceState).toBeCalledTimes(0);
   });
 
   test('should not redirect or exposure', () => {
@@ -379,10 +379,10 @@ describe('initializeExperiment', () => {
       location: {
         href: 'http://test.com',
         replace: jest.fn(),
-        search: '?test=control',
+        search: '?test=control&PREVIEW=true',
       },
-      document: { referrer: 'referrer' },
-      history: { pushState: jest.fn() },
+      document: { referrer: '' },
+      history: { replaceState: jest.fn() },
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -446,10 +446,10 @@ describe('initializeExperiment', () => {
     );
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
-    expect(mockGlobal.history.pushState).toHaveBeenCalledWith(
+    expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
       {},
       '',
-      'http://test.com',
+      'http://test.com/',
     );
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
@@ -463,10 +463,10 @@ describe('initializeExperiment', () => {
       location: {
         href: 'http://test.com/',
         replace: jest.fn(),
-        search: '?test=treatment',
+        search: '?test=treatment&PREVIEW=true',
       },
-      document: { referrer: 'referrer' },
-      history: { pushState: jest.fn() },
+      document: { referrer: '' },
+      history: { replaceState: jest.fn() },
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -544,10 +544,10 @@ describe('initializeExperiment', () => {
       location: {
         href: 'http://test.com/2',
         replace: jest.fn(),
-        search: '?test=treatment',
+        search: '?test=treatment&PREVIEW=true',
       },
-      document: { referrer: 'referrer' },
-      history: { pushState: jest.fn() },
+      document: { referrer: '' },
+      history: { replaceState: jest.fn() },
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -612,7 +612,7 @@ describe('initializeExperiment', () => {
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledTimes(0);
-    expect(mockGlobal.history.pushState).toHaveBeenCalledWith(
+    expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
       {},
       '',
       'http://test.com/2',

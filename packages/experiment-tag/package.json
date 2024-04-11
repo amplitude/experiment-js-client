@@ -25,7 +25,9 @@
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
   "dependencies": {
-    "@amplitude/experiment-js-client": "^1.10.0",
+    "@amplitude/experiment-js-client": "^1.10.0"
+  },
+  "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4"
   },
   "files": [

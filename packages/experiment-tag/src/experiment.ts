@@ -6,6 +6,7 @@ import {
   getUrlParams,
   isLocalStorageAvailable,
   matchesUrl,
+  removeQueryParams,
   urlWithoutParamsAndAnchor,
   UUID,
 } from './util';
@@ -35,24 +36,23 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     }
 
     const urlParams = getUrlParams();
-    const parsedFlags = JSON.parse(initialFlags);
-
-    parsedFlags.forEach((flag: EvaluationFlag) => {
-      if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
-        flag.segments = [
-          {
-            metadata: {
-              segmentName: 'All Other Users',
-              previewMode: true,
+    // force variant if in preview mode
+    if (urlParams['PREVIEW']) {
+      const parsedFlags = JSON.parse(initialFlags);
+      parsedFlags.forEach((flag: EvaluationFlag) => {
+        if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
+          flag.segments = [
+            {
+              metadata: {
+                segmentName: 'preview',
+              },
+              variant: urlParams[flag.key],
             },
-            variant: urlParams[flag.key],
-          },
-        ];
-      }
-    });
-
-    initialFlags = JSON.stringify(parsedFlags);
-
+          ];
+        }
+      });
+      initialFlags = JSON.stringify(parsedFlags);
+    }
     globalScope.experiment = Experiment.initializeWithAmplitudeAnalytics(
       apiKey,
       {
@@ -69,44 +69,46 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     for (const key in variants) {
       const variant = variants[key];
 
-      if (Array.isArray(variant?.payload)) {
-        for (const action of variant.payload) {
-          if (action.action === 'redirect') {
-            const urlExactMatch = variant?.metadata?.['urlMatch'];
-            const currentUrl = urlWithoutParamsAndAnchor(
-              globalScope.location.href,
+      if (!Array.isArray(variant?.payload)) {
+        continue;
+      }
+      for (const action of variant.payload) {
+        if (action.action === 'redirect') {
+          const urlExactMatch = variant?.metadata?.['urlMatch'];
+          const currentUrl = urlWithoutParamsAndAnchor(
+            globalScope.location.href,
+          );
+          const referrerUrl = urlWithoutParamsAndAnchor(
+            globalScope.document.referrer,
+          );
+          const redirectUrl = action?.data?.url;
+          // if in preview mode, strip query params
+          if (variant.metadata?.segmentName === 'preview') {
+            globalScope.history.replaceState(
+              {},
+              '',
+              removeQueryParams(globalScope.location.href, ['PREVIEW', key]),
             );
-            const referrerUrl = urlWithoutParamsAndAnchor(
-              globalScope.document.referrer,
-            );
-            const redirectUrl = action?.data?.url;
-            // if in preview mode, strip query params
-            if (variant.metadata?.previewMode) {
-              globalScope.history.pushState({}, '', currentUrl);
-            }
-            if (matchesUrl(urlExactMatch, currentUrl)) {
-              if (
-                !matchesUrl([redirectUrl], currentUrl) &&
-                currentUrl !== referrerUrl
-              ) {
-                globalScope.location.replace(redirectUrl);
-              } else {
-                // if in preview mode, strip query params
-                if (variant.metadata?.previewMode) {
-                  globalScope.history.pushState({}, '', currentUrl);
-                }
-                // if redirection is not required
-                globalScope.experiment.exposure(key);
-              }
-            } else if (
-              // if at the redirected page
-              matchesUrl(urlExactMatch, referrerUrl) &&
-              (matchesUrl([redirectUrl], currentUrl) ||
-                // case when redirected url has query and anchor
-                matchesUrl([redirectUrl], globalScope.location.href))
+          }
+          if (matchesUrl(urlExactMatch, currentUrl)) {
+            if (
+              !matchesUrl([redirectUrl], currentUrl) &&
+              currentUrl !== referrerUrl
             ) {
+              // perform redirection
+              globalScope.location.replace(redirectUrl);
+            } else {
+              // if redirection is not required
               globalScope.experiment.exposure(key);
             }
+          } else if (
+            // if at the redirected page
+            matchesUrl(urlExactMatch, referrerUrl) &&
+            (matchesUrl([redirectUrl], currentUrl) ||
+              // case when redirected url has query and anchor
+              matchesUrl([redirectUrl], globalScope.location.href))
+          ) {
+            globalScope.experiment.exposure(key);
           }
         }
       }
