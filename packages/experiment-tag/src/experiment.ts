@@ -22,7 +22,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
         globalScope?.localStorage.getItem(experimentStorageName) || '{}',
       );
     } catch (error) {
-      user = {};
+      // catch error
     }
 
     // create new user if it does not exist, or it does not have device_id
