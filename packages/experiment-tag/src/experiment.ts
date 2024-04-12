@@ -1,11 +1,12 @@
-import {EvaluationFlag} from '@amplitude/experiment-core';
+import { EvaluationFlag } from '@amplitude/experiment-core';
 import { Experiment, ExperimentUser } from '@amplitude/experiment-js-client';
 
 import {
   getGlobalScope,
   getUrlParams,
   isLocalStorageAvailable,
-  matchesUrl, removeQueryParams,
+  matchesUrl,
+  removeQueryParams,
   urlWithoutParamsAndAnchor,
   UUID,
 } from './util';
