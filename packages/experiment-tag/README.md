@@ -1,4 +1,4 @@
-# Experiment Javascript Snippet
+# Experiment Web Experimentation Javascript Snippet
 
 ## Overview
 
@@ -6,7 +6,7 @@ This is the Web Experimentation SDK for Amplitude Experiment. Currently, only sp
 
 ## Generate example
 
-To generate an example snippet with custom initial flag configurations:
+To generate an example snippet with custom flag configurations:
 1. Set `apiKey` (your Amplitude Project API key) and `initialFlags` in `example/build_example.js`
 2. Run `yarn build` to build minified UMD `experiment-tag.umd.js` and example `script.js`
 
