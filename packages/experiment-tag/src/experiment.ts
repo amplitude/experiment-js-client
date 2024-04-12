@@ -1,12 +1,11 @@
-import { EvaluationFlag } from '@amplitude/experiment-core';
+import {EvaluationFlag} from '@amplitude/experiment-core';
 import { Experiment, ExperimentUser } from '@amplitude/experiment-js-client';
 
 import {
   getGlobalScope,
   getUrlParams,
   isLocalStorageAvailable,
-  matchesUrl,
-  removeQueryParams,
+  matchesUrl, removeQueryParams,
   urlWithoutParamsAndAnchor,
   UUID,
 } from './util';
@@ -16,7 +15,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
 
   if (isLocalStorageAvailable() && globalScope) {
-    let user: ExperimentUser;
+    let user: ExperimentUser = {};
     try {
       user = JSON.parse(
         globalScope?.localStorage.getItem(experimentStorageName) || '{}',
