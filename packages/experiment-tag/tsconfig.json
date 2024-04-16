@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["src/**/*.ts", "package.json"],
+  "compilerOptions": {
+    "noImplicitAny": false,
+    "declaration": true,
+    "declarationDir": "dist/types",
+    "downlevelIteration": true,
+    "strict": true,
+    "baseUrl": "./src",
+    "rootDir": "."
+  }
+}

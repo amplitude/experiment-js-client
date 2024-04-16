@@ -1,0 +1,47 @@
+/* Basic Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  padding: 20px;
+  background-color: #fff9e8;
+}
+
+article {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+h1, h2 {
+  color: #5a2c02;
+}
+
+.recipe-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.ingredients ul, .instructions ol {
+  margin: 20px 0;
+}
+
+.ingredients li, .instructions li {
+  margin-bottom: 10px;
+}
+
+footer {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+}
