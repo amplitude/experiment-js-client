@@ -1,4 +1,9 @@
-import { getUrlParams, matchesUrl, urlWithoutParamsAndAnchor } from 'src/util';
+import {
+  getUrlParams,
+  matchesUrl,
+  urlWithoutParamsAndAnchor,
+  concateQueryParamsOf,
+} from 'src/util';
 import * as util from 'src/util';
 
 // Mock the getGlobalScope function
@@ -114,6 +119,35 @@ describe('getUrlParams', () => {
     spyGetGlobalScope.mockReturnValue(mockGlobal);
 
     expect(getUrlParams()).toEqual({});
+  });
+});
+
+describe('concateQueryParamsOf', () => {
+  it('should concatenate query params if only global has', () => {
+    expect(
+      concateQueryParamsOf(
+        'https://test.com?utm_source=testing',
+        'https://test2.com',
+      ),
+    ).toBe('https://test2.com/?utm_source=testing');
+  });
+
+  it('should concatenate query params if only target url has', () => {
+    expect(
+      concateQueryParamsOf(
+        'https://test.com',
+        'https://test2.com?utm_source=testing',
+      ),
+    ).toBe('https://test2.com/?utm_source=testing');
+  });
+
+  it('should concatenate query params if both url has', () => {
+    expect(
+      concateQueryParamsOf(
+        'https://test.com?utm_medium=new_url&utm_source=testing',
+        'https://test2.com?utm_source=testing2',
+      ),
+    ).toBe('https://test2.com/?utm_source=testing2&utm_medium=new_url');
   });
 });
 

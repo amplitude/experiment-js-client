@@ -2,6 +2,7 @@ import { EvaluationFlag } from '@amplitude/experiment-core';
 import { Experiment, ExperimentUser } from '@amplitude/experiment-js-client';
 
 import {
+  concateQueryParamsOf,
   getGlobalScope,
   getUrlParams,
   isLocalStorageAvailable,
@@ -95,8 +96,13 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
               !matchesUrl([redirectUrl], currentUrl) &&
               currentUrl !== referrerUrl
             ) {
+              const targetUrl = concateQueryParamsOf(
+                globalScope.location.href,
+                redirectUrl,
+              );
+
               // perform redirection
-              globalScope.location.replace(redirectUrl);
+              globalScope.location.replace(targetUrl);
             } else {
               // if redirection is not required
               globalScope.experiment.exposure(key);

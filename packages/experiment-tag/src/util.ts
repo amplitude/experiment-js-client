@@ -46,6 +46,19 @@ export const removeQueryParams = (
   return urlObj.toString();
 };
 
+export const concateQueryParamsOf = (globalUrl: string, to: string): string => {
+  const globalUrlObj = new URL(globalUrl);
+  const urlObj = new URL(to);
+
+  globalUrlObj.searchParams.forEach((value, key) => {
+    if (!urlObj.searchParams.has(key)) {
+      urlObj.searchParams.set(key, value);
+    }
+  });
+
+  return urlObj.toString();
+};
+
 export const UUID = function (a?: any): string {
   return a // if the placeholder was passed, return
     ? // a random number from 0 to 15
