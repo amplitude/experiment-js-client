@@ -94,3 +94,19 @@ export const isLocalStorageAvailable = (): boolean => {
   }
   return false;
 };
+
+export const concatenateQueryParamsOf = (
+  currentUrl: string,
+  redirectUrl: string,
+): string => {
+  const globalUrlObj = new URL(currentUrl);
+  const urlObj = new URL(redirectUrl);
+
+  globalUrlObj.searchParams.forEach((value, key) => {
+    if (!urlObj.searchParams.has(key)) {
+      urlObj.searchParams.set(key, value);
+    }
+  });
+
+  return urlObj.toString();
+};
