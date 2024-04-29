@@ -1,4 +1,9 @@
-import { getUrlParams, matchesUrl, urlWithoutParamsAndAnchor } from 'src/util';
+import {
+  concatenateQueryParamsOf,
+  getUrlParams,
+  matchesUrl,
+  urlWithoutParamsAndAnchor,
+} from 'src/util';
 import * as util from 'src/util';
 
 // Mock the getGlobalScope function
@@ -114,6 +119,53 @@ describe('getUrlParams', () => {
     spyGetGlobalScope.mockReturnValue(mockGlobal);
 
     expect(getUrlParams()).toEqual({});
+  });
+});
+
+describe('concateQueryParamsOf', () => {
+  it('should concatenate query params if only current url has', () => {
+    expect(
+      concatenateQueryParamsOf(
+        'https://test.com?utm_source=testing',
+        'https://test2.com',
+      ),
+    ).toBe('https://test2.com/?utm_source=testing');
+  });
+
+  it('should concatenate query params if only redirected url has', () => {
+    expect(
+      concatenateQueryParamsOf(
+        'https://test.com',
+        'https://test2.com?utm_source=testing',
+      ),
+    ).toBe('https://test2.com/?utm_source=testing');
+  });
+
+  it('should concatenate query params if both urls have', () => {
+    expect(
+      concatenateQueryParamsOf(
+        'https://test.com?utm_medium=new_url&utm_source=testing',
+        'https://test2.com?utm_source=testing2',
+      ),
+    ).toBe('https://test2.com/?utm_source=testing2&utm_medium=new_url');
+  });
+
+  it('should not include anchors from current url', () => {
+    expect(
+      concatenateQueryParamsOf(
+        'https://test.com?utm_medium=new_url&utm_source=testing#anchor1',
+        'https://test2.com?utm_source=testing2',
+      ),
+    ).toBe('https://test2.com/?utm_source=testing2&utm_medium=new_url');
+  });
+
+  it('should include anchors from redirected url', () => {
+    expect(
+      concatenateQueryParamsOf(
+        'https://test.com?utm_medium=new_url&utm_source=testing',
+        'https://test2.com?utm_source=testing2#anchor2',
+      ),
+    ).toBe('https://test2.com/?utm_source=testing2&utm_medium=new_url#anchor2');
   });
 });
 

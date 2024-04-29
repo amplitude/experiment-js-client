@@ -618,4 +618,164 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
   });
+
+  test('concatenate query params from original and redirected url', () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      location: {
+        href: 'http://test.com/?param1=a&param2=b',
+        replace: jest.fn(),
+        search: '?param1=a&param2=b',
+      },
+      document: { referrer: '' },
+      history: { replaceState: jest.fn() },
+    };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    initializeExperiment(
+      'merge_query',
+      JSON.stringify([
+        {
+          key: 'test',
+          metadata: {
+            deployed: true,
+            evaluationMode: 'local',
+            experimentKey: 'exp-1',
+            flagType: 'experiment',
+            flagVersion: 20,
+            urlMatch: ['http://test.com'],
+          },
+          segments: [
+            {
+              metadata: {
+                segmentName: 'All Other Users',
+              },
+              variant: 'treatment',
+            },
+          ],
+          variants: {
+            control: {
+              key: 'control',
+              payload: [
+                {
+                  action: 'redirect',
+                  data: {
+                    url: 'http://test.com',
+                  },
+                },
+              ],
+              value: 'control',
+            },
+            off: {
+              key: 'off',
+              metadata: {
+                default: true,
+              },
+            },
+            treatment: {
+              key: 'treatment',
+              payload: [
+                {
+                  action: 'redirect',
+                  data: {
+                    url: 'http://test.com/2?param3=c',
+                  },
+                },
+              ],
+              value: 'treatment',
+            },
+          },
+        },
+      ]),
+    );
+
+    expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+      'http://test.com/2?param3=c&param1=a&param2=b',
+    );
+    expect(mockExposure).toHaveBeenCalledTimes(0);
+  });
+
+  test('exposure fired after params merged', () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      location: {
+        href: 'http://test.com/2?param3=c&param1=a&param2=b',
+        replace: jest.fn(),
+        search: '?param3=c&param1=a&param2=b',
+      },
+      document: { referrer: 'http://test.com/?param1=a&param2=b' },
+      history: { replaceState: jest.fn() },
+    };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    initializeExperiment(
+      'merge_expose',
+      JSON.stringify([
+        {
+          key: 'test',
+          metadata: {
+            deployed: true,
+            evaluationMode: 'local',
+            experimentKey: 'exp-1',
+            flagType: 'experiment',
+            flagVersion: 20,
+            urlMatch: ['http://test.com'],
+          },
+          segments: [
+            {
+              metadata: {
+                segmentName: 'All Other Users',
+              },
+              variant: 'treatment',
+            },
+          ],
+          variants: {
+            control: {
+              key: 'control',
+              payload: [
+                {
+                  action: 'redirect',
+                  data: {
+                    url: 'http://test.com',
+                  },
+                },
+              ],
+              value: 'control',
+            },
+            off: {
+              key: 'off',
+              metadata: {
+                default: true,
+              },
+            },
+            treatment: {
+              key: 'treatment',
+              payload: [
+                {
+                  action: 'redirect',
+                  data: {
+                    url: 'http://test.com/2?param3=c',
+                  },
+                },
+              ],
+              value: 'treatment',
+            },
+          },
+        },
+      ]),
+    );
+
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+  });
 });
