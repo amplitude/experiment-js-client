@@ -273,7 +273,9 @@ export class ExperimentClient implements Client {
       this.exposureInternal(key, sourceVariant);
     }
     this.debug(
-      `[Experiment] variant for ${key} is ${sourceVariant.variant?.key || sourceVariant.variant?.value}`,
+      `[Experiment] variant for ${key} is ${
+        sourceVariant.variant?.key || sourceVariant.variant?.value
+      }`,
     );
     return sourceVariant.variant || {};
   }
