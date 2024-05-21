@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-js-client",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "Amplitude Experiment Javascript Client SDK",
   "keywords": [
     "experiment",
