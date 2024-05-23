@@ -23,7 +23,7 @@ import { DefaultUserProvider } from './integration/default';
 import {
   getFlagStorage,
   getVariantStorage,
-  LoadStoreCache,
+  LoadStoreCache, transformVariantFromStorage
 } from './storage/cache';
 import { LocalStorage } from './storage/local-storage';
 import { FetchHttpClient, WrapperClient } from './transport/http';
@@ -114,6 +114,14 @@ export class ExperimentClient implements Client {
           ? euFlagsServerUrl
           : Defaults.flagsServerUrl),
     };
+    // Transform initialVariants
+    if (this.config.initialVariants) {
+      for (const flagKey in this.config.initialVariants) {
+        this.config.initialVariants[flagKey] = transformVariantFromStorage(
+          this.config.initialVariants[flagKey],
+        );
+      }
+    }
     if (this.config.userProvider) {
       this.userProvider = this.config.userProvider;
     }

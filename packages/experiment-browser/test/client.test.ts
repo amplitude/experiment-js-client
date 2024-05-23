@@ -34,10 +34,10 @@ const testUser: ExperimentUser = { user_id: 'test_user' };
 
 const serverKey = 'sdk-ci-test';
 const serverVariant: Variant = { key: 'on', value: 'on', payload: 'payload' };
-const serverOffVariant: Variant = { value: 'off' };
+const serverOffVariant: Variant = { key: 'off', value: 'off' };
 
 const initialKey = 'initial-key';
-const initialVariant: Variant = { value: 'initial' };
+const initialVariant: Variant = { key: 'initial', value: 'initial' };
 
 const initialVariants: Variants = {
   'sdk-ci-test': serverOffVariant,
@@ -1130,4 +1130,34 @@ describe('fetch retry with different response codes', () => {
       expect(retryMock).toHaveBeenCalledTimes(retryCalled);
     },
   );
+});
+
+test('test bootstrapping with v2 variants', async () => {
+  let exposureObject: Exposure;
+  const client = new ExperimentClient(API_KEY, {
+    initialVariants: {
+      'test-v1': {
+        key: 'control',
+        value: 'control',
+        expKey: 'exp-1',
+      },
+      'test-v2': {
+        key: 'control',
+        value: 'control',
+        metadata: {
+          experimentKey: 'exp-2',
+        },
+      },
+    },
+    source: Source.InitialVariants,
+    exposureTrackingProvider: {
+      track(exposure: Exposure) {
+        exposureObject = exposure;
+      },
+    },
+  });
+  client.exposure('test-v1');
+  expect(exposureObject.experiment_key).toEqual('exp-1');
+  client.exposure('test-v2');
+  expect(exposureObject.experiment_key).toEqual('exp-2');
 });
