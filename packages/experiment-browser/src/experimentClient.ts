@@ -23,7 +23,8 @@ import { DefaultUserProvider } from './integration/default';
 import {
   getFlagStorage,
   getVariantStorage,
-  LoadStoreCache, transformVariantFromStorage
+  LoadStoreCache,
+  transformVariantFromStorage,
 } from './storage/cache';
 import { LocalStorage } from './storage/local-storage';
 import { FetchHttpClient, WrapperClient } from './transport/http';
