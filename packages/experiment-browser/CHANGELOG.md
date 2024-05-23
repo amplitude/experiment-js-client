@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.10.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.10.1...@amplitude/experiment-js-client@1.10.2) (2024-05-23)
+
+
+### Bug Fixes
+
+* convert initial variants so experiment key is tracked correctly ([#108](https://github.com/amplitude/experiment-js-client/issues/108)) ([66657c4](https://github.com/amplitude/experiment-js-client/commit/66657c44201bfd2aa145c9aebde185a103ada587))
+
+
+
+
+
 ## [1.10.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.10.0...@amplitude/experiment-js-client@1.10.1) (2024-05-21)
 
 

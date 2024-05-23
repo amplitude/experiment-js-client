@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-tag",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Amplitude Experiment Javascript Snippet",
   "author": "Amplitude",
   "homepage": "https://github.com/amplitude/experiment-js-client",
@@ -25,7 +25,7 @@
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
   "dependencies": {
-    "@amplitude/experiment-js-client": "^1.10.1"
+    "@amplitude/experiment-js-client": "^1.10.2"
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4"
