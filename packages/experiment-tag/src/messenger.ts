@@ -1,26 +1,33 @@
 export class WindowMessenger {
   static setup() {
     let state: 'closed' | 'opening' | 'open' = 'closed';
-    window.addEventListener('message', (e: MessageEvent<{
-      type: string,
-      context: { injectSrc: string }
-    }>) => {
-      const match = /^https:\/\/.*\.amplitude\.com\//;
-      if (!match.test(e.origin)) {
-        return;
-      }
-      if (e.data.type === 'OpenOverlay') {
-        if (state !== 'closed' || !match.test(e.data.context.injectSrc)) {
+    window.addEventListener(
+      'message',
+      (
+        e: MessageEvent<{
+          type: string;
+          context: { injectSrc: string };
+        }>,
+      ) => {
+        const match = /^https:\/\/.*\.amplitude\.com\//;
+        if (!match.test(e.origin)) {
           return;
         }
-        state = 'opening'
-        asyncLoadScript(e.data.context.injectSrc).then(() => {
-          state = 'open'
-        }).catch(() => {
-          state = 'closed'
-        });
-      }
-    })
+        if (e.data.type === 'OpenOverlay') {
+          if (state !== 'closed' || !match.test(e.data.context.injectSrc)) {
+            return;
+          }
+          state = 'opening';
+          asyncLoadScript(e.data.context.injectSrc)
+            .then(() => {
+              state = 'open';
+            })
+            .catch(() => {
+              state = 'closed';
+            });
+        }
+      },
+    );
   }
 }
 

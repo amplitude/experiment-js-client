@@ -838,5 +838,4 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.location.replace).not.toHaveBeenCalled();
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
-
 });
