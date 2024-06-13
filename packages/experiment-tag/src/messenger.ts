@@ -5,9 +5,6 @@ export class WindowMessenger {
       type: string,
       context: { injectSrc: string }
     }>) => {
-      // We need to validate that the message & the script inject src is being
-      // sent by a trusted source. Without, attackers could inject arbitrary
-      // scripts hosted by untrusted sources.
       const match = /^https:\/\/.*\.amplitude\.com\//;
       if (!match.test(e.origin)) {
         return;
