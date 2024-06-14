@@ -9,7 +9,10 @@ export class WindowMessenger {
           context: { injectSrc: string };
         }>,
       ) => {
-        const match = process.env.NODE_ENV === 'development' ? /^https:\/\/([\w\d]*\.)?amplitude\.com(:3000)?/ : /^https:\/\/.*\.amplitude\.com\//;
+        const match =
+          process.env.NODE_ENV === 'development'
+            ? /^https:\/\/([\w\d]*\.)?amplitude\.com(:3000)?/
+            : /^https:\/\/.*\.amplitude\.com\//;
         if (!match.test(e.origin)) {
           return;
         }
