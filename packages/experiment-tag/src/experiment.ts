@@ -1,9 +1,22 @@
 import { EvaluationFlag } from '@amplitude/experiment-core';
-import { Experiment, ExperimentUser, Variant } from '@amplitude/experiment-js-client';
+import {
+  Experiment,
+  ExperimentUser,
+  Variant,
+} from '@amplitude/experiment-js-client';
 import mutate from 'dom-mutator';
 
 import { WindowMessenger } from './messenger';
-import { getGlobalScope, getUrlParams, isLocalStorageAvailable, matchesUrl, removeQueryParams, urlWithoutParamsAndAnchor, UUID, concatenateQueryParamsOf } from './util';
+import {
+  getGlobalScope,
+  getUrlParams,
+  isLocalStorageAvailable,
+  matchesUrl,
+  removeQueryParams,
+  urlWithoutParamsAndAnchor,
+  UUID,
+  concatenateQueryParamsOf,
+} from './util';
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   WindowMessenger.setup();
@@ -13,7 +26,9 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   if (isLocalStorageAvailable() && globalScope) {
     let user: ExperimentUser;
     try {
-      user = JSON.parse(globalScope.localStorage.getItem(experimentStorageName) || '{}');
+      user = JSON.parse(
+        globalScope.localStorage.getItem(experimentStorageName) || '{}',
+      );
     } catch (error) {
       user = {};
     }
@@ -22,13 +37,20 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     if (Object.keys(user).length === 0 || !user.device_id) {
       user = {};
       user.device_id = UUID();
-      globalScope.localStorage.setItem(experimentStorageName, JSON.stringify(user));
+      globalScope.localStorage.setItem(
+        experimentStorageName,
+        JSON.stringify(user),
+      );
     }
 
     const urlParams = getUrlParams();
     // if in visual edit mode, remove the query param
     if (urlParams['VISUAL_EDITOR']) {
-      globalScope.history.replaceState({}, '', removeQueryParams(globalScope.location.href, ['VISUAL_EDITOR']));
+      globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(globalScope.location.href, ['VISUAL_EDITOR']),
+      );
       return;
     }
     // force variant if in preview mode
@@ -47,11 +69,14 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
       initialFlags = JSON.stringify(parsedFlags);
     }
 
-    globalScope.experiment = Experiment.initializeWithAmplitudeAnalytics(apiKey, {
-      debug: true,
-      fetchOnStart: false,
-      initialFlags: initialFlags,
-    });
+    globalScope.experiment = Experiment.initializeWithAmplitudeAnalytics(
+      apiKey,
+      {
+        debug: true,
+        fetchOnStart: false,
+        initialFlags: initialFlags,
+      },
+    );
 
     globalScope.experiment.setUser(user);
 
@@ -65,7 +90,8 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
         const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
         // if payload is falsy or empty array, consider it as control variant
         const payloadIsArray = Array.isArray(variant.payload);
-        const isControlPayload = !variant.payload || (payloadIsArray && variant.payload.length === 0);
+        const isControlPayload =
+          !variant.payload || (payloadIsArray && variant.payload.length === 0);
         if (matchesUrl(urlExactMatch, currentUrl) && isControlPayload) {
           globalScope.experiment.exposure(key);
           continue;
@@ -90,15 +116,27 @@ const handleRedirect = (action, key: string, variant: Variant) => {
   if (globalScope) {
     const urlExactMatch = variant?.metadata?.['urlMatch'] as string[];
     const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
-    const referrerUrl = urlWithoutParamsAndAnchor(globalScope.document.referrer);
+    const referrerUrl = urlWithoutParamsAndAnchor(
+      globalScope.document.referrer,
+    );
     const redirectUrl = action?.data?.url;
     // if in preview mode, strip query params
     if (variant.metadata?.segmentName === 'preview') {
-      globalScope.history.replaceState({}, '', removeQueryParams(globalScope.location.href, ['PREVIEW', key]));
+      globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(globalScope.location.href, ['PREVIEW', key]),
+      );
     }
     if (matchesUrl(urlExactMatch, currentUrl)) {
-      if (!matchesUrl([redirectUrl], currentUrl) && currentUrl !== referrerUrl) {
-        const targetUrl = concatenateQueryParamsOf(globalScope.location.href, redirectUrl);
+      if (
+        !matchesUrl([redirectUrl], currentUrl) &&
+        currentUrl !== referrerUrl
+      ) {
+        const targetUrl = concatenateQueryParamsOf(
+          globalScope.location.href,
+          redirectUrl,
+        );
         // perform redirection
         globalScope.location.replace(targetUrl);
       } else {
