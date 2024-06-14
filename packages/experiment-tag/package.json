@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "rm -rf dist && rollup -c && node example/build_example.js",
+    "build-dev": "NODE_ENV=development rm -rf dist && rollup -c && node example/build_example.js",
     "clean": "rimraf node_modules dist",
     "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
     "test": "jest"

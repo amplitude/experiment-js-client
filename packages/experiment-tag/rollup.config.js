@@ -19,6 +19,7 @@ const getCommonBrowserConfig = (target) => ({
     replace({
       preventAssignment: true,
       BUILD_BROWSER: true,
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
     }),
     resolve(),
     json(),
