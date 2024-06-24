@@ -1,6 +1,17 @@
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { initializeExperiment } from 'src/experiment';
+import * as experiment from 'src/experiment';
 import * as util from 'src/util';
+
+jest.mock('src/messenger', () => {
+  return {
+    WindowMessenger: {
+      setup: jest.fn(),
+    },
+  };
+});
+
+jest.spyOn(experiment, 'setUrlChangeListener').mockReturnValue(undefined);
 
 describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(util, 'getGlobalScope');

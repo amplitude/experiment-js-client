@@ -85,31 +85,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
 
     const variants = globalScope.experiment.all();
 
-    // add URL change listener
-    globalScope.addEventListener('popstate', () => {
-      revertMutations();
-      applyVariants(globalScope.experiment.all());
-    });
-
-    (function (history) {
-      const pushState = history.pushState;
-      const replaceState = history.replaceState;
-
-      history.pushState = function (...args) {
-        previousUrl = globalScope.location.href;
-        const result = pushState.apply(history, args);
-        globalScope.dispatchEvent(new Event('popstate'));
-        return result;
-      };
-
-      history.replaceState = function (...args) {
-        previousUrl = globalScope.location.href;
-        const result = replaceState.apply(history, args);
-        globalScope.dispatchEvent(new Event('popstate'));
-        return result;
-      };
-    })(globalScope.history);
-
+    setUrlChangeListener();
     applyVariants(variants);
   }
 };
@@ -207,5 +183,35 @@ const handleMutate = (action, key: string, variant: Variant) => {
 const revertMutations = () => {
   while (appliedMutations.length > 0) {
     appliedMutations.pop()?.revert();
+  }
+};
+
+export const setUrlChangeListener = () => {
+  const globalScope = getGlobalScope();
+  if (globalScope) {
+    // add URL change listener
+    globalScope.addEventListener('popstate', () => {
+      revertMutations();
+      applyVariants(globalScope.experiment.all());
+    });
+
+    (function (history) {
+      const pushState = history.pushState;
+      const replaceState = history.replaceState;
+
+      history.pushState = function (...args) {
+        previousUrl = globalScope.location.href;
+        const result = pushState.apply(history, args);
+        globalScope.dispatchEvent(new Event('popstate'));
+        return result;
+      };
+
+      history.replaceState = function (...args) {
+        previousUrl = globalScope.location.href;
+        const result = replaceState.apply(history, args);
+        globalScope.dispatchEvent(new Event('popstate'));
+        return result;
+      };
+    })(globalScope.history);
   }
 };
