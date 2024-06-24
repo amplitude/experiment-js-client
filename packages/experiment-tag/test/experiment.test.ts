@@ -1,6 +1,17 @@
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { initializeExperiment } from 'src/experiment';
+import * as experiment from 'src/experiment';
 import * as util from 'src/util';
+
+jest.mock('src/messenger', () => {
+  return {
+    WindowMessenger: {
+      setup: jest.fn(),
+    },
+  };
+});
+
+jest.spyOn(experiment, 'setUrlChangeListener').mockReturnValue(undefined);
 
 describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(util, 'getGlobalScope');
@@ -44,6 +55,7 @@ describe('initializeExperiment', () => {
             flagType: 'experiment',
             flagVersion: 20,
             urlMatch: ['http://test.com'],
+            deliveryMethod: 'web',
           },
           segments: [
             {
@@ -116,6 +128,7 @@ describe('initializeExperiment', () => {
             flagType: 'experiment',
             flagVersion: 20,
             urlMatch: ['http://test.com'],
+            deliveryMethod: 'web',
           },
           segments: [
             {
@@ -180,6 +193,7 @@ describe('initializeExperiment', () => {
             flagType: 'experiment',
             flagVersion: 20,
             urlMatch: ['http://test.com'],
+            deliveryMethod: 'web',
           },
           segments: [
             {
@@ -243,6 +257,7 @@ describe('initializeExperiment', () => {
             flagType: 'experiment',
             flagVersion: 20,
             urlMatch: ['http://should.not.match'],
+            deliveryMethod: 'web',
           },
           segments: [
             {
@@ -321,6 +336,7 @@ describe('initializeExperiment', () => {
             flagType: 'experiment',
             flagVersion: 20,
             urlMatch: ['http://test.com'],
+            deliveryMethod: 'web',
           },
           segments: [
             {
@@ -381,6 +397,7 @@ describe('initializeExperiment', () => {
         replace: jest.fn(),
         search: '?test=control&PREVIEW=true',
       },
+
       document: { referrer: '' },
       history: { replaceState: jest.fn() },
     };
@@ -400,6 +417,7 @@ describe('initializeExperiment', () => {
             flagType: 'experiment',
             flagVersion: 20,
             urlMatch: ['http://test.com'],
+            deliveryMethod: 'web',
           },
           segments: [
             {
@@ -484,6 +502,7 @@ describe('initializeExperiment', () => {
             flagType: 'experiment',
             flagVersion: 20,
             urlMatch: ['http://test.com'],
+            deliveryMethod: 'web',
           },
           segments: [
             {
@@ -565,6 +584,7 @@ describe('initializeExperiment', () => {
             flagType: 'experiment',
             flagVersion: 20,
             urlMatch: ['http://test.com'],
+            deliveryMethod: 'web',
           },
           segments: [
             {
@@ -649,6 +669,7 @@ describe('initializeExperiment', () => {
             flagType: 'experiment',
             flagVersion: 20,
             urlMatch: ['http://test.com'],
+            deliveryMethod: 'web',
           },
           segments: [
             {
@@ -730,6 +751,7 @@ describe('initializeExperiment', () => {
             flagType: 'experiment',
             flagVersion: 20,
             urlMatch: ['http://test.com'],
+            deliveryMethod: 'web',
           },
           segments: [
             {
@@ -776,6 +798,55 @@ describe('initializeExperiment', () => {
     );
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+  });
+  test('should behave as control variant when payload is empty', () => {
+    initializeExperiment(
+      'empty_payload',
+      JSON.stringify([
+        {
+          key: 'test',
+          metadata: {
+            deployed: true,
+            evaluationMode: 'local',
+            experimentKey: 'exp-1',
+            flagType: 'experiment',
+            flagVersion: 20,
+            urlMatch: ['http://test.com'],
+            deliveryMethod: 'web',
+          },
+          segments: [
+            {
+              metadata: {
+                segmentName: 'All Other Users',
+              },
+              variant: 'control',
+            },
+          ],
+          variants: {
+            control: {
+              key: 'control',
+              payload: [],
+              value: 'control',
+            },
+            treatment: {
+              key: 'treatment',
+              payload: [
+                {
+                  action: 'redirect',
+                  data: {
+                    url: 'http://test.com/2',
+                  },
+                },
+              ],
+              value: 'treatment',
+            },
+          },
+        },
+      ]),
+    );
+
+    expect(mockGlobal.location.replace).not.toHaveBeenCalled();
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
 });

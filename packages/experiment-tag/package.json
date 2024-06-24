@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "rm -rf dist && rollup -c && node example/build_example.js",
+    "build-dev": "NODE_ENV=development rm -rf dist && rollup -c && node example/build_example.js",
     "clean": "rimraf node_modules dist",
     "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
     "test": "jest"
@@ -25,7 +26,8 @@
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
   "dependencies": {
-    "@amplitude/experiment-js-client": "^1.10.2"
+    "@amplitude/experiment-js-client": "^1.10.2",
+    "dom-mutator": "^0.6.0"
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4"
