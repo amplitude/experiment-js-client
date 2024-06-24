@@ -1,7 +1,9 @@
+import { getGlobalScope } from './util';
+
 export class WindowMessenger {
   static setup() {
     let state: 'closed' | 'opening' | 'open' = 'closed';
-    window.addEventListener(
+    getGlobalScope()?.addEventListener(
       'message',
       (
         e: MessageEvent<{

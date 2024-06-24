@@ -86,7 +86,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     const variants = globalScope.experiment.all();
 
     // add URL change listener
-    window.addEventListener('popstate', () => {
+    globalScope.addEventListener('popstate', () => {
       revertMutations();
       applyVariants(globalScope.experiment.all());
     });
@@ -96,19 +96,19 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
       const replaceState = history.replaceState;
 
       history.pushState = function (...args) {
-        previousUrl = window.location.href;
+        previousUrl = globalScope.location.href;
         const result = pushState.apply(history, args);
-        window.dispatchEvent(new Event('popstate'));
+        globalScope.dispatchEvent(new Event('popstate'));
         return result;
       };
 
       history.replaceState = function (...args) {
-        previousUrl = window.location.href;
+        previousUrl = globalScope.location.href;
         const result = replaceState.apply(history, args);
-        window.dispatchEvent(new Event('popstate'));
+        globalScope.dispatchEvent(new Event('popstate'));
         return result;
       };
-    })(window.history);
+    })(globalScope.history);
 
     applyVariants(variants);
   }
