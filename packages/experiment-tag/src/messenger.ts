@@ -9,7 +9,7 @@ export class WindowMessenger {
           context: { injectSrc: string };
         }>,
       ) => {
-        const match = /^.*\.amplitude\.com/;
+        const match = /^.*\.amplitude\.com$/;
         if (!match.test(new URL(e.origin).hostname)) {
           return;
         }
