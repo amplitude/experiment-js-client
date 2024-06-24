@@ -11,13 +11,16 @@ export class WindowMessenger {
       ) => {
         const match =
           process.env.NODE_ENV === 'development'
-            ? /^https:\/\/([\w\d]*\.)?amplitude\.com(:3000)?/
-            : /^https:\/\/.*\.amplitude\.com\//;
-        if (!match.test(e.origin)) {
+            ? /^([\w\d]*\.)?amplitude\.com(:3000)?/
+            : /^.*\.amplitude\.com/;
+        if (!match.test(new URL(e.origin).hostname)) {
           return;
         }
         if (e.data.type === 'OpenOverlay') {
-          if (state !== 'closed' || !match.test(e.data.context.injectSrc)) {
+          if (
+            state !== 'closed' ||
+            !match.test(new URL(e.data.context.injectSrc).hostname)
+          ) {
             return;
           }
           state = 'opening';
