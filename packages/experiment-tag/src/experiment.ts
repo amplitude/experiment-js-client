@@ -4,7 +4,7 @@ import {
   ExperimentUser,
   Variant,
 } from '@amplitude/experiment-js-client';
-import mutate from 'dom-mutator';
+import mutate, { MutationController } from 'dom-mutator';
 
 import { WindowMessenger } from './messenger';
 import {
@@ -17,6 +17,9 @@ import {
   UUID,
   concatenateQueryParamsOf,
 } from './util';
+
+const appliedMutations: MutationController[] = [];
+let previousUrl: string | undefined = undefined;
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   WindowMessenger.setup();
@@ -82,6 +85,38 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
 
     const variants = globalScope.experiment.all();
 
+    // add URL change listener
+    window.addEventListener('popstate', () => {
+      revertMutations();
+      applyVariants(globalScope.experiment.all());
+    });
+
+    (function (history) {
+      const pushState = history.pushState;
+      const replaceState = history.replaceState;
+
+      history.pushState = function (...args) {
+        previousUrl = window.location.href;
+        const result = pushState.apply(history, args);
+        window.dispatchEvent(new Event('popstate'));
+        return result;
+      };
+
+      history.replaceState = function (...args) {
+        previousUrl = window.location.href;
+        const result = replaceState.apply(history, args);
+        window.dispatchEvent(new Event('popstate'));
+        return result;
+      };
+    })(window.history);
+
+    applyVariants(variants);
+  }
+};
+
+const applyVariants = (variants) => {
+  const globalScope = getGlobalScope();
+  if (globalScope) {
     for (const key in variants) {
       const variant = variants[key];
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
@@ -117,7 +152,7 @@ const handleRedirect = (action, key: string, variant: Variant) => {
     const urlExactMatch = variant?.metadata?.['urlMatch'] as string[];
     const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
     const referrerUrl = urlWithoutParamsAndAnchor(
-      globalScope.document.referrer,
+      previousUrl || globalScope.document.referrer,
     );
     const redirectUrl = action?.data?.url;
     // if in preview mode, strip query params
@@ -161,8 +196,16 @@ const handleMutate = (action, key: string, variant: Variant) => {
 
     if (matchesUrl(urlExactMatch, currentUrl)) {
       const mutations = action.data?.mutations;
-      mutations.forEach((m) => mutate.declarative(m));
+      mutations.forEach((m) => {
+        appliedMutations.push(mutate.declarative(m));
+      });
       globalScope.experiment.exposure(key);
     }
+  }
+};
+
+const revertMutations = () => {
+  while (appliedMutations.length > 0) {
+    appliedMutations.pop()?.revert();
   }
 };
