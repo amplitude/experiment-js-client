@@ -9,15 +9,15 @@ export class WindowMessenger {
           context: { injectSrc: string };
         }>,
       ) => {
-        const match =
-          process.env.NODE_ENV === 'development'
-            ? /^https:\/\/([\w\d]*\.)?amplitude\.com(:3000)?/
-            : /^https:\/\/.*\.amplitude\.com\//;
-        if (!match.test(e.origin)) {
+        const match = /^.*\.amplitude\.com$/;
+        if (!match.test(new URL(e.origin).hostname)) {
           return;
         }
         if (e.data.type === 'OpenOverlay') {
-          if (state !== 'closed' || !match.test(e.data.context.injectSrc)) {
+          if (
+            state !== 'closed' ||
+            !match.test(new URL(e.data.context.injectSrc).hostname)
+          ) {
             return;
           }
           state = 'opening';
