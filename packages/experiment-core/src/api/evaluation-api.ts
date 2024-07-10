@@ -55,15 +55,13 @@ export class SdkEvaluationApi implements EvaluationApi {
     if (options?.trackingOption) {
       headers['X-Amp-Exp-Track'] = options.trackingOption;
     }
-    const url = new URL(`${this.serverUrl}/sdk/v2/vardata`);
+    const url = new URL(`${this.serverUrl}/sdk/v2/vardata?v=0`);
     if (options?.evaluationMode) {
       url.searchParams.append('eval_mode', options?.evaluationMode);
     }
     if (options?.deliveryMethod) {
       url.searchParams.append('delivery_method', options?.deliveryMethod);
     }
-    // eslint-disable-next-line no-console
-    console.log(JSON.stringify(options), url.toString());
     const response = await this.httpClient.request({
       requestUrl: url.toString(),
       method: 'GET',
