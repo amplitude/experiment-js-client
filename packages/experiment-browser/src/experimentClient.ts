@@ -675,7 +675,7 @@ export class ExperimentClient implements Client {
     this.debug('[Experiment] Fetch variants for user: ', user);
     const results = await this.evaluationApi.getVariants(user, {
       timeoutMillis: timeoutMillis,
-      flagKeys: options?.flagKeys,
+      ...options,
     });
     const variants: Variants = {};
     for (const key of Object.keys(results)) {

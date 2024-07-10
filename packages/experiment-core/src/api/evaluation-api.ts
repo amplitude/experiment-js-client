@@ -4,9 +4,15 @@ import { FetchError } from '../evaluation/error';
 import { EvaluationVariant } from '../evaluation/flag';
 import { HttpClient } from '../transport/http';
 
+export type EvaluationMode = 'remote' | 'local';
+export type DeliveryMethod = 'feature' | 'web';
+export type TrackingOption = 'track' | 'no-track' | 'read-only';
+
 export type GetVariantsOptions = {
   flagKeys?: string[];
-  trackingOption?: string;
+  trackingOption?: TrackingOption;
+  deliveryMethod?: DeliveryMethod;
+  evaluationMode?: EvaluationMode;
   timeoutMillis?: number;
 };
 
@@ -49,8 +55,17 @@ export class SdkEvaluationApi implements EvaluationApi {
     if (options?.trackingOption) {
       headers['X-Amp-Exp-Track'] = options.trackingOption;
     }
+    const url = new URL(`${this.serverUrl}/sdk/v2/vardata`);
+    if (options?.evaluationMode) {
+      url.searchParams.append('eval_mode', options?.evaluationMode);
+    }
+    if (options?.deliveryMethod) {
+      url.searchParams.append('delivery_method', options?.deliveryMethod);
+    }
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify(options), url.toString());
     const response = await this.httpClient.request({
-      requestUrl: `${this.serverUrl}/sdk/v2/vardata?v=0`,
+      requestUrl: url.toString(),
       method: 'GET',
       headers: headers,
       timeoutMillis: options?.timeoutMillis,
