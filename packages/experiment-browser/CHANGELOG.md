@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.11.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.10.2...@amplitude/experiment-js-client@1.11.0) (2024-07-11)
+
+
+### Features
+
+* add options evaluation api in experiment-core ([#114](https://github.com/amplitude/experiment-js-client/issues/114)) ([ce657a1](https://github.com/amplitude/experiment-js-client/commit/ce657a1fc9efdd28921ad12ccb702fb602a84c0c))
+
+
+
+
+
 ## [1.10.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.10.1...@amplitude/experiment-js-client@1.10.2) (2024-05-23)
 
 
