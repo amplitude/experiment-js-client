@@ -10,8 +10,12 @@ export {
   EvaluationVariant,
 } from './evaluation/flag';
 export { topologicalSort } from './evaluation/topological-sort';
-export { EvaluationApi, SdkEvaluationApi } from './api/evaluation-api';
-export { FlagApi, SdkFlagApi } from './api/flag-api';
+export {
+  EvaluationApi,
+  SdkEvaluationApi,
+  GetVariantsOptions,
+} from './api/evaluation-api';
+export { FlagApi, SdkFlagApi, GetFlagsOptions } from './api/flag-api';
 export { HttpClient, HttpRequest, HttpResponse } from './transport/http';
 export { Poller } from './util/poller';
 export { safeGlobal } from './util/global';

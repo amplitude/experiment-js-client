@@ -3,7 +3,7 @@ import { ExperimentUser } from './user';
 import { Variant, Variants } from './variant';
 
 export type FetchOptions = {
-  flagKeys: string[];
+  flagKeys?: string[];
 };
 
 /**
