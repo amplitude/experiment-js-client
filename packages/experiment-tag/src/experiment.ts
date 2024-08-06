@@ -4,6 +4,7 @@ import {
   ExperimentUser,
   Variant,
 } from '@amplitude/experiment-js-client';
+import { UAParser } from '@amplitude/ua-parser-js';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { WindowMessenger } from './messenger';
@@ -18,6 +19,10 @@ import {
   concatenateQueryParamsOf,
 } from './util';
 
+type WebExpUser = ExperimentUser & {
+  first_seen?: string;
+};
+
 const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
 
@@ -25,9 +30,10 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   WindowMessenger.setup();
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   const globalScope = getGlobalScope();
+  const ua = new UAParser(globalScope?.navigator.userAgent).getResult();
 
   if (isLocalStorageAvailable() && globalScope) {
-    let user: ExperimentUser;
+    let user: WebExpUser;
     try {
       user = JSON.parse(
         globalScope.localStorage.getItem(experimentStorageName) || '{}',
@@ -37,14 +43,69 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     }
 
     // create new user if it does not exist, or it does not have device_id
+    let userUpdated = true;
+    // create new user if it does not exist, or it does not have device_id
     if (Object.keys(user).length === 0 || !user.device_id) {
       user = {};
       user.device_id = UUID();
-      globalScope.localStorage.setItem(
+      userUpdated = true;
+    }
+    if (!user.first_seen) {
+      user.first_seen = (Date.now() / 1000).toString();
+      userUpdated = true;
+    }
+    if (userUpdated) {
+      globalScope?.localStorage.setItem(
         experimentStorageName,
         JSON.stringify(user),
       );
     }
+
+    // Add user properties.
+    if (!user.user_properties) {
+      user.user_properties = {};
+    }
+    // Device type.
+    switch (ua.device?.type) {
+      case 'wearable':
+      case 'mobile':
+        user.user_properties.device_type = 'mobile';
+        break;
+      case 'tablet':
+        user.user_properties.device_type = 'tablet';
+        break;
+      case 'embedded':
+      case 'console':
+      case 'smarttv':
+      case undefined:
+      default:
+        user.user_properties.device_type = 'desktop';
+        break;
+    }
+    // Referral URL.
+    user.user_properties.referring_url = globalScope.document.referrer;
+    // Landing URL.
+    user.user_properties.landing_url = globalScope.document.location.href;
+    // Cookie.
+    user.user_properties.cookie = Object.fromEntries(
+      globalScope.document.cookie.split('; ').map((c) => c.split('=')),
+    );
+    // Language.
+    user.user_properties.language =
+      globalScope.navigator.language.toLowerCase();
+    // Browser.
+    if (ua.browser?.name?.includes('Chrome'))
+      user.user_properties.browser = 'Chrome';
+    else if (ua.browser?.name?.includes('Firefox'))
+      user.user_properties.browser = 'Firefox';
+    else if (ua.browser?.name?.includes('Safari'))
+      user.user_properties.browser = 'Safari';
+    else if (ua.browser?.name?.includes('Edge'))
+      user.user_properties.browser = 'Edge';
+    else if (ua.browser?.name?.includes('Opera'))
+      user.user_properties.browser = 'Opera';
+    // OS.
+    user.user_properties.os = ua.os?.name;
 
     const urlParams = getUrlParams();
     // if in visual edit mode, remove the query param
