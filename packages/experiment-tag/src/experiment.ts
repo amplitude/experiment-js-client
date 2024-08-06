@@ -21,6 +21,12 @@ import {
 
 type WebExpUser = ExperimentUser & {
   first_seen?: string;
+  device_type?: 'mobile' | 'tablet' | 'desktop';
+  referring_url?: string;
+  landing_url?: string;
+  cookie?: string;
+  browser?: 'Chrome' | 'Firefox' | 'Safari' | 'Edge' | 'Opera';
+  os?: string;
 };
 
 const appliedMutations: MutationController[] = [];
@@ -61,51 +67,42 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
       );
     }
 
-    // Add user properties.
-    if (!user.user_properties) {
-      user.user_properties = {};
-    }
+    // Add user targeting properties.
     // Device type.
     switch (ua.device?.type) {
       case 'wearable':
       case 'mobile':
-        user.user_properties.device_type = 'mobile';
+        user.device_type = 'mobile';
         break;
       case 'tablet':
-        user.user_properties.device_type = 'tablet';
+        user.device_type = 'tablet';
         break;
       case 'embedded':
       case 'console':
       case 'smarttv':
       case undefined:
       default:
-        user.user_properties.device_type = 'desktop';
+        user.device_type = 'desktop';
         break;
     }
     // Referral URL.
-    user.user_properties.referring_url = globalScope.document.referrer;
+    user.referring_url = globalScope.document.referrer;
     // Landing URL.
-    user.user_properties.landing_url = globalScope.document.location.href;
+    user.landing_url = globalScope.document.location.href;
     // Cookie.
-    user.user_properties.cookie = Object.fromEntries(
+    user.cookie = Object.fromEntries(
       globalScope.document.cookie.split('; ').map((c) => c.split('=')),
     );
     // Language.
-    user.user_properties.language =
-      globalScope.navigator.language.toLowerCase();
+    user.language = globalScope.navigator.language.toLowerCase();
     // Browser.
-    if (ua.browser?.name?.includes('Chrome'))
-      user.user_properties.browser = 'Chrome';
-    else if (ua.browser?.name?.includes('Firefox'))
-      user.user_properties.browser = 'Firefox';
-    else if (ua.browser?.name?.includes('Safari'))
-      user.user_properties.browser = 'Safari';
-    else if (ua.browser?.name?.includes('Edge'))
-      user.user_properties.browser = 'Edge';
-    else if (ua.browser?.name?.includes('Opera'))
-      user.user_properties.browser = 'Opera';
+    if (ua.browser?.name?.includes('Chrome')) user.browser = 'Chrome';
+    else if (ua.browser?.name?.includes('Firefox')) user.browser = 'Firefox';
+    else if (ua.browser?.name?.includes('Safari')) user.browser = 'Safari';
+    else if (ua.browser?.name?.includes('Edge')) user.browser = 'Edge';
+    else if (ua.browser?.name?.includes('Opera')) user.browser = 'Opera';
     // OS.
-    user.user_properties.os = ua.os?.name;
+    user.os = ua.os?.name;
 
     const urlParams = getUrlParams();
     // if in visual edit mode, remove the query param
