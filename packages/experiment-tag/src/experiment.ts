@@ -202,9 +202,9 @@ export const setUrlChangeListener = () => {
 
       // Wrapper for pushState
       history.pushState = function (...args) {
+        previousUrl = globalScope.location.href;
         // Call the original pushState
         const result = originalPushState.apply(this, args);
-        previousUrl = globalScope.location.href;
         // Revert mutations and apply variants after pushing state
         revertMutations();
         applyVariants(globalScope.experiment.all());
@@ -214,9 +214,9 @@ export const setUrlChangeListener = () => {
 
       // Wrapper for replaceState
       history.replaceState = function (...args) {
+        previousUrl = globalScope.location.href;
         // Call the original replaceState
         const result = originalReplaceState.apply(this, args);
-        previousUrl = globalScope.location.href;
         // Revert mutations and apply variants after replacing state
         revertMutations();
         applyVariants(globalScope.experiment.all());
