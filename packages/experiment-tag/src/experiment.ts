@@ -189,7 +189,7 @@ const revertMutations = () => {
 export const setUrlChangeListener = () => {
   const globalScope = getGlobalScope();
   if (globalScope) {
-    // add URL change listener
+    // Add URL change listener for back/forward navigation
     globalScope.addEventListener('popstate', () => {
       revertMutations();
       applyVariants(globalScope.experiment.all());
@@ -209,7 +209,6 @@ export const setUrlChangeListener = () => {
       history.replaceState = function (...args) {
         previousUrl = globalScope.location.href;
         const result = replaceState.apply(history, args);
-        globalScope.dispatchEvent(new Event('popstate'));
         return result;
       };
     })(globalScope.history);
