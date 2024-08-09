@@ -34,9 +34,15 @@ describe('initializeExperiment', () => {
         replace: jest.fn(),
         search: '',
       },
-      document: { referrer: '' },
+      document: { referrer: '', cookie: '' },
       history: { replaceState: jest.fn() },
+      navigator: {
+        language: 'en',
+        userAgent:
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+      },
     };
+    jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -102,10 +108,17 @@ describe('initializeExperiment', () => {
     );
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       device_id: 'mock',
+      browser: 'chrome',
+      device_type: 'desktop',
+      first_seen: '1000',
+      landing_url: 'http://test.com',
+      language: 'en',
+      os: 'macos',
+      referring_url: '',
     });
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       'EXP_apiKey_1',
-      JSON.stringify({ device_id: 'mock' }),
+      JSON.stringify({ device_id: 'mock', first_seen: '1000' }),
     );
   });
 

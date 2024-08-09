@@ -25,7 +25,7 @@ type WebExpUser = ExperimentUser & {
   referring_url?: string;
   landing_url?: string;
   cookie?: string;
-  browser?: 'Chrome' | 'Firefox' | 'Safari' | 'Edge' | 'Opera';
+  browser?: 'chrome' | 'firefox' | 'safari' | 'edge' | 'opera';
   os?: string;
 };
 
@@ -36,7 +36,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   WindowMessenger.setup();
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   const globalScope = getGlobalScope();
-  const ua = new UAParser(globalScope?.navigator.userAgent).getResult();
+  const ua = new UAParser(globalScope?.navigator?.userAgent).getResult();
 
   if (isLocalStorageAvailable() && globalScope) {
     let user: WebExpUser;
@@ -49,60 +49,46 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     }
 
     // create new user if it does not exist, or it does not have device_id
-    let userUpdated = true;
-    // create new user if it does not exist, or it does not have device_id
     if (Object.keys(user).length === 0 || !user.device_id) {
       user = {};
       user.device_id = UUID();
-      userUpdated = true;
     }
     if (!user.first_seen) {
       user.first_seen = (Date.now() / 1000).toString();
-      userUpdated = true;
     }
-    if (userUpdated) {
-      globalScope?.localStorage.setItem(
-        experimentStorageName,
-        JSON.stringify(user),
-      );
-    }
+    globalScope?.localStorage.setItem(
+      experimentStorageName,
+      JSON.stringify(user),
+    );
 
     // Add user targeting properties.
     // Device type.
-    switch (ua.device?.type) {
-      case 'wearable':
-      case 'mobile':
-        user.device_type = 'mobile';
-        break;
-      case 'tablet':
-        user.device_type = 'tablet';
-        break;
-      case 'embedded':
-      case 'console':
-      case 'smarttv':
-      case undefined:
-      default:
-        user.device_type = 'desktop';
-        break;
-    }
+    user.device_type = ua.device?.type ?? 'desktop'; // undefined means desktop.
     // Referral URL.
-    user.referring_url = globalScope.document.referrer;
+    user.referring_url = globalScope.document?.referrer;
     // Landing URL.
-    user.landing_url = globalScope.document.location.href;
+    user.landing_url = globalScope.location.href;
     // Cookie.
-    user.cookie = Object.fromEntries(
-      globalScope.document.cookie.split('; ').map((c) => c.split('=')),
-    );
+    if (globalScope.document?.cookie)
+      user.cookie =
+        globalScope.document?.cookie &&
+        Object.fromEntries(
+          globalScope.document.cookie.split('; ').map((c) => c.split('=')),
+        );
     // Language.
-    user.language = globalScope.navigator.language.toLowerCase();
+    user.language = globalScope.navigator?.language?.toLowerCase();
     // Browser.
-    if (ua.browser?.name?.includes('Chrome')) user.browser = 'Chrome';
-    else if (ua.browser?.name?.includes('Firefox')) user.browser = 'Firefox';
-    else if (ua.browser?.name?.includes('Safari')) user.browser = 'Safari';
-    else if (ua.browser?.name?.includes('Edge')) user.browser = 'Edge';
-    else if (ua.browser?.name?.includes('Opera')) user.browser = 'Opera';
+    user.browser = ua.browser?.name?.toLowerCase();
+    // Normalize for Chrome, Firefox, Safari, Edge, and Opera.
+    if (user.browser?.includes('chrom')) user.browser = 'chrome'; // Chrome, Chrome Mobile, Chromium, etc
+    if (user.browser?.includes('firefox')) user.browser = 'firefox'; // Firefox, Firefox Mobile, etc
+    if (user.browser?.includes('safari')) user.browser = 'safari'; // Safari, Safari Mobile
+    if (user.browser?.includes('edge')) user.browser = 'edge'; // Edge
+    if (user.browser?.includes('opera')) user.browser = 'opera'; // Opera, Opera Mobi, etc
     // OS.
-    user.os = ua.os?.name;
+    user.os = ua.os?.name?.toLowerCase();
+    // For compatibility with ua-parser-js 2.0 where Mac OS is renamed to macOS.
+    if (user.os == 'mac os') user.os = 'macos';
 
     const urlParams = getUrlParams();
     // if in visual edit mode, remove the query param
