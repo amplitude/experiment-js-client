@@ -195,22 +195,37 @@ export const setUrlChangeListener = () => {
       applyVariants(globalScope.experiment.all());
     });
 
-    (function (history) {
-      const pushState = history.pushState;
-      const replaceState = history.replaceState;
+    // Create wrapper functions for pushState and replaceState
+    const wrapHistoryMethods = () => {
+      const originalPushState = history.pushState;
+      const originalReplaceState = history.replaceState;
 
+      // Wrapper for pushState
       history.pushState = function (...args) {
+        // Call the original pushState
+        const result = originalPushState.apply(this, args);
         previousUrl = globalScope.location.href;
-        const result = pushState.apply(history, args);
-        globalScope.dispatchEvent(new Event('popstate'));
+        // Revert mutations and apply variants after pushing state
+        revertMutations();
+        applyVariants(globalScope.experiment.all());
+
         return result;
       };
 
+      // Wrapper for replaceState
       history.replaceState = function (...args) {
+        // Call the original replaceState
+        const result = originalReplaceState.apply(this, args);
         previousUrl = globalScope.location.href;
-        const result = replaceState.apply(history, args);
+        // Revert mutations and apply variants after replacing state
+        revertMutations();
+        applyVariants(globalScope.experiment.all());
+
         return result;
       };
-    })(globalScope.history);
+    };
+
+    // Initialize the wrapper
+    wrapHistoryMethods();
   }
 };
