@@ -25,7 +25,7 @@ type WebExpUser = ExperimentUser & {
   referring_url?: string;
   landing_url?: string;
   cookie?: string;
-  browser?: 'chrome' | 'firefox' | 'safari' | 'edge' | 'opera';
+  browser?: 'Chrome' | 'Firefox' | 'Safari' | 'Edge' | 'Opera';
   os?: string;
 };
 
@@ -78,17 +78,17 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     // Language.
     user.language = globalScope.navigator?.language?.toLowerCase();
     // Browser.
-    user.browser = ua.browser?.name?.toLowerCase();
+    user.browser = ua.browser?.name;
     // Normalize for Chrome, Firefox, Safari, Edge, and Opera.
-    if (user.browser?.includes('chrom')) user.browser = 'chrome'; // Chrome, Chrome Mobile, Chromium, etc
-    if (user.browser?.includes('firefox')) user.browser = 'firefox'; // Firefox, Firefox Mobile, etc
-    if (user.browser?.includes('safari')) user.browser = 'safari'; // Safari, Safari Mobile
-    if (user.browser?.includes('edge')) user.browser = 'edge'; // Edge
-    if (user.browser?.includes('opera')) user.browser = 'opera'; // Opera, Opera Mobi, etc
+    if (user.browser?.includes('Chrom')) user.browser = 'Chrome'; // Chrome, Chrome Mobile, Chromium, etc
+    if (user.browser?.includes('Firefox')) user.browser = 'Firefox'; // Firefox, Firefox Mobile, etc
+    if (user.browser?.includes('Safari')) user.browser = 'Safari'; // Safari, Safari Mobile
+    if (user.browser?.includes('Edge')) user.browser = 'Edge'; // Edge
+    if (user.browser?.includes('Opera')) user.browser = 'Opera'; // Opera, Opera Mobi, etc
     // OS.
-    user.os = ua.os?.name?.toLowerCase();
+    user.os = ua.os?.name;
     // For compatibility with ua-parser-js 2.0 where Mac OS is renamed to macOS.
-    if (user.os == 'mac os') user.os = 'macos';
+    if (user.os == 'Mac OS') user.os = 'macOS';
 
     const urlParams = getUrlParams();
     // if in visual edit mode, remove the query param

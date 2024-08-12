@@ -108,12 +108,12 @@ describe('initializeExperiment', () => {
     );
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       device_id: 'mock',
-      browser: 'chrome',
+      browser: 'Chrome',
       device_type: 'desktop',
       first_seen: '1000',
       landing_url: 'http://test.com',
       language: 'en',
-      os: 'macos',
+      os: 'macOS',
       referring_url: '',
     });
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
