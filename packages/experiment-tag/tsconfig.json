@@ -8,6 +8,7 @@
     "downlevelIteration": true,
     "strict": true,
     "baseUrl": "./src",
-    "rootDir": "."
+    "rootDir": ".",
+    "lib": ["ES2019"]
   }
 }

@@ -24,7 +24,7 @@ type WebExpUser = ExperimentUser & {
   device_type?: 'mobile' | 'tablet' | 'desktop';
   referring_url?: string;
   landing_url?: string;
-  cookie?: string;
+  cookie?: Record<string, string>;
   browser?: 'Chrome' | 'Firefox' | 'Safari' | 'Edge' | 'Opera';
   os?: string;
 };
@@ -69,14 +69,13 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     // Landing URL.
     user.landing_url = globalScope.location.href;
     // Cookie.
-    if (globalScope.document?.cookie)
-      user.cookie =
-        globalScope.document?.cookie &&
-        Object.fromEntries(
-          globalScope.document.cookie.split('; ').map((c) => c.split('=')),
-        );
+    if (globalScope.document?.cookie) {
+      user.cookie = Object.fromEntries(
+        globalScope.document?.cookie?.split('; ').map((c) => c.split('=')),
+      );
+    }
     // Language.
-    user.language = globalScope.navigator?.language?.toLowerCase();
+    user.language = globalScope.navigator?.language;
     // Browser.
     user.browser = ua.browser?.name;
     // Normalize for Chrome, Firefox, Safari, Edge, and Opera.
