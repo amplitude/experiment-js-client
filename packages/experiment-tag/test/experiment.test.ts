@@ -34,7 +34,10 @@ describe('initializeExperiment', () => {
         replace: jest.fn(),
         search: '',
       },
-      document: { referrer: '', cookie: '' },
+      document: {
+        referrer: '',
+        cookie: 'yummy_cookie=choco; tasty_cookie=strawberry',
+      },
       history: { replaceState: jest.fn() },
       navigator: {
         language: 'en',
@@ -115,6 +118,10 @@ describe('initializeExperiment', () => {
       language: 'en',
       os: 'macOS',
       referring_url: '',
+      cookie: {
+        tasty_cookie: 'strawberry',
+        yummy_cookie: 'choco',
+      },
     });
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       'EXP_apiKey_1',
