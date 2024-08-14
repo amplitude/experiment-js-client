@@ -72,11 +72,17 @@ export const UUID = function (a?: any): string {
 };
 
 export const matchesUrl = (urlArray: string[], urlString: string): boolean => {
-  const cleanUrlString = urlString.replace(/\/$/, '');
+  urlString = urlString.replace(/\/$/, '');
 
   return urlArray.some((url) => {
-    const cleanUrl = url.replace(/\/$/, '');
-    return cleanUrl === cleanUrlString;
+    url = url.replace(/\/$/, ''); // remove trailing slash
+    url = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // escape url for regex
+    url = url.replace(/\\\*/, '.*'); // replace escaped * with .*
+    const regex = new RegExp(`^${url}$`);
+    // Check regex match with and without trailing slash. For example,
+    // `https://example.com/*` would not match `https://example.com` without
+    // this addition.
+    return regex.test(urlString) || regex.test(urlString + '/');
   });
 };
 
