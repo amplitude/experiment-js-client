@@ -19,16 +19,6 @@ import {
   concatenateQueryParamsOf,
 } from './util';
 
-type WebExpUser = ExperimentUser & {
-  first_seen?: string;
-  device_type?: 'mobile' | 'tablet' | 'desktop';
-  referring_url?: string;
-  landing_url?: string;
-  cookie?: Record<string, string>;
-  browser?: 'Chrome' | 'Firefox' | 'Safari' | 'Edge' | 'Opera';
-  os?: string;
-};
-
 const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
 
@@ -39,7 +29,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   const ua = new UAParser(globalScope?.navigator?.userAgent).getResult();
 
   if (isLocalStorageAvailable() && globalScope) {
-    let user: WebExpUser;
+    let user: ExperimentUser;
     try {
       user = JSON.parse(
         globalScope.localStorage.getItem(experimentStorageName) || '{}',
@@ -60,34 +50,6 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
       experimentStorageName,
       JSON.stringify(user),
     );
-
-    // Add user targeting properties.
-    // Device type.
-    user.device_type = ua.device?.type ?? 'desktop'; // undefined means desktop.
-    // Referral URL.
-    user.referring_url = globalScope.document?.referrer;
-    // Landing URL.
-    user.landing_url = globalScope.location.href;
-    // Cookie.
-    if (globalScope.document?.cookie) {
-      user.cookie = Object.fromEntries(
-        globalScope.document?.cookie?.split('; ').map((c) => c.split('=')),
-      );
-    }
-    // Language.
-    user.language = globalScope.navigator?.language;
-    // Browser.
-    user.browser = ua.browser?.name;
-    // Normalize for Chrome, Firefox, Safari, Edge, and Opera.
-    if (user.browser?.includes('Chrom')) user.browser = 'Chrome'; // Chrome, Chrome Mobile, Chromium, etc
-    if (user.browser?.includes('Firefox')) user.browser = 'Firefox'; // Firefox, Firefox Mobile, etc
-    if (user.browser?.includes('Safari')) user.browser = 'Safari'; // Safari, Safari Mobile
-    if (user.browser?.includes('Edge')) user.browser = 'Edge'; // Edge
-    if (user.browser?.includes('Opera')) user.browser = 'Opera'; // Opera, Opera Mobi, etc
-    // OS.
-    user.os = ua.os?.name;
-    // For compatibility with ua-parser-js 2.0 where Mac OS is renamed to macOS.
-    if (user.os == 'Mac OS') user.os = 'macOS';
 
     const urlParams = getUrlParams();
     // if in visual edit mode, remove the query param

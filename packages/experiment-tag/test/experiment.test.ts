@@ -111,17 +111,7 @@ describe('initializeExperiment', () => {
     );
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       device_id: 'mock',
-      browser: 'Chrome',
-      device_type: 'desktop',
       first_seen: '1000',
-      landing_url: 'http://test.com',
-      language: 'en',
-      os: 'macOS',
-      referring_url: '',
-      cookie: {
-        tasty_cookie: 'strawberry',
-        yummy_cookie: 'choco',
-      },
     });
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       'EXP_apiKey_1',

@@ -27,6 +27,11 @@ export class DefaultUserProvider implements ExperimentUserProvider {
       platform: context.platform,
       os: context.os || this.getOs(this.ua),
       device_model: context.deviceModel || this.getDeviceModel(this.ua),
+      device_category: this.ua.device?.type ?? 'desktop',
+      referring_url: document?.referrer,
+      landing_url: location?.href,
+      cookie: getCookie(),
+      browser: this.getBrowser(this.ua),
       ...user,
     };
   }
@@ -40,4 +45,24 @@ export class DefaultUserProvider implements ExperimentUserProvider {
   private getDeviceModel(ua: UAParser): string | undefined {
     return ua.os?.name;
   }
+
+  private getBrowser(ua: UAParser): string {
+    let browser = ua.browser?.name;
+    // Normalize for Chrome, Firefox, Safari, Edge, and Opera.
+    if (browser?.includes('Chrom')) browser = 'Chrome'; // Chrome, Chrome Mobile, Chromium, etc
+    if (browser?.includes('Firefox')) browser = 'Firefox'; // Firefox, Firefox Mobile, etc
+    if (browser?.includes('Safari')) browser = 'Safari'; // Safari, Safari Mobile
+    if (browser?.includes('Edge')) browser = 'Edge'; // Edge
+    if (browser?.includes('Opera')) browser = 'Opera'; // Opera, Opera Mobi, etc
+    return browser;
+  }
 }
+
+const getCookie = (): Record<string, string> => {
+  if (!document?.cookie) {
+    return undefined;
+  }
+  return Object.fromEntries(
+    document?.cookie?.split('; ').map((c) => c.split('=')),
+  );
+};

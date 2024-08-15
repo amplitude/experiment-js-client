@@ -76,6 +76,40 @@ export type ExperimentUser = {
    */
   library?: string;
 
+  first_seen?: string;
+
+  /**
+   * The device category of the device, auto populated via a ExperimentUserProvider, can be manually overridden.
+   */
+  device_category?:
+    | 'mobile'
+    | 'tablet'
+    | 'desktop'
+    | 'wearable'
+    | 'console'
+    | 'smarttv'
+    | 'embedded';
+
+  /**
+   * The referring url that redirected to this page, auto populated via a ExperimentUserProvider, can be manually overridden.
+   */
+  referring_url?: string;
+
+  /**
+   * The landing url, auto populated via a ExperimentUserProvider, can be manually overridden.
+   */
+  landing_url?: string;
+
+  /**
+   * The cookies, auto populated via a ExperimentUserProvider, can be manually overridden.
+   */
+  cookie?: Record<string, string>;
+
+  /**
+   * The browser used, auto populated via a ExperimentUserProvider, can be manually overridden.
+   */
+  browser?: string;
+
   /**
    * Custom user properties
    */

@@ -20,5 +20,8 @@
     "out": "../../docs",
     "readme": "none",
     "theme": "default"
+  },
+  "compilerOptions": {
+    "lib": ["ES2019"]
   }
 }
