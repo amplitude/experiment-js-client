@@ -4,6 +4,8 @@ import { UAParser } from '@amplitude/ua-parser-js';
 import { ExperimentUserProvider } from '../types/provider';
 import { ExperimentUser } from '../types/user';
 
+const cleanUrl = (url) => url.replace(/\/$/, '');
+
 export class DefaultUserProvider implements ExperimentUserProvider {
   private readonly ua = new UAParser(
     typeof navigator !== 'undefined' ? navigator.userAgent : null,
@@ -28,9 +30,9 @@ export class DefaultUserProvider implements ExperimentUserProvider {
       os: context.os || this.getOs(this.ua),
       device_model: context.deviceModel || this.getDeviceModel(this.ua),
       device_category: this.ua.device?.type ?? 'desktop',
-      referring_url: document?.referrer,
-      landing_url: location?.href,
-      cookie: getCookie(),
+      referring_url: cleanUrl(document?.referrer),
+      landing_url: cleanUrl(location?.href),
+      cookie: this.getCookie(),
       browser: this.getBrowser(this.ua),
       ...user,
     };
@@ -56,13 +58,13 @@ export class DefaultUserProvider implements ExperimentUserProvider {
     if (browser?.includes('Opera')) browser = 'Opera'; // Opera, Opera Mobi, etc
     return browser;
   }
-}
 
-const getCookie = (): Record<string, string> => {
-  if (!document?.cookie) {
-    return undefined;
+  private getCookie(): Record<string, string> {
+    if (!document?.cookie) {
+      return undefined;
+    }
+    return Object.fromEntries(
+      document?.cookie?.split('; ').map((c) => c.split('=')),
+    );
   }
-  return Object.fromEntries(
-    document?.cookie?.split('; ').map((c) => c.split('=')),
-  );
-};
+}
