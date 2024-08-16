@@ -96,11 +96,6 @@ export type ExperimentUser = {
   referring_url?: string;
 
   /**
-   * The landing url, auto populated via a ExperimentUserProvider, can be manually overridden.
-   */
-  landing_url?: string;
-
-  /**
    * The cookies, auto populated via a ExperimentUserProvider, can be manually overridden.
    */
   cookie?: Record<string, string>;

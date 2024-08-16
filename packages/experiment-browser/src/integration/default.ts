@@ -4,8 +4,6 @@ import { UAParser } from '@amplitude/ua-parser-js';
 import { ExperimentUserProvider } from '../types/provider';
 import { ExperimentUser } from '../types/user';
 
-const cleanUrl = (url) => url.replace(/\/$/, '');
-
 export class DefaultUserProvider implements ExperimentUserProvider {
   private readonly ua = new UAParser(
     typeof navigator !== 'undefined' ? navigator.userAgent : null,
@@ -30,8 +28,7 @@ export class DefaultUserProvider implements ExperimentUserProvider {
       os: context.os || this.getOs(this.ua),
       device_model: context.deviceModel || this.getDeviceModel(this.ua),
       device_category: this.ua.device?.type ?? 'desktop',
-      referring_url: cleanUrl(document?.referrer),
-      landing_url: cleanUrl(location?.href),
+      referring_url: document?.referrer.replace(/\/$/, ''),
       cookie: this.getCookie(),
       browser: this.getBrowser(this.ua),
       ...user,

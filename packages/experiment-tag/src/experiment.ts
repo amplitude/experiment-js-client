@@ -17,10 +17,16 @@ import {
   urlWithoutParamsAndAnchor,
   UUID,
   concatenateQueryParamsOf,
+  isSessionStorageAvailable,
 } from './util';
 
 const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
+
+type WebExpUser = ExperimentUser & {
+  landing_url?: string;
+  first_seen?: string;
+};
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   WindowMessenger.setup();
@@ -29,7 +35,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   const ua = new UAParser(globalScope?.navigator?.userAgent).getResult();
 
   if (isLocalStorageAvailable() && globalScope) {
-    let user: ExperimentUser;
+    let user: WebExpUser;
     try {
       user = JSON.parse(
         globalScope.localStorage.getItem(experimentStorageName) || '{}',
@@ -50,6 +56,23 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
       experimentStorageName,
       JSON.stringify(user),
     );
+
+    if (isSessionStorageAvailable()) {
+      const sessionUser = JSON.parse(
+        globalScope?.sessionStorage.getItem(experimentStorageName) || '{}',
+      );
+      if (!sessionUser.landing_url) {
+        sessionUser.landing_url = globalScope?.location?.href.replace(
+          /\/$/,
+          '',
+        );
+        globalScope?.sessionStorage.setItem(
+          experimentStorageName,
+          JSON.stringify(sessionUser),
+        );
+      }
+      user.landing_url = sessionUser.landing_url;
+    }
 
     const urlParams = getUrlParams();
     // if in visual edit mode, remove the query param
