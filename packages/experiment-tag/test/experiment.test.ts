@@ -34,16 +34,7 @@ describe('initializeExperiment', () => {
         replace: jest.fn(),
         search: '',
       },
-      document: {
-        referrer: '',
-        cookie: 'yummy_cookie=choco; tasty_cookie=strawberry',
-      },
       history: { replaceState: jest.fn() },
-      navigator: {
-        language: 'en',
-        userAgent:
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-      },
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
