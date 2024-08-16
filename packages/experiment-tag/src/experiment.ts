@@ -4,7 +4,6 @@ import {
   ExperimentUser,
   Variant,
 } from '@amplitude/experiment-js-client';
-import { UAParser } from '@amplitude/ua-parser-js';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { WindowMessenger } from './messenger';
@@ -41,7 +40,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     if (Object.keys(user).length === 0 || !user.device_id) {
       user = {};
       user.device_id = UUID();
-      globalScope?.localStorage.setItem(
+      globalScope.localStorage.setItem(
         experimentStorageName,
         JSON.stringify(user),
       );

@@ -25,7 +25,7 @@ export class DefaultUserProvider implements ExperimentUserProvider {
     this.contextProvider = applicationContextProvider;
     this.userProvider = userProvider;
     this.apiKey = apiKey;
-    this.storageKey = `EXP_${this.apiKey.slice(0, 10)}_DEFAULT_USER_PROVIDER`;
+    this.storageKey = `EXP_${this.apiKey?.slice(0, 10)}_DEFAULT_USER_PROVIDER`;
   }
 
   getUser(): ExperimentUser {

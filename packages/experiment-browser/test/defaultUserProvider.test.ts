@@ -47,6 +47,8 @@ describe('DefaultUserProvider', () => {
       browser: 'WebKit',
       device_category: 'desktop',
       referring_url: '',
+      first_seen: '1723845088.675',
+      landing_url: 'http://localhost',
     };
     expect(actualUser).toEqual(expectedUser);
   });
@@ -75,6 +77,8 @@ describe('DefaultUserProvider', () => {
       browser: 'WebKit',
       device_category: 'desktop',
       referring_url: '',
+      first_seen: '1723845088.675',
+      landing_url: 'http://localhost',
     };
     expect(actualUser).toEqual(expectedUser);
   });
@@ -106,6 +110,8 @@ describe('DefaultUserProvider', () => {
       browser: 'WebKit',
       device_category: 'desktop',
       referring_url: '',
+      first_seen: '1723845088.675',
+      landing_url: 'http://localhost',
     };
     expect(actualUser).toEqual(expectedUser);
   });
@@ -137,6 +143,8 @@ describe('DefaultUserProvider', () => {
       browser: 'WebKit',
       device_category: 'desktop',
       referring_url: '',
+      first_seen: '1723845088.675',
+      landing_url: 'http://localhost',
     };
     expect(actualUser).toEqual(expectedUser);
   });
@@ -185,6 +193,8 @@ describe('DefaultUserProvider', () => {
       browser: 'WebKit',
       device_category: 'desktop',
       referring_url: '',
+      first_seen: '1723845088.675',
+      landing_url: 'http://localhost',
     };
     expect(actualUser).toEqual(expectedUser);
   });
