@@ -4,6 +4,10 @@ import { ExperimentUser } from '../src';
 import { DefaultUserProvider } from '../src/integration/default';
 
 describe('DefaultUserProvider', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+  });
   test('basic wrapped provider', async () => {
     const user: ExperimentUser = {
       user_id: 'user_id',
@@ -47,7 +51,7 @@ describe('DefaultUserProvider', () => {
       browser: 'WebKit',
       device_category: 'desktop',
       referring_url: '',
-      first_seen: '1723845088.675',
+      first_seen: '1000',
       landing_url: 'http://localhost',
     };
     expect(actualUser).toEqual(expectedUser);
@@ -77,7 +81,7 @@ describe('DefaultUserProvider', () => {
       browser: 'WebKit',
       device_category: 'desktop',
       referring_url: '',
-      first_seen: '1723845088.675',
+      first_seen: '1000',
       landing_url: 'http://localhost',
     };
     expect(actualUser).toEqual(expectedUser);
@@ -110,7 +114,7 @@ describe('DefaultUserProvider', () => {
       browser: 'WebKit',
       device_category: 'desktop',
       referring_url: '',
-      first_seen: '1723845088.675',
+      first_seen: '1000',
       landing_url: 'http://localhost',
     };
     expect(actualUser).toEqual(expectedUser);
@@ -143,7 +147,7 @@ describe('DefaultUserProvider', () => {
       browser: 'WebKit',
       device_category: 'desktop',
       referring_url: '',
-      first_seen: '1723845088.675',
+      first_seen: '1000',
       landing_url: 'http://localhost',
     };
     expect(actualUser).toEqual(expectedUser);
@@ -193,7 +197,7 @@ describe('DefaultUserProvider', () => {
       browser: 'WebKit',
       device_category: 'desktop',
       referring_url: '',
-      first_seen: '1723845088.675',
+      first_seen: '1000',
       landing_url: 'http://localhost',
     };
     expect(actualUser).toEqual(expectedUser);
