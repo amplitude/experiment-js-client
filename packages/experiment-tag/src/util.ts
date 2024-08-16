@@ -95,21 +95,6 @@ export const isLocalStorageAvailable = (): boolean => {
   return false;
 };
 
-export const isSessionStorageAvailable = (): boolean => {
-  const globalScope = getGlobalScope();
-  if (globalScope) {
-    try {
-      const testKey = 'EXP_test';
-      globalScope.sessionStorage.setItem(testKey, testKey);
-      globalScope.sessionStorage.removeItem(testKey);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-  return false;
-};
-
 export const concatenateQueryParamsOf = (
   currentUrl: string,
   redirectUrl: string,

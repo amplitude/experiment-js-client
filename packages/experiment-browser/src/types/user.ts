@@ -106,6 +106,12 @@ export type ExperimentUser = {
   browser?: string;
 
   /**
+   * The landing page of the user, the first page that this user sees for this deployment.
+   * Auto populated via a ExperimentUserProvider, can be manually overridden.
+   */
+  landing_url?: string;
+
+  /**
    * Custom user properties
    */
   user_properties?: {

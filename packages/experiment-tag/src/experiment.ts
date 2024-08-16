@@ -17,25 +17,18 @@ import {
   urlWithoutParamsAndAnchor,
   UUID,
   concatenateQueryParamsOf,
-  isSessionStorageAvailable,
 } from './util';
 
 const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
 
-type WebExpUser = ExperimentUser & {
-  landing_url?: string;
-  first_seen?: string;
-};
-
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   WindowMessenger.setup();
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   const globalScope = getGlobalScope();
-  const ua = new UAParser(globalScope?.navigator?.userAgent).getResult();
 
   if (isLocalStorageAvailable() && globalScope) {
-    let user: WebExpUser;
+    let user: ExperimentUser;
     try {
       user = JSON.parse(
         globalScope.localStorage.getItem(experimentStorageName) || '{}',
@@ -48,30 +41,10 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     if (Object.keys(user).length === 0 || !user.device_id) {
       user = {};
       user.device_id = UUID();
-    }
-    if (!user.first_seen) {
-      user.first_seen = (Date.now() / 1000).toString();
-    }
-    globalScope?.localStorage.setItem(
-      experimentStorageName,
-      JSON.stringify(user),
-    );
-
-    if (isSessionStorageAvailable()) {
-      const sessionUser = JSON.parse(
-        globalScope?.sessionStorage.getItem(experimentStorageName) || '{}',
+      globalScope?.localStorage.setItem(
+        experimentStorageName,
+        JSON.stringify(user),
       );
-      if (!sessionUser.landing_url) {
-        sessionUser.landing_url = globalScope?.location?.href.replace(
-          /\/$/,
-          '',
-        );
-        globalScope?.sessionStorage.setItem(
-          experimentStorageName,
-          JSON.stringify(sessionUser),
-        );
-      }
-      user.landing_url = sessionUser.landing_url;
     }
 
     const urlParams = getUrlParams();
