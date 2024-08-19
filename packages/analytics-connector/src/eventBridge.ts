@@ -18,7 +18,7 @@ export interface EventBridge {
 }
 
 export class EventBridgeImpl implements EventBridge {
-  private apiKey: string;
+  private apiKey = '';
   private receiver: AnalyticsEventReceiver;
   private inMemoryQueue: AnalyticsEvent[] = [];
   private globalScope = getGlobalScope();
