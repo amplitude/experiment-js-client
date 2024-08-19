@@ -1,13 +1,13 @@
+import * as coreUtil from '@amplitude/experiment-core';
 import {
   concatenateQueryParamsOf,
   getUrlParams,
   matchesUrl,
   urlWithoutParamsAndAnchor,
 } from 'src/util';
-import * as util from 'src/util';
 
 // Mock the getGlobalScope function
-const spyGetGlobalScope = jest.spyOn(util, 'getGlobalScope');
+const spyGetGlobalScope = jest.spyOn(coreUtil, 'getGlobalScope');
 
 describe('matchesUrl', () => {
   // Existing test cases
