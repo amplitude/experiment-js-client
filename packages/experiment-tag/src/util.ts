@@ -1,20 +1,5 @@
-export const getGlobalScope = (): typeof globalThis | undefined => {
-  if (typeof globalThis !== 'undefined') {
-    return globalThis;
-  }
-  if (typeof window !== 'undefined') {
-    return window;
-  }
-  if (typeof self !== 'undefined') {
-    return self;
-  }
-  if (typeof global !== 'undefined') {
-    return global;
-  }
-  return undefined;
-};
+import { getGlobalScope } from '@amplitude/experiment-core';
 
-// Get URL parameters
 export const getUrlParams = (): Record<string, string> => {
   const globalScope = getGlobalScope();
   const searchParams = new URLSearchParams(globalScope?.location.search);
@@ -78,21 +63,6 @@ export const matchesUrl = (urlArray: string[], urlString: string): boolean => {
     const cleanUrl = url.replace(/\/$/, '');
     return cleanUrl === cleanUrlString;
   });
-};
-
-export const isLocalStorageAvailable = (): boolean => {
-  const globalScope = getGlobalScope();
-  if (globalScope) {
-    try {
-      const testKey = 'EXP_test';
-      globalScope.localStorage.setItem(testKey, testKey);
-      globalScope.localStorage.removeItem(testKey);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-  return false;
 };
 
 export const concatenateQueryParamsOf = (

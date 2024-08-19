@@ -1,17 +1,20 @@
-import { EvaluationFlag } from '@amplitude/experiment-core';
+import {
+  EvaluationFlag,
+  EvaluationSegment,
+  getGlobalScope,
+  isLocalStorageAvailable,
+} from '@amplitude/experiment-core';
 import {
   Experiment,
   ExperimentUser,
   Variant,
+  Variants,
 } from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { WindowMessenger } from './messenger';
 import {
-  getGlobalScope,
   getUrlParams,
-  isLocalStorageAvailable,
-  matchesUrl,
   removeQueryParams,
   urlWithoutParamsAndAnchor,
   UUID,
@@ -61,12 +64,24 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
       const parsedFlags = JSON.parse(initialFlags);
       parsedFlags.forEach((flag: EvaluationFlag) => {
         if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
-          flag.segments = [
-            {
-              metadata: { segmentName: 'preview' },
-              variant: urlParams[flag.key],
-            },
-          ];
+          // Strip the preview query param
+          globalScope.history.replaceState(
+            {},
+            '',
+            removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
+          );
+          // Keep page targeting segments
+          const pageTargetingSegments = flag.segments.filter((segment) =>
+            isPageTargetingSegment(segment),
+          );
+
+          // Create or update the preview segment
+          const previewSegment = {
+            metadata: { segmentName: 'preview' },
+            variant: urlParams[flag.key],
+          };
+
+          flag.segments = [...pageTargetingSegments, previewSegment];
         }
       });
       initialFlags = JSON.stringify(parsedFlags);
@@ -90,20 +105,23 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   }
 };
 
-const applyVariants = (variants) => {
+const applyVariants = (variants: Variants | undefined) => {
+  if (!variants) {
+    return;
+  }
   const globalScope = getGlobalScope();
   if (globalScope) {
     for (const key in variants) {
       const variant = variants[key];
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
       if (isWebExperimentation) {
-        const urlExactMatch = variant.metadata?.['urlMatch'] as string[];
-        const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
+        const shouldTrackExposure =
+          (variant.metadata?.['trackExposure'] as boolean) ?? true;
         // if payload is falsy or empty array, consider it as control variant
         const payloadIsArray = Array.isArray(variant.payload);
         const isControlPayload =
           !variant.payload || (payloadIsArray && variant.payload.length === 0);
-        if (matchesUrl(urlExactMatch, currentUrl) && isControlPayload) {
+        if (shouldTrackExposure && isControlPayload) {
           globalScope.experiment.exposure(key);
           continue;
         }
@@ -125,58 +143,39 @@ const applyVariants = (variants) => {
 const handleRedirect = (action, key: string, variant: Variant) => {
   const globalScope = getGlobalScope();
   if (globalScope) {
-    const urlExactMatch = variant?.metadata?.['urlMatch'] as string[];
-    const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
     const referrerUrl = urlWithoutParamsAndAnchor(
       previousUrl || globalScope.document.referrer,
     );
     const redirectUrl = action?.data?.url;
-    // if in preview mode, strip query params
-    if (variant.metadata?.segmentName === 'preview') {
-      globalScope.history.replaceState(
-        {},
-        '',
-        removeQueryParams(globalScope.location.href, ['PREVIEW', key]),
-      );
+
+    const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
+    const shouldTrackExposure =
+      (variant.metadata?.['trackExposure'] as boolean) ?? true;
+
+    // prevent infinite redirection loop
+    if (currentUrl === referrerUrl) {
+      return;
     }
-    if (matchesUrl(urlExactMatch, currentUrl)) {
-      if (
-        !matchesUrl([redirectUrl], currentUrl) &&
-        currentUrl !== referrerUrl
-      ) {
-        const targetUrl = concatenateQueryParamsOf(
-          globalScope.location.href,
-          redirectUrl,
-        );
-        // perform redirection
-        globalScope.location.replace(targetUrl);
-      } else {
-        // if redirection is not required
-        globalScope.experiment.exposure(key);
-      }
-    } else if (
-      // if at the redirected page
-      matchesUrl(urlExactMatch, referrerUrl) &&
-      matchesUrl([urlWithoutParamsAndAnchor(redirectUrl)], currentUrl)
-    ) {
-      globalScope.experiment.exposure(key);
-    }
+    const targetUrl = concatenateQueryParamsOf(
+      globalScope.location.href,
+      redirectUrl,
+    );
+    shouldTrackExposure && globalScope.experiment.exposure(key);
+    // perform redirection
+    globalScope.location.replace(targetUrl);
   }
 };
 
 const handleMutate = (action, key: string, variant: Variant) => {
   const globalScope = getGlobalScope();
   if (globalScope) {
-    const urlExactMatch = variant?.metadata?.['urlMatch'] as string[];
-    const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
-
-    if (matchesUrl(urlExactMatch, currentUrl)) {
-      const mutations = action.data?.mutations;
-      mutations.forEach((m) => {
-        appliedMutations.push(mutate.declarative(m));
-      });
-      globalScope.experiment.exposure(key);
-    }
+    const mutations = action.data?.mutations;
+    mutations.forEach((m) => {
+      appliedMutations.push(mutate.declarative(m));
+    });
+    const shouldTrackExposure =
+      (variant.metadata?.['trackExposure'] as boolean) ?? true;
+    shouldTrackExposure && globalScope.experiment.exposure(key);
   }
 };
 
@@ -214,4 +213,12 @@ export const setUrlChangeListener = () => {
       };
     })(globalScope.history);
   }
+};
+
+const isPageTargetingSegment = (segment: EvaluationSegment) => {
+  return (
+    segment.metadata?.trackExposure === false &&
+    (segment.metadata?.segmentName === 'Page is targeted' ||
+      segment.metadata?.segmentName === 'Page is excluded')
+  );
 };

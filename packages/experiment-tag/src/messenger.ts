@@ -1,4 +1,4 @@
-import { getGlobalScope } from './util';
+import { getGlobalScope } from '@amplitude/experiment-core';
 
 export class WindowMessenger {
   static setup() {

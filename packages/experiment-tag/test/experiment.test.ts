@@ -1,3 +1,4 @@
+import * as coreUtil from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { initializeExperiment } from 'src/experiment';
 import * as experiment from 'src/experiment';
@@ -14,7 +15,7 @@ jest.mock('src/messenger', () => {
 jest.spyOn(experiment, 'setUrlChangeListener').mockReturnValue(undefined);
 
 describe('initializeExperiment', () => {
-  const mockGetGlobalScope = jest.spyOn(util, 'getGlobalScope');
+  const mockGetGlobalScope = jest.spyOn(coreUtil, 'getGlobalScope');
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
@@ -22,7 +23,7 @@ describe('initializeExperiment', () => {
   let mockGlobal;
 
   beforeEach(() => {
-    jest.spyOn(util, 'isLocalStorageAvailable').mockReturnValue(true);
+    jest.spyOn(coreUtil, 'isLocalStorageAvailable').mockReturnValue(true);
     jest.clearAllMocks();
     mockGlobal = {
       localStorage: {
@@ -110,12 +111,12 @@ describe('initializeExperiment', () => {
   });
 
   test('experiment should not run without localStorage', () => {
-    jest.spyOn(util, 'isLocalStorageAvailable').mockReturnValue(false);
+    jest.spyOn(coreUtil, 'isLocalStorageAvailable').mockReturnValue(false);
     initializeExperiment('no_local', '');
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 
-  test('should redirect and not call exposure', () => {
+  test('should redirect and call exposure', () => {
     initializeExperiment(
       'apiKey_2',
       JSON.stringify([
@@ -177,7 +178,7 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
     );
-    expect(mockExposure).toHaveBeenCalledTimes(0);
+    expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
   test('should not redirect but call exposure', () => {
@@ -206,21 +207,8 @@ describe('initializeExperiment', () => {
           variants: {
             control: {
               key: 'control',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com',
-                  },
-                },
-              ],
+              payload: [],
               value: 'control',
-            },
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
             },
             treatment: {
               key: 'treatment',
@@ -242,148 +230,6 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
     expect(mockGlobal.history.replaceState).toBeCalledTimes(0);
-  });
-
-  test('should not redirect or exposure', () => {
-    initializeExperiment(
-      'apiKey_4',
-      JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://should.not.match'],
-            deliveryMethod: 'web',
-          },
-          segments: [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'control',
-            },
-          ],
-          variants: {
-            control: {
-              key: 'control',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com',
-                  },
-                },
-              ],
-              value: 'control',
-            },
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
-        },
-      ]),
-    );
-
-    expect(mockGlobal.location.replace).toBeCalledTimes(0);
-    expect(mockExposure).toHaveBeenCalledTimes(0);
-  });
-
-  test('exposure fired when on redirected page', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
-      location: {
-        href: 'http://test.com/2',
-        replace: jest.fn(),
-        search: '',
-      },
-      document: { referrer: 'http://test.com' },
-    };
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    mockGetGlobalScope.mockReturnValue(mockGlobal);
-
-    initializeExperiment(
-      'apiKey_5',
-      JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
-            deliveryMethod: 'web',
-          },
-          segments: [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'treatment',
-            },
-          ],
-          variants: {
-            control: {
-              key: 'control',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com',
-                  },
-                },
-              ],
-              value: 'control',
-            },
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
-        },
-      ]),
-    );
-
-    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
-    expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
   test('preview - force control variant', () => {
@@ -416,7 +262,6 @@ describe('initializeExperiment', () => {
             experimentKey: 'exp-1',
             flagType: 'experiment',
             flagVersion: 20,
-            urlMatch: ['http://test.com'],
             deliveryMethod: 'web',
           },
           segments: [
@@ -429,15 +274,8 @@ describe('initializeExperiment', () => {
           ],
           variants: {
             control: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com',
-                  },
-                },
-              ],
+              key: 'control',
+              payload: [],
               value: 'control',
             },
             off: {
@@ -551,7 +389,7 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
     );
-    expect(mockExposure).toHaveBeenCalledTimes(0);
+    expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
   test('preview - force treatment variant when on treatment page', () => {
@@ -582,29 +420,37 @@ describe('initializeExperiment', () => {
             evaluationMode: 'local',
             experimentKey: 'exp-1',
             flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
+            flagVersion: 1,
             deliveryMethod: 'web',
           },
           segments: [
             {
+              conditions: [
+                [
+                  {
+                    op: 'regex does not match',
+                    selector: ['context', 'page', 'url'],
+                    values: ['^http:\\/\\/test.com/$'],
+                  },
+                ],
+              ],
+              metadata: {
+                segmentName: 'Page not targeted',
+                trackExposure: false,
+              },
+              variant: 'off',
+            },
+            {
               metadata: {
                 segmentName: 'All Other Users',
               },
-              variant: 'control',
+              variant: 'off',
             },
           ],
           variants: {
             control: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com',
-                  },
-                },
-              ],
+              key: 'control',
+              payload: [],
               value: 'control',
             },
             off: {
@@ -718,88 +564,9 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2?param3=c&param1=a&param2=b',
     );
-    expect(mockExposure).toHaveBeenCalledTimes(0);
-  });
-
-  test('exposure fired after params merged', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
-      location: {
-        href: 'http://test.com/2?param3=c&param1=a&param2=b',
-        replace: jest.fn(),
-        search: '?param3=c&param1=a&param2=b',
-      },
-      document: { referrer: 'http://test.com/?param1=a&param2=b' },
-      history: { replaceState: jest.fn() },
-    };
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    mockGetGlobalScope.mockReturnValue(mockGlobal);
-
-    initializeExperiment(
-      'merge_expose',
-      JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
-            deliveryMethod: 'web',
-          },
-          segments: [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'treatment',
-            },
-          ],
-          variants: {
-            control: {
-              key: 'control',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com',
-                  },
-                },
-              ],
-              value: 'control',
-            },
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2?param3=c',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
-        },
-      ]),
-    );
-
-    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
+
   test('should behave as control variant when payload is empty', () => {
     initializeExperiment(
       'empty_payload',
@@ -812,7 +579,6 @@ describe('initializeExperiment', () => {
             experimentKey: 'exp-1',
             flagType: 'experiment',
             flagVersion: 20,
-            urlMatch: ['http://test.com'],
             deliveryMethod: 'web',
           },
           segments: [
@@ -848,5 +614,119 @@ describe('initializeExperiment', () => {
 
     expect(mockGlobal.location.replace).not.toHaveBeenCalled();
     expect(mockExposure).toHaveBeenCalledWith('test');
+  });
+
+  test('on targeted page, should call exposure', () => {
+    initializeExperiment(
+      'target',
+      JSON.stringify([
+        {
+          key: 'test',
+          metadata: {
+            deployed: true,
+            evaluationMode: 'local',
+            flagType: 'experiment',
+            deliveryMethod: 'web',
+          },
+          segments: [
+            {
+              conditions: [
+                [
+                  {
+                    op: 'regex does not match',
+                    selector: ['context', 'page', 'url'],
+                    values: ['^https:\\/\\/test.*'],
+                  },
+                ],
+              ],
+              metadata: {
+                segmentName: 'Page not targeted',
+                trackExposure: false,
+              },
+              variant: 'off',
+            },
+            {
+              metadata: {
+                segmentName: 'All Other Users',
+              },
+              variant: 'treatment',
+            },
+          ],
+          variants: {
+            off: {
+              key: 'off',
+              metadata: {
+                default: true,
+              },
+            },
+            treatment: {
+              value: 'treatment',
+            },
+          },
+        },
+      ]),
+    );
+    expect(mockExposure).toHaveBeenCalledWith('test');
+  });
+
+  test('on non-targeted page, should not call exposure', () => {
+    initializeExperiment(
+      'non_target',
+      JSON.stringify([
+        {
+          key: 'test',
+          metadata: {
+            deployed: true,
+            evaluationMode: 'local',
+            flagType: 'experiment',
+            deliveryMethod: 'web',
+          },
+          segments: [
+            {
+              conditions: [
+                [
+                  {
+                    op: 'regex match',
+                    selector: ['context', 'page', 'url'],
+                    values: ['.*test\\.com$'],
+                  },
+                ],
+              ],
+              metadata: {
+                segmentName: 'Page is excluded',
+                trackExposure: false,
+              },
+              variant: 'off',
+            },
+            {
+              metadata: {
+                segmentName: 'All Other Users',
+              },
+              variant: 'treatment',
+            },
+          ],
+          variants: {
+            off: {
+              key: 'off',
+              metadata: {
+                default: true,
+              },
+            },
+            treatment: {
+              key: 'treatment',
+              value: 'treatment',
+            },
+          },
+        },
+      ]),
+    );
+    expect(mockExposure).not.toHaveBeenCalled();
+  });
+
+  test('test regex', () => {
+    const v = ['.*\\\\Qtest\\\\E.*'].some((filterValue) =>
+      Boolean(new RegExp(filterValue).exec('https://test.com')),
+    );
+    console.log(v);
   });
 });
