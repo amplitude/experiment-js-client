@@ -32,6 +32,7 @@ const initialize = (
       userProvider: new DefaultUserProvider(
         connector.applicationContextProvider,
         config?.userProvider,
+        apiKey,
       ),
     };
     instances[instanceKey] = new ExperimentClient(apiKey, config);
@@ -64,6 +65,7 @@ const initializeWithAmplitudeAnalytics = (
       userProvider: new DefaultUserProvider(
         connector.applicationContextProvider,
         new ConnectorUserProvider(connector.identityStore),
+        apiKey,
       ),
       exposureTrackingProvider: new ConnectorExposureTrackingProvider(
         connector.eventBridge,
