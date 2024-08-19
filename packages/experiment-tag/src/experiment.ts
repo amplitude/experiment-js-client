@@ -64,12 +64,6 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
       const parsedFlags = JSON.parse(initialFlags);
       parsedFlags.forEach((flag: EvaluationFlag) => {
         if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
-          // Strip the preview query param
-          globalScope.history.replaceState(
-            {},
-            '',
-            removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
-          );
           // Keep page targeting segments
           const pageTargetingSegments = flag.segments.filter((segment) =>
             isPageTargetingSegment(segment),
@@ -83,6 +77,12 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
 
           flag.segments = [...pageTargetingSegments, previewSegment];
         }
+        // Strip the preview query param
+        globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
+        );
       });
       initialFlags = JSON.stringify(parsedFlags);
     }
@@ -218,7 +218,7 @@ export const setUrlChangeListener = () => {
 const isPageTargetingSegment = (segment: EvaluationSegment) => {
   return (
     segment.metadata?.trackExposure === false &&
-    (segment.metadata?.segmentName === 'Page is targeted' ||
+    (segment.metadata?.segmentName === 'Page not targeted' ||
       segment.metadata?.segmentName === 'Page is excluded')
   );
 };

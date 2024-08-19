@@ -45,7 +45,7 @@ describe('initializeExperiment', () => {
 
   test('should initialize experiment with empty user', () => {
     initializeExperiment(
-      'apiKey_1',
+      '1',
       JSON.stringify([
         {
           key: 'test',
@@ -105,20 +105,20 @@ describe('initializeExperiment', () => {
       device_id: 'mock',
     });
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
-      'EXP_apiKey_1',
+      'EXP_1',
       JSON.stringify({ device_id: 'mock' }),
     );
   });
 
   test('experiment should not run without localStorage', () => {
     jest.spyOn(coreUtil, 'isLocalStorageAvailable').mockReturnValue(false);
-    initializeExperiment('no_local', '');
+    initializeExperiment('2', '');
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 
   test('should redirect and call exposure', () => {
     initializeExperiment(
-      'apiKey_2',
+      '3',
       JSON.stringify([
         {
           key: 'test',
@@ -183,7 +183,7 @@ describe('initializeExperiment', () => {
 
   test('should not redirect but call exposure', () => {
     initializeExperiment(
-      'apiKey_3',
+      '4',
       JSON.stringify([
         {
           key: 'test',
@@ -252,7 +252,7 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
     initializeExperiment(
-      'prev_control',
+      '5',
       JSON.stringify([
         {
           key: 'test',
@@ -329,7 +329,7 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
     initializeExperiment(
-      'prev_treatment',
+      '6',
       JSON.stringify([
         {
           key: 'test',
@@ -411,7 +411,7 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
     initializeExperiment(
-      'prev_treatment',
+      '7',
       JSON.stringify([
         {
           key: 'test',
@@ -444,7 +444,7 @@ describe('initializeExperiment', () => {
               metadata: {
                 segmentName: 'All Other Users',
               },
-              variant: 'off',
+              variant: 'treatment',
             },
           ],
           variants: {
@@ -504,7 +504,7 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
     initializeExperiment(
-      'merge_query',
+      '8',
       JSON.stringify([
         {
           key: 'test',
@@ -569,7 +569,7 @@ describe('initializeExperiment', () => {
 
   test('should behave as control variant when payload is empty', () => {
     initializeExperiment(
-      'empty_payload',
+      '9',
       JSON.stringify([
         {
           key: 'test',
@@ -617,8 +617,15 @@ describe('initializeExperiment', () => {
   });
 
   test('on targeted page, should call exposure', () => {
+    Object.defineProperty(global, 'location', {
+      value: {
+        href: 'http://test.com',
+      },
+      writable: true,
+    });
+    jest.spyOn(coreUtil, 'getGlobalScope');
     initializeExperiment(
-      'target',
+      '10',
       JSON.stringify([
         {
           key: 'test',
@@ -635,7 +642,7 @@ describe('initializeExperiment', () => {
                   {
                     op: 'regex does not match',
                     selector: ['context', 'page', 'url'],
-                    values: ['^https:\\/\\/test.*'],
+                    values: ['^http:\\/\\/test.*'],
                   },
                 ],
               ],
@@ -670,8 +677,14 @@ describe('initializeExperiment', () => {
   });
 
   test('on non-targeted page, should not call exposure', () => {
+    Object.defineProperty(global, 'location', {
+      value: {
+        href: 'http://test.com',
+      },
+      writable: true,
+    });
     initializeExperiment(
-      'non_target',
+      '11',
       JSON.stringify([
         {
           key: 'test',
@@ -721,12 +734,5 @@ describe('initializeExperiment', () => {
       ]),
     );
     expect(mockExposure).not.toHaveBeenCalled();
-  });
-
-  test('test regex', () => {
-    const v = ['.*\\\\Qtest\\\\E.*'].some((filterValue) =>
-      Boolean(new RegExp(filterValue).exec('https://test.com')),
-    );
-    console.log(v);
   });
 });
