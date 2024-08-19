@@ -189,29 +189,43 @@ const revertMutations = () => {
 export const setUrlChangeListener = () => {
   const globalScope = getGlobalScope();
   if (globalScope) {
-    // add URL change listener
+    // Add URL change listener for back/forward navigation
     globalScope.addEventListener('popstate', () => {
       revertMutations();
       applyVariants(globalScope.experiment.all());
     });
 
-    (function (history) {
-      const pushState = history.pushState;
-      const replaceState = history.replaceState;
+    // Create wrapper functions for pushState and replaceState
+    const wrapHistoryMethods = () => {
+      const originalPushState = history.pushState;
+      const originalReplaceState = history.replaceState;
 
+      // Wrapper for pushState
       history.pushState = function (...args) {
         previousUrl = globalScope.location.href;
-        const result = pushState.apply(history, args);
-        globalScope.dispatchEvent(new Event('popstate'));
+        // Call the original pushState
+        const result = originalPushState.apply(this, args);
+        // Revert mutations and apply variants after pushing state
+        revertMutations();
+        applyVariants(globalScope.experiment.all());
+
         return result;
       };
 
+      // Wrapper for replaceState
       history.replaceState = function (...args) {
         previousUrl = globalScope.location.href;
-        const result = replaceState.apply(history, args);
-        globalScope.dispatchEvent(new Event('popstate'));
+        // Call the original replaceState
+        const result = originalReplaceState.apply(this, args);
+        // Revert mutations and apply variants after replacing state
+        revertMutations();
+        applyVariants(globalScope.experiment.all());
+
         return result;
       };
-    })(globalScope.history);
+    };
+
+    // Initialize the wrapper
+    wrapHistoryMethods();
   }
 };
