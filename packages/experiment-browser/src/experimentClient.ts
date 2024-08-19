@@ -88,8 +88,6 @@ export class ExperimentClient implements Client {
   // Deprecated
   private analyticsProvider: SessionAnalyticsProvider | undefined;
 
-  private context = undefined;
-
   /**
    * Creates a new ExperimentClient instance.
    *
@@ -422,7 +420,6 @@ export class ExperimentClient implements Client {
     const user = this.addContext(this.user);
     const flags = topologicalSort(this.flags.getAll(), flagKeys);
     const context = convertUserToContext(user);
-    this.context = context;
     const evaluationVariants = this.engine.evaluate(context, flags);
     const variants: Variants = {};
     for (const flagKey of Object.keys(evaluationVariants)) {
