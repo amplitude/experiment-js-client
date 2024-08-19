@@ -666,12 +666,19 @@ export class ExperimentClient implements Client {
     }
   }
 
+  private cleanUserPropsForFetch(user: ExperimentUser): ExperimentUser {
+    const cleanedUser = { ...user };
+    delete cleanedUser.cookie;
+    return cleanedUser;
+  }
+
   private async doFetch(
     user: ExperimentUser,
     timeoutMillis: number,
     options?: FetchOptions,
   ): Promise<Variants> {
     user = await this.addContextOrWait(user, 10000);
+    user = this.cleanUserPropsForFetch(user);
     this.debug('[Experiment] Fetch variants for user: ', user);
     const results = await this.evaluationApi.getVariants(user, {
       timeoutMillis: timeoutMillis,
