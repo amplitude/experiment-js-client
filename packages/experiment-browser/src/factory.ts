@@ -60,7 +60,7 @@ const initializeWithAmplitudeAnalytics = (
   const instanceKey = `${instanceName}.${apiKey}`;
   const connector = AnalyticsConnector.getInstance(instanceName);
   if (!instances[instanceKey]) {
-    connector.eventBridge.setApiKey(apiKey);
+    connector.eventBridge.setInstanceName(instanceName);
     config = {
       userProvider: new DefaultUserProvider(
         connector.applicationContextProvider,
