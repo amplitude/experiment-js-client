@@ -212,10 +212,10 @@ const handleInject = (action, key: string, variant: Variant) => {
     const rawCss = action.data.css;
     let style: HTMLStyleElement | undefined;
     if (rawCss) {
-      style = document.createElement('style');
+      style = globalScope.document.createElement('style');
       style.innerHTML = rawCss;
       style.id = `css-${id}`;
-      document.head.appendChild(style);
+      globalScope.document.head.appendChild(style);
     }
     // Create HTML
     const rawHtml = action.data.html;
