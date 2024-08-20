@@ -12,6 +12,7 @@ import {
 } from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
+import { getInjectUtils } from './inject-utils';
 import { WindowMessenger } from './messenger';
 import {
   getUrlParams,
@@ -21,6 +22,7 @@ import {
   concatenateQueryParamsOf,
 } from './util';
 
+const appliedInjections: Set<string> = new Set();
 const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
 
@@ -132,6 +134,8 @@ const applyVariants = (variants: Variants | undefined) => {
             handleRedirect(action, key, variant);
           } else if (action.action === 'mutate') {
             handleMutate(action, key, variant);
+          } else if (action.action === 'inject') {
+            handleInject(action, key, variant);
           }
         }
       }
@@ -184,6 +188,57 @@ const revertMutations = () => {
   while (appliedMutations.length > 0) {
     appliedMutations.pop()?.revert();
   }
+};
+
+const inject = (js: string, html, utils, id) => {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  eval(js, html, utils, id);
+};
+
+const handleInject = (action, key: string, variant: Variant) => {
+  const globalScope = getGlobalScope();
+  if (!globalScope) {
+    return;
+  }
+  // Check for repeat invocations
+  const id = action.data.id;
+  if (appliedInjections.has(id)) {
+    return;
+  }
+  // Create CSS
+  const rawCss = action.data.css;
+  let style: HTMLStyleElement | undefined;
+  if (rawCss) {
+    style = globalScope.document.createElement('style');
+    style.innerHTML = rawCss;
+    style.id = `css-${id}`;
+    globalScope.document.head.appendChild(style);
+  }
+  // Create HTML
+  const rawHtml = action.data.html;
+  let html: Element | undefined;
+  if (rawHtml) {
+    html =
+      new DOMParser().parseFromString(rawHtml, 'text/html').body
+        .firstElementChild ?? undefined;
+  }
+  // Inject
+  const utils = getInjectUtils();
+  const js = action.data.js;
+  appliedInjections.add(id);
+  inject(js, html, utils, id);
+  // Push mutation to remove CSS and any custom state cleanup set in utils.
+  appliedMutations.push({
+    revert: () => {
+      if (utils.remove) utils.remove();
+      style?.remove();
+      appliedInjections.delete(id);
+    },
+  });
+  const shouldTrackExposure =
+    (variant.metadata?.['trackExposure'] as boolean) ?? true;
+  shouldTrackExposure && globalScope.experiment.exposure(key);
 };
 
 export const setUrlChangeListener = () => {
