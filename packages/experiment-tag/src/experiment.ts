@@ -61,6 +61,13 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     if (urlParams['PREVIEW']) {
       const parsedFlags = JSON.parse(initialFlags);
       parsedFlags.forEach((flag: EvaluationFlag) => {
+        // if in preview mode, strip query params
+        globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
+        );
+
         if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
           flag.segments = [
             {
@@ -134,14 +141,6 @@ const handleRedirect = (action, key: string, variant: Variant) => {
       previousUrl || globalScope.document.referrer,
     );
     const redirectUrl = action?.data?.url;
-    // if in preview mode, strip query params
-    if (variant.metadata?.segmentName === 'preview') {
-      globalScope.history.replaceState(
-        {},
-        '',
-        removeQueryParams(globalScope.location.href, ['PREVIEW', key]),
-      );
-    }
     if (matchesUrl(urlExactMatch, currentUrl)) {
       if (
         !matchesUrl([redirectUrl], currentUrl) &&
