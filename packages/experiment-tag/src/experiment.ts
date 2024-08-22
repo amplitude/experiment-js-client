@@ -196,8 +196,14 @@ const handleInject = (action, key: string, variant: Variant) => {
   const urlExactMatch = variant?.metadata?.['urlMatch'] as string[];
   const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
   if (matchesUrl(urlExactMatch, currentUrl)) {
+    // Validate and transform ID
+    let id = action.data.id;
+    if (!id || typeof id !== 'string' || id.length === 0) {
+      return;
+    }
+    // Replace the `-` characters in the UUID to support function name
+    id = id.replace('-', '');
     // Check for repeat invocations
-    const id = (action.data.id as string).replace('-', '');
     if (appliedInjections.has(id)) {
       return;
     }
