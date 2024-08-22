@@ -18,5 +18,9 @@ export {
 export { FlagApi, SdkFlagApi, GetFlagsOptions } from './api/flag-api';
 export { HttpClient, HttpRequest, HttpResponse } from './transport/http';
 export { Poller } from './util/poller';
-export { safeGlobal } from './util/global';
+export {
+  safeGlobal,
+  getGlobalScope,
+  isLocalStorageAvailable,
+} from './util/global';
 export { FetchError } from './evaluation/error';
