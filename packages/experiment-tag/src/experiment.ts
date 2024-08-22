@@ -202,7 +202,7 @@ const handleInject = (action, key: string, variant: Variant) => {
       return;
     }
     // Replace the `-` characters in the UUID to support function name
-    id = id.replace('-', '');
+    id = id.replace(/-/g, '');
     // Check for repeat invocations
     if (appliedInjections.has(id)) {
       return;
