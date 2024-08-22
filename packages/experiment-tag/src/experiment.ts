@@ -188,12 +188,6 @@ const revertMutations = () => {
   }
 };
 
-const inject = (js: string, html, utils, id) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  eval(js, html, utils, id);
-};
-
 const handleInject = (action, key: string, variant: Variant) => {
   const globalScope = getGlobalScope();
   if (!globalScope) {
@@ -203,9 +197,18 @@ const handleInject = (action, key: string, variant: Variant) => {
   const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
   if (matchesUrl(urlExactMatch, currentUrl)) {
     // Check for repeat invocations
-    const id = action.data.id;
+    const id = (action.data.id as string).replace('-', '');
     if (appliedInjections.has(id)) {
       return;
+    }
+    // Create JS
+    const rawJs = action.data.js;
+    let script: HTMLScriptElement | undefined;
+    if (rawJs) {
+      script = globalScope.document.createElement('script');
+      script.innerHTML = `function ${id}(html, utils, id){${rawJs}};`;
+      script.id = `js-${id}`;
+      globalScope.document.head.appendChild(script);
     }
     // Create CSS
     const rawCss = action.data.css;
@@ -226,14 +229,24 @@ const handleInject = (action, key: string, variant: Variant) => {
     }
     // Inject
     const utils = getInjectUtils();
-    const js = action.data.js;
     appliedInjections.add(id);
-    inject(js, html, utils, id);
+    try {
+      const fn = globalScope[id];
+      if (fn && typeof fn === 'function') {
+        fn(html, utils, id);
+      }
+    } catch (e) {
+      console.error(
+        `Experiment inject failed for ${key} variant ${variant.key}. Reason:`,
+        e,
+      );
+    }
     // Push mutation to remove CSS and any custom state cleanup set in utils.
     appliedMutations.push({
       revert: () => {
         if (utils.remove) utils.remove();
         style?.remove();
+        script?.remove();
         appliedInjections.delete(id);
       },
     });
