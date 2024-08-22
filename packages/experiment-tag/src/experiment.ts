@@ -228,7 +228,14 @@ const handleInject = (action, key: string, variant: Variant) => {
     const utils = getInjectUtils();
     const js = action.data.js;
     appliedInjections.add(id);
-    inject(js, html, utils, id);
+    try {
+      inject(js, html, utils, id);
+    } catch (e) {
+      console.error(
+        `Experiment inject failed for ${key} variant ${variant.key}. Reason:`,
+        e,
+      );
+    }
     // Push mutation to remove CSS and any custom state cleanup set in utils.
     appliedMutations.push({
       revert: () => {
