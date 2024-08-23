@@ -191,30 +191,43 @@ const revertMutations = () => {
   }
 };
 
-const inject = (js: string, html, utils, id) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  eval(js, html, utils, id);
-};
-
 const handleInject = (action, key: string, variant: Variant) => {
   const globalScope = getGlobalScope();
   if (!globalScope) {
     return;
   }
+  // Validate and transform ID
+  let id = action.data.id;
+  if (!id || typeof id !== 'string' || id.length === 0) {
+    return;
+  }
+  // Replace the `-` characters in the UUID to support function name
+  id = id.replace(/-/g, '');
   // Check for repeat invocations
-  const id = action.data.id;
   if (appliedInjections.has(id)) {
     return;
+  }
+  // Create JS
+  const rawJs = action.data.js;
+  let script: HTMLScriptElement | undefined;
+  if (rawJs) {
+    script = globalScope.document.createElement('script');
+    if (script) {
+      script.innerHTML = `function ${id}(html, utils, id){${rawJs}};`;
+      script.id = `js-${id}`;
+      globalScope.document.head.appendChild(script);
+    }
   }
   // Create CSS
   const rawCss = action.data.css;
   let style: HTMLStyleElement | undefined;
   if (rawCss) {
     style = globalScope.document.createElement('style');
-    style.innerHTML = rawCss;
-    style.id = `css-${id}`;
-    globalScope.document.head.appendChild(style);
+    if (style) {
+      style.innerHTML = rawCss;
+      style.id = `css-${id}`;
+      globalScope.document.head.appendChild(style);
+    }
   }
   // Create HTML
   const rawHtml = action.data.html;
@@ -226,11 +239,14 @@ const handleInject = (action, key: string, variant: Variant) => {
   }
   // Inject
   const utils = getInjectUtils();
-  const js = action.data.js;
   appliedInjections.add(id);
   try {
-    inject(js, html, utils, id);
+    const fn = globalScope[id];
+    if (fn && typeof fn === 'function') {
+      fn(html, utils, id);
+    }
   } catch (e) {
+    script?.remove();
     console.error(
       `Experiment inject failed for ${key} variant ${variant.key}. Reason:`,
       e,
@@ -241,6 +257,7 @@ const handleInject = (action, key: string, variant: Variant) => {
     revert: () => {
       if (utils.remove) utils.remove();
       style?.remove();
+      script?.remove();
       appliedInjections.delete(id);
     },
   });
