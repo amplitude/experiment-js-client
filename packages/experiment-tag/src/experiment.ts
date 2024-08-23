@@ -246,6 +246,7 @@ const handleInject = (action, key: string, variant: Variant) => {
       fn(html, utils, id);
     }
   } catch (e) {
+    script?.remove();
     console.error(
       `Experiment inject failed for ${key} variant ${variant.key}. Reason:`,
       e,
