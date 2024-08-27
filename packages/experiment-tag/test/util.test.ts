@@ -150,6 +150,17 @@ describe('concateQueryParamsOf', () => {
     ).toBe('https://test2.com/?utm_source=testing2&utm_medium=new_url');
   });
 
+  it('should concatenate multiple query params if both urls have', () => {
+    expect(
+      concatenateQueryParamsOf(
+        'https://test.com?utm_medium=new_url&utm_medium=new_url2&utm_source=testing',
+        'https://test2.com?utm_source=testing2',
+      ),
+    ).toBe(
+      'https://test2.com/?utm_source=testing2&utm_medium=new_url&utm_medium=new_url2',
+    );
+  });
+
   it('should not include anchors from current url', () => {
     expect(
       concatenateQueryParamsOf(
