@@ -116,7 +116,7 @@ export type ExperimentUser = {
   landing_url?: string;
 
   /**
-   * The landing page of the user, the first page that this user sees for this deployment
+   * The url params of the page, for one param, value is string if single value, array of string if multiple values
    * Auto populated via a ExperimentUserProvider, can be manually overridden
    */
   url_param?: Record<string, string | string[]>;
