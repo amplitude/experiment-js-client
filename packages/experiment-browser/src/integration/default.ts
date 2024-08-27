@@ -1,4 +1,5 @@
 import { ApplicationContextProvider } from '@amplitude/analytics-connector';
+import { getGlobalScope } from '@amplitude/experiment-core';
 import { UAParser } from '@amplitude/ua-parser-js';
 
 import { LocalStorage } from '../storage/local-storage';
@@ -7,8 +8,11 @@ import { ExperimentUserProvider } from '../types/provider';
 import { ExperimentUser } from '../types/user';
 
 export class DefaultUserProvider implements ExperimentUserProvider {
+  globalScope = getGlobalScope();
   private readonly ua = new UAParser(
-    typeof navigator !== 'undefined' ? navigator.userAgent : null,
+    typeof this.globalScope?.navigator !== 'undefined'
+      ? this.globalScope?.navigator.userAgent
+      : null,
   ).getResult();
   private readonly localStorage = new LocalStorage();
   private readonly sessionStorage = new SessionStorage();
@@ -38,11 +42,12 @@ export class DefaultUserProvider implements ExperimentUserProvider {
       os: context.os || this.getOs(this.ua),
       device_model: context.deviceModel || this.getDeviceModel(this.ua),
       device_category: this.ua.device?.type ?? 'desktop',
-      referring_url: document?.referrer.replace(/\/$/, ''),
+      referring_url: this.globalScope?.document?.referrer.replace(/\/$/, ''),
       cookie: this.getCookie(),
       browser: this.getBrowser(this.ua),
       landing_url: this.getLandingUrl(),
       first_seen: this.getFirstSeen(),
+      url_param: this.getUrlParam(),
       ...user,
     };
   }
@@ -69,22 +74,25 @@ export class DefaultUserProvider implements ExperimentUserProvider {
   }
 
   private getCookie(): Record<string, string> {
-    if (!document?.cookie) {
+    if (!this.globalScope?.document?.cookie) {
       return undefined;
     }
     return Object.fromEntries(
-      document?.cookie?.split('; ').map((c) => c.split('=')),
+      this.globalScope?.document?.cookie?.split('; ').map((c) => c.split('=')),
     );
   }
 
   private getLandingUrl(): string | undefined {
     try {
       const sessionUser = JSON.parse(
-        sessionStorage.getItem(this.storageKey) || '{}',
+        this.sessionStorage.get(this.storageKey) || '{}',
       );
       if (!sessionUser.landing_url) {
-        sessionUser.landing_url = location?.href.replace(/\/$/, '');
-        sessionStorage.setItem(this.storageKey, JSON.stringify(sessionUser));
+        sessionUser.landing_url = this.globalScope?.location?.href.replace(
+          /\/$/,
+          '',
+        );
+        this.sessionStorage.put(this.storageKey, JSON.stringify(sessionUser));
       }
       return sessionUser.landing_url;
     } catch {
@@ -95,15 +103,34 @@ export class DefaultUserProvider implements ExperimentUserProvider {
   private getFirstSeen(): string | undefined {
     try {
       const localUser = JSON.parse(
-        localStorage.getItem(this.storageKey) || '{}',
+        this.localStorage.get(this.storageKey) || '{}',
       );
       if (!localUser.first_seen) {
         localUser.first_seen = (Date.now() / 1000).toString();
-        localStorage.setItem(this.storageKey, JSON.stringify(localUser));
+        this.localStorage.put(this.storageKey, JSON.stringify(localUser));
       }
       return localUser.first_seen;
     } catch {
       return undefined;
     }
+  }
+
+  private getUrlParam(): Record<string, string | string[]> {
+    if (!this.globalScope) {
+      return {};
+    }
+
+    const params: Record<string, string[]> = {};
+    for (const [name, value] of new URL(this.globalScope?.location?.href)
+      .searchParams) {
+      params[name] = [...(params[name] ?? []), ...value.split(',')];
+    }
+    return Object.entries(params).reduce<Record<string, string | string[]>>(
+      (acc, [name, value]) => {
+        acc[name] = value.length == 1 ? value[0] : value;
+        return acc;
+      },
+      {},
+    );
   }
 }

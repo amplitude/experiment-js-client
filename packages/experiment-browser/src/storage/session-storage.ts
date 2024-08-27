@@ -1,14 +1,17 @@
+import { getGlobalScope } from '@amplitude/experiment-core';
+
 import { Storage } from '../types/storage';
 export class SessionStorage implements Storage {
+  globalScope = getGlobalScope();
   get(key: string): string {
-    return sessionStorage.getItem(key);
+    return this.globalScope?.sessionStorage.getItem(key);
   }
 
   put(key: string, value: string): void {
-    sessionStorage.setItem(key, value);
+    this.globalScope?.sessionStorage.setItem(key, value);
   }
 
   delete(key: string): void {
-    sessionStorage.removeItem(key);
+    this.globalScope?.sessionStorage.removeItem(key);
   }
 }

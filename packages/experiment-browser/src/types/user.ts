@@ -116,6 +116,12 @@ export type ExperimentUser = {
   landing_url?: string;
 
   /**
+   * The landing page of the user, the first page that this user sees for this deployment
+   * Auto populated via a ExperimentUserProvider, can be manually overridden
+   */
+  url_param?: Record<string, string | string[]>;
+
+  /**
    * Custom user properties
    */
   user_properties?: {

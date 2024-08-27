@@ -411,10 +411,12 @@ export class EvaluationEngine {
           .map((e) => this.coerceString(e))
           .filter(Boolean) as string[];
       } else {
-        return undefined;
+        const s = this.coerceString(stringValue);
+        return s ? [s] : undefined;
       }
     } catch {
-      return undefined;
+      const s = this.coerceString(stringValue);
+      return s ? [s] : undefined;
     }
   }
 
