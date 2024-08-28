@@ -76,13 +76,14 @@ export const concatenateQueryParamsOf = (
   redirectUrl: string,
 ): string => {
   const globalUrlObj = new URL(currentUrl);
-  const urlObj = new URL(redirectUrl);
+  const redirectUrlObj = new URL(redirectUrl);
+  const resultUrlObj = new URL(redirectUrl);
 
   globalUrlObj.searchParams.forEach((value, key) => {
-    if (!urlObj.searchParams.has(key)) {
-      urlObj.searchParams.set(key, value);
+    if (!redirectUrlObj.searchParams.has(key)) {
+      resultUrlObj.searchParams.append(key, value);
     }
   });
 
-  return urlObj.toString();
+  return resultUrlObj.toString();
 };

@@ -1,14 +1,17 @@
+import { getGlobalScope } from '@amplitude/experiment-core';
+
 import { Storage } from '../types/storage';
 export class LocalStorage implements Storage {
+  globalScope = getGlobalScope();
   get(key: string): string {
-    return localStorage.getItem(key);
+    return this.globalScope?.localStorage.getItem(key);
   }
 
   put(key: string, value: string): void {
-    localStorage.setItem(key, value);
+    this.globalScope?.localStorage.setItem(key, value);
   }
 
   delete(key: string): void {
-    localStorage.removeItem(key);
+    this.globalScope?.localStorage.removeItem(key);
   }
 }
