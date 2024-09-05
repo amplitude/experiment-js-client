@@ -24,7 +24,10 @@ export class AnalyticsConnector {
       const receiver = instance.eventBridge.receiver;
       instance.eventBridge = new EventBridgeImpl();
       instance.eventBridge.setInstanceName(instanceName);
-      instance.eventBridge.setEventReceiver(receiver);
+      // handle case when receiver was not set during previous initialization
+      if (receiver) {
+        instance.eventBridge.setEventReceiver(receiver);
+      }
       for (const event of queue) {
         instance.eventBridge.logEvent(event);
       }
