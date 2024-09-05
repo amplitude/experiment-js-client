@@ -17,6 +17,16 @@ export class AnalyticsConnector {
       safeGlobal['analyticsConnectorInstances'][instanceName] =
         new AnalyticsConnector();
     }
-    return safeGlobal['analyticsConnectorInstances'][instanceName];
+    const instance = safeGlobal['analyticsConnectorInstances'][instanceName];
+    if (!instance.eventBridge.setInstanceName) {
+      const queue = instance.eventBridge.queue ?? [];
+      const receiver = instance.eventBridge.receiver;
+      instance.eventBridge = new EventBridgeImpl();
+      for (const event in queue) {
+        instance.eventBridge.logEvent(event);
+      }
+      instance.eventBridge.setEventReceiver(receiver);
+    }
+    return instance;
   }
 }
