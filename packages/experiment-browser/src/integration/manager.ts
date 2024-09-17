@@ -114,6 +114,10 @@ export class SessionDedupeCache {
   }
 
   shouldTrack(exposure: Exposure): boolean {
+    // Always track web impressions.
+    if (exposure.metadata['deliveryMethod'] === 'web') {
+      return true;
+    }
     this.loadCache();
     const value = this.inMemoryCache[exposure.flag_key];
     let shouldTrack = false;

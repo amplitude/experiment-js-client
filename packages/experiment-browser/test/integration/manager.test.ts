@@ -246,6 +246,21 @@ describe('SessionDedupeCache', () => {
     expect(storedCache).toEqual(expected);
     expect(cache['inMemoryCache']).toEqual(expected);
   });
+  test('should track with web delivery method exposure, always true', () => {
+    const instanceName = '$default_instance';
+    const cache = new SessionDedupeCache(instanceName);
+    const exposure = {
+      flag_key: 'flag-key',
+      variant: 'on',
+      metadata: {
+        deliveryMethod: 'web',
+      },
+    };
+    expect(cache.shouldTrack(exposure)).toEqual(true);
+    expect(safeGlobal.sessionStorage.getItem(cache['storageKey'])).toBeNull();
+    expect(cache.shouldTrack(exposure)).toEqual(true);
+    expect(safeGlobal.sessionStorage.getItem(cache['storageKey'])).toBeNull();
+  });
 });
 
 describe('PersistentTrackingQueue', () => {
