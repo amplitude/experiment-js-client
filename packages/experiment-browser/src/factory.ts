@@ -2,8 +2,8 @@ import { AnalyticsConnector } from '@amplitude/analytics-connector';
 
 import { Defaults, ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
-import { DefaultUserProvider } from './providers/default';
 import { AmplitudeIntegrationPlugin } from './integration/amplitude';
+import { DefaultUserProvider } from './providers/default';
 
 const instances = {};
 

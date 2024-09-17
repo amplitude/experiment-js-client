@@ -5,6 +5,7 @@ import {
   parseAmplitudeLocalStorage,
   parseAmplitudeSessionStorage,
 } from 'src/util/state';
+
 import { clearAllCookies } from './misc';
 
 const apiKey = '1234567890abcdefabcdefabcdefabcd';

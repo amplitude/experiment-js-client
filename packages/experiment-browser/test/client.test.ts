@@ -1,6 +1,8 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import { FetchError, safeGlobal } from '@amplitude/experiment-core';
+import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
+import { version as PACKAGE_VERSION } from '../package.json';
 import {
   ExperimentAnalyticsProvider,
   ExperimentClient,
@@ -15,10 +17,8 @@ import {
 } from '../src';
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
-import { version as PACKAGE_VERSION } from '../package.json';
 
 import { mockClientStorage } from './util/mock';
-import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
 const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 
