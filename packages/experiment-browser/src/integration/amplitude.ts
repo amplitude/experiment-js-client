@@ -14,6 +14,25 @@ import {
   parseAmplitudeSessionStorage,
 } from '../util/state';
 
+/**
+ * Integration plugin for Amplitude Analytics. Uses the analytics connector to
+ * track events and get user identity.
+ *
+ * On initialization, this plugin attempts to read the user identity from all
+ * the storage locations and formats supported by the analytics SDK, then
+ * commits the identity to the connector. The order of locations checks are:
+ *  - Cookie
+ *  - Cookie (Legacy)
+ *  - Local Storage
+ *  - Session Storage
+ *
+ * If none of these locations contain the user identity, we set the setup()
+ * function to wait for the identity to be provided by the connector.
+ *
+ * Events are tracked only if the connector has an event receiver set, otherwise
+ * track returns false, and events are persisted and managed by the
+ * IntegrationManager.
+ */
 export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
   type: 'integration';
   private readonly apiKey: string | undefined;
@@ -68,7 +87,9 @@ export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
   }
 
   private loadPersistedState(): boolean {
-    if (!this.apiKey) {
+    // Avoid reading state if the api key is undefined or an experiment
+    // deployment.
+    if (!this.apiKey || this.apiKey.startsWith('client-')) {
       return false;
     }
     // New cookie format

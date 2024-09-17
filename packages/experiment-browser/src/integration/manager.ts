@@ -10,6 +10,11 @@ import { Exposure } from '../types/exposure';
 import { ExperimentEvent, IntegrationPlugin } from '../types/plugin';
 import { ExperimentUser } from '../types/user';
 
+const MAX_QUEUE_SIZE = 512;
+
+/**
+ * Handles integration plugin management, event persistence and deduplication.
+ */
 export class IntegrationManager {
   private readonly config: ExperimentConfig;
   private readonly client: Client;
@@ -30,6 +35,10 @@ export class IntegrationManager {
     this.cache = new SessionDedupeCache(instanceName);
   }
 
+  /**
+   * Returns a promise when the integration has completed setup. If no
+   * integration has been set, returns a resolved promise.
+   */
   ready(): Promise<void> {
     if (!this.integration) {
       return Promise.resolve();
@@ -37,8 +46,15 @@ export class IntegrationManager {
     return this.isReady;
   }
 
+  /**
+   * Set the integration to be managed. An existing integration is torndown,
+   * and the new integration is setup. This function resolves the promise
+   * returned by ready() if it has not already been resolved.
+   *
+   * @param integration the integration to manage.
+   */
   setIntegration(integration: IntegrationPlugin): void {
-    if (this.integration) {
+    if (this.integration && this.integration.teardown) {
       void this.integration.teardown();
     }
     this.integration = integration;
@@ -60,6 +76,10 @@ export class IntegrationManager {
     }
   }
 
+  /**
+   * Get the user from the integration. If no integration is set, returns an
+   * empty object.
+   */
   getUser(): ExperimentUser {
     if (!this.integration) {
       return {};
@@ -67,6 +87,13 @@ export class IntegrationManager {
     return this.integration.getUser();
   }
 
+  /**
+   * Deduplicates exposures using session storage, then tracks the event to the
+   * integration. If no integration is set, or if the integration returns false,
+   * the event is persisted in local storage.
+   *
+   * @param exposure
+   */
   track(exposure: Exposure): void {
     if (this.cache.shouldTrack(exposure)) {
       this.queue.push({
@@ -117,13 +144,15 @@ export class SessionDedupeCache {
 
 export class PersistentTrackingQueue {
   private readonly storageKey: string;
+  private readonly maxQueueSize: number;
   private readonly isLocalStorageAvailable = isLocalStorageAvailable();
   private inMemoryQueue: ExperimentEvent[] = [];
 
   tracker: ((event: ExperimentEvent) => boolean) | undefined;
 
-  constructor(instanceName: string) {
+  constructor(instanceName: string, maxQueueSize: number = MAX_QUEUE_SIZE) {
     this.storageKey = `EXP_unsent_${instanceName}`;
+    this.maxQueueSize = maxQueueSize;
   }
 
   push(event: ExperimentEvent): void {
@@ -151,6 +180,12 @@ export class PersistentTrackingQueue {
 
   private storeQueue(): void {
     if (this.isLocalStorageAvailable) {
+      // Trim the queue if it is too large.
+      if (this.inMemoryQueue.length > this.maxQueueSize) {
+        this.inMemoryQueue = this.inMemoryQueue.slice(
+          this.inMemoryQueue.length - this.maxQueueSize,
+        );
+      }
       safeGlobal.localStorage.setItem(
         this.storageKey,
         JSON.stringify(this.inMemoryQueue),

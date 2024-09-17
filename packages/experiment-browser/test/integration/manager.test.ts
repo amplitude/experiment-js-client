@@ -112,6 +112,26 @@ describe('IntegrationManager', () => {
       });
       expect(teardownCalled).toBe(true);
     });
+    test('existing integration without teardown', async () => {
+      manager.setIntegration({
+        type: 'integration',
+        getUser: () => {
+          return {};
+        },
+        track: (): boolean => {
+          return true;
+        },
+      });
+      manager.setIntegration({
+        type: 'integration',
+        getUser: () => {
+          return {};
+        },
+        track: (): boolean => {
+          return true;
+        },
+      });
+    });
   });
   describe('getUser', () => {
     test('no integration, returns empty object', async () => {
@@ -354,5 +374,21 @@ describe('PersistentTrackingQueue', () => {
       JSON.stringify([]),
     );
     expect(trackedEvents).toEqual([event, event]);
+  });
+
+  test('oldest events over max queue size are trimmed', () => {
+    const maxQueueSize = 5;
+    const instanceName = '$default_instance';
+    const queue = new PersistentTrackingQueue(instanceName, maxQueueSize);
+    for (let i = 0; i < maxQueueSize + 1; i++) {
+      queue.push({ eventType: `${i}` });
+    }
+    expect(queue['inMemoryQueue']).toEqual([
+      { eventType: '1' },
+      { eventType: '2' },
+      { eventType: '3' },
+      { eventType: '4' },
+      { eventType: '5' },
+    ]);
   });
 });
