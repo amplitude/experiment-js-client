@@ -148,3 +148,11 @@ export type ExperimentUser = {
     };
   };
 };
+
+export type UserProperties = {
+  [propertyName: string]:
+    | string
+    | number
+    | boolean
+    | Array<string | number | boolean>;
+};

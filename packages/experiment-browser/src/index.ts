@@ -9,7 +9,7 @@ export { ExperimentConfig } from './config';
 export {
   AmplitudeUserProvider,
   AmplitudeAnalyticsProvider,
-} from './integration/amplitude';
+} from './providers/amplitude';
 export { Experiment } from './factory';
 export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';

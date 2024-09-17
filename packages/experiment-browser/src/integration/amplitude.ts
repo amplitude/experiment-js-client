@@ -1,102 +1,131 @@
 import {
-  ExperimentAnalyticsEvent,
-  ExperimentAnalyticsProvider,
-} from '../types/analytics';
-import { ExperimentUserProvider } from '../types/provider';
-import { ExperimentUser } from '../types/user';
+  ApplicationContextProvider,
+  EventBridge,
+  IdentityStore,
+} from '@amplitude/analytics-connector';
+import { safeGlobal } from '@amplitude/experiment-core';
 
-type AmplitudeIdentify = {
-  set(property: string, value: unknown): void;
-  unset(property: string): void;
-};
+import { ExperimentEvent, IntegrationPlugin } from '../types/plugin';
+import { ExperimentUser, UserProperties } from '../types/user';
+import {
+  AmplitudeState,
+  parseAmplitudeCookie,
+  parseAmplitudeLocalStorage,
+  parseAmplitudeSessionStorage,
+} from '../util/state';
 
-type AmplitudeInstance = {
-  options?: AmplitudeOptions;
-  _ua?: AmplitudeUAParser;
-  logEvent(eventName: string, properties: Record<string, string>): void;
-  setUserProperties(userProperties: Record<string, unknown>): void;
-  identify(identify: AmplitudeIdentify): void;
-};
+export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
+  type: 'integration';
+  private readonly apiKey: string | undefined;
+  private readonly identityStore: IdentityStore;
+  private readonly eventBridge: EventBridge;
+  private readonly contextProvider: ApplicationContextProvider;
+  private readonly timeoutMillis: number;
 
-type AmplitudeOptions = {
-  deviceId?: string;
-  userId?: string;
-  versionName?: string;
-  language?: string;
-  platform?: string;
-};
+  setup: (() => Promise<void>) | undefined = undefined;
 
-type AmplitudeUAParser = {
-  browser?: {
-    name?: string;
-    major?: string;
-  };
-  os?: {
-    name?: string;
-  };
-};
-
-/**
- * @deprecated Update your version of the amplitude analytics-js SDK to 8.17.0+ and for seamless
- * integration with the amplitude analytics SDK.
- */
-export class AmplitudeUserProvider implements ExperimentUserProvider {
-  private amplitudeInstance: AmplitudeInstance;
-  constructor(amplitudeInstance: AmplitudeInstance) {
-    this.amplitudeInstance = amplitudeInstance;
+  constructor(
+    apiKey: string | undefined,
+    identityStore: IdentityStore,
+    eventBridge: EventBridge,
+    contextProvider: ApplicationContextProvider,
+    timeoutMillis: number,
+  ) {
+    this.apiKey = apiKey;
+    this.identityStore = identityStore;
+    this.eventBridge = eventBridge;
+    this.contextProvider = contextProvider;
+    this.timeoutMillis = timeoutMillis;
+    const userLoaded = this.loadPersistedState();
+    if (!userLoaded) {
+      this.setup = async (): Promise<void> => {
+        return this.waitForConnectorIdentity(this.timeoutMillis);
+      };
+    }
   }
 
   getUser(): ExperimentUser {
+    const identity = this.identityStore.getIdentity();
     return {
-      device_id: this.amplitudeInstance?.options?.deviceId,
-      user_id: this.amplitudeInstance?.options?.userId,
-      version: this.amplitudeInstance?.options?.versionName,
-      language: this.amplitudeInstance?.options?.language,
-      platform: this.amplitudeInstance?.options?.platform,
-      os: this.getOs(),
-      device_model: this.getDeviceModel(),
+      user_id: identity.userId,
+      device_id: identity.deviceId,
+      user_properties: identity.userProperties as UserProperties,
+      version: this.contextProvider.versionName,
     };
   }
 
-  private getOs(): string {
-    return [
-      this.amplitudeInstance?._ua?.browser?.name,
-      this.amplitudeInstance?._ua?.browser?.major,
-    ]
-      .filter((e) => e !== null && e !== undefined)
-      .join(' ');
-  }
-
-  private getDeviceModel(): string {
-    return this.amplitudeInstance?._ua?.os?.name;
-  }
-}
-
-/**
- * @deprecated Update your version of the amplitude analytics-js SDK to 8.17.0+ and for seamless
- * integration with the amplitude analytics SDK.
- */
-export class AmplitudeAnalyticsProvider implements ExperimentAnalyticsProvider {
-  private readonly amplitudeInstance: AmplitudeInstance;
-  constructor(amplitudeInstance: AmplitudeInstance) {
-    this.amplitudeInstance = amplitudeInstance;
-  }
-
-  track(event: ExperimentAnalyticsEvent): void {
-    this.amplitudeInstance.logEvent(event.name, event.properties);
-  }
-
-  setUserProperty(event: ExperimentAnalyticsEvent): void {
-    // if the variant has a value, set the user property and log an event
-    this.amplitudeInstance.setUserProperties({
-      [event.userProperty]: event.variant?.value,
+  track(event: ExperimentEvent): boolean {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    if (!this.eventBridge.receiver) {
+      return false;
+    }
+    this.eventBridge.logEvent({
+      eventType: event.eventType,
+      eventProperties: event.eventProperties,
     });
+    return true;
   }
 
-  unsetUserProperty(event: ExperimentAnalyticsEvent): void {
-    // if the variant does not have a value, unset the user property
-    this.amplitudeInstance['_logEvent']('$identify', null, null, {
-      $unset: { [event.userProperty]: '-' },
-    });
+  private loadPersistedState(): boolean {
+    if (!this.apiKey) {
+      return false;
+    }
+    // New cookie format
+    let user = parseAmplitudeCookie(this.apiKey, true);
+    if (user) {
+      this.commitIdentityToConnector(user);
+      return true;
+    }
+    // Old cookie format
+    user = parseAmplitudeCookie(this.apiKey, false);
+    if (user) {
+      this.commitIdentityToConnector(user);
+      return true;
+    }
+    // Local storage
+    user = parseAmplitudeLocalStorage(this.apiKey);
+    if (user) {
+      this.commitIdentityToConnector(user);
+      return true;
+    }
+    // Session storage
+    user = parseAmplitudeSessionStorage(this.apiKey);
+    if (user) {
+      this.commitIdentityToConnector(user);
+      return true;
+    }
+    return false;
+  }
+
+  private commitIdentityToConnector(user: AmplitudeState) {
+    const editor = this.identityStore.editIdentity();
+    editor.setDeviceId(user.deviceId);
+    if (user.userId) {
+      editor.setUserId(user.userId);
+    }
+    editor.commit();
+  }
+
+  private async waitForConnectorIdentity(ms: number): Promise<void> {
+    const identity = this.identityStore.getIdentity();
+    if (!identity.userId && !identity.deviceId) {
+      return Promise.race([
+        new Promise<void>((resolve) => {
+          const listener = () => {
+            resolve();
+            this.identityStore.removeIdentityListener(listener);
+          };
+          this.identityStore.addIdentityListener(listener);
+        }),
+        new Promise<void>((_, reject) => {
+          safeGlobal.setTimeout(
+            reject,
+            ms,
+            'Timed out waiting for Amplitude Analytics SDK to initialize.',
+          );
+        }),
+      ]);
+    }
   }
 }

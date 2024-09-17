@@ -1,19 +1,17 @@
-import { ApplicationContext } from '@amplitude/analytics-connector';
 import * as coreUtil from '@amplitude/experiment-core';
 
 import { ExperimentUser } from '../src';
-import { DefaultUserProvider } from '../src/integration/default';
+import { DefaultUserProvider } from '../src/providers/default';
 
 describe('DefaultUserProvider', () => {
   const mockGetGlobalScope = jest.spyOn(coreUtil, 'getGlobalScope');
   let mockGlobal;
   const defaultUser = {
-    language: 'language',
-    platform: 'platform',
-    os: 'os',
-    device_model: 'deviceModel',
-    version: 'versionName',
+    language: 'en-US',
+    platform: 'Web',
+    os: 'WebKit 537',
     browser: 'WebKit',
+    device_model: 'iPhone',
     device_category: 'desktop',
     referring_url: '',
     first_seen: '1000',
@@ -23,13 +21,6 @@ describe('DefaultUserProvider', () => {
       c2: 'v2',
     },
     url_param: { p1: ['p1v1', 'p1v2'], p2: ['p2v1', 'p2v2'], p3: 'p3v1' },
-  };
-  const defaultApplicationContext = {
-    language: 'language',
-    platform: 'platform',
-    os: 'os',
-    deviceModel: 'deviceModel',
-    versionName: 'versionName',
   };
   let mockLocalStorage;
   let mockSessionStorage;
@@ -56,6 +47,7 @@ describe('DefaultUserProvider', () => {
       document: { referrer: '', cookie: 'c1=v1; c2=v2' },
       history: { replaceState: jest.fn() },
     };
+
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -69,20 +61,15 @@ describe('DefaultUserProvider', () => {
         k1: 'v1',
       },
     };
-    const applicationContext: ApplicationContext = defaultApplicationContext;
-    const defaultUserProvider = new DefaultUserProvider(
-      {
-        versionName: 'versionName',
-        getApplicationContext(): ApplicationContext {
-          return applicationContext;
+    const defaultUserProvider = mockProvider(
+      new DefaultUserProvider(
+        {
+          getUser(): ExperimentUser {
+            return user;
+          },
         },
-      },
-      {
-        getUser(): ExperimentUser {
-          return user;
-        },
-      },
-      'apikey',
+        'apikey',
+      ),
     );
     const actualUser = defaultUserProvider.getUser();
     const expectedUser = {
@@ -99,28 +86,15 @@ describe('DefaultUserProvider', () => {
   });
 
   test('wrapped provider not set', async () => {
-    const applicationContext: ApplicationContext = defaultApplicationContext;
-    const defaultUserProvider = new DefaultUserProvider({
-      versionName: 'versionName',
-      getApplicationContext(): ApplicationContext {
-        return applicationContext;
-      },
-    });
+    const defaultUserProvider = mockProvider(new DefaultUserProvider());
     const actualUser = defaultUserProvider.getUser();
     const expectedUser = defaultUser;
     expect(actualUser).toEqual(expectedUser);
   });
 
   test('wrapped provider undefined', async () => {
-    const applicationContext: ApplicationContext = defaultApplicationContext;
-    const defaultUserProvider = new DefaultUserProvider(
-      {
-        versionName: 'versionName',
-        getApplicationContext(): ApplicationContext {
-          return applicationContext;
-        },
-      },
-      undefined,
+    const defaultUserProvider = mockProvider(
+      new DefaultUserProvider(undefined),
     );
     const actualUser = defaultUserProvider.getUser();
     const expectedUser = defaultUser;
@@ -128,16 +102,7 @@ describe('DefaultUserProvider', () => {
   });
 
   test('wrapped provider null', async () => {
-    const applicationContext: ApplicationContext = defaultApplicationContext;
-    const defaultUserProvider = new DefaultUserProvider(
-      {
-        versionName: 'versionName',
-        getApplicationContext(): ApplicationContext {
-          return applicationContext;
-        },
-      },
-      undefined,
-    );
+    const defaultUserProvider = mockProvider(new DefaultUserProvider(null));
     const actualUser = defaultUserProvider.getUser();
     const expectedUser = defaultUser;
     expect(actualUser).toEqual(expectedUser);
@@ -152,19 +117,12 @@ describe('DefaultUserProvider', () => {
       },
       device_model: 'deviceModel2',
     };
-    const applicationContext: ApplicationContext = defaultApplicationContext;
-    const defaultUserProvider = new DefaultUserProvider(
-      {
-        versionName: 'versionName',
-        getApplicationContext(): ApplicationContext {
-          return applicationContext;
-        },
-      },
-      {
+    const defaultUserProvider = mockProvider(
+      new DefaultUserProvider({
         getUser(): ExperimentUser {
           return user;
         },
-      },
+      }),
     );
     const actualUser = defaultUserProvider.getUser();
     const expectedUser = {
@@ -179,16 +137,8 @@ describe('DefaultUserProvider', () => {
     mockSessionStorage['EXP_apikey_DEFAULT_USER_PROVIDER'] =
       '{"landing_url": "http://testtest.com"}';
 
-    const applicationContext: ApplicationContext = defaultApplicationContext;
-    const defaultUserProvider = new DefaultUserProvider(
-      {
-        versionName: 'versionName',
-        getApplicationContext(): ApplicationContext {
-          return applicationContext;
-        },
-      },
-      undefined,
-      'apikey',
+    const defaultUserProvider = mockProvider(
+      new DefaultUserProvider(undefined, 'apikey'),
     );
     const actualUser = defaultUserProvider.getUser();
     const expectedUser = {
@@ -199,3 +149,11 @@ describe('DefaultUserProvider', () => {
     expect(actualUser).toEqual(expectedUser);
   });
 });
+
+const mockProvider = (provider: DefaultUserProvider): DefaultUserProvider => {
+  provider['getLanguage'] = () => 'en-US';
+  provider['getBrowser'] = () => 'WebKit';
+  provider['getOs'] = () => 'WebKit 537';
+  provider['getDeviceModel'] = () => 'iPhone';
+  return provider;
+};

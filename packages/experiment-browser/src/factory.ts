@@ -2,11 +2,8 @@ import { AnalyticsConnector } from '@amplitude/analytics-connector';
 
 import { Defaults, ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
-import {
-  ConnectorExposureTrackingProvider,
-  ConnectorUserProvider,
-} from './integration/connector';
-import { DefaultUserProvider } from './integration/default';
+import { DefaultUserProvider } from './providers/default';
+import { AmplitudeIntegrationPlugin } from './integration/amplitude';
 
 const instances = {};
 
@@ -25,15 +22,10 @@ const initialize = (
   // initializing multiple default instances for different api keys.
   const instanceName = config?.instanceName || Defaults.instanceName;
   const instanceKey = `${instanceName}.${apiKey}`;
-  const connector = AnalyticsConnector.getInstance(instanceName);
   if (!instances[instanceKey]) {
     config = {
       ...config,
-      userProvider: new DefaultUserProvider(
-        connector.applicationContextProvider,
-        config?.userProvider,
-        apiKey,
-      ),
+      userProvider: new DefaultUserProvider(config?.userProvider, apiKey),
     };
     instances[instanceKey] = new ExperimentClient(apiKey, config);
   }
@@ -63,17 +55,20 @@ const initializeWithAmplitudeAnalytics = (
   if (!instances[instanceKey]) {
     connector.eventBridge.setInstanceName(instanceName);
     config = {
-      userProvider: new DefaultUserProvider(
-        connector.applicationContextProvider,
-        new ConnectorUserProvider(connector.identityStore),
-        apiKey,
-      ),
-      exposureTrackingProvider: new ConnectorExposureTrackingProvider(
-        connector.eventBridge,
-      ),
+      userProvider: new DefaultUserProvider(undefined, apiKey),
       ...config,
     };
-    instances[instanceKey] = new ExperimentClient(apiKey, config);
+    const client = new ExperimentClient(apiKey, config);
+    client.addPlugin(
+      new AmplitudeIntegrationPlugin(
+        apiKey,
+        connector.identityStore,
+        connector.eventBridge,
+        connector.applicationContextProvider,
+        10000,
+      ),
+    );
+    instances[instanceKey] = client;
     if (config.automaticFetchOnAmplitudeIdentityChange) {
       connector.identityStore.addIdentityListener(() => {
         instances[instanceKey].fetch();

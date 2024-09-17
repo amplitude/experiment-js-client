@@ -1,5 +1,5 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { FetchError } from '@amplitude/experiment-core';
+import { FetchError, safeGlobal } from '@amplitude/experiment-core';
 
 import {
   ExperimentAnalyticsProvider,
@@ -13,13 +13,14 @@ import {
   Variant,
   Variants,
 } from '../src';
-import { ConnectorExposureTrackingProvider } from '../src/integration/connector';
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
+import { version as PACKAGE_VERSION } from '../package.json';
 
 import { mockClientStorage } from './util/mock';
+import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
-const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 
 class TestUserProvider implements ExperimentUserProvider {
   getUser(): ExperimentUser {
@@ -272,9 +273,7 @@ class TestAnalyticsProvider
 
 test('ExperimentClient.variant, with exposure tracking provider, track called once per key', async () => {
   const eventBridge = AnalyticsConnector.getInstance('1').eventBridge;
-  const exposureTrackingProvider = new ConnectorExposureTrackingProvider(
-    eventBridge,
-  );
+  const exposureTrackingProvider = new TestExposureTrackingProvider();
   const trackSpy = jest.spyOn(exposureTrackingProvider, 'track');
   const logEventSpy = jest.spyOn(eventBridge, 'logEvent');
   const client = new ExperimentClient(API_KEY, {
@@ -297,14 +296,6 @@ test('ExperimentClient.variant, with exposure tracking provider, track called on
   expect(trackSpy).toHaveBeenCalledWith({
     flag_key: serverKey,
     variant: serverVariant.value,
-  });
-  expect(logEventSpy).toBeCalledTimes(1);
-  expect(logEventSpy).toHaveBeenCalledWith({
-    eventType: '$exposure',
-    eventProperties: {
-      flag_key: serverKey,
-      variant: serverVariant.value,
-    },
   });
 });
 
@@ -1091,6 +1082,9 @@ describe('fetch retry with different response codes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
   test.each([
     [300, 'Fetch Exception 300', 1],
     [400, 'Fetch Exception 400', 0],
@@ -1160,4 +1154,99 @@ test('test bootstrapping with v2 variants', async () => {
   expect(exposureObject.experiment_key).toEqual('exp-1');
   client.exposure('test-v2');
   expect(exposureObject.experiment_key).toEqual('exp-2');
+});
+
+describe('integration plugin', () => {
+  beforeEach(() => {
+    safeGlobal.sessionStorage.clear();
+    safeGlobal.localStorage.clear();
+  });
+  test('no plugin, with user provider', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      userProvider: {
+        getUser: () => {
+          return {
+            user_id: 'user',
+            device_id: 'device',
+            user_properties: { k: 'v' },
+          };
+        },
+      },
+    });
+    mockClientStorage(client);
+    const user = await client['addContextOrWait'](client.getUser());
+    expect(user).toEqual({
+      user_id: 'user',
+      device_id: 'device',
+      library: `experiment-js-client/${PACKAGE_VERSION}`,
+      user_properties: { k: 'v' },
+    });
+  });
+  test('no plugin, with exposure tracking provider', async () => {
+    let exposure: Exposure;
+    const client = new ExperimentClient(API_KEY, {
+      debug: true,
+      exposureTrackingProvider: {
+        track: (e) => {
+          exposure = e;
+        },
+      },
+    });
+    mockClientStorage(client);
+    await client.fetch({ user_id: 'test_user' });
+    const variant = client.variant('sdk-ci-test');
+    expect(exposure.flag_key).toEqual('sdk-ci-test');
+    expect(exposure.variant).toEqual(variant.value);
+  });
+  test('with plugin, user provider, and exposure tracking provider', async () => {
+    let providerExposure: Exposure;
+    let pluginExposure: ExperimentEvent;
+    const client = new ExperimentClient(API_KEY, {
+      debug: true,
+      userProvider: {
+        getUser: () => {
+          return {
+            user_id: 'user',
+            device_id: 'device',
+            user_properties: { k: 'v' },
+          };
+        },
+      },
+      exposureTrackingProvider: {
+        track: (e) => {
+          providerExposure = e;
+        },
+      },
+    });
+    mockClientStorage(client);
+    client.addPlugin({
+      type: 'integration',
+      setup: async () => {
+        return delay(100);
+      },
+      getUser: () => {
+        return {
+          user_id: 'user2',
+          user_properties: { k2: 'v2' },
+        };
+      },
+      track: (e) => {
+        pluginExposure = e;
+        return true;
+      },
+    } as IntegrationPlugin);
+    const user = await client['addContextOrWait'](client.getUser());
+    expect(user).toEqual({
+      user_id: 'user2',
+      device_id: 'device',
+      library: `experiment-js-client/${PACKAGE_VERSION}`,
+      user_properties: { k: 'v', k2: 'v2' },
+    });
+    await client.fetch(testUser);
+    const variant = client.variant('sdk-ci-test');
+    expect(providerExposure.flag_key).toEqual('sdk-ci-test');
+    expect(providerExposure.variant).toEqual(variant.value);
+    expect(pluginExposure.eventProperties['flag_key']).toEqual('sdk-ci-test');
+    expect(pluginExposure.eventProperties['variant']).toEqual(variant.value);
+  });
 });
