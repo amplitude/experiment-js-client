@@ -857,9 +857,8 @@ export class ExperimentClient implements Client {
   }
 
   /**
-   * Private for now. Should only be used by web experiment.
-   * @param plugin
-   * @private
+   * Add a plugin to the experiment client.
+   * @param plugin the plugin to add.
    */
   public addPlugin(plugin: ExperimentPlugin): void {
     if (plugin.type === 'integration') {
