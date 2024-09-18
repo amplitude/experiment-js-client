@@ -96,7 +96,7 @@ export class IntegrationManager {
    */
   track(exposure: Exposure): void {
     if (this.cache.shouldTrack(exposure)) {
-      if (exposure.metadata['deliveryMethod'] === 'web') {
+      if (exposure.metadata?.deliveryMethod === 'web') {
         // Track impression
         this.queue.push({
           eventType: '$impression',
@@ -124,7 +124,7 @@ export class SessionDedupeCache {
 
   shouldTrack(exposure: Exposure): boolean {
     // Always track web impressions.
-    if (exposure.metadata['deliveryMethod'] === 'web') {
+    if (exposure.metadata?.deliveryMethod === 'web') {
       return true;
     }
     this.loadCache();
