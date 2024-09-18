@@ -115,7 +115,7 @@ export class SessionDedupeCache {
 
   shouldTrack(exposure: Exposure): boolean {
     // Always track web impressions.
-    if (exposure.metadata['deliveryMethod'] === 'web') {
+    if (exposure.metadata?.deliveryMethod === 'web') {
       return true;
     }
     this.loadCache();
