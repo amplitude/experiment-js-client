@@ -96,10 +96,19 @@ export class IntegrationManager {
    */
   track(exposure: Exposure): void {
     if (this.cache.shouldTrack(exposure)) {
-      this.queue.push({
-        eventType: '$exposure',
-        eventProperties: exposure,
-      });
+      if (exposure.metadata['deliveryMethod'] === 'web') {
+        // Track impression
+        this.queue.push({
+          eventType: '$impression',
+          eventProperties: exposure,
+        });
+      } else {
+        // Track exposure
+        this.queue.push({
+          eventType: '$exposure',
+          eventProperties: exposure,
+        });
+      }
     }
   }
 }
