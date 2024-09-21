@@ -7,6 +7,10 @@ import { DefaultUserProvider } from './providers/default';
 
 const instances = {};
 
+const getInstanceName = (config: ExperimentConfig): string => {
+  return config?.instanceName || Defaults.instanceName;
+};
+
 /**
  * Initializes a singleton {@link ExperimentClient} identified by the configured
  * instance name.
@@ -20,7 +24,7 @@ const initialize = (
 ): ExperimentClient => {
   // Store instances by appending the instance name and api key. Allows for
   // initializing multiple default instances for different api keys.
-  const instanceName = config?.instanceName || Defaults.instanceName;
+  const instanceName = getInstanceName(config);
   const instanceKey = `${instanceName}.${apiKey}`;
   if (!instances[instanceKey]) {
     config = {
@@ -47,35 +51,17 @@ const initializeWithAmplitudeAnalytics = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
-  // Store instances by appending the instance name and api key. Allows for
-  // initializing multiple default instances for different api keys.
-  const instanceName = config?.instanceName || Defaults.instanceName;
-  const instanceKey = `${instanceName}.${apiKey}`;
-  const connector = AnalyticsConnector.getInstance(instanceName);
-  if (!instances[instanceKey]) {
-    connector.eventBridge.setInstanceName(instanceName);
-    config = {
-      userProvider: new DefaultUserProvider(undefined, apiKey),
-      ...config,
-    };
-    const client = new ExperimentClient(apiKey, config);
-    client.addPlugin(
-      new AmplitudeIntegrationPlugin(
-        apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
-        10000,
-      ),
-    );
-    instances[instanceKey] = client;
-    if (config.automaticFetchOnAmplitudeIdentityChange) {
-      connector.identityStore.addIdentityListener(() => {
-        instances[instanceKey].fetch();
-      });
-    }
-  }
-  return instances[instanceKey];
+  const instanceName = getInstanceName(config);
+  const client = initialize(apiKey, config);
+  client.addPlugin(
+    new AmplitudeIntegrationPlugin(
+      apiKey,
+      instanceName,
+      AnalyticsConnector.getInstance(instanceName),
+      10000,
+    ),
+  );
+  return client;
 };
 
 /**

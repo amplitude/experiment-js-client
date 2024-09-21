@@ -9,6 +9,7 @@ import { AmplitudeState } from 'src/util/state';
 import { clearAllCookies } from '../util/misc';
 
 const apiKey = '1234567890abcdefabcdefabcdefabcd';
+const instanceName = '$default_instance';
 
 describe('AmplitudeIntegrationPlugin', () => {
   let connector: AnalyticsConnector;
@@ -25,9 +26,8 @@ describe('AmplitudeIntegrationPlugin', () => {
       safeGlobal.document.cookie = `amp_123456=${cookieValue}`;
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       expect(integration.setup).toBeUndefined();
@@ -46,9 +46,8 @@ describe('AmplitudeIntegrationPlugin', () => {
       safeGlobal.document.cookie = `AMP_1234567890=${cookieValue}`;
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       expect(integration.setup).toBeUndefined();
@@ -66,9 +65,8 @@ describe('AmplitudeIntegrationPlugin', () => {
       safeGlobal.localStorage.setItem('AMP_1234567890', JSON.stringify(state));
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       expect(integration.setup).toBeUndefined();
@@ -89,9 +87,8 @@ describe('AmplitudeIntegrationPlugin', () => {
       );
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       expect(integration.setup).toBeUndefined();
@@ -104,9 +101,8 @@ describe('AmplitudeIntegrationPlugin', () => {
     test('user not loaded, setup defined, connector identity empty', () => {
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       expect(integration.setup).toBeDefined();
@@ -119,9 +115,8 @@ describe('AmplitudeIntegrationPlugin', () => {
     test('setup times out', async () => {
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         100,
       );
       try {
@@ -137,9 +132,8 @@ describe('AmplitudeIntegrationPlugin', () => {
     test('setup resolves when connector identity set before', async () => {
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       connector.identityStore.setIdentity({
@@ -154,9 +148,8 @@ describe('AmplitudeIntegrationPlugin', () => {
     test('setup resolves when connector identity set after', async () => {
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       const race = Promise.race([
@@ -176,9 +169,8 @@ describe('AmplitudeIntegrationPlugin', () => {
     test('returns empty user', () => {
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       expect(integration.getUser()).toEqual({ user_properties: {} });
@@ -186,9 +178,8 @@ describe('AmplitudeIntegrationPlugin', () => {
     test('returns expected properties from connector', () => {
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       connector.identityStore.setIdentity({
@@ -209,9 +200,8 @@ describe('AmplitudeIntegrationPlugin', () => {
     test('event bridge receiver not set, returns false', () => {
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       expect(
@@ -227,9 +217,8 @@ describe('AmplitudeIntegrationPlugin', () => {
     test('event bridge receiver set, calls connector event bridge, returns true', () => {
       const integration = new AmplitudeIntegrationPlugin(
         apiKey,
-        connector.identityStore,
-        connector.eventBridge,
-        connector.applicationContextProvider,
+        instanceName,
+        connector,
         10000,
       );
       let event: AnalyticsEvent;
