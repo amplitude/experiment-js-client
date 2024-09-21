@@ -17,6 +17,21 @@ export class AnalyticsConnector {
       safeGlobal['analyticsConnectorInstances'][instanceName] =
         new AnalyticsConnector();
     }
-    return safeGlobal['analyticsConnectorInstances'][instanceName];
+    const instance = safeGlobal['analyticsConnectorInstances'][instanceName];
+    // If the eventBridge is using old implementation, update with new instance
+    if (!instance.eventBridge.setInstanceName) {
+      const queue = instance.eventBridge.queue ?? [];
+      const receiver = instance.eventBridge.receiver;
+      instance.eventBridge = new EventBridgeImpl();
+      instance.eventBridge.setInstanceName(instanceName);
+      // handle case when receiver was not set during previous initialization
+      if (receiver) {
+        instance.eventBridge.setEventReceiver(receiver);
+      }
+      for (const event of queue) {
+        instance.eventBridge.logEvent(event);
+      }
+    }
+    return instance;
   }
 }
