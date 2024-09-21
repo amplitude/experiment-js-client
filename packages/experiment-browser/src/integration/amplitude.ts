@@ -1,10 +1,13 @@
 import {
+  AnalyticsConnector,
   ApplicationContextProvider,
   EventBridge,
   IdentityStore,
 } from '@amplitude/analytics-connector';
 import { safeGlobal } from '@amplitude/experiment-core';
 
+import { ExperimentConfig } from '../config';
+import { Client } from '../types/client';
 import { ExperimentEvent, IntegrationPlugin } from '../types/plugin';
 import { ExperimentUser, UserProperties } from '../types/user';
 import {
@@ -26,9 +29,6 @@ import {
  *  - Local Storage
  *  - Session Storage
  *
- * If none of these locations contain the user identity, we set the setup()
- * function to wait for the identity to be provided by the connector.
- *
  * Events are tracked only if the connector has an event receiver set, otherwise
  * track returns false, and events are persisted and managed by the
  * IntegrationManager.
@@ -41,26 +41,27 @@ export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
   private readonly contextProvider: ApplicationContextProvider;
   private readonly timeoutMillis: number;
 
-  setup: (() => Promise<void>) | undefined = undefined;
-
   constructor(
     apiKey: string | undefined,
-    identityStore: IdentityStore,
-    eventBridge: EventBridge,
-    contextProvider: ApplicationContextProvider,
+    connector: AnalyticsConnector,
     timeoutMillis: number,
   ) {
     this.apiKey = apiKey;
-    this.identityStore = identityStore;
-    this.eventBridge = eventBridge;
-    this.contextProvider = contextProvider;
+    this.identityStore = connector.identityStore;
+    this.eventBridge = connector.eventBridge;
+    this.contextProvider = connector.applicationContextProvider;
     this.timeoutMillis = timeoutMillis;
-    const userLoaded = this.loadPersistedState();
-    if (!userLoaded) {
-      this.setup = async (): Promise<void> => {
-        return this.waitForConnectorIdentity(this.timeoutMillis);
-      };
+    this.loadPersistedState();
+  }
+
+  async setup?(config?: ExperimentConfig, client?: Client) {
+    // Setup automatic fetch on amplitude identity change.
+    if (config?.automaticFetchOnAmplitudeIdentityChange) {
+      this.identityStore.addIdentityListener(() => {
+        client?.fetch();
+      });
     }
+    return this.waitForConnectorIdentity(this.timeoutMillis);
   }
 
   getUser(): ExperimentUser {
