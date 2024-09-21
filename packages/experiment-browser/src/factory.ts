@@ -56,7 +56,6 @@ const initializeWithAmplitudeAnalytics = (
   client.addPlugin(
     new AmplitudeIntegrationPlugin(
       apiKey,
-      instanceName,
       AnalyticsConnector.getInstance(instanceName),
       10000,
     ),

@@ -43,7 +43,6 @@ export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
 
   constructor(
     apiKey: string | undefined,
-    instanceName: string,
     connector: AnalyticsConnector,
     timeoutMillis: number,
   ) {
@@ -52,15 +51,14 @@ export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
     this.eventBridge = connector.eventBridge;
     this.contextProvider = connector.applicationContextProvider;
     this.timeoutMillis = timeoutMillis;
-    this.eventBridge.setInstanceName(instanceName);
     this.loadPersistedState();
   }
 
   async setup?(config?: ExperimentConfig, client?: Client) {
     // Setup automatic fetch on amplitude identity change.
-    if (config.automaticFetchOnAmplitudeIdentityChange) {
+    if (config?.automaticFetchOnAmplitudeIdentityChange) {
       this.identityStore.addIdentityListener(() => {
-        client.fetch();
+        client?.fetch();
       });
     }
     return this.waitForConnectorIdentity(this.timeoutMillis);
