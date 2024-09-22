@@ -1,3 +1,4 @@
+import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import {
   EvaluationFlag,
   EvaluationSegment,
@@ -9,6 +10,7 @@ import {
   ExperimentUser,
   Variant,
   Variants,
+  AmplitudeIntegrationPlugin,
 } from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
@@ -92,12 +94,22 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     initialFlags = JSON.stringify(parsedFlags);
   }
 
-  globalScope.experiment = Experiment.initializeWithAmplitudeAnalytics(apiKey, {
+  globalScope.experiment = Experiment.initialize(apiKey, {
     debug: true,
     fetchOnStart: false,
     initialFlags: initialFlags,
   });
 
+  // If no integration has been set, use an amplitude integration.
+  if (!globalScope.experimentIntegration) {
+    const connector = AnalyticsConnector.getInstance('$default_instance');
+    globalScope.experimentIntegration = new AmplitudeIntegrationPlugin(
+      apiKey,
+      connector,
+      0,
+    );
+  }
+  globalScope.experiment.addPlugin(globalScope.experimentIntegration);
   globalScope.experiment.setUser(user);
 
   const variants = globalScope.experiment.all();
