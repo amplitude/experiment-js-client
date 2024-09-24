@@ -48,6 +48,7 @@ describe('SegmentIntegrationPlugin', () => {
     expect(safeGlobal.analytics).toBeDefined();
     const expected = snippetInstance();
     expect(safeGlobal.analytics).toEqual(expected);
+    expect(JSON.stringify(safeGlobal.analytics)).toEqual(JSON.stringify([]));
   });
   test('does not set analytics global if not already defined', () => {
     safeGlobal.analytics = ['test'];
@@ -55,7 +56,9 @@ describe('SegmentIntegrationPlugin', () => {
     expect(safeGlobal.analytics).toBeDefined();
     const expected = snippetInstance();
     expect(safeGlobal.analytics).toEqual(expected);
-    expect(JSON.stringify(safeGlobal.analytics)).toEqual(JSON.stringify(expected));
+    expect(JSON.stringify(safeGlobal.analytics)).toEqual(
+      JSON.stringify(['test']),
+    );
   });
   test('with instance key, sets analytics global if not already defined', () => {
     segmentIntegrationPlugin({ instanceKey: 'asdf' });
@@ -63,6 +66,7 @@ describe('SegmentIntegrationPlugin', () => {
     expect(safeGlobal.asdf).toBeDefined();
     const expected = snippetInstance('asdf');
     expect(safeGlobal.asdf).toEqual(expected);
+    expect(JSON.stringify(safeGlobal.asdf)).toEqual(JSON.stringify([]));
   });
   test('with instance key, does not set analytics global if not already defined', () => {
     safeGlobal.asdf = ['test'];
@@ -71,6 +75,7 @@ describe('SegmentIntegrationPlugin', () => {
     expect(safeGlobal.asdf).toBeDefined();
     const expected = snippetInstance('asdf');
     expect(safeGlobal.asdf).toEqual(expected);
+    expect(JSON.stringify(safeGlobal.asdf)).toEqual(JSON.stringify(['test']));
   });
   test('with instance config, does not set instance', () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
