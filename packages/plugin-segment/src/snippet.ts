@@ -7,7 +7,9 @@ import { safeGlobal } from './global';
  *
  * @param instanceKey the key for the analytics instance on the global object.
  */
-export const snippetInstance = (instanceKey: string | undefined) => {
+export const snippetInstance = (
+  instanceKey: string | undefined = undefined,
+) => {
   // define the key where the global analytics object will be accessible
   // customers can safely set this to be something else if need be
   const key = instanceKey || 'analytics';

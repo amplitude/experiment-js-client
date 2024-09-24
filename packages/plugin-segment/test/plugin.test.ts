@@ -2,6 +2,7 @@ import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentEvent } from '@amplitude/experiment-js-client';
 import { Analytics } from '@segment/analytics-next';
 import { segmentIntegrationPlugin } from 'src/plugin';
+import { snippetInstance } from 'src/snippet';
 
 const anonymousId = 'anon';
 const userId = 'user';
@@ -45,26 +46,31 @@ describe('SegmentIntegrationPlugin', () => {
   test('sets analytics global if not already defined', () => {
     segmentIntegrationPlugin();
     expect(safeGlobal.analytics).toBeDefined();
-    expect(safeGlobal.analytics).toEqual([]);
+    const expected = snippetInstance();
+    expect(safeGlobal.analytics).toEqual(expected);
   });
   test('does not set analytics global if not already defined', () => {
     safeGlobal.analytics = ['test'];
     segmentIntegrationPlugin();
     expect(safeGlobal.analytics).toBeDefined();
-    expect(safeGlobal.analytics).toEqual(['test']);
+    const expected = snippetInstance();
+    expect(safeGlobal.analytics).toEqual(expected);
+    expect(JSON.stringify(safeGlobal.analytics)).toEqual(JSON.stringify(expected));
   });
   test('with instance key, sets analytics global if not already defined', () => {
     segmentIntegrationPlugin({ instanceKey: 'asdf' });
     expect(safeGlobal.analytics).toBeUndefined();
     expect(safeGlobal.asdf).toBeDefined();
-    expect(safeGlobal.asdf).toEqual([]);
+    const expected = snippetInstance('asdf');
+    expect(safeGlobal.asdf).toEqual(expected);
   });
   test('with instance key, does not set analytics global if not already defined', () => {
     safeGlobal.asdf = ['test'];
     segmentIntegrationPlugin({ instanceKey: 'asdf' });
     expect(safeGlobal.analytics).toBeUndefined();
     expect(safeGlobal.asdf).toBeDefined();
-    expect(safeGlobal.asdf).toEqual(['test']);
+    const expected = snippetInstance('asdf');
+    expect(safeGlobal.asdf).toEqual(expected);
   });
   test('with instance config, does not set instance', () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
