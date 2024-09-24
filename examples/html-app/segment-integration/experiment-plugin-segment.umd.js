@@ -48,7 +48,7 @@
             };
         };
         // Use the predefined factory, or our own factory to stub the function.
-        (analytics.factory || factory)(fn);
+        analytics[fn] = (analytics.factory || factory)(fn);
         return analytics;
     };
 
