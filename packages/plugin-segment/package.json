@@ -1,0 +1,40 @@
+{
+  "name": "@amplitude/experiment-plugin-segment",
+  "version": "1.0.0",
+  "description": "Experiment integration for segment analytics",
+  "author": "Amplitude",
+  "homepage": "https://github.com/amplitude/experiment-js-client",
+  "license": "MIT",
+  "main": "dist/experiment-plugin-segment.umd.js",
+  "module": "dist/experiment-plugin-segment.esm.js",
+  "es2015": "dist/experiment-plugin-segment.es2015.js",
+  "types": "dist/types/src/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amplitude/experiment-js-client.git",
+    "directory": "packages/plugin-segment"
+  },
+  "scripts": {
+    "build": "rm -rf dist && rollup -c",
+    "clean": "rimraf node_modules dist",
+    "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
+    "test": "jest",
+    "prepublish": "yarn build"
+  },
+  "bugs": {
+    "url": "https://github.com/amplitude/experiment-js-client/issues"
+  },
+  "dependencies": {
+    "@amplitude/experiment-js-client": "^1.11.0",
+    "@segment/analytics-next": "^1.73.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-terser": "^0.4.4"
+  },
+  "files": [
+    "dist"
+  ]
+}
