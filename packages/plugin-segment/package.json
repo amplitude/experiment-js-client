@@ -1,6 +1,7 @@
 {
   "name": "@amplitude/experiment-plugin-segment",
-  "version": "1.0.0",
+  "version": "0.1.0",
+  "private": true,
   "description": "Experiment integration for segment analytics",
   "author": "Amplitude",
   "homepage": "https://github.com/amplitude/experiment-js-client",
