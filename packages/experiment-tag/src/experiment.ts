@@ -92,15 +92,18 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     initialFlags = JSON.stringify(parsedFlags);
   }
 
-  globalScope.experiment = Experiment.initializeWithAmplitudeAnalytics(apiKey, {
-    debug: true,
-    fetchOnStart: false,
-    initialFlags: initialFlags,
-  });
+  globalScope.webExperiment = Experiment.initializeWithAmplitudeAnalytics(
+    apiKey,
+    {
+      debug: true,
+      fetchOnStart: false,
+      initialFlags: initialFlags,
+    },
+  );
 
-  globalScope.experiment.setUser(user);
+  globalScope.webExperiment.setUser(user);
 
-  const variants = globalScope.experiment.all();
+  const variants = globalScope.webExperiment.all();
 
   setUrlChangeListener();
   applyVariants(variants);
@@ -125,7 +128,7 @@ const applyVariants = (variants: Variants | undefined) => {
       const isControlPayload =
         !variant.payload || (payloadIsArray && variant.payload.length === 0);
       if (shouldTrackExposure && isControlPayload) {
-        globalScope.experiment.exposure(key);
+        globalScope.webExperiment.exposure(key);
         continue;
       }
 
@@ -166,7 +169,7 @@ const handleRedirect = (action, key: string, variant: Variant) => {
     globalScope.location.href,
     redirectUrl,
   );
-  shouldTrackExposure && globalScope.experiment.exposure(key);
+  shouldTrackExposure && globalScope.webExperiment.exposure(key);
   // perform redirection
   globalScope.location.replace(targetUrl);
 };
@@ -182,7 +185,7 @@ const handleMutate = (action, key: string, variant: Variant) => {
   });
   const shouldTrackExposure =
     (variant.metadata?.['trackExposure'] as boolean) ?? true;
-  shouldTrackExposure && globalScope.experiment.exposure(key);
+  shouldTrackExposure && globalScope.webExperiment.exposure(key);
 };
 
 const revertMutations = () => {
@@ -263,7 +266,7 @@ const handleInject = (action, key: string, variant: Variant) => {
   });
   const shouldTrackExposure =
     (variant.metadata?.['trackExposure'] as boolean) ?? true;
-  shouldTrackExposure && globalScope.experiment.exposure(key);
+  shouldTrackExposure && globalScope.webExperiment.exposure(key);
 };
 
 export const setUrlChangeListener = () => {
@@ -274,7 +277,7 @@ export const setUrlChangeListener = () => {
   // Add URL change listener for back/forward navigation
   globalScope.addEventListener('popstate', () => {
     revertMutations();
-    applyVariants(globalScope.experiment.all());
+    applyVariants(globalScope.webExperiment.all());
   });
 
   // Create wrapper functions for pushState and replaceState
@@ -289,7 +292,7 @@ export const setUrlChangeListener = () => {
       const result = originalPushState.apply(this, args);
       // Revert mutations and apply variants after pushing state
       revertMutations();
-      applyVariants(globalScope.experiment.all());
+      applyVariants(globalScope.webExperiment.all());
 
       return result;
     };
@@ -301,7 +304,7 @@ export const setUrlChangeListener = () => {
       const result = originalReplaceState.apply(this, args);
       // Revert mutations and apply variants after replacing state
       revertMutations();
-      applyVariants(globalScope.experiment.all());
+      applyVariants(globalScope.webExperiment.all());
 
       return result;
     };
