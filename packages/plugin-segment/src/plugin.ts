@@ -53,3 +53,5 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
 
   return plugin;
 };
+
+safeGlobal.experimentIntegration = segmentIntegrationPlugin();

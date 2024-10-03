@@ -9,6 +9,7 @@ import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
 
+import * as packageJson from './package.json';
 import tsConfig from './tsconfig.json';
 
 const getCommonBrowserConfig = (target) => ({
@@ -58,13 +59,20 @@ const configs = [
   {
     ...getCommonBrowserConfig('es5'),
     ...getOutputConfig({
-      entryFileNames: 'experiment-plugin-segment.umd.min.js',
+      entryFileNames: 'experiment-plugin-segment.min.js',
       exports: 'named',
       format: 'umd',
+      banner: `/* ${packageJson.name} v${packageJson.version} */`,
     }),
     plugins: [
       ...getCommonBrowserConfig('es5').plugins,
-      terser(), // Apply terser plugin for minification
+      terser({
+        format: {
+          // Don't remove semver comment
+          comments:
+            /@amplitude\/.* v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/,
+        },
+      }), // Apply terser plugin for minification
     ],
     external: [],
   },
