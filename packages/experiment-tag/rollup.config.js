@@ -10,6 +10,8 @@ import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
 
+import * as packageJson from './package.json';
+
 const getCommonBrowserConfig = (target) => ({
   input: 'src/script.ts',
   treeshake: {
@@ -51,6 +53,7 @@ const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
     name: 'Experiment-Tag',
+    banner: `/* ${packageJson.name} v${packageJson.version} */`,
     ...outputOptions,
   },
 });
@@ -66,7 +69,13 @@ const configs = [
     }),
     plugins: [
       ...getCommonBrowserConfig('es5').plugins,
-      terser(), // Apply terser plugin for minification
+      terser({
+        format: {
+          // Don't remove semver comment
+          comments:
+            /@amplitude\/.* v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/,
+        },
+      }), // Apply terser plugin for minification
     ],
     external: [],
   },
