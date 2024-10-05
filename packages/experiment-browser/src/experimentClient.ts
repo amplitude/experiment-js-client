@@ -797,6 +797,12 @@ export class ExperimentClient implements Client {
   }
 
   private exposureInternal(key: string, sourceVariant: SourceVariant): void {
+    // Variant metadata may disable exposure tracking remotely.
+    const trackExposure =
+      (sourceVariant.variant?.metadata?.trackExposure as boolean) ?? true;
+    if (!trackExposure) {
+      return;
+    }
     this.legacyExposureInternal(
       key,
       sourceVariant.variant,
