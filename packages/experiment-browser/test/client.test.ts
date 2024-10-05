@@ -1250,3 +1250,72 @@ describe('integration plugin', () => {
     expect(pluginExposure.eventProperties['variant']).toEqual(variant.value);
   });
 });
+
+describe('trackExposure variant metadata', () => {
+  test('undefined, exposure tracked', () => {
+    let providerExposure: Exposure;
+    const client = new ExperimentClient(API_KEY, {
+      source: Source.InitialVariants,
+      initialVariants: {
+        flag: {
+          key: 'on',
+          value: 'on',
+        },
+      },
+      exposureTrackingProvider: {
+        track: (e) => {
+          providerExposure = e;
+        },
+      },
+    });
+    client.exposure('flag');
+    expect(providerExposure).toEqual({
+      variant: 'on',
+      flag_key: 'flag',
+    });
+  });
+  test('true, exposure tracked', () => {
+    let providerExposure: Exposure;
+    const client = new ExperimentClient(API_KEY, {
+      source: Source.InitialVariants,
+      initialVariants: {
+        flag: {
+          key: 'on',
+          value: 'on',
+          metadata: { trackExposure: true },
+        },
+      },
+      exposureTrackingProvider: {
+        track: (e) => {
+          providerExposure = e;
+        },
+      },
+    });
+    client.exposure('flag');
+    expect(providerExposure).toEqual({
+      variant: 'on',
+      flag_key: 'flag',
+      metadata: { trackExposure: true },
+    });
+  });
+  test('false, exposure not tracked', () => {
+    let providerExposure: Exposure;
+    const client = new ExperimentClient(API_KEY, {
+      source: Source.InitialVariants,
+      initialVariants: {
+        flag: {
+          key: 'on',
+          value: 'on',
+          metadata: { trackExposure: false },
+        },
+      },
+      exposureTrackingProvider: {
+        track: (e) => {
+          providerExposure = e;
+        },
+      },
+    });
+    client.exposure('flag');
+    expect(providerExposure).toBeUndefined();
+  });
+});
