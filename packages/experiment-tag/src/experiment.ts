@@ -109,6 +109,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
       0,
     );
   }
+  globalScope.experimentIntegration.type = 'integration';
   globalScope.webExperiment.addPlugin(globalScope.experimentIntegration);
   globalScope.webExperiment.setUser(user);
 
