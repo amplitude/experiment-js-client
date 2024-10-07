@@ -95,7 +95,6 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   }
 
   globalScope.webExperiment = Experiment.initialize(apiKey, {
-    debug: true,
     fetchOnStart: false,
     initialFlags: initialFlags,
   });

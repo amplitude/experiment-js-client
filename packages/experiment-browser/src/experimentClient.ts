@@ -254,7 +254,9 @@ export class ExperimentClient implements Client {
         options,
       );
     } catch (e) {
-      console.error(e);
+      if (this.config.debug) {
+        console.error(e);
+      }
     }
     return this;
   }
