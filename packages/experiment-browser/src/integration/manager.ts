@@ -1,8 +1,4 @@
-import {
-  getGlobalScope,
-  isLocalStorageAvailable,
-  safeGlobal,
-} from '@amplitude/experiment-core';
+import { getGlobalScope, isLocalStorageAvailable, safeGlobal } from '@amplitude/experiment-core';
 
 import { Defaults, ExperimentConfig } from '../config';
 import { Client } from '../types/client';
@@ -61,17 +57,17 @@ export class IntegrationManager {
     if (integration.setup) {
       this.integration.setup(this.config, this.client).then(
         () => {
-          this.queue.tracker = this.integration.track;
+          this.queue.tracker = this.integration.track.bind(integration);
           this.resolve();
         },
         (e) => {
           console.error('Integration setup failed.', e);
-          this.queue.tracker = this.integration.track;
+          this.queue.tracker = this.integration.track.bind(integration);
           this.resolve();
         },
       );
     } else {
-      this.queue.tracker = this.integration.track;
+      this.queue.tracker = this.integration.track.bind(integration);
       this.resolve();
     }
   }
