@@ -20,6 +20,7 @@ describe('DefaultUserProvider', () => {
       c1: 'v1',
       c2: 'v2',
     },
+    user_agent: 'Googlebot',
     url_param: { p1: ['p1v1', 'p1v2'], p2: ['p2v1', 'p2v2'], p3: 'p3v1' },
   };
   let mockLocalStorage;
@@ -151,6 +152,9 @@ describe('DefaultUserProvider', () => {
 });
 
 const mockProvider = (provider: DefaultUserProvider): DefaultUserProvider => {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  provider['userAgent'] = 'Googlebot';
   provider['getLanguage'] = () => 'en-US';
   provider['getBrowser'] = () => 'WebKit';
   provider['getOs'] = () => 'WebKit 537';

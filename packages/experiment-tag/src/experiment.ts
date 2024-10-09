@@ -95,6 +95,9 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   }
 
   globalScope.webExperiment = Experiment.initialize(apiKey, {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    internalInstanceNameSuffix: 'web',
     fetchOnStart: false,
     initialFlags: initialFlags,
   });

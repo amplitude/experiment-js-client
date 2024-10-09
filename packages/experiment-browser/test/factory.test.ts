@@ -38,3 +38,19 @@ test('Experiment.initialize, custom user provider wrapped correctly', async () =
   });
   expect(client1.getUserProvider()).not.toStrictEqual(customUserProvider);
 });
+
+test('Experiment.initialize, internal instance name suffix different clients', async () => {
+  const client1 = Experiment.initialize(API_KEY, {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    internalInstanceNameSuffix: 'test1',
+    debug: false,
+  });
+  const client2 = Experiment.initialize(API_KEY, {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    internalInstanceNameSuffix: 'test2',
+    debug: true,
+  });
+  expect(client2).not.toBe(client1);
+});
