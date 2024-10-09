@@ -8,11 +8,11 @@ import { ExperimentUser } from '../types/user';
 
 export class DefaultUserProvider implements ExperimentUserProvider {
   globalScope = getGlobalScope();
-  private readonly ua = new UAParser(
+  private readonly userAgent: string =
     typeof this.globalScope?.navigator !== 'undefined'
       ? this.globalScope?.navigator.userAgent
-      : null,
-  ).getResult();
+      : undefined;
+  private readonly ua = new UAParser(this.userAgent).getResult();
   private readonly localStorage = new LocalStorage();
   private readonly sessionStorage = new SessionStorage();
   private readonly storageKey: string;
@@ -40,6 +40,7 @@ export class DefaultUserProvider implements ExperimentUserProvider {
       landing_url: this.getLandingUrl(),
       first_seen: this.getFirstSeen(),
       url_param: this.getUrlParam(),
+      user_agent: this.userAgent,
       ...user,
     };
   }

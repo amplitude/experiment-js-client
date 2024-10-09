@@ -29,16 +29,13 @@ const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
-  const globalScope = getGlobalScope();
-  if (globalScope?.webExperiment) {
-    return;
-  }
   WindowMessenger.setup();
+  const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
+  const globalScope = getGlobalScope();
 
   if (!isLocalStorageAvailable() || !globalScope) {
     return;
   }
-  const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   let user: ExperimentUser;
   try {
     user = JSON.parse(
@@ -98,7 +95,9 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   }
 
   globalScope.webExperiment = Experiment.initialize(apiKey, {
-    debug: true,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    internalInstanceNameSuffix: 'web',
     fetchOnStart: false,
     initialFlags: initialFlags,
   });
