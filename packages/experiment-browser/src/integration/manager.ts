@@ -1,4 +1,8 @@
-import { getGlobalScope, isLocalStorageAvailable, safeGlobal } from '@amplitude/experiment-core';
+import {
+  getGlobalScope,
+  isLocalStorageAvailable,
+  safeGlobal,
+} from '@amplitude/experiment-core';
 
 import { Defaults, ExperimentConfig } from '../config';
 import { Client } from '../types/client';
