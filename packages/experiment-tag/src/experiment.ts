@@ -29,13 +29,16 @@ const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
-  WindowMessenger.setup();
-  const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   const globalScope = getGlobalScope();
-
+  if (globalScope?.webExperiment) {
+    return;
+  }
+  WindowMessenger.setup();
   if (!isLocalStorageAvailable() || !globalScope) {
     return;
   }
+
+  const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   let user: ExperimentUser;
   try {
     user = JSON.parse(

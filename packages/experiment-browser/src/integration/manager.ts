@@ -157,6 +157,9 @@ export class PersistentTrackingQueue {
   constructor(instanceName: string, maxQueueSize: number = MAX_QUEUE_SIZE) {
     this.storageKey = `EXP_unsent_${instanceName}`;
     this.maxQueueSize = maxQueueSize;
+    this.loadQueue();
+    this.flush();
+    this.storeQueue();
   }
 
   push(event: ExperimentEvent): void {
