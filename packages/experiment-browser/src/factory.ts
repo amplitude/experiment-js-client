@@ -2,13 +2,14 @@ import { AnalyticsConnector } from '@amplitude/analytics-connector';
 
 import { Defaults, ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
-import {
-  ConnectorExposureTrackingProvider,
-  ConnectorUserProvider,
-} from './integration/connector';
-import { DefaultUserProvider } from './integration/default';
+import { AmplitudeIntegrationPlugin } from './integration/amplitude';
+import { DefaultUserProvider } from './providers/default';
 
 const instances = {};
+
+const getInstanceName = (config: ExperimentConfig): string => {
+  return config?.instanceName || Defaults.instanceName;
+};
 
 /**
  * Initializes a singleton {@link ExperimentClient} identified by the configured
@@ -23,17 +24,17 @@ const initialize = (
 ): ExperimentClient => {
   // Store instances by appending the instance name and api key. Allows for
   // initializing multiple default instances for different api keys.
-  const instanceName = config?.instanceName || Defaults.instanceName;
-  const instanceKey = `${instanceName}.${apiKey}`;
-  const connector = AnalyticsConnector.getInstance(instanceName);
+  const instanceName = getInstanceName(config);
+  // The internal instance name prefix is used by web experiment to differentiate
+  // web and feature experiment sdks which use the same api key.
+  const internalInstanceNameSuffix = config?.['internalInstanceNameSuffix'];
+  const instanceKey = internalInstanceNameSuffix
+    ? `${instanceName}.${apiKey}.${internalInstanceNameSuffix}`
+    : `${instanceName}.${apiKey}`;
   if (!instances[instanceKey]) {
     config = {
       ...config,
-      userProvider: new DefaultUserProvider(
-        connector.applicationContextProvider,
-        config?.userProvider,
-        apiKey,
-      ),
+      userProvider: new DefaultUserProvider(config?.userProvider, apiKey),
     };
     instances[instanceKey] = new ExperimentClient(apiKey, config);
   }
@@ -55,32 +56,16 @@ const initializeWithAmplitudeAnalytics = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
-  // Store instances by appending the instance name and api key. Allows for
-  // initializing multiple default instances for different api keys.
-  const instanceName = config?.instanceName || Defaults.instanceName;
-  const instanceKey = `${instanceName}.${apiKey}`;
-  const connector = AnalyticsConnector.getInstance(instanceName);
-  if (!instances[instanceKey]) {
-    connector.eventBridge.setInstanceName(instanceName);
-    config = {
-      userProvider: new DefaultUserProvider(
-        connector.applicationContextProvider,
-        new ConnectorUserProvider(connector.identityStore),
-        apiKey,
-      ),
-      exposureTrackingProvider: new ConnectorExposureTrackingProvider(
-        connector.eventBridge,
-      ),
-      ...config,
-    };
-    instances[instanceKey] = new ExperimentClient(apiKey, config);
-    if (config.automaticFetchOnAmplitudeIdentityChange) {
-      connector.identityStore.addIdentityListener(() => {
-        instances[instanceKey].fetch();
-      });
-    }
-  }
-  return instances[instanceKey];
+  const instanceName = getInstanceName(config);
+  const client = initialize(apiKey, config);
+  client.addPlugin(
+    new AmplitudeIntegrationPlugin(
+      apiKey,
+      AnalyticsConnector.getInstance(instanceName),
+      10000,
+    ),
+  );
+  return client;
 };
 
 /**

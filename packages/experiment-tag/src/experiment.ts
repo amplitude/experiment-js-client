@@ -1,3 +1,4 @@
+import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import {
   EvaluationFlag,
   EvaluationSegment,
@@ -9,6 +10,7 @@ import {
   ExperimentUser,
   Variant,
   Variants,
+  AmplitudeIntegrationPlugin,
 } from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
@@ -27,13 +29,16 @@ const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
-  WindowMessenger.setup();
-  const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   const globalScope = getGlobalScope();
-
+  if (globalScope?.webExperiment) {
+    return;
+  }
+  WindowMessenger.setup();
   if (!isLocalStorageAvailable() || !globalScope) {
     return;
   }
+
+  const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   let user: ExperimentUser;
   try {
     user = JSON.parse(
@@ -92,15 +97,25 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     initialFlags = JSON.stringify(parsedFlags);
   }
 
-  globalScope.webExperiment = Experiment.initializeWithAmplitudeAnalytics(
-    apiKey,
-    {
-      debug: true,
-      fetchOnStart: false,
-      initialFlags: initialFlags,
-    },
-  );
+  globalScope.webExperiment = Experiment.initialize(apiKey, {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    internalInstanceNameSuffix: 'web',
+    fetchOnStart: false,
+    initialFlags: initialFlags,
+  });
 
+  // If no integration has been set, use an amplitude integration.
+  if (!globalScope.experimentIntegration) {
+    const connector = AnalyticsConnector.getInstance('$default_instance');
+    globalScope.experimentIntegration = new AmplitudeIntegrationPlugin(
+      apiKey,
+      connector,
+      0,
+    );
+  }
+  globalScope.experimentIntegration.type = 'integration';
+  globalScope.webExperiment.addPlugin(globalScope.experimentIntegration);
   globalScope.webExperiment.setUser(user);
 
   const variants = globalScope.webExperiment.all();

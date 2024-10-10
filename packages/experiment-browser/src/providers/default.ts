@@ -1,4 +1,3 @@
-import { ApplicationContextProvider } from '@amplitude/analytics-connector';
 import { getGlobalScope } from '@amplitude/experiment-core';
 import { UAParser } from '@amplitude/ua-parser-js';
 
@@ -9,24 +8,19 @@ import { ExperimentUser } from '../types/user';
 
 export class DefaultUserProvider implements ExperimentUserProvider {
   globalScope = getGlobalScope();
-  private readonly ua = new UAParser(
+  private readonly userAgent: string =
     typeof this.globalScope?.navigator !== 'undefined'
       ? this.globalScope?.navigator.userAgent
-      : null,
-  ).getResult();
+      : undefined;
+  private readonly ua = new UAParser(this.userAgent).getResult();
   private readonly localStorage = new LocalStorage();
   private readonly sessionStorage = new SessionStorage();
   private readonly storageKey: string;
 
-  private readonly contextProvider: ApplicationContextProvider;
   public readonly userProvider: ExperimentUserProvider | undefined;
   private readonly apiKey?: string;
-  constructor(
-    applicationContextProvider: ApplicationContextProvider,
-    userProvider?: ExperimentUserProvider,
-    apiKey?: string,
-  ) {
-    this.contextProvider = applicationContextProvider;
+
+  constructor(userProvider?: ExperimentUserProvider, apiKey?: string) {
     this.userProvider = userProvider;
     this.apiKey = apiKey;
     this.storageKey = `EXP_${this.apiKey?.slice(0, 10)}_DEFAULT_USER_PROVIDER`;
@@ -34,13 +28,11 @@ export class DefaultUserProvider implements ExperimentUserProvider {
 
   getUser(): ExperimentUser {
     const user = this.userProvider?.getUser() || {};
-    const context = this.contextProvider.getApplicationContext();
     return {
-      version: context.versionName,
-      language: context.language,
-      platform: context.platform,
-      os: context.os || this.getOs(this.ua),
-      device_model: context.deviceModel || this.getDeviceModel(this.ua),
+      language: this.getLanguage(),
+      platform: 'Web',
+      os: this.getOs(this.ua),
+      device_model: this.getDeviceModel(this.ua),
       device_category: this.ua.device?.type ?? 'desktop',
       referring_url: this.globalScope?.document?.referrer.replace(/\/$/, ''),
       cookie: this.getCookie(),
@@ -48,8 +40,18 @@ export class DefaultUserProvider implements ExperimentUserProvider {
       landing_url: this.getLandingUrl(),
       first_seen: this.getFirstSeen(),
       url_param: this.getUrlParam(),
+      user_agent: this.userAgent,
       ...user,
     };
+  }
+
+  private getLanguage(): string {
+    return (
+      (typeof navigator !== 'undefined' &&
+        ((navigator.languages && navigator.languages[0]) ||
+          navigator.language)) ||
+      ''
+    );
   }
 
   private getOs(ua: UAParser): string {

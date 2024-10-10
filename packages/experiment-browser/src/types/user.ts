@@ -122,6 +122,11 @@ export type ExperimentUser = {
   url_param?: Record<string, string | string[]>;
 
   /**
+   * The user agent string.
+   */
+  user_agent?: string;
+
+  /**
    * Custom user properties
    */
   user_properties?: {
@@ -147,4 +152,12 @@ export type ExperimentUser = {
       };
     };
   };
+};
+
+export type UserProperties = {
+  [propertyName: string]:
+    | string
+    | number
+    | boolean
+    | Array<string | number | boolean>;
 };
