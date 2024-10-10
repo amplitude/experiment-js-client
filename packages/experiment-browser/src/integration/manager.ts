@@ -151,6 +151,7 @@ export class PersistentTrackingQueue {
   private readonly maxQueueSize: number;
   private readonly isLocalStorageAvailable = isLocalStorageAvailable();
   private inMemoryQueue: ExperimentEvent[] = [];
+  private poller: any | undefined;
 
   tracker: ((event: ExperimentEvent) => boolean) | undefined;
 
@@ -158,8 +159,12 @@ export class PersistentTrackingQueue {
     this.storageKey = `EXP_unsent_${instanceName}`;
     this.maxQueueSize = maxQueueSize;
     this.loadQueue();
-    this.flush();
-    this.storeQueue();
+    if (this.inMemoryQueue.length > 0) {
+      this.poller = safeGlobal.setInterval(() => {
+        this.loadFlushStore();
+      }, 1000);
+    }
+    this.loadFlushStore();
   }
 
   push(event: ExperimentEvent): void {
@@ -176,6 +181,10 @@ export class PersistentTrackingQueue {
       if (!this.tracker(event)) return;
     }
     this.inMemoryQueue = [];
+    if (this.poller) {
+      safeGlobal.clearInterval(this.poller);
+      this.poller = undefined;
+    }
   }
 
   private loadQueue(): void {
@@ -198,6 +207,12 @@ export class PersistentTrackingQueue {
         JSON.stringify(this.inMemoryQueue),
       );
     }
+  }
+
+  private loadFlushStore(): void {
+    this.loadQueue();
+    this.flush();
+    this.storeQueue();
   }
 }
 
