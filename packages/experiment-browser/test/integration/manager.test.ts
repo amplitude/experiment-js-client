@@ -157,7 +157,7 @@ describe('IntegrationManager', () => {
     });
   });
   describe('track', () => {
-    test('correct event pushed to queue', async () => {
+    test('correct event pushed to queue', () => {
       manager.track({
         flag_key: 'flag-key',
         variant: 'treatment',
@@ -174,6 +174,27 @@ describe('IntegrationManager', () => {
           experiment_key: 'exp-1',
           metadata: {
             test: 'test',
+          },
+        },
+      });
+    });
+    test('web exposure tracked as impression', () => {
+      manager.track({
+        flag_key: 'flag-key',
+        variant: 'treatment',
+        experiment_key: 'exp-1',
+        metadata: {
+          deliveryMethod: 'web',
+        },
+      });
+      expect(manager['queue']['inMemoryQueue'][0]).toEqual({
+        eventType: '$impression',
+        eventProperties: {
+          flag_key: 'flag-key',
+          variant: 'treatment',
+          experiment_key: 'exp-1',
+          metadata: {
+            deliveryMethod: 'web',
           },
         },
       });
