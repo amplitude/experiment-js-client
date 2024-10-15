@@ -96,11 +96,30 @@ export class IntegrationManager {
    */
   track(exposure: Exposure): void {
     if (this.cache.shouldTrack(exposure)) {
-      this.queue.push({
-        eventType: '$exposure',
-        eventProperties: exposure,
-      });
+      const event = this.getExposureEvent(exposure);
+      this.queue.push(event);
     }
+  }
+
+  private getExposureEvent(exposure: Exposure): ExperimentEvent {
+    let event: ExperimentEvent = {
+      eventType: '$exposure',
+      eventProperties: exposure,
+    };
+    if (exposure.metadata?.exposureEvent) {
+      // Metadata specifically passes the exposure event definition
+      event = {
+        eventType: exposure.metadata?.exposureEvent as string,
+        eventProperties: exposure,
+      };
+    } else if (exposure.metadata?.deliveryMethod === 'web') {
+      // Web experiments track impression events by default
+      event = {
+        eventType: '$impression',
+        eventProperties: exposure,
+      };
+    }
+    return event;
   }
 }
 

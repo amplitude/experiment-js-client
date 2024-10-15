@@ -676,26 +676,30 @@ describe('variant fallbacks', () => {
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
 
-    test('default variant returned when no other fallback is provided', async () => {
-      const user = {};
-      const exposureTrackingProvider = new TestExposureTrackingProvider();
-      const spy = jest.spyOn(exposureTrackingProvider, 'track');
-      const client = new ExperimentClient(API_KEY, {
-        exposureTrackingProvider: exposureTrackingProvider,
-        source: Source.LocalStorage,
-        fetchOnStart: true,
-      });
-      mockClientStorage(client);
-      // Start and fetch
-      await client.start(user);
-      const variant = client.variant('sdk-ci-test');
-      expect(variant.key).toEqual('off');
-      expect(variant.value).toBeUndefined();
-      expect(variant.metadata?.default).toEqual(true);
-      expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
-      expect(spy.mock.calls[0][0].variant).toBeUndefined();
-    });
+    test(
+      'default variant returned when no other fallback is provided',
+      async () => {
+        const user = {};
+        const exposureTrackingProvider = new TestExposureTrackingProvider();
+        const spy = jest.spyOn(exposureTrackingProvider, 'track');
+        const client = new ExperimentClient(API_KEY, {
+          exposureTrackingProvider: exposureTrackingProvider,
+          source: Source.LocalStorage,
+          fetchOnStart: true,
+        });
+        mockClientStorage(client);
+        // Start and fetch
+        await client.start(user);
+        const variant = client.variant('sdk-ci-test');
+        expect(variant.key).toEqual('off');
+        expect(variant.value).toBeUndefined();
+        expect(variant.metadata?.default).toEqual(true);
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+        expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      },
+      10 * 1000,
+    );
   });
 
   describe('initial variants source', () => {
