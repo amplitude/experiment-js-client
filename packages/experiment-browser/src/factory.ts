@@ -25,7 +25,12 @@ const initialize = (
   // Store instances by appending the instance name and api key. Allows for
   // initializing multiple default instances for different api keys.
   const instanceName = getInstanceName(config);
-  const instanceKey = `${instanceName}.${apiKey}`;
+  // The internal instance name prefix is used by web experiment to differentiate
+  // web and feature experiment sdks which use the same api key.
+  const internalInstanceNameSuffix = config?.['internalInstanceNameSuffix'];
+  const instanceKey = internalInstanceNameSuffix
+    ? `${instanceName}.${apiKey}.${internalInstanceNameSuffix}`
+    : `${instanceName}.${apiKey}`;
   if (!instances[instanceKey]) {
     config = {
       ...config,

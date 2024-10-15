@@ -52,6 +52,9 @@ export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
     this.contextProvider = connector.applicationContextProvider;
     this.timeoutMillis = timeoutMillis;
     this.loadPersistedState();
+    if (timeoutMillis <= 0) {
+      this.setup = undefined;
+    }
   }
 
   async setup?(config?: ExperimentConfig, client?: Client) {

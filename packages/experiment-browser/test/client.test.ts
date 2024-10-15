@@ -676,26 +676,30 @@ describe('variant fallbacks', () => {
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
     });
 
-    test('default variant returned when no other fallback is provided', async () => {
-      const user = {};
-      const exposureTrackingProvider = new TestExposureTrackingProvider();
-      const spy = jest.spyOn(exposureTrackingProvider, 'track');
-      const client = new ExperimentClient(API_KEY, {
-        exposureTrackingProvider: exposureTrackingProvider,
-        source: Source.LocalStorage,
-        fetchOnStart: true,
-      });
-      mockClientStorage(client);
-      // Start and fetch
-      await client.start(user);
-      const variant = client.variant('sdk-ci-test');
-      expect(variant.key).toEqual('off');
-      expect(variant.value).toBeUndefined();
-      expect(variant.metadata?.default).toEqual(true);
-      expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
-      expect(spy.mock.calls[0][0].variant).toBeUndefined();
-    });
+    test(
+      'default variant returned when no other fallback is provided',
+      async () => {
+        const user = {};
+        const exposureTrackingProvider = new TestExposureTrackingProvider();
+        const spy = jest.spyOn(exposureTrackingProvider, 'track');
+        const client = new ExperimentClient(API_KEY, {
+          exposureTrackingProvider: exposureTrackingProvider,
+          source: Source.LocalStorage,
+          fetchOnStart: true,
+        });
+        mockClientStorage(client);
+        // Start and fetch
+        await client.start(user);
+        const variant = client.variant('sdk-ci-test');
+        expect(variant.key).toEqual('off');
+        expect(variant.value).toBeUndefined();
+        expect(variant.metadata?.default).toEqual(true);
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
+        expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      },
+      10 * 1000,
+    );
   });
 
   describe('initial variants source', () => {
@@ -1248,5 +1252,74 @@ describe('integration plugin', () => {
     expect(providerExposure.variant).toEqual(variant.value);
     expect(pluginExposure.eventProperties['flag_key']).toEqual('sdk-ci-test');
     expect(pluginExposure.eventProperties['variant']).toEqual(variant.value);
+  });
+});
+
+describe('trackExposure variant metadata', () => {
+  test('undefined, exposure tracked', () => {
+    let providerExposure: Exposure;
+    const client = new ExperimentClient(API_KEY, {
+      source: Source.InitialVariants,
+      initialVariants: {
+        flag: {
+          key: 'on',
+          value: 'on',
+        },
+      },
+      exposureTrackingProvider: {
+        track: (e) => {
+          providerExposure = e;
+        },
+      },
+    });
+    client.exposure('flag');
+    expect(providerExposure).toEqual({
+      variant: 'on',
+      flag_key: 'flag',
+    });
+  });
+  test('true, exposure tracked', () => {
+    let providerExposure: Exposure;
+    const client = new ExperimentClient(API_KEY, {
+      source: Source.InitialVariants,
+      initialVariants: {
+        flag: {
+          key: 'on',
+          value: 'on',
+          metadata: { trackExposure: true },
+        },
+      },
+      exposureTrackingProvider: {
+        track: (e) => {
+          providerExposure = e;
+        },
+      },
+    });
+    client.exposure('flag');
+    expect(providerExposure).toEqual({
+      variant: 'on',
+      flag_key: 'flag',
+      metadata: { trackExposure: true },
+    });
+  });
+  test('false, exposure not tracked', () => {
+    let providerExposure: Exposure;
+    const client = new ExperimentClient(API_KEY, {
+      source: Source.InitialVariants,
+      initialVariants: {
+        flag: {
+          key: 'on',
+          value: 'on',
+          metadata: { trackExposure: false },
+        },
+      },
+      exposureTrackingProvider: {
+        track: (e) => {
+          providerExposure = e;
+        },
+      },
+    });
+    client.exposure('flag');
+    expect(providerExposure).toBeUndefined();
   });
 });

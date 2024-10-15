@@ -10,6 +10,7 @@ export {
   AmplitudeUserProvider,
   AmplitudeAnalyticsProvider,
 } from './providers/amplitude';
+export { AmplitudeIntegrationPlugin } from './integration/amplitude';
 export { Experiment } from './factory';
 export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';
@@ -23,3 +24,9 @@ export { Source } from './types/source';
 export { ExperimentUser } from './types/user';
 export { Variant, Variants } from './types/variant';
 export { Exposure, ExposureTrackingProvider } from './types/exposure';
+export {
+  ExperimentPlugin,
+  IntegrationPlugin,
+  ExperimentPluginType,
+  ExperimentEvent,
+} from './types/plugin';

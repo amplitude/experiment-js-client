@@ -254,7 +254,9 @@ export class ExperimentClient implements Client {
         options,
       );
     } catch (e) {
-      console.error(e);
+      if (this.config.debug) {
+        console.error(e);
+      }
     }
     return this;
   }
@@ -797,6 +799,12 @@ export class ExperimentClient implements Client {
   }
 
   private exposureInternal(key: string, sourceVariant: SourceVariant): void {
+    // Variant metadata may disable exposure tracking remotely.
+    const trackExposure =
+      (sourceVariant.variant?.metadata?.trackExposure as boolean) ?? true;
+    if (!trackExposure) {
+      return;
+    }
     this.legacyExposureInternal(
       key,
       sourceVariant.variant,

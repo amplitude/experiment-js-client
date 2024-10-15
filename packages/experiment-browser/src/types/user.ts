@@ -122,6 +122,11 @@ export type ExperimentUser = {
   url_param?: Record<string, string | string[]>;
 
   /**
+   * The user agent string.
+   */
+  user_agent?: string;
+
+  /**
    * Custom user properties
    */
   user_properties?: {
