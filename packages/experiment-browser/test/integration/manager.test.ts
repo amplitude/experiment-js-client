@@ -157,7 +157,7 @@ describe('IntegrationManager', () => {
     });
   });
   describe('track', () => {
-    test('correct event pushed to queue', () => {
+    test('correct event pushed to queue', async () => {
       manager.track({
         flag_key: 'flag-key',
         variant: 'treatment',
