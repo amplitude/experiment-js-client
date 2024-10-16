@@ -28,10 +28,11 @@ const appliedInjections: Set<string> = new Set();
 const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
 // Cache to track exposure for the current URL, should be cleared on URL change
-let urlExposureCache: { [url: string]: { [key: string]: string | undefined } } =
-  {};
+let urlExposureCache: { [url: string]: { [key: string]: string | undefined } };
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
+  // Clear the cache on initialization
+  urlExposureCache = {};
   const globalScope = getGlobalScope();
   if (globalScope?.webExperiment) {
     return;
@@ -152,7 +153,6 @@ const applyVariants = (variants: Variants | undefined) => {
 
       if (payloadIsArray) {
         for (const action of variant.payload) {
-          exposureWithDedupe(key, variant);
           if (action.action === 'redirect') {
             handleRedirect(action, key, variant);
           } else if (action.action === 'mutate') {
@@ -186,6 +186,7 @@ const handleRedirect = (action, key: string, variant: Variant) => {
     globalScope.location.href,
     redirectUrl,
   );
+  exposureWithDedupe(key, variant);
   // perform redirection
   globalScope.location.replace(targetUrl);
 };
@@ -199,6 +200,7 @@ const handleMutate = (action, key: string, variant: Variant) => {
   mutations.forEach((m) => {
     appliedMutations.push(mutate.declarative(m));
   });
+  exposureWithDedupe(key, variant);
 };
 
 const revertMutations = () => {
@@ -277,6 +279,7 @@ const handleInject = (action, key: string, variant: Variant) => {
       appliedInjections.delete(id);
     },
   });
+  exposureWithDedupe(key, variant);
 };
 
 export const setUrlChangeListener = () => {
