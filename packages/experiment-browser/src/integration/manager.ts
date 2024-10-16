@@ -61,17 +61,17 @@ export class IntegrationManager {
     if (integration.setup) {
       this.integration.setup(this.config, this.client).then(
         () => {
-          this.queue.tracker = this.integration.track.bind(integration);
+          this.queue.setTracker(this.integration.track.bind(integration));
           this.resolve();
         },
         (e) => {
           console.error('Integration setup failed.', e);
-          this.queue.tracker = this.integration.track.bind(integration);
+          this.queue.setTracker(this.integration.track.bind(integration));
           this.resolve();
         },
       );
     } else {
-      this.queue.tracker = this.integration.track.bind(integration);
+      this.queue.setTracker(this.integration.track.bind(integration));
       this.resolve();
     }
   }
@@ -170,20 +170,11 @@ export class PersistentTrackingQueue {
   private readonly maxQueueSize: number;
   private readonly isLocalStorageAvailable = isLocalStorageAvailable();
   private inMemoryQueue: ExperimentEvent[] = [];
-  private poller: any | undefined;
-
-  tracker: ((event: ExperimentEvent) => boolean) | undefined;
+  private tracker: ((event: ExperimentEvent) => boolean) | undefined;
 
   constructor(instanceName: string, maxQueueSize: number = MAX_QUEUE_SIZE) {
     this.storageKey = `EXP_unsent_${instanceName}`;
     this.maxQueueSize = maxQueueSize;
-    this.loadQueue();
-    if (this.inMemoryQueue.length > 0) {
-      this.poller = safeGlobal.setInterval(() => {
-        this.loadFlushStore();
-      }, 1000);
-    }
-    this.loadFlushStore();
   }
 
   push(event: ExperimentEvent): void {
@@ -193,6 +184,11 @@ export class PersistentTrackingQueue {
     this.storeQueue();
   }
 
+  setTracker(tracker: (event: ExperimentEvent) => boolean): void {
+    this.tracker = tracker;
+    this.loadFlushStore();
+  }
+
   private flush(): void {
     if (!this.tracker) return;
     if (this.inMemoryQueue.length === 0) return;
@@ -200,10 +196,6 @@ export class PersistentTrackingQueue {
       if (!this.tracker(event)) return;
     }
     this.inMemoryQueue = [];
-    if (this.poller) {
-      safeGlobal.clearInterval(this.poller);
-      this.poller = undefined;
-    }
   }
 
   private loadQueue(): void {
