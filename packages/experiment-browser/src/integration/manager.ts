@@ -170,7 +170,6 @@ export class PersistentTrackingQueue {
   private readonly maxQueueSize: number;
   private readonly isLocalStorageAvailable = isLocalStorageAvailable();
   private inMemoryQueue: ExperimentEvent[] = [];
-  private poller: any | undefined;
   private tracker: ((event: ExperimentEvent) => boolean) | undefined;
 
   constructor(instanceName: string, maxQueueSize: number = MAX_QUEUE_SIZE) {
@@ -197,10 +196,6 @@ export class PersistentTrackingQueue {
       if (!this.tracker(event)) return;
     }
     this.inMemoryQueue = [];
-    if (this.poller) {
-      safeGlobal.clearInterval(this.poller);
-      this.poller = undefined;
-    }
   }
 
   private loadQueue(): void {
