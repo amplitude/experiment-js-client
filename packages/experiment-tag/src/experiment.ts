@@ -28,7 +28,8 @@ const appliedInjections: Set<string> = new Set();
 const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
 // Cache to track exposure for the current URL, should be cleared on URL change
-let urlExposureCache: { [key: string]: Set<string> } = {};
+let urlExposureCache: { [url: string]: { [key: string]: string | undefined } } =
+  {};
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   const globalScope = getGlobalScope();
@@ -308,13 +309,14 @@ export const setUrlChangeListener = () => {
 
     // Wrapper for replaceState
     history.replaceState = function (...args) {
-      previousUrl = globalScope.location.href;
       // Call the original replaceState
       const result = originalReplaceState.apply(this, args);
-      // Revert mutations and apply variants after replacing state
-      revertMutations();
-      applyVariants(globalScope.webExperiment.all());
-
+      // Revert mutations and apply variants if the URL has changed
+      if (previousUrl && previousUrl !== globalScope.location.href) {
+        revertMutations();
+        applyVariants(globalScope.webExperiment.all());
+      }
+      previousUrl = globalScope.location.href;
       return result;
     };
   };
@@ -333,24 +335,23 @@ const isPageTargetingSegment = (segment: EvaluationSegment) => {
 
 const exposureWithDedupe = (key: string, variant: Variant) => {
   const globalScope = getGlobalScope();
-  if (!globalScope) {
-    return;
-  }
-  // check if the variant should be tracked based on metadata
-  const shouldTrackVariant =
-    (variant.metadata?.['trackExposure'] as boolean) ?? true;
+  if (!globalScope) return;
+
+  const shouldTrackVariant = variant.metadata?.['trackExposure'] ?? true;
   const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
-  // check if the variant has already been tracked for the current URL
-  const hasTrackedVariant = urlExposureCache[currentUrl]?.has(key) ?? false;
-  // if the url has changed, clear the cache
+
+  // Initialize the cache if on a new URL
   if (!urlExposureCache[currentUrl]) {
     urlExposureCache = {};
-    urlExposureCache[currentUrl] = new Set();
+    urlExposureCache[currentUrl] = {};
   }
+
+  const hasTrackedVariant =
+    urlExposureCache?.[currentUrl]?.[key] === variant.key;
   const shouldTrackExposure = shouldTrackVariant && !hasTrackedVariant;
+
   if (shouldTrackExposure) {
-    // track the exposure and add the variant to the cache
     globalScope.webExperiment.exposure(key);
-    urlExposureCache[currentUrl].add(key);
+    urlExposureCache[currentUrl][key] = variant.key;
   }
 };
