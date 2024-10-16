@@ -21,7 +21,8 @@ import {
   removeQueryParams,
   urlWithoutParamsAndAnchor,
   UUID,
-  concatenateQueryParamsOf, matchesUrl,
+  concatenateQueryParamsOf,
+  matchesUrl,
 } from './util';
 
 const appliedInjections: Set<string> = new Set();
