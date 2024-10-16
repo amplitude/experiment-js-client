@@ -349,6 +349,7 @@ const exposureWithDedupe = (key: string, variant: Variant) => {
     urlExposureCache[currentUrl] = {};
   }
 
+  // if on the same base URL, only track exposure if variant has changed or has not been tracked
   const hasTrackedVariant =
     urlExposureCache?.[currentUrl]?.[key] === variant.key;
   const shouldTrackExposure = shouldTrackVariant && !hasTrackedVariant;
