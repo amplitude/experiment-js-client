@@ -21,7 +21,7 @@ import {
   removeQueryParams,
   urlWithoutParamsAndAnchor,
   UUID,
-  concatenateQueryParamsOf,
+  concatenateQueryParamsOf, matchesUrl,
 } from './util';
 
 const appliedInjections: Set<string> = new Set();
@@ -182,13 +182,18 @@ const handleRedirect = (action, key: string, variant: Variant) => {
   if (currentUrl === referrerUrl) {
     return;
   }
+
   const targetUrl = concatenateQueryParamsOf(
     globalScope.location.href,
     redirectUrl,
   );
+
   exposureWithDedupe(key, variant);
-  // perform redirection
-  globalScope.location.replace(targetUrl);
+
+  if (!matchesUrl([targetUrl], globalScope.location.href)) {
+    // perform redirection
+    globalScope.location.replace(targetUrl);
+  }
 };
 
 const handleMutate = (action, key: string, variant: Variant) => {
