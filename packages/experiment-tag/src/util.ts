@@ -10,7 +10,7 @@ export const getUrlParams = (): Record<string, string> => {
   return params;
 };
 
-export const urlWithoutParamsAndAnchor = (url: string): string => {
+export const urlWithoutParamsAndAnchor = (url: string | undefined): string => {
   if (!url) {
     return '';
   }
@@ -54,21 +54,6 @@ export const UUID = function (a?: any): string {
           /[018]/g, // zeroes, ones, and eights with
           UUID, // random hex digits
         );
-};
-
-export const matchesUrl = (urlArray: string[], urlString: string): boolean => {
-  urlString = urlString.replace(/\/$/, '');
-
-  return urlArray.some((url) => {
-    url = url.replace(/\/$/, ''); // remove trailing slash
-    url = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // escape url for regex
-    url = url.replace(/\\\*/, '.*'); // replace escaped * with .*
-    const regex = new RegExp(`^${url}$`);
-    // Check regex match with and without trailing slash. For example,
-    // `https://example.com/*` would not match `https://example.com` without
-    // this addition.
-    return regex.test(urlString) || regex.test(urlString + '/');
-  });
 };
 
 export const concatenateQueryParamsOf = (

@@ -427,4 +427,36 @@ describe('PersistentTrackingQueue', () => {
       { eventType: '5' },
     ]);
   });
+
+  test('push, tracker returns undefined', () => {
+    const instanceName = '$default_instance';
+    const queue = new PersistentTrackingQueue(instanceName);
+    const trackedEvents: ExperimentEvent[] = [];
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    queue.setTracker((event) => {
+      trackedEvents.push(event);
+    });
+    const event: ExperimentEvent = {
+      eventType: '$exposure',
+      eventProperties: {
+        flag_key: 'flag-key',
+        variant: 'on',
+      },
+    };
+
+    queue.push(event);
+    expect(queue['inMemoryQueue']).toEqual([]);
+    expect(safeGlobal.localStorage.getItem(queue['storageKey'])).toEqual(
+      JSON.stringify([]),
+    );
+    expect(trackedEvents).toEqual([event]);
+
+    queue.push(event);
+    expect(queue['inMemoryQueue']).toEqual([]);
+    expect(safeGlobal.localStorage.getItem(queue['storageKey'])).toEqual(
+      JSON.stringify([]),
+    );
+    expect(trackedEvents).toEqual([event, event]);
+  });
 });

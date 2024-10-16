@@ -197,7 +197,8 @@ export class PersistentTrackingQueue {
     if (!this.tracker) return;
     if (this.inMemoryQueue.length === 0) return;
     for (const event of this.inMemoryQueue) {
-      if (!this.tracker(event)) return;
+      const tracked: boolean | undefined = this.tracker(event);
+      if (typeof tracked !== 'undefined' && !tracked) return;
     }
     this.inMemoryQueue = [];
     if (this.poller) {
