@@ -27,6 +27,8 @@ import {
 const appliedInjections: Set<string> = new Set();
 const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined = undefined;
+// Cache to track exposure for the current URL, should be cleared on URL change
+let urlExposureCache: { [key: string]: Set<string> } = {};
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   const globalScope = getGlobalScope();
@@ -149,6 +151,7 @@ const applyVariants = (variants: Variants | undefined) => {
 
       if (payloadIsArray) {
         for (const action of variant.payload) {
+          exposureWithDedupe(key, variant);
           if (action.action === 'redirect') {
             handleRedirect(action, key, variant);
           } else if (action.action === 'mutate') {
@@ -173,8 +176,6 @@ const handleRedirect = (action, key: string, variant: Variant) => {
   const redirectUrl = action?.data?.url;
 
   const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
-  const shouldTrackExposure =
-    (variant.metadata?.['trackExposure'] as boolean) ?? true;
 
   // prevent infinite redirection loop
   if (currentUrl === referrerUrl) {
@@ -184,7 +185,6 @@ const handleRedirect = (action, key: string, variant: Variant) => {
     globalScope.location.href,
     redirectUrl,
   );
-  shouldTrackExposure && globalScope.webExperiment.exposure(key);
   // perform redirection
   globalScope.location.replace(targetUrl);
 };
@@ -198,9 +198,6 @@ const handleMutate = (action, key: string, variant: Variant) => {
   mutations.forEach((m) => {
     appliedMutations.push(mutate.declarative(m));
   });
-  const shouldTrackExposure =
-    (variant.metadata?.['trackExposure'] as boolean) ?? true;
-  shouldTrackExposure && globalScope.webExperiment.exposure(key);
 };
 
 const revertMutations = () => {
@@ -279,9 +276,6 @@ const handleInject = (action, key: string, variant: Variant) => {
       appliedInjections.delete(id);
     },
   });
-  const shouldTrackExposure =
-    (variant.metadata?.['trackExposure'] as boolean) ?? true;
-  shouldTrackExposure && globalScope.webExperiment.exposure(key);
 };
 
 export const setUrlChangeListener = () => {
@@ -335,4 +329,28 @@ const isPageTargetingSegment = (segment: EvaluationSegment) => {
     (segment.metadata?.segmentName === 'Page not targeted' ||
       segment.metadata?.segmentName === 'Page is excluded')
   );
+};
+
+const exposureWithDedupe = (key: string, variant: Variant) => {
+  const globalScope = getGlobalScope();
+  if (!globalScope) {
+    return;
+  }
+  // check if the variant should be tracked based on metadata
+  const shouldTrackVariant =
+    (variant.metadata?.['trackExposure'] as boolean) ?? true;
+  const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
+  // check if the variant has already been tracked for the current URL
+  const hasTrackedVariant = urlExposureCache[currentUrl]?.has(key) ?? false;
+  // if the url has changed, clear the cache
+  if (!urlExposureCache[currentUrl]) {
+    urlExposureCache = {};
+    urlExposureCache[currentUrl] = new Set();
+  }
+  const shouldTrackExposure = shouldTrackVariant && !hasTrackedVariant;
+  if (shouldTrackExposure) {
+    // track the exposure and add the variant to the cache
+    globalScope.webExperiment.exposure(key);
+    urlExposureCache[currentUrl].add(key);
+  }
 };
