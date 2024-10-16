@@ -323,10 +323,10 @@ describe('PersistentTrackingQueue', () => {
     const instanceName = '$default_instance';
     const queue = new PersistentTrackingQueue(instanceName);
     const trackedEvents: ExperimentEvent[] = [];
-    queue.tracker = (event) => {
+    queue.setTracker((event) => {
       trackedEvents.push(event);
       return false;
-    };
+    });
     const event: ExperimentEvent = {
       eventType: '$exposure',
       eventProperties: {
@@ -354,10 +354,10 @@ describe('PersistentTrackingQueue', () => {
     const instanceName = '$default_instance';
     const queue = new PersistentTrackingQueue(instanceName);
     const trackedEvents: ExperimentEvent[] = [];
-    queue.tracker = (event) => {
+    queue.setTracker((event) => {
       trackedEvents.push(event);
       return true;
-    };
+    });
     const event: ExperimentEvent = {
       eventType: '$exposure',
       eventProperties: {
@@ -399,10 +399,10 @@ describe('PersistentTrackingQueue', () => {
       JSON.stringify([event]),
     );
 
-    queue.tracker = (event) => {
+    queue.setTracker((event) => {
       trackedEvents.push(event);
       return true;
-    };
+    });
 
     queue.push(event);
     expect(queue['inMemoryQueue']).toEqual([]);
