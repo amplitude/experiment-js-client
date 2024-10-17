@@ -32,8 +32,6 @@ let previousUrl: string | undefined = undefined;
 let urlExposureCache: { [url: string]: { [key: string]: string | undefined } };
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
-  // Clear the cache on initialization
-  urlExposureCache = {};
   const globalScope = getGlobalScope();
   if (globalScope?.webExperiment) {
     return;
@@ -42,7 +40,8 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   if (!isLocalStorageAvailable() || !globalScope) {
     return;
   }
-
+  // Clear the cache on initialization
+  urlExposureCache = {};
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   let user: ExperimentUser;
   try {
@@ -306,13 +305,14 @@ export const setUrlChangeListener = () => {
 
     // Wrapper for pushState
     history.pushState = function (...args) {
-      previousUrl = globalScope.location.href;
       // Call the original pushState
       const result = originalPushState.apply(this, args);
       // Revert mutations and apply variants after pushing state
-      revertMutations();
-      applyVariants(globalScope.webExperiment.all());
-
+      if (previousUrl && previousUrl !== globalScope.location.href) {
+        revertMutations();
+        applyVariants(globalScope.webExperiment.all());
+      }
+      previousUrl = globalScope.location.href;
       return result;
     };
 
