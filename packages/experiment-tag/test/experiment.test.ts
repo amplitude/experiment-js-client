@@ -116,7 +116,7 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 
-  test('should redirect and call exposure', () => {
+  test('treatment variant on control page - should redirect and call exposure', () => {
     initializeExperiment(
       '3',
       JSON.stringify([
@@ -181,7 +181,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
-  test('should not redirect but call exposure', () => {
+  test('control variant on control page - should not redirect but call exposure', () => {
     initializeExperiment(
       '4',
       JSON.stringify([
