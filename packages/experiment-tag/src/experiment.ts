@@ -27,7 +27,7 @@ import {
 
 const appliedInjections: Set<string> = new Set();
 const appliedMutations: MutationController[] = [];
-let previousUrl: string | undefined = undefined;
+let previousUrl: string | undefined;
 // Cache to track exposure for the current URL, should be cleared on URL change
 let urlExposureCache: { [url: string]: { [key: string]: string | undefined } };
 
@@ -40,7 +40,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   if (!isLocalStorageAvailable() || !globalScope) {
     return;
   }
-  // Clear the cache on initialization
+  previousUrl = undefined;
   urlExposureCache = {};
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   let user: ExperimentUser;
@@ -352,7 +352,7 @@ const exposureWithDedupe = (key: string, variant: Variant) => {
   const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
 
   // Initialize the cache if on a new URL
-  if (!urlExposureCache[currentUrl]) {
+  if (!urlExposureCache?.[currentUrl]) {
     urlExposureCache = {};
     urlExposureCache[currentUrl] = {};
   }
