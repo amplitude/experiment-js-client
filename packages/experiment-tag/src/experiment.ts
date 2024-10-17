@@ -136,6 +136,12 @@ const applyVariants = (variants: Variants | undefined) => {
   if (!globalScope) {
     return;
   }
+  const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
+  // Initialize the cache if on a new URL
+  if (!urlExposureCache?.[currentUrl]) {
+    urlExposureCache = {};
+    urlExposureCache[currentUrl] = {};
+  }
   for (const key in variants) {
     const variant = variants[key];
     const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
@@ -350,12 +356,6 @@ const exposureWithDedupe = (key: string, variant: Variant) => {
 
   const shouldTrackVariant = variant.metadata?.['trackExposure'] ?? true;
   const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
-
-  // Initialize the cache if on a new URL
-  if (!urlExposureCache?.[currentUrl]) {
-    urlExposureCache = {};
-    urlExposureCache[currentUrl] = {};
-  }
 
   // if on the same base URL, only track exposure if variant has changed or has not been tracked
   const hasTrackedVariant =
