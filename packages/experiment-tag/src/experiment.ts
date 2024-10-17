@@ -196,12 +196,10 @@ const handleRedirect = (action, key: string, variant: Variant) => {
 
   exposureWithDedupe(key, variant);
 
-  if (!matchesUrl([targetUrl], globalScope.location.href)) {
-    // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
-    previousUrl = globalScope.location.href;
-    // perform redirection
-    globalScope.location.replace(targetUrl);
-  }
+  // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
+  previousUrl = globalScope.location.href;
+  // perform redirection
+  globalScope.location.replace(targetUrl);
 };
 
 const handleMutate = (action, key: string, variant: Variant) => {
