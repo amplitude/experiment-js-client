@@ -22,7 +22,6 @@ import {
   urlWithoutParamsAndAnchor,
   UUID,
   concatenateQueryParamsOf,
-  matchesUrl,
 } from './util';
 
 const appliedInjections: Set<string> = new Set();
