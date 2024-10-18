@@ -26,7 +26,9 @@ import {
 
 const appliedInjections: Set<string> = new Set();
 const appliedMutations: MutationController[] = [];
-let previousUrl: string | undefined = undefined;
+let previousUrl: string | undefined;
+// Cache to track exposure for the current URL, should be cleared on URL change
+let urlExposureCache: { [url: string]: { [key: string]: string | undefined } };
 
 export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   const globalScope = getGlobalScope();
@@ -37,7 +39,8 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   if (!isLocalStorageAvailable() || !globalScope) {
     return;
   }
-
+  previousUrl = undefined;
+  urlExposureCache = {};
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
   let user: ExperimentUser;
   try {
@@ -132,6 +135,12 @@ const applyVariants = (variants: Variants | undefined) => {
   if (!globalScope) {
     return;
   }
+  const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
+  // Initialize the cache if on a new URL
+  if (!urlExposureCache?.[currentUrl]) {
+    urlExposureCache = {};
+    urlExposureCache[currentUrl] = {};
+  }
   for (const key in variants) {
     const variant = variants[key];
     const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
@@ -173,18 +182,21 @@ const handleRedirect = (action, key: string, variant: Variant) => {
   const redirectUrl = action?.data?.url;
 
   const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
-  const shouldTrackExposure =
-    (variant.metadata?.['trackExposure'] as boolean) ?? true;
 
   // prevent infinite redirection loop
   if (currentUrl === referrerUrl) {
     return;
   }
+
   const targetUrl = concatenateQueryParamsOf(
     globalScope.location.href,
     redirectUrl,
   );
-  shouldTrackExposure && globalScope.webExperiment.exposure(key);
+
+  exposureWithDedupe(key, variant);
+
+  // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
+  previousUrl = globalScope.location.href;
   // perform redirection
   globalScope.location.replace(targetUrl);
 };
@@ -198,9 +210,7 @@ const handleMutate = (action, key: string, variant: Variant) => {
   mutations.forEach((m) => {
     appliedMutations.push(mutate.declarative(m));
   });
-  const shouldTrackExposure =
-    (variant.metadata?.['trackExposure'] as boolean) ?? true;
-  shouldTrackExposure && globalScope.webExperiment.exposure(key);
+  exposureWithDedupe(key, variant);
 };
 
 const revertMutations = () => {
@@ -279,9 +289,7 @@ const handleInject = (action, key: string, variant: Variant) => {
       appliedInjections.delete(id);
     },
   });
-  const shouldTrackExposure =
-    (variant.metadata?.['trackExposure'] as boolean) ?? true;
-  shouldTrackExposure && globalScope.webExperiment.exposure(key);
+  exposureWithDedupe(key, variant);
 };
 
 export const setUrlChangeListener = () => {
@@ -302,25 +310,23 @@ export const setUrlChangeListener = () => {
 
     // Wrapper for pushState
     history.pushState = function (...args) {
-      previousUrl = globalScope.location.href;
       // Call the original pushState
       const result = originalPushState.apply(this, args);
-      // Revert mutations and apply variants after pushing state
+      // Revert mutations and apply variants
       revertMutations();
       applyVariants(globalScope.webExperiment.all());
-
+      previousUrl = globalScope.location.href;
       return result;
     };
 
     // Wrapper for replaceState
     history.replaceState = function (...args) {
-      previousUrl = globalScope.location.href;
       // Call the original replaceState
       const result = originalReplaceState.apply(this, args);
-      // Revert mutations and apply variants after replacing state
+      // Revert mutations and apply variants
       revertMutations();
       applyVariants(globalScope.webExperiment.all());
-
+      previousUrl = globalScope.location.href;
       return result;
     };
   };
@@ -335,4 +341,22 @@ const isPageTargetingSegment = (segment: EvaluationSegment) => {
     (segment.metadata?.segmentName === 'Page not targeted' ||
       segment.metadata?.segmentName === 'Page is excluded')
   );
+};
+
+const exposureWithDedupe = (key: string, variant: Variant) => {
+  const globalScope = getGlobalScope();
+  if (!globalScope) return;
+
+  const shouldTrackVariant = variant.metadata?.['trackExposure'] ?? true;
+  const currentUrl = urlWithoutParamsAndAnchor(globalScope.location.href);
+
+  // if on the same base URL, only track exposure if variant has changed or has not been tracked
+  const hasTrackedVariant =
+    urlExposureCache?.[currentUrl]?.[key] === variant.key;
+  const shouldTrackExposure = shouldTrackVariant && !hasTrackedVariant;
+
+  if (shouldTrackExposure) {
+    globalScope.webExperiment.exposure(key);
+    urlExposureCache[currentUrl][key] = variant.key;
+  }
 };
