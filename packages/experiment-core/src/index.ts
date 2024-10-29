@@ -23,4 +23,4 @@ export {
   getGlobalScope,
   isLocalStorageAvailable,
 } from './util/global';
-export { FetchError } from './evaluation/error';
+export { FetchError, TimeoutError } from './evaluation/error';

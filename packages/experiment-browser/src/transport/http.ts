@@ -3,7 +3,7 @@
  * @internal
  */
 
-import { safeGlobal } from '@amplitude/experiment-core';
+import { safeGlobal, TimeoutError } from '@amplitude/experiment-core';
 import {
   HttpClient as CoreHttpClient,
   HttpRequest,
@@ -29,7 +29,11 @@ const timeout = (
   }
   return new Promise(function (resolve, reject) {
     safeGlobal.setTimeout(function () {
-      reject(Error('Request timeout after ' + timeoutMillis + ' milliseconds'));
+      reject(
+        new TimeoutError(
+          'Request timeout after ' + timeoutMillis + ' milliseconds',
+        ),
+      );
     }, timeoutMillis);
     promise.then(resolve, reject);
   });
@@ -63,6 +67,7 @@ const _request = (
  */
 export class WrapperClient implements CoreHttpClient {
   private readonly client: HttpClient;
+
   constructor(client: HttpClient) {
     this.client = client;
   }

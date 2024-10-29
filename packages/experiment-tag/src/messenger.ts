@@ -12,7 +12,7 @@ export class WindowMessenger {
         }>,
       ) => {
         const match = /^.*\.amplitude\.com$/;
-        if (!match.test(new URL(e.origin).hostname)) {
+        if (!e.origin || !match.test(new URL(e.origin).hostname)) {
           return;
         }
         if (e.data.type === 'OpenOverlay') {

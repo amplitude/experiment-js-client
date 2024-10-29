@@ -7,3 +7,10 @@ export class FetchError extends Error {
     Object.setPrototypeOf(this, FetchError.prototype);
   }
 }
+
+export class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    Object.setPrototypeOf(this, TimeoutError.prototype);
+  }
+}
