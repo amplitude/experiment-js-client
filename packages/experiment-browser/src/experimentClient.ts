@@ -710,11 +710,18 @@ export class ExperimentClient implements Client {
       });
       this.flags.clear();
       this.flags.putAll(flags);
-      this.flags.store();
     } catch (e) {
       if (this.config.debug && e instanceof TimeoutError) {
         console.debug(e);
+      } else {
+        throw e;
       }
+    }
+
+    try {
+      this.flags.store();
+    } catch (e) {
+      // catch localStorage undefined error
     }
     this.mergeInitialFlagsWithStorage();
   }
