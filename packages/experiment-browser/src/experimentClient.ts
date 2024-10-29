@@ -12,6 +12,7 @@ import {
   Poller,
   SdkEvaluationApi,
   SdkFlagApi,
+  TimeoutError,
   topologicalSort,
 } from '@amplitude/experiment-core';
 
@@ -255,7 +256,11 @@ export class ExperimentClient implements Client {
       );
     } catch (e) {
       if (this.config.debug) {
-        console.error(e);
+        if (e instanceof TimeoutError) {
+          console.debug(e);
+        } else {
+          console.error(e);
+        }
       }
     }
     return this;
@@ -697,17 +702,19 @@ export class ExperimentClient implements Client {
   }
 
   private async doFlags(): Promise<void> {
-    const flags = await this.flagApi.getFlags({
-      libraryName: 'experiment-js-client',
-      libraryVersion: PACKAGE_VERSION,
-      timeoutMillis: this.config.fetchTimeoutMillis,
-    });
-    this.flags.clear();
-    this.flags.putAll(flags);
     try {
+      const flags = await this.flagApi.getFlags({
+        libraryName: 'experiment-js-client',
+        libraryVersion: PACKAGE_VERSION,
+        timeoutMillis: this.config.fetchTimeoutMillis,
+      });
+      this.flags.clear();
+      this.flags.putAll(flags);
       this.flags.store();
     } catch (e) {
-      // catch localStorage undefined error
+      if (this.config.debug && e instanceof TimeoutError) {
+        console.debug(e);
+      }
     }
     this.mergeInitialFlagsWithStorage();
   }
