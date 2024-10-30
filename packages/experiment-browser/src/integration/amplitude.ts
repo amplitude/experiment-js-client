@@ -8,7 +8,7 @@ import { safeGlobal } from '@amplitude/experiment-core';
 
 import { ExperimentConfig } from '../config';
 import { Client } from '../types/client';
-import { ExperimentEvent, IntegrationPlugin } from '../types/plugin';
+import { ExperimentEvent, ExperimentPluginType, IntegrationPlugin } from '../types/plugin';
 import { ExperimentUser, UserProperties } from '../types/user';
 import {
   AmplitudeState,
@@ -34,7 +34,7 @@ import {
  * IntegrationManager.
  */
 export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
-  type: 'integration';
+  readonly type: ExperimentPluginType;
   private readonly apiKey: string | undefined;
   private readonly identityStore: IdentityStore;
   private readonly eventBridge: EventBridge;
@@ -46,6 +46,7 @@ export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
     connector: AnalyticsConnector,
     timeoutMillis: number,
   ) {
+    this.type = 'integration' as ExperimentPluginType;
     this.apiKey = apiKey;
     this.identityStore = connector.identityStore;
     this.eventBridge = connector.eventBridge;
