@@ -8,7 +8,11 @@ import { safeGlobal } from '@amplitude/experiment-core';
 
 import { ExperimentConfig } from '../config';
 import { Client } from '../types/client';
-import { ExperimentEvent, ExperimentPluginType, IntegrationPlugin } from '../types/plugin';
+import {
+  ExperimentEvent,
+  ExperimentPluginType,
+  IntegrationPlugin,
+} from '../types/plugin';
 import { ExperimentUser, UserProperties } from '../types/user';
 import {
   AmplitudeState,
