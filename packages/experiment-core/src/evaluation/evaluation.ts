@@ -89,7 +89,9 @@ export class EvaluationEngine {
     target: EvaluationTarget,
     conditions: EvaluationCondition[][],
   ): boolean {
+    // Outer list logic is "or" (||)
     return conditions.some((innerConditions) => {
+      // Inner list logic is "any" (&&)
       return innerConditions.every((condition) => {
         return this.matchCondition(target, condition);
       });
