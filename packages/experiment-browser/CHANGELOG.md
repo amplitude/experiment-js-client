@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.12.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.11.0...@amplitude/experiment-js-client@1.12.0) (2024-10-30)
+
+
+### Bug Fixes
+
+* catch variant/flag fetch timeout error and log at debug-level ([#135](https://github.com/amplitude/experiment-js-client/issues/135)) ([879cfe3](https://github.com/amplitude/experiment-js-client/commit/879cfe327788e2e3c4a140840371868cfa62bcbc))
+* persistent tracking queue flush when tracker set ([#130](https://github.com/amplitude/experiment-js-client/issues/130)) ([93532c1](https://github.com/amplitude/experiment-js-client/commit/93532c1d00adad68cece4637f3d4a45cdcd2716a))
+* persistent tracking queue poller ([#131](https://github.com/amplitude/experiment-js-client/issues/131)) ([1a39eda](https://github.com/amplitude/experiment-js-client/commit/1a39eda55d34b1ab48c1fc4ef03445efd59e4aa4))
+
+
+### Features
+
+* add integration plugin; segment plugin; web exp updates ([#126](https://github.com/amplitude/experiment-js-client/issues/126)) ([58446e2](https://github.com/amplitude/experiment-js-client/commit/58446e2f8af0e41a8dcd9c759d53b60f041c70c2))
+* add url param targeting ([#124](https://github.com/amplitude/experiment-js-client/issues/124)) ([aaad4fa](https://github.com/amplitude/experiment-js-client/commit/aaad4fa70788d8eabcfb34745957f57d01fe2a8e))
+* add web user targeting ([#116](https://github.com/amplitude/experiment-js-client/issues/116)) ([0312724](https://github.com/amplitude/experiment-js-client/commit/03127244b472925d1d91b80ed95df7fd06b9a38c))
+* Page targeting for Web Experimentation ([#117](https://github.com/amplitude/experiment-js-client/issues/117)) ([ab4ee1f](https://github.com/amplitude/experiment-js-client/commit/ab4ee1f3929b41903c353ba4499bbdcf0a7b27dc))
+* track impressions for web experiments ([#127](https://github.com/amplitude/experiment-js-client/issues/127)) ([fef53e5](https://github.com/amplitude/experiment-js-client/commit/fef53e5737f3e7262beb35b6f575be804bac523f))
+
+
+
+
+
 # [1.11.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.10.2...@amplitude/experiment-js-client@1.11.0) (2024-07-11)
 
 

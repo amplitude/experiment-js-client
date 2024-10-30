@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.9.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.8.0...@amplitude/experiment-core@0.9.0) (2024-10-30)
+
+
+### Bug Fixes
+
+* catch variant/flag fetch timeout error and log at debug-level ([#135](https://github.com/amplitude/experiment-js-client/issues/135)) ([879cfe3](https://github.com/amplitude/experiment-js-client/commit/879cfe327788e2e3c4a140840371868cfa62bcbc))
+
+
+### Features
+
+* add url param targeting ([#124](https://github.com/amplitude/experiment-js-client/issues/124)) ([aaad4fa](https://github.com/amplitude/experiment-js-client/commit/aaad4fa70788d8eabcfb34745957f57d01fe2a8e))
+* Page targeting for Web Experimentation ([#117](https://github.com/amplitude/experiment-js-client/issues/117)) ([ab4ee1f](https://github.com/amplitude/experiment-js-client/commit/ab4ee1f3929b41903c353ba4499bbdcf0a7b27dc))
+
+
+
+
+
 # [0.8.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.7.2...@amplitude/experiment-core@0.8.0) (2024-07-11)
 
 
