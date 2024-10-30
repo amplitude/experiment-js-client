@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-tag",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Amplitude Experiment Javascript Snippet",
   "author": "Amplitude",
   "homepage": "https://github.com/amplitude/experiment-js-client",
@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@amplitude/experiment-core": "^0.9.0",
-    "@amplitude/experiment-js-client": "^1.12.0",
+    "@amplitude/experiment-js-client": "^1.12.1",
     "dom-mutator": "^0.6.0"
   },
   "devDependencies": {
