@@ -90,12 +90,22 @@ export class EvaluationEngine {
     conditions: EvaluationCondition[][],
   ): boolean {
     // Outer list logic is "or" (||)
-    return conditions.some((innerConditions) => {
-      // Inner list logic is "any" (&&)
-      return innerConditions.every((condition) => {
-        return this.matchCondition(target, condition);
-      });
-    });
+    for (const innerConditions of conditions) {
+      let match = true;
+
+      for (const condition of innerConditions) {
+        match = this.matchCondition(target, condition);
+        if (!match) {
+          break;
+        }
+      }
+
+      if (match) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private matchCondition(
