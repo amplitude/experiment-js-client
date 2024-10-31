@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.10.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.9.0...@amplitude/experiment-core@0.10.0) (2024-10-31)
+
+
+### Features
+
+* add new `evaluateConditions` method to EvaluationEngine ([#136](https://github.com/amplitude/experiment-js-client/issues/136)) ([9566ac2](https://github.com/amplitude/experiment-js-client/commit/9566ac208a31b33bc1e6c34ad9bc8be1376bb745))
+
+
+
+
+
 # [0.9.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.8.0...@amplitude/experiment-core@0.9.0) (2024-10-30)
 
 

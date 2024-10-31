@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.12.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.12.1...@amplitude/experiment-js-client@1.12.2) (2024-10-31)
+
+**Note:** Version bump only for package @amplitude/experiment-js-client
+
+
+
+
+
 ## [1.12.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.12.0...@amplitude/experiment-js-client@1.12.1) (2024-10-30)
 
 
