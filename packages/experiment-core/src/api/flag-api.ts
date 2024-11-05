@@ -1,5 +1,6 @@
 import { EvaluationFlag } from '../evaluation/flag';
 import { HttpClient } from '../transport/http';
+import { Base64 } from 'js-base64';
 
 export type GetFlagsOptions = {
   libraryName: string;
@@ -7,8 +8,12 @@ export type GetFlagsOptions = {
   evaluationMode?: string;
   timeoutMillis?: number;
 };
+
 export interface FlagApi {
-  getFlags(options?: GetFlagsOptions): Promise<Record<string, EvaluationFlag>>;
+  getFlags(
+    options?: GetFlagsOptions,
+    user?: Record<string, unknown>,
+  ): Promise<Record<string, EvaluationFlag>>;
 }
 
 export class SdkFlagApi implements FlagApi {
@@ -25,8 +30,10 @@ export class SdkFlagApi implements FlagApi {
     this.serverUrl = serverUrl;
     this.httpClient = httpClient;
   }
+
   public async getFlags(
     options?: GetFlagsOptions,
+    user?: Record<string, unknown>,
   ): Promise<Record<string, EvaluationFlag>> {
     const headers: Record<string, string> = {
       Authorization: `Api-Key ${this.deploymentKey}`,
@@ -35,6 +42,9 @@ export class SdkFlagApi implements FlagApi {
       headers[
         'X-Amp-Exp-Library'
       ] = `${options.libraryName}/${options.libraryVersion}`;
+    }
+    if (user) {
+      headers['X-Amp-Exp-User'] = Base64.encodeURL(JSON.stringify(user));
     }
     const response = await this.httpClient.request({
       requestUrl: `${this.serverUrl}/sdk/v2/flags`,

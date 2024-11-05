@@ -29,8 +29,12 @@ const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined;
 // Cache to track exposure for the current URL, should be cleared on URL change
 let urlExposureCache: { [url: string]: { [key: string]: string | undefined } };
+const localFlagKeys: Set<string> = new Set();
 
-export const initializeExperiment = (apiKey: string, initialFlags: string) => {
+export const initializeExperiment = async (
+  apiKey: string,
+  initialFlags: string,
+) => {
   const globalScope = getGlobalScope();
   if (globalScope?.webExperiment) {
     return;
@@ -75,6 +79,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   if (urlParams['PREVIEW']) {
     const parsedFlags = JSON.parse(initialFlags);
     parsedFlags.forEach((flag: EvaluationFlag) => {
+      localFlagKeys.add(flag.key);
       if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
         // Strip the preview query param
         globalScope.history.replaceState(
@@ -100,11 +105,14 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     initialFlags = JSON.stringify(parsedFlags);
   }
 
+  // initialize the experiment with local flags only
   globalScope.webExperiment = Experiment.initialize(apiKey, {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     internalInstanceNameSuffix: 'web',
     fetchOnStart: false,
+    flagsServerUrl: 'https://flag.lab.amplitude.com?delivery_method=web',
+    pollOnStart: false,
     initialFlags: initialFlags,
   });
 
@@ -121,10 +129,24 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   globalScope.webExperiment.addPlugin(globalScope.experimentIntegration);
   globalScope.webExperiment.setUser(user);
 
+  // evaluate based on local flags + apply variants
   const variants = globalScope.webExperiment.all();
 
   setUrlChangeListener();
   applyVariants(variants);
+
+  // TODO for remote+local: have to differentiate between amp device_id and web_experiment_id
+  // TODO should have/check "isBlocking" metadata?
+
+  // fetch remote flags - making doFlags() public?
+  // need to pass in user to doFlags
+  await globalScope.webExperiment.doFlags();
+
+  // apply remote variants
+  applyRemoteVariants();
+
+  // set up listener for remote flag fetch + re-eval
+  // how to listen to user identity change? should just add in into integration plugin?
 };
 
 const applyVariants = (variants: Variants | undefined) => {
@@ -169,6 +191,21 @@ const applyVariants = (variants: Variants | undefined) => {
       }
     }
   }
+};
+
+const applyRemoteVariants = () => {
+  const globalScope = getGlobalScope();
+  if (!globalScope) {
+    return;
+  }
+  // apply variants of remote flags ONLY (all() and filter out by remote flag keys)
+  const remoteVariants = globalScope.webExperiment
+    .all()
+    .filter((flag: EvaluationFlag) => {
+      return !localFlagKeys.has(flag.key);
+    });
+
+  applyVariants(remoteVariants);
 };
 
 const handleRedirect = (action, key: string, variant: Variant) => {

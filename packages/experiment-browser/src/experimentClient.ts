@@ -701,13 +701,20 @@ export class ExperimentClient implements Client {
     return variants;
   }
 
-  private async doFlags(): Promise<void> {
+  public async doFlags(isWebExperiment?: boolean): Promise<void> {
     try {
-      const flags = await this.flagApi.getFlags({
-        libraryName: 'experiment-js-client',
-        libraryVersion: PACKAGE_VERSION,
-        timeoutMillis: this.config.fetchTimeoutMillis,
-      });
+      const user: ExperimentUser = {
+        user_id: this.getUser().user_id,
+        device_id: this.getUser().device_id,
+      };
+      const flags = await this.flagApi.getFlags(
+        {
+          libraryName: 'experiment-js-client',
+          libraryVersion: PACKAGE_VERSION,
+          timeoutMillis: this.config.fetchTimeoutMillis,
+        },
+        isWebExperiment ? user : undefined,
+      );
       this.flags.clear();
       this.flags.putAll(flags);
     } catch (e) {
