@@ -29,7 +29,8 @@ const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined;
 // Cache to track exposure for the current URL, should be cleared on URL change
 let urlExposureCache: { [url: string]: { [key: string]: string | undefined } };
-const localFlagKeys: Set<string> = new Set();
+const remoteFlagKeys: Set<string> = new Set();
+const locaFlagKeys: Set<string> = new Set();
 
 export const initializeExperiment = async (
   apiKey: string,
@@ -75,11 +76,11 @@ export const initializeExperiment = async (
     );
     return;
   }
+
+  const parsedFlags = JSON.parse(initialFlags);
   // force variant if in preview mode
   if (urlParams['PREVIEW']) {
-    const parsedFlags = JSON.parse(initialFlags);
     parsedFlags.forEach((flag: EvaluationFlag) => {
-      localFlagKeys.add(flag.key);
       if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
         // Strip the preview query param
         globalScope.history.replaceState(
@@ -105,7 +106,24 @@ export const initializeExperiment = async (
     initialFlags = JSON.stringify(parsedFlags);
   }
 
-  // initialize the experiment with local flags only
+  let remoteBlocking = false;
+  // get set of remote flag keys
+  parsedFlags.forEach((flag: EvaluationFlag) => {
+    if (flag?.metadata?.evaluationMode !== 'local') {
+      remoteFlagKeys.add(flag.key);
+      // make the remote flag locally evaluable
+      flag.metadata = flag.metadata || {};
+      flag.metadata.evaluationMode = 'local';
+      // check whether any remote flags are blocking
+      if (flag.metadata?.isBlocking) {
+        remoteBlocking = true;
+      }
+    } else {
+      locaFlagKeys.add(flag.key);
+    }
+  });
+
+  // initialize the experiment
   globalScope.webExperiment = Experiment.initialize(apiKey, {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -129,27 +147,28 @@ export const initializeExperiment = async (
   globalScope.webExperiment.addPlugin(globalScope.experimentIntegration);
   globalScope.webExperiment.setUser(user);
 
-  // evaluate based on local flags + apply variants
-  const variants = globalScope.webExperiment.all();
-
   setUrlChangeListener();
-  applyVariants(variants);
 
-  // TODO for remote+local: have to differentiate between amp device_id and web_experiment_id
+  // apply local variants
+  applyVariants(globalScope.webExperiment.all(), locaFlagKeys);
+
   // TODO should have/check "isBlocking" metadata?
+  if (!remoteBlocking) {
+    // Remove anti-flicker css if remote flags are not blocking
+    globalScope.document.getElementById?.('amp-exp-css')?.remove();
+  }
 
-  // fetch remote flags - making doFlags() public?
-  // need to pass in user to doFlags
+  // fetch remote flags
   await globalScope.webExperiment.doFlags();
 
   // apply remote variants
-  applyRemoteVariants();
-
-  // set up listener for remote flag fetch + re-eval
-  // how to listen to user identity change? should just add in into integration plugin?
+  applyVariants(globalScope.webExperiment.all(), remoteFlagKeys);
 };
 
-const applyVariants = (variants: Variants | undefined) => {
+const applyVariants = (
+  variants: Variants | undefined,
+  flagKeys: Set<string> | undefined = undefined
+) => {
   if (!variants) {
     return;
   }
@@ -164,6 +183,9 @@ const applyVariants = (variants: Variants | undefined) => {
     urlExposureCache[currentUrl] = {};
   }
   for (const key in variants) {
+    if (flagKeys && !flagKeys.has(key)) {
+      continue;
+    }
     const variant = variants[key];
     const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
     if (isWebExperimentation) {
@@ -191,21 +213,6 @@ const applyVariants = (variants: Variants | undefined) => {
       }
     }
   }
-};
-
-const applyRemoteVariants = () => {
-  const globalScope = getGlobalScope();
-  if (!globalScope) {
-    return;
-  }
-  // apply variants of remote flags ONLY (all() and filter out by remote flag keys)
-  const remoteVariants = globalScope.webExperiment
-    .all()
-    .filter((flag: EvaluationFlag) => {
-      return !localFlagKeys.has(flag.key);
-    });
-
-  applyVariants(remoteVariants);
 };
 
 const handleRedirect = (action, key: string, variant: Variant) => {

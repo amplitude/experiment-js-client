@@ -35,7 +35,7 @@ describe('initializeExperiment', () => {
         replace: jest.fn(),
         search: '',
       },
-      document: { referrer: '' },
+      document: { referrer: ''},
       history: { replaceState: jest.fn() },
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
