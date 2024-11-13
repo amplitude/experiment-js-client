@@ -11,6 +11,7 @@ import {
   Variant,
   Variants,
   AmplitudeIntegrationPlugin,
+  ExperimentConfig,
 } from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
@@ -35,6 +36,7 @@ const locaFlagKeys: Set<string> = new Set();
 export const initializeExperiment = async (
   apiKey: string,
   initialFlags: string,
+  config: ExperimentConfig = {},
 ) => {
   const globalScope = getGlobalScope();
   if (globalScope?.webExperiment) {
@@ -132,6 +134,7 @@ export const initializeExperiment = async (
     flagsServerUrl: 'https://flag.lab.amplitude.com?delivery_method=web',
     pollOnStart: false,
     initialFlags: initialFlags,
+    ...config,
   });
 
   // If no integration has been set, use an amplitude integration.
@@ -152,7 +155,6 @@ export const initializeExperiment = async (
   // apply local variants
   applyVariants(globalScope.webExperiment.all(), locaFlagKeys);
 
-  // TODO should have/check "isBlocking" metadata?
   if (!remoteBlocking) {
     // Remove anti-flicker css if remote flags are not blocking
     globalScope.document.getElementById?.('amp-exp-css')?.remove();
@@ -167,7 +169,7 @@ export const initializeExperiment = async (
 
 const applyVariants = (
   variants: Variants | undefined,
-  flagKeys: Set<string> | undefined = undefined
+  flagKeys: Set<string> | undefined = undefined,
 ) => {
   if (!variants) {
     return;

@@ -1,8 +1,9 @@
-import * as coreUtil from '@amplitude/experiment-core';
+import * as experimentCore from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { initializeExperiment } from 'src/experiment';
 import * as experiment from 'src/experiment';
 import * as util from 'src/util';
+import { MockHttpClient } from './util/mock-http-client';
 
 jest.mock('src/messenger', () => {
   return {
@@ -15,7 +16,7 @@ jest.mock('src/messenger', () => {
 jest.spyOn(experiment, 'setUrlChangeListener').mockReturnValue(undefined);
 
 describe('initializeExperiment', () => {
-  const mockGetGlobalScope = jest.spyOn(coreUtil, 'getGlobalScope');
+  const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
@@ -23,7 +24,7 @@ describe('initializeExperiment', () => {
   let mockGlobal;
 
   beforeEach(() => {
-    jest.spyOn(coreUtil, 'isLocalStorageAvailable').mockReturnValue(true);
+    jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
     jest.clearAllMocks();
     mockGlobal = {
       localStorage: {
@@ -35,7 +36,7 @@ describe('initializeExperiment', () => {
         replace: jest.fn(),
         search: '',
       },
-      document: { referrer: ''},
+      document: { referrer: '' },
       history: { replaceState: jest.fn() },
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -52,10 +53,7 @@ describe('initializeExperiment', () => {
           metadata: {
             deployed: true,
             evaluationMode: 'local',
-            experimentKey: 'exp-1',
             flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
             deliveryMethod: 'web',
           },
           segments: [
@@ -111,7 +109,9 @@ describe('initializeExperiment', () => {
   });
 
   test('experiment should not run without localStorage', () => {
-    jest.spyOn(coreUtil, 'isLocalStorageAvailable').mockReturnValue(false);
+    jest
+      .spyOn(experimentCore, 'isLocalStorageAvailable')
+      .mockReturnValue(false);
     initializeExperiment('2', '');
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
@@ -125,10 +125,7 @@ describe('initializeExperiment', () => {
           metadata: {
             deployed: true,
             evaluationMode: 'local',
-            experimentKey: 'exp-1',
             flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
             deliveryMethod: 'web',
           },
           segments: [
@@ -190,10 +187,7 @@ describe('initializeExperiment', () => {
           metadata: {
             deployed: true,
             evaluationMode: 'local',
-            experimentKey: 'exp-1',
             flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
             deliveryMethod: 'web',
           },
           segments: [
@@ -261,7 +255,6 @@ describe('initializeExperiment', () => {
             evaluationMode: 'local',
             experimentKey: 'exp-1',
             flagType: 'experiment',
-            flagVersion: 20,
             deliveryMethod: 'web',
           },
           segments: [
@@ -336,10 +329,7 @@ describe('initializeExperiment', () => {
           metadata: {
             deployed: true,
             evaluationMode: 'local',
-            experimentKey: 'exp-1',
             flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
             deliveryMethod: 'web',
           },
           segments: [
@@ -418,9 +408,7 @@ describe('initializeExperiment', () => {
           metadata: {
             deployed: true,
             evaluationMode: 'local',
-            experimentKey: 'exp-1',
             flagType: 'experiment',
-            flagVersion: 1,
             deliveryMethod: 'web',
           },
           segments: [
@@ -511,10 +499,7 @@ describe('initializeExperiment', () => {
           metadata: {
             deployed: true,
             evaluationMode: 'local',
-            experimentKey: 'exp-1',
             flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
             deliveryMethod: 'web',
           },
           segments: [
@@ -576,9 +561,7 @@ describe('initializeExperiment', () => {
           metadata: {
             deployed: true,
             evaluationMode: 'local',
-            experimentKey: 'exp-1',
             flagType: 'experiment',
-            flagVersion: 20,
             deliveryMethod: 'web',
           },
           segments: [
@@ -623,7 +606,7 @@ describe('initializeExperiment', () => {
       },
       writable: true,
     });
-    jest.spyOn(coreUtil, 'getGlobalScope');
+    jest.spyOn(experimentCore, 'getGlobalScope');
     initializeExperiment(
       '10',
       JSON.stringify([
@@ -734,5 +717,123 @@ describe('initializeExperiment', () => {
       ]),
     );
     expect(mockExposure).not.toHaveBeenCalled();
+  });
+
+  test('test remote evaluation successful', async () => {
+    const remoteFlags = [
+      {
+        key: 'test',
+        metadata: {
+          deployed: true,
+          evaluationMode: 'local',
+          experimentKey: 'exp-1',
+          flagType: 'experiment',
+          flagVersion: 1,
+          deliveryMethod: 'web',
+        },
+        segments: [
+          {
+            metadata: {
+              segmentName: 'All Other Users',
+            },
+            variant: 'treatment',
+          },
+        ],
+        variants: {
+          control: {
+            key: 'control',
+            payload: [
+              {
+                action: 'redirect',
+                data: {
+                  url: 'http://test.com',
+                },
+              },
+            ],
+            value: 'control',
+          },
+          off: {
+            key: 'off',
+            metadata: {
+              default: true,
+            },
+          },
+          treatment: {
+            key: 'treatment',
+            payload: [
+              {
+                action: 'redirect',
+                data: {
+                  url: 'http://test.com/2',
+                },
+              },
+            ],
+            value: 'treatment',
+          },
+        },
+      },
+    ];
+
+    const initialRemoteFlags = [
+      {
+        key: 'test',
+        metadata: {
+          deployed: true,
+          evaluationMode: 'remote',
+          flagType: 'experiment',
+          deliveryMethod: 'web',
+        },
+        segments: [
+          {
+            metadata: {
+              segmentName: 'All Other Users',
+            },
+            variant: 'off',
+          },
+        ],
+        variants: {
+          control: {
+            key: 'control',
+            payload: [
+              {
+                action: 'redirect',
+                data: {
+                  url: 'http://test.com',
+                },
+              },
+            ],
+            value: 'control',
+          },
+          off: {
+            key: 'off',
+            metadata: {
+              default: true,
+            },
+          },
+          treatment: {
+            key: 'treatment',
+            payload: [
+              {
+                action: 'redirect',
+                data: {
+                  url: 'http://test.com/2',
+                },
+              },
+            ],
+            value: 'treatment',
+          },
+        },
+      },
+    ];
+
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
+
+    await initializeExperiment('12', JSON.stringify(initialRemoteFlags), {
+      httpClient: mockHttpClient,
+    });
+    expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+      'http://test.com/2',
+    );
+    expect(mockExposure).toHaveBeenCalledWith('test');
   });
 });
