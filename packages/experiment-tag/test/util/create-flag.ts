@@ -60,3 +60,63 @@ export const createRedirectFlag = (
     },
   };
 };
+
+export const createMutateFlag = (
+  flagKey = 'test',
+  variant: string,
+  treatmentMutations: any[] = [],
+  controlMutations: any[] = [],
+  segments: any[] = [],
+  evaluationMode = 'local',
+) => {
+  return {
+    key: flagKey,
+    metadata: {
+      deployed: true,
+      evaluationMode: evaluationMode,
+      flagType: 'experiment',
+      deliveryMethod: 'web',
+    },
+    segments: [
+      ...segments,
+      {
+        metadata: {
+          segmentName: 'All Other Users',
+        },
+        variant: variant,
+      },
+    ],
+    variants: {
+      control: {
+        key: 'control',
+        payload: [
+          {
+            action: 'mutate',
+            data: {
+              mutations: controlMutations,
+            },
+          },
+        ],
+        value: 'control',
+      },
+      off: {
+        key: 'off',
+        metadata: {
+          default: true,
+        },
+      },
+      treatment: {
+        key: 'treatment',
+        payload: [
+          {
+            action: 'mutate',
+            data: {
+              mutations: treatmentMutations,
+            },
+          },
+        ],
+        value: 'treatment',
+      },
+    },
+  };
+};

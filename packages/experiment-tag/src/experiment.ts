@@ -120,6 +120,12 @@ export const initializeExperiment = async (
         };
 
         flag.segments = [...pageTargetingSegments, previewSegment];
+
+        if (flag?.metadata?.evaluationMode !== 'local') {
+          // make the remote flag locally evaluable
+          flag.metadata = flag.metadata || {};
+          flag.metadata.evaluationMode = 'local';
+        }
       }
     });
     initialFlags = JSON.stringify(parsedFlags);
@@ -130,9 +136,6 @@ export const initializeExperiment = async (
   parsedFlags.forEach((flag: EvaluationFlag) => {
     if (flag?.metadata?.evaluationMode !== 'local') {
       remoteFlagKeys.add(flag.key);
-      // make the remote flag locally evaluable
-      flag.metadata = flag.metadata || {};
-      flag.metadata.evaluationMode = 'local';
       // check whether any remote flags are blocking
       if (flag.metadata?.isBlocking) {
         remoteBlocking = true;
@@ -180,11 +183,14 @@ export const initializeExperiment = async (
   if (remoteFlagKeys.size === 0) {
     return;
   }
-  // fetch remote flags
-  await globalScope.webExperiment.doFlags();
 
-  // apply remote variants
-  applyVariants(globalScope.webExperiment.all(), remoteFlagKeys);
+  try {
+    await globalScope.webExperiment.doFlags();
+    // apply remote variants
+    applyVariants(globalScope.webExperiment.all(), remoteFlagKeys);
+  } catch (error) {
+    console.warn('Error fetching remote flags:', error);
+  }
 };
 
 const applyVariants = (

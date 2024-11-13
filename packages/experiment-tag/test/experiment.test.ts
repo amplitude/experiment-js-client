@@ -4,7 +4,10 @@ import { initializeExperiment } from 'src/experiment';
 import * as experiment from 'src/experiment';
 import * as util from 'src/util';
 import { MockHttpClient } from './util/mock-http-client';
-import { createRedirectFlag } from './util/create-flag';
+import { createMutateFlag, createRedirectFlag } from './util/create-flag';
+import { stringify } from 'ts-jest';
+
+let apiKey: number = 0;
 
 jest.mock('src/messenger', () => {
   return {
@@ -25,6 +28,7 @@ describe('initializeExperiment', () => {
   let mockGlobal;
 
   beforeEach(() => {
+    apiKey++;
     jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
     jest.clearAllMocks();
     mockGlobal = {
@@ -46,7 +50,7 @@ describe('initializeExperiment', () => {
   });
 
   test('should initialize experiment with empty user', () => {
-    initializeExperiment('1', JSON.stringify([]));
+    initializeExperiment(stringify(apiKey), JSON.stringify([]));
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       web_exp_id: 'mock',
     });
@@ -60,13 +64,13 @@ describe('initializeExperiment', () => {
     jest
       .spyOn(experimentCore, 'isLocalStorageAvailable')
       .mockReturnValue(false);
-    initializeExperiment('2', '');
+    initializeExperiment(stringify(apiKey), '');
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 
   test('treatment variant on control page - should redirect and call exposure', () => {
     initializeExperiment(
-      '3',
+      stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
@@ -80,7 +84,7 @@ describe('initializeExperiment', () => {
 
   test('control variant on control page - should not redirect but call exposure', () => {
     initializeExperiment(
-      '4',
+      stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
       ]),
@@ -111,7 +115,7 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
     initializeExperiment(
-      '5',
+      stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
@@ -145,7 +149,7 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
     initializeExperiment(
-      '6',
+      stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
@@ -195,7 +199,7 @@ describe('initializeExperiment', () => {
     ];
 
     initializeExperiment(
-      '7',
+      stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
           'test',
@@ -235,7 +239,7 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
     initializeExperiment(
-      '8',
+      stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
           'test',
@@ -254,7 +258,7 @@ describe('initializeExperiment', () => {
 
   test('should behave as control variant when payload is empty', () => {
     initializeExperiment(
-      '9',
+      stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2?param3=c'),
       ]),
@@ -291,7 +295,7 @@ describe('initializeExperiment', () => {
       },
     ];
     initializeExperiment(
-      '10',
+      stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
           'test',
@@ -331,7 +335,7 @@ describe('initializeExperiment', () => {
       },
     ];
     initializeExperiment(
-      '11',
+      stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
           'test',
@@ -345,32 +349,136 @@ describe('initializeExperiment', () => {
     expect(mockExposure).not.toHaveBeenCalled();
   });
 
-  test('test remote evaluation successful', async () => {
-    const initialRemoteFlags = [
+  test('remote evaluation - fetch successful', async () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      // local flag
+      createMutateFlag('test-1', 'treatment'),
+    ];
+    const remoteFlags = [createMutateFlag('test-2', 'treatment')];
+
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
+
+    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
+      httpClient: mockHttpClient,
+    }).then(() => {
+      // check remote flag variant actions called after successful fetch
+      expect(mockExposure).toHaveBeenCalledTimes(2);
+      expect(mockExposure).toHaveBeenCalledWith('test-2');
+    });
+    // check local flag variant actions called
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test-1');
+  });
+
+  test('remote evaluation - fetch fail, local evaluation success', async () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      // local flag
+      createMutateFlag('test-1', 'treatment'),
+    ];
+    const remoteFlags = [createMutateFlag('test-2', 'treatment')];
+
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 404);
+
+    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
+      httpClient: mockHttpClient,
+    }).then(() => {
+      // check remote fetch failed safely
+      expect(mockExposure).toHaveBeenCalledTimes(1);
+    });
+    // check local flag variant actions called
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test-1');
+  });
+
+  test('remote evaluation - fetch fail, test no variant actions called', async () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [], [], [], 'remote'),
+    ];
+    const remoteFlags = [createMutateFlag('test', 'treatment')];
+
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 404);
+
+    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
+      httpClient: mockHttpClient,
+    }).then(() => {
+      // check remote fetch failed safely
+      expect(mockExposure).toHaveBeenCalledTimes(0);
+    });
+    // check local flag variant actions called
+    expect(mockExposure).toHaveBeenCalledTimes(0);
+  });
+
+  test('remote evaluation - test preview successful, does not fetch remote flags', async () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      location: {
+        href: 'http://test.com/',
+        replace: jest.fn(),
+        search: '?test=treatment&PREVIEW=true',
+      },
+      document: { referrer: '' },
+      history: { replaceState: jest.fn() },
+    };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [], [], [], 'remote'),
+    ];
+    const remoteFlags = [createMutateFlag('test', 'treatment')];
+
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
+
+    const doFlagsMock = jest.spyOn(ExperimentClient.prototype, 'doFlags');
+    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
+      httpClient: mockHttpClient,
+    }).then(() => {
+      // check remote fetch not called
+      expect(doFlagsMock).toHaveBeenCalledTimes(0);
+    });
+    // check local flag variant actions called
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+  });
+
+  test('remote evaluation - fetch successful, fetched flag overwrites initial flag', async () => {
+    const initialFlags = [
+      // remote flag
       createRedirectFlag(
         'test',
-        'treatment',
+        'control',
         'http://test.com/2',
         undefined,
-        undefined,
+        [],
         'remote',
       ),
     ];
     const remoteFlags = [
       createRedirectFlag('test', 'treatment', 'http://test.com/2'),
     ];
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
 
-    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
-
-    initializeExperiment('12', JSON.stringify(initialRemoteFlags), {
-      httpClient: mockHttpClient,
-    }).then(() => {
-      expect(mockGlobal.location.replace).toHaveBeenCalledWith(
-        'http://test.com/2',
-      );
-      expect(mockExposure).toHaveBeenCalledWith('test');
-    });
-    // exposure should not have been called before the remote fetch resolves
-    expect(mockExposure).toHaveBeenCalledTimes(0);
+    await initializeExperiment(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      {
+        httpClient: mockHttpClient,
+      },
+    );
+    // check treatment variant called
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+    expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+      'http://test.com/2',
+    );
   });
 });
