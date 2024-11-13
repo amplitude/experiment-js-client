@@ -58,14 +58,31 @@ export const initializeExperiment = async (
     user = {};
   }
 
-  // create new user if it does not exist, or it does not have device_id
-  if (Object.keys(user).length === 0 || !user.device_id) {
-    user = {};
-    user.device_id = UUID();
-    globalScope.localStorage.setItem(
-      experimentStorageName,
-      JSON.stringify(user),
-    );
+  // create new user if it does not exist, or it does not have web_exp_id
+  if (Object.keys(user).length === 0) {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    if (!user.web_exp_id) {
+      if (user.device_id) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        user.web_exp_id = user.device_id;
+        user.device_id = undefined;
+        globalScope.localStorage.setItem(
+          experimentStorageName,
+          JSON.stringify(user),
+        );
+      } else {
+        user = {};
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        user.web_exp_id = UUID();
+      }
+      globalScope.localStorage.setItem(
+        experimentStorageName,
+        JSON.stringify(user),
+      );
+    }
   }
 
   const urlParams = getUrlParams();
@@ -160,6 +177,9 @@ export const initializeExperiment = async (
     globalScope.document.getElementById?.('amp-exp-css')?.remove();
   }
 
+  if (remoteFlagKeys.size === 0) {
+    return;
+  }
   // fetch remote flags
   await globalScope.webExperiment.doFlags();
 

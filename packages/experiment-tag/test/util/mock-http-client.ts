@@ -1,9 +1,11 @@
-export interface SimpleResponse {
+// interfaces copied frm experiment-browser
+
+interface SimpleResponse {
   status: number;
   body: string;
 }
 
-export interface HttpClient {
+interface HttpClient {
   request(
     requestUrl: string,
     method: string,
@@ -11,11 +13,6 @@ export interface HttpClient {
     data: string,
     timeoutMillis?: number,
   ): Promise<SimpleResponse>;
-}
-
-export interface SimpleResponse {
-  status: number;
-  body: string;
 }
 
 export class MockHttpClient implements HttpClient {
