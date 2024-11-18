@@ -19,19 +19,18 @@ jest.mock('src/messenger', () => {
   };
 });
 
-jest.spyOn(experiment, 'setUrlChangeListener').mockReturnValue(undefined);
-
 describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
+  jest.spyOn(experiment, 'setUrlChangeListener').mockReturnValue(undefined);
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
   jest.spyOn(util, 'UUID').mockReturnValue('mock');
   let mockGlobal;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     apiKey++;
+    jest.clearAllMocks();
     jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
     mockGlobal = {
       localStorage: {
@@ -49,10 +48,6 @@ describe('initializeExperiment', () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 
   test('should initialize experiment with empty user', () => {

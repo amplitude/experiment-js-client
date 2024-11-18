@@ -30,8 +30,6 @@ const appliedMutations: MutationController[] = [];
 let previousUrl: string | undefined;
 // Cache to track exposure for the current URL, should be cleared on URL change
 let urlExposureCache: { [url: string]: { [key: string]: string | undefined } };
-const remoteFlagKeys: Set<string> = new Set();
-const locaFlagKeys: Set<string> = new Set();
 
 export const initializeExperiment = async (
   apiKey: string,
@@ -132,6 +130,9 @@ export const initializeExperiment = async (
   }
 
   let remoteBlocking = false;
+  const remoteFlagKeys: Set<string> = new Set();
+  const locaFlagKeys: Set<string> = new Set();
+
   // get set of remote flag keys
   parsedFlags.forEach((flag: EvaluationFlag) => {
     if (flag?.metadata?.evaluationMode !== 'local') {
@@ -150,7 +151,6 @@ export const initializeExperiment = async (
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     internalInstanceNameSuffix: 'web',
-    fetchOnStart: false,
     initialFlags: initialFlags,
     ...config,
   });
