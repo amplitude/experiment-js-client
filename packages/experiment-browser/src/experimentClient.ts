@@ -711,8 +711,8 @@ export class ExperimentClient implements Client {
       this.flags.clear();
       this.flags.putAll(flags);
     } catch (e) {
-      if (this.config.debug && e instanceof TimeoutError) {
-        console.debug(e);
+      if (e instanceof TimeoutError) {
+        this.config.debug && console.debug(e);
       } else {
         throw e;
       }
