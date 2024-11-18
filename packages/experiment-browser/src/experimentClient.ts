@@ -706,8 +706,8 @@ export class ExperimentClient implements Client {
       const isWebExperiment =
         this.config?.['internalInstanceNameSuffix'] === 'web';
       const user: ExperimentUser = {
-        user_id: this.getUser().user_id,
-        device_id: this.getUser().device_id,
+        user_id: this.getUser()?.user_id,
+        device_id: this.getUser()?.device_id,
       };
       const flags = await this.flagApi.getFlags(
         {

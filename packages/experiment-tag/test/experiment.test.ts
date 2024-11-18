@@ -23,11 +23,9 @@ jest.spyOn(experiment, 'setUrlChangeListener').mockReturnValue(undefined);
 
 describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
-  const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
-  const mockUser = { user_id: 'user_id', device_id: 'device_id' };
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
-  jest.spyOn(ExperimentClient.prototype, 'getUser').mockReturnValue(mockUser);
+  const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
   jest.spyOn(util, 'UUID').mockReturnValue('mock');
   let mockGlobal;
 
@@ -358,6 +356,9 @@ describe('initializeExperiment', () => {
   });
 
   test('remote evaluation - request web remote flags', () => {
+    const mockUser = { user_id: 'user_id', device_id: 'device_id' };
+    jest.spyOn(ExperimentClient.prototype, 'getUser').mockReturnValue(mockUser);
+
     const initialFlags = [
       // remote flag
       createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
