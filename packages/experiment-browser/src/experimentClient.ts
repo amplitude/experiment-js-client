@@ -703,6 +703,8 @@ export class ExperimentClient implements Client {
 
   public async doFlags(): Promise<void> {
     try {
+      const isWebExperiment =
+        this.config?.['internalInstanceNameSuffix'] === 'web';
       const user: ExperimentUser = {
         user_id: this.getUser().user_id,
         device_id: this.getUser().device_id,
@@ -713,9 +715,8 @@ export class ExperimentClient implements Client {
           libraryVersion: PACKAGE_VERSION,
           timeoutMillis: this.config.fetchTimeoutMillis,
         },
-        this.config?.['internalInstanceNameSuffix'] === 'web'
-          ? user
-          : undefined,
+        isWebExperiment ? user : undefined,
+        isWebExperiment ? 'web' : undefined,
       );
       this.flags.clear();
       this.flags.putAll(flags);

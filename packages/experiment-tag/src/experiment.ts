@@ -151,8 +151,6 @@ export const initializeExperiment = async (
     // @ts-ignore
     internalInstanceNameSuffix: 'web',
     fetchOnStart: false,
-    flagsServerUrl: 'https://flag.lab.amplitude.com?delivery_method=web',
-    pollOnStart: false,
     initialFlags: initialFlags,
     ...config,
   });
@@ -194,10 +192,10 @@ export const initializeExperiment = async (
 };
 
 const applyVariants = (
-  variants: Variants | undefined,
+  variants: Variants,
   flagKeys: Set<string> | undefined = undefined,
 ) => {
-  if (!variants) {
+  if (Object.keys(variants).length === 0) {
     return;
   }
   const globalScope = getGlobalScope();
@@ -242,7 +240,6 @@ const applyVariants = (
     }
   }
 };
-
 const handleRedirect = (action, key: string, variant: Variant) => {
   const globalScope = getGlobalScope();
   if (!globalScope) {

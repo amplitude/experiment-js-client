@@ -1,13 +1,15 @@
 import * as experimentCore from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
+import { Base64 } from 'js-base64';
 import { initializeExperiment } from 'src/experiment';
 import * as experiment from 'src/experiment';
 import * as util from 'src/util';
-import { MockHttpClient } from './util/mock-http-client';
-import { createMutateFlag, createRedirectFlag } from './util/create-flag';
 import { stringify } from 'ts-jest';
 
-let apiKey: number = 0;
+import { createMutateFlag, createRedirectFlag } from './util/create-flag';
+import { MockHttpClient } from './util/mock-http-client';
+
+let apiKey = 0;
 
 jest.mock('src/messenger', () => {
   return {
@@ -28,9 +30,9 @@ describe('initializeExperiment', () => {
   let mockGlobal;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     apiKey++;
     jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
-    jest.clearAllMocks();
     mockGlobal = {
       localStorage: {
         getItem: jest.fn().mockReturnValue(undefined),
@@ -47,6 +49,10 @@ describe('initializeExperiment', () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   test('should initialize experiment with empty user', () => {
@@ -349,7 +355,31 @@ describe('initializeExperiment', () => {
     expect(mockExposure).not.toHaveBeenCalled();
   });
 
-  test('remote evaluation - fetch successful', async () => {
+  test('remote evaluation - request web remote flags', () => {
+    const mockUser = { user_id: 'user_id', device_id: 'device_id' };
+    jest.spyOn(ExperimentClient.prototype, 'getUser').mockReturnValue(mockUser);
+
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+    ];
+
+    const mockHttpClient = new MockHttpClient(JSON.stringify([]));
+
+    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
+      httpClient: mockHttpClient,
+    }).then(() => {
+      expect(mockHttpClient.requestUrl).toBe(
+        'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
+      );
+      // check flag fetch called with correct query param and header
+      expect(mockHttpClient.requestHeader['X-Amp-Exp-User']).toBe(
+        Base64.encodeURL(JSON.stringify(mockUser)),
+      );
+    });
+  });
+
+  test('remote evaluation - fetch successful', () => {
     const initialFlags = [
       // remote flag
       createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
@@ -372,7 +402,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledWith('test-1');
   });
 
-  test('remote evaluation - fetch fail, local evaluation success', async () => {
+  test('remote evaluation - fetch fail, local evaluation success', () => {
     const initialFlags = [
       // remote flag
       createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
@@ -394,7 +424,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledWith('test-1');
   });
 
-  test('remote evaluation - fetch fail, test no variant actions called', async () => {
+  test('remote evaluation - fetch fail, test no variant actions called', () => {
     const initialFlags = [
       // remote flag
       createMutateFlag('test', 'treatment', [], [], [], 'remote'),
@@ -413,7 +443,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(0);
   });
 
-  test('remote evaluation - test preview successful, does not fetch remote flags', async () => {
+  test('remote evaluation - test preview successful, does not fetch remote flags', () => {
     const mockGlobal = {
       localStorage: {
         getItem: jest.fn().mockReturnValue(undefined),

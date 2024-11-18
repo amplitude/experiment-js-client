@@ -17,6 +17,8 @@ interface HttpClient {
 
 export class MockHttpClient implements HttpClient {
   private response: SimpleResponse;
+  public requestUrl;
+  public requestHeader;
 
   constructor(responseBody: string, status = 200) {
     this.response = {
@@ -32,6 +34,8 @@ export class MockHttpClient implements HttpClient {
     data: string,
     timeoutMillis?: number,
   ): Promise<SimpleResponse> {
+    this.requestUrl = requestUrl;
+    this.requestHeader = headers;
     return Promise.resolve(this.response);
   }
 }

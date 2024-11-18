@@ -13,6 +13,7 @@ export interface FlagApi {
   getFlags(
     options?: GetFlagsOptions,
     user?: Record<string, unknown>,
+    deliveryMethod?: string | undefined,
   ): Promise<Record<string, EvaluationFlag>>;
 }
 
@@ -34,6 +35,7 @@ export class SdkFlagApi implements FlagApi {
   public async getFlags(
     options?: GetFlagsOptions,
     user?: Record<string, unknown>,
+    deliveryMethod?: string | undefined,
   ): Promise<Record<string, EvaluationFlag>> {
     const headers: Record<string, string> = {
       Authorization: `Api-Key ${this.deploymentKey}`,
@@ -47,7 +49,9 @@ export class SdkFlagApi implements FlagApi {
       headers['X-Amp-Exp-User'] = Base64.encodeURL(JSON.stringify(user));
     }
     const response = await this.httpClient.request({
-      requestUrl: `${this.serverUrl}/sdk/v2/flags`,
+      requestUrl:
+        `${this.serverUrl}/sdk/v2/flags` +
+        (deliveryMethod ? `?delivery_method=${deliveryMethod}` : ''),
       method: 'GET',
       headers: headers,
       timeoutMillis: options?.timeoutMillis,
