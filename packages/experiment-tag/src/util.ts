@@ -88,7 +88,3 @@ export const concatenateQueryParamsOf = (
 
   return resultUrlObj.toString();
 };
-
-export const hasUserOrDeviceId = (user: ExperimentUser): boolean => {
-  return !!(user.user_id || user.device_id);
-};
