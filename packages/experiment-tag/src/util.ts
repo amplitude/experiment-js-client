@@ -1,5 +1,4 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
-import { ExperimentUser } from '@amplitude/experiment-js-client';
 
 export const getUrlParams = (): Record<string, string> => {
   const globalScope = getGlobalScope();
