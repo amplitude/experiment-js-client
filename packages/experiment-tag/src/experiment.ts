@@ -7,7 +7,6 @@ import {
 } from '@amplitude/experiment-core';
 import {
   Experiment,
-  ExperimentUser,
   Variant,
   Variants,
   AmplitudeIntegrationPlugin,
@@ -47,7 +46,7 @@ export const initializeExperiment = async (
   previousUrl = undefined;
   urlExposureCache = {};
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
-  let user: ExperimentUser;
+  let user;
   try {
     user = JSON.parse(
       globalScope.localStorage.getItem(experimentStorageName) || '{}',
@@ -56,26 +55,15 @@ export const initializeExperiment = async (
     user = {};
   }
 
-  // create new user if it does not exist, or it does not have web_exp_id
-  if (Object.keys(user).length === 0) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    if (!user.web_exp_id) {
+  // create new user if it does not exist, or it does not have device_id or web_exp_id
+  if (Object.keys(user).length === 0 || !user.device_id || !user.web_exp_id) {
+    if (!user.device_id || !user.web_exp_id) {
       // if user has device_id, migrate it to web_exp_id
       if (user.device_id) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
         user.web_exp_id = user.device_id;
-        user.device_id = undefined;
-        globalScope.localStorage.setItem(
-          experimentStorageName,
-          JSON.stringify(user),
-        );
       } else {
-        user = {};
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        user.web_exp_id = UUID();
+        const uuid = UUID();
+        user = { device_id: uuid, web_exp_id: uuid };
       }
       globalScope.localStorage.setItem(
         experimentStorageName,

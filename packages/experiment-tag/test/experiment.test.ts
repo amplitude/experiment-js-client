@@ -53,11 +53,12 @@ describe('initializeExperiment', () => {
   test('should initialize experiment with empty user', () => {
     initializeExperiment(stringify(apiKey), JSON.stringify([]));
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
+      device_id: 'mock',
       web_exp_id: 'mock',
     });
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       'EXP_1',
-      JSON.stringify({ web_exp_id: 'mock' }),
+      JSON.stringify({ device_id: 'mock', web_exp_id: 'mock' }),
     );
   });
 
