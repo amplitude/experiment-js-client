@@ -61,6 +61,7 @@ export const initializeExperiment = async (
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     if (!user.web_exp_id) {
+      // if user has device_id, migrate it to web_exp_id
       if (user.device_id) {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
