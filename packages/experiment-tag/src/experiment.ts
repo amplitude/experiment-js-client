@@ -229,6 +229,7 @@ const applyVariants = (
     }
   }
 };
+
 const handleRedirect = (action, key: string, variant: Variant) => {
   const globalScope = getGlobalScope();
   if (!globalScope) {
