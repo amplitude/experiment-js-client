@@ -1,5 +1,6 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import { FetchError, safeGlobal } from '@amplitude/experiment-core';
+import { Defaults } from 'src/config';
 import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
 import { version as PACKAGE_VERSION } from '../package.json';
@@ -1321,5 +1322,24 @@ describe('trackExposure variant metadata', () => {
     });
     client.exposure('flag');
     expect(providerExposure).toBeUndefined();
+  });
+});
+
+describe('flag config polling interval config', () => {
+  test('undefined, set to default', () => {
+    const client = new ExperimentClient('api_key', {});
+    expect(client['config'].flagConfigPollingIntervalMillis).toEqual(300000);
+  });
+  test('defined, less than minimum, set to minimum', () => {
+    const client = new ExperimentClient('api_key', {
+      flagConfigPollingIntervalMillis: 1000,
+    });
+    expect(client['config'].flagConfigPollingIntervalMillis).toEqual(60000);
+  });
+  test('defined, greater than minimum, set to configured value', () => {
+    const client = new ExperimentClient('api_key', {
+      flagConfigPollingIntervalMillis: 900000,
+    });
+    expect(client['config'].flagConfigPollingIntervalMillis).toEqual(900000);
   });
 });

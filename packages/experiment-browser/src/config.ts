@@ -89,6 +89,12 @@ export interface ExperimentConfig {
   pollOnStart?: boolean;
 
   /**
+   * The interval to poll local evaluation flag configurations on `start()`.
+   * Only used if `pollOnStart` is `true`. Minimum 60000.
+   */
+  flagConfigPollingIntervalMillis?: number;
+
+  /**
    * Explicitly enable or disable calling {@link fetch()} on {@link start()}:
    *
    *  - `true`:      fetch will always be called on start.
@@ -159,6 +165,7 @@ export interface ExperimentConfig {
  | **retryFailedAssignment**    | `true` |
  | **automaticExposureTracking** | `true` |
  | **pollOnStart** | `true` |
+ | **flagConfigPollingIntervalMillis** | `300000` |
  | **fetchOnStart** | `true` |
  | **automaticFetchOnAmplitudeIdentityChange** | `false` |
  | **userProvider**    | `null` |
@@ -182,6 +189,7 @@ export const Defaults: ExperimentConfig = {
   retryFetchOnFailure: true,
   automaticExposureTracking: true,
   pollOnStart: true,
+  flagConfigPollingIntervalMillis: 300000,
   fetchOnStart: true,
   automaticFetchOnAmplitudeIdentityChange: false,
   userProvider: null,
