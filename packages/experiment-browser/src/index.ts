@@ -11,7 +11,11 @@ export {
   AmplitudeAnalyticsProvider,
 } from './providers/amplitude';
 export { AmplitudeIntegrationPlugin } from './integration/amplitude';
-export { Experiment } from './factory';
+export {
+  Experiment,
+  initialize,
+  initializeWithAmplitudeAnalytics,
+} from './factory';
 export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';
 export { Client, FetchOptions } from './types/client';
