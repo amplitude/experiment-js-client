@@ -117,9 +117,8 @@ export class ExperimentClient implements Client {
       flagConfigPollingIntervalMillis:
         config.flagConfigPollingIntervalMillis < minFlagPollerIntervalMillis
           ? minFlagPollerIntervalMillis
-          : config.flagConfigPollingIntervalMillis
-          ? config.flagConfigPollingIntervalMillis
-          : Defaults.flagConfigPollingIntervalMillis,
+          : config.flagConfigPollingIntervalMillis ??
+            Defaults.flagConfigPollingIntervalMillis,
     };
     this.poller = new Poller(
       () => this.doFlags(),
