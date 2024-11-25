@@ -83,57 +83,69 @@ export const initializeExperiment = async (
     return;
   }
 
-  const parsedFlags = JSON.parse(initialFlags);
-  // force variant if in preview mode
-  if (urlParams['PREVIEW']) {
-    parsedFlags.forEach((flag: EvaluationFlag) => {
-      if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
-        // Strip the preview query param
-        globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
-        );
-
-        // Keep page targeting segments
-        const pageTargetingSegments = flag.segments.filter((segment) =>
-          isPageTargetingSegment(segment),
-        );
-
-        // Create or update the preview segment
-        const previewSegment = {
-          metadata: { segmentName: 'preview' },
-          variant: urlParams[flag.key],
-        };
-
-        flag.segments = [...pageTargetingSegments, previewSegment];
-
-        if (flag?.metadata?.evaluationMode !== 'local') {
-          // make the remote flag locally evaluable
-          flag.metadata = flag.metadata || {};
-          flag.metadata.evaluationMode = 'local';
-        }
-      }
-    });
-    initialFlags = JSON.stringify(parsedFlags);
-  }
-
-  let remoteBlocking = false;
+  let isRemoteBlocking = false;
   const remoteFlagKeys: Set<string> = new Set();
-  const locaFlagKeys: Set<string> = new Set();
+  const localFlagKeys: Set<string> = new Set();
+  const parsedFlags = JSON.parse(initialFlags);
 
-  // get set of remote flag keys
   parsedFlags.forEach((flag: EvaluationFlag) => {
+    // force variant if in preview mode
+    if (
+      urlParams['PREVIEW'] &&
+      flag.key in urlParams &&
+      urlParams[flag.key] in flag.variants
+    ) {
+      // Strip the preview query param
+      globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
+      );
+
+      // Keep page targeting segments
+      const pageTargetingSegments = flag.segments.filter((segment) =>
+        isPageTargetingSegment(segment),
+      );
+
+      // Create or update the preview segment
+      const previewSegment = {
+        metadata: { segmentName: 'preview' },
+        variant: urlParams[flag.key],
+      };
+
+      flag.segments = [...pageTargetingSegments, previewSegment];
+
+      if (flag?.metadata?.evaluationMode !== 'local') {
+        // make the remote flag locally evaluable
+        flag.metadata = flag.metadata || {};
+        flag.metadata.evaluationMode = 'local';
+      }
+    }
+
+    // parse through remote flags
     if (flag?.metadata?.evaluationMode !== 'local') {
       remoteFlagKeys.add(flag.key);
       // check whether any remote flags are blocking
-      if (flag.metadata?.isBlocking) {
-        remoteBlocking = true;
+      if (!isRemoteBlocking && flag.metadata?.isBlocking) {
+        isRemoteBlocking = true;
+        // Apply anti-flicker css if any remote flags are blocking
+        if (!globalScope.document.getElementById('amp-exp-css')) {
+          const id = 'amp-exp-css';
+          const s = document.createElement('style');
+          s.id = id;
+          s.innerText =
+            '* { visibility: hidden !important; background-image: none !important; }';
+          document.head.appendChild(s);
+          globalScope.window.setTimeout(function () {
+            s.remove();
+          }, 1000);
+        }
       }
     } else {
-      locaFlagKeys.add(flag.key);
+      localFlagKeys.add(flag.key);
     }
   });
+  initialFlags = JSON.stringify(parsedFlags);
 
   // initialize the experiment
   globalScope.webExperiment = Experiment.initialize(apiKey, {
@@ -160,9 +172,9 @@ export const initializeExperiment = async (
   setUrlChangeListener();
 
   // apply local variants
-  applyVariants(globalScope.webExperiment.all(), locaFlagKeys);
+  applyVariants(globalScope.webExperiment.all(), localFlagKeys);
 
-  if (!remoteBlocking) {
+  if (!isRemoteBlocking) {
     // Remove anti-flicker css if remote flags are not blocking
     globalScope.document.getElementById?.('amp-exp-css')?.remove();
   }
