@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.13.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.12.3...@amplitude/experiment-js-client@1.13.0) (2024-11-26)
+
+
+### Features
+
+* increase flag polling interval; add flag poller interval config ([#141](https://github.com/amplitude/experiment-js-client/issues/141)) ([29b1640](https://github.com/amplitude/experiment-js-client/commit/29b1640f54ac0cab1ac1795d0ffd104a1fbf44d5))
+
+
+
+
+
 ## [1.12.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.12.2...@amplitude/experiment-js-client@1.12.3) (2024-11-18)
 
 
