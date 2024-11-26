@@ -600,6 +600,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
       expect(spy.mock.calls[0][0].variant).toEqual('on');
+      client.stop();
     });
 
     test('variant accessed from inline fallback before initial variants secondary', async () => {
@@ -627,6 +628,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      client.stop();
     });
 
     test('variant accessed from initial variants when no explicit fallback provided', async () => {
@@ -651,6 +653,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      client.stop();
     });
 
     test('variant accessed from configured fallback when no initial variants or explicit fallback provided', async () => {
@@ -675,6 +678,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      client.stop();
     });
 
     test(
@@ -698,6 +702,7 @@ describe('variant fallbacks', () => {
         expect(spy).toHaveBeenCalledTimes(1);
         expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
         expect(spy.mock.calls[0][0].variant).toBeUndefined();
+        client.stop();
       },
       10 * 1000,
     );
@@ -726,6 +731,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
       expect(spy.mock.calls[0][0].variant).toEqual('initial');
+      client.stop();
     });
 
     test('variant accessed from local storage secondary', async () => {
@@ -754,6 +760,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
       expect(spy.mock.calls[0][0].variant).toEqual('on');
+      client.stop();
     });
 
     test('variant accessed from inline fallback', async () => {
@@ -781,6 +788,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      client.stop();
     });
 
     test('variant accessed from configured fallback when no initial variants or explicit fallback provided', async () => {
@@ -805,6 +813,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      client.stop();
     });
 
     test('default variant returned when no other fallback is provided', async () => {
@@ -830,6 +839,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      client.stop();
     });
   });
 
@@ -857,6 +867,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
       expect(spy.mock.calls[0][0].variant).toEqual('on');
+      client.stop();
     });
 
     test('locally evaluated default variant with inline fallback', async () => {
@@ -881,6 +892,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      client.stop();
     });
 
     test('locally evaluated default variant with initial variants', async () => {
@@ -905,6 +917,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      client.stop();
     });
 
     test('locally evaluated default variant with configured fallback', async () => {
@@ -932,6 +945,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      client.stop();
     });
 
     test('default variant returned when no other fallback is provided', async () => {
@@ -952,6 +966,7 @@ describe('variant fallbacks', () => {
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0][0].flag_key).toEqual('sdk-ci-test-local');
       expect(spy.mock.calls[0][0].variant).toBeUndefined();
+      client.stop();
     });
 
     test('all returns local evaluation variant over remote or initialVariants with local storage source', async () => {
@@ -975,7 +990,9 @@ describe('variant fallbacks', () => {
       const remoteVariant = allVariants['sdk-ci-test'];
       expect(remoteVariant.key).toEqual('on');
       expect(remoteVariant.value).toEqual('on');
+      client.stop();
     });
+
     test('all returns local evaluation variant over remote or initialVariants with initial variants source', async () => {
       const user = { user_id: 'test_user', device_id: '0123456789' };
       const client = new ExperimentClient(API_KEY, {
@@ -997,6 +1014,7 @@ describe('variant fallbacks', () => {
       const remoteVariant = allVariants['sdk-ci-test'];
       expect(remoteVariant.key).toEqual('initial');
       expect(remoteVariant.value).toEqual('initial');
+      client.stop();
     });
   });
 });
@@ -1008,7 +1026,9 @@ describe('start', () => {
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
     expect(fetchSpy).toBeCalledTimes(1);
+    client.stop();
   }, 10000);
+
   test('with local evaluation only, calls fetch', async () => {
     const client = new ExperimentClient(API_KEY, {});
     mockClientStorage(client);
@@ -1020,6 +1040,7 @@ describe('start', () => {
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
     expect(fetchSpy).toBeCalledTimes(1);
+    client.stop();
   });
 
   test('with local evaluation only, fetchOnStart enabled, calls fetch', async () => {
@@ -1035,6 +1056,7 @@ describe('start', () => {
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
     expect(fetchSpy).toBeCalledTimes(1);
+    client.stop();
   });
 
   test('with local and remote evaluation, fetchOnStart disabled, does not call fetch', async () => {
@@ -1045,6 +1067,7 @@ describe('start', () => {
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
     expect(fetchSpy).toBeCalledTimes(0);
+    client.stop();
   });
 
   test('initial flags', async () => {
@@ -1080,6 +1103,7 @@ describe('start', () => {
     variant2 = client.variant('sdk-ci-test-local-2');
     expect(variant.key).toEqual('on');
     expect(variant2.key).toEqual('on');
+    client.stop();
   });
 });
 
