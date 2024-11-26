@@ -57,7 +57,7 @@ const fetchBackoffAttempts = 8;
 const fetchBackoffMinMillis = 500;
 const fetchBackoffMaxMillis = 10000;
 const fetchBackoffScalar = 1.5;
-const flagPollerIntervalMillis = 60000;
+const minFlagPollerIntervalMillis = 60000;
 
 const euServerUrl = 'https://api.lab.eu.amplitude.com';
 const euFlagsServerUrl = 'https://flag.lab.eu.amplitude.com';
@@ -80,10 +80,7 @@ export class ExperimentClient implements Client {
   private userProvider: ExperimentUserProvider | undefined;
   private exposureTrackingProvider: ExposureTrackingProvider | undefined;
   private retriesBackoff: Backoff | undefined;
-  private poller: Poller = new Poller(
-    () => this.doFlags(),
-    flagPollerIntervalMillis,
-  );
+  private poller: Poller;
   private isRunning = false;
   private readonly integrationManager: IntegrationManager;
 
@@ -116,7 +113,17 @@ export class ExperimentClient implements Client {
         (config?.serverZone?.toLowerCase() === 'eu'
           ? euFlagsServerUrl
           : Defaults.flagsServerUrl),
+      // Force minimum flag config polling interval.
+      flagConfigPollingIntervalMillis:
+        config.flagConfigPollingIntervalMillis < minFlagPollerIntervalMillis
+          ? minFlagPollerIntervalMillis
+          : config.flagConfigPollingIntervalMillis ??
+            Defaults.flagConfigPollingIntervalMillis,
     };
+    this.poller = new Poller(
+      () => this.doFlags(),
+      config.flagConfigPollingIntervalMillis,
+    );
     // Transform initialVariants
     if (this.config.initialVariants) {
       for (const flagKey in this.config.initialVariants) {
