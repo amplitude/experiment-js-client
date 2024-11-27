@@ -461,10 +461,11 @@ describe('initializeExperiment', () => {
       createMutateFlag('test', 'treatment', [], [], [], 'remote'),
     ];
     const remoteFlags = [createMutateFlag('test', 'treatment')];
-
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
-
-    const doFlagsMock = jest.spyOn(ExperimentClient.prototype, 'doFlags');
+    const doFlagsMock = jest.spyOn(
+      ExperimentClient.prototype as any,
+      'doFlags',
+    );
     initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
       httpClient: mockHttpClient,
     }).then(() => {
