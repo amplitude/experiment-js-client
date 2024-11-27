@@ -152,7 +152,7 @@ const applyVariants = (variants: Variants | undefined) => {
       const isControlPayload =
         !variant.payload || (payloadIsArray && variant.payload.length === 0);
       if (shouldTrackExposure && isControlPayload) {
-        globalScope.webExperiment.exposure(key);
+        exposureWithDedupe(key, variant);
         continue;
       }
 
