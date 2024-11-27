@@ -8,14 +8,12 @@ export type GetFlagsOptions = {
   libraryVersion: string;
   evaluationMode?: string;
   timeoutMillis?: number;
+  user?: Record<string, unknown>;
+  deliveryMethod?: string | undefined;
 };
 
 export interface FlagApi {
-  getFlags(
-    options?: GetFlagsOptions,
-    user?: Record<string, unknown>,
-    deliveryMethod?: string | undefined,
-  ): Promise<Record<string, EvaluationFlag>>;
+  getFlags(options?: GetFlagsOptions): Promise<Record<string, EvaluationFlag>>;
 }
 
 export class SdkFlagApi implements FlagApi {
@@ -35,8 +33,6 @@ export class SdkFlagApi implements FlagApi {
 
   public async getFlags(
     options?: GetFlagsOptions,
-    user?: Record<string, unknown>,
-    deliveryMethod?: string | undefined,
   ): Promise<Record<string, EvaluationFlag>> {
     const headers: Record<string, string> = {
       Authorization: `Api-Key ${this.deploymentKey}`,
@@ -46,13 +42,17 @@ export class SdkFlagApi implements FlagApi {
         'X-Amp-Exp-Library'
       ] = `${options.libraryName}/${options.libraryVersion}`;
     }
-    if (user) {
-      headers['X-Amp-Exp-User'] = Base64.encodeURL(JSON.stringify(user));
+    if (options?.user) {
+      headers['X-Amp-Exp-User'] = Base64.encodeURL(
+        JSON.stringify(options.user),
+      );
     }
     const response = await this.httpClient.request({
       requestUrl:
         `${this.serverUrl}/sdk/v2/flags` +
-        (deliveryMethod ? `?delivery_method=${deliveryMethod}` : ''),
+        (options?.deliveryMethod
+          ? `?delivery_method=${options.deliveryMethod}`
+          : ''),
       method: 'GET',
       headers: headers,
       timeoutMillis: options?.timeoutMillis,

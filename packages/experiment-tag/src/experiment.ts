@@ -85,7 +85,7 @@ export const initializeExperiment = async (
 
   let isRemoteBlocking = false;
   const remoteFlagKeys: Set<string> = new Set();
-  const localFlagKeys: Set<string> = new Set();
+  const locaFlagKeys: Set<string> = new Set();
   const parsedFlags = JSON.parse(initialFlags);
 
   parsedFlags.forEach((flag: EvaluationFlag) => {
@@ -122,7 +122,6 @@ export const initializeExperiment = async (
       }
     }
 
-    // parse through remote flags
     if (flag?.metadata?.evaluationMode !== 'local') {
       remoteFlagKeys.add(flag.key);
       // check whether any remote flags are blocking
@@ -142,7 +141,7 @@ export const initializeExperiment = async (
         }
       }
     } else {
-      localFlagKeys.add(flag.key);
+      locaFlagKeys.add(flag.key);
     }
   });
   initialFlags = JSON.stringify(parsedFlags);
@@ -172,7 +171,7 @@ export const initializeExperiment = async (
   setUrlChangeListener();
 
   // apply local variants
-  applyVariants(globalScope.webExperiment.all(), localFlagKeys);
+  applyVariants(globalScope.webExperiment.all(), locaFlagKeys);
 
   if (!isRemoteBlocking) {
     // Remove anti-flicker css if remote flags are not blocking
@@ -223,7 +222,7 @@ const applyVariants = (
       const isControlPayload =
         !variant.payload || (payloadIsArray && variant.payload.length === 0);
       if (shouldTrackExposure && isControlPayload) {
-        globalScope.webExperiment.exposure(key);
+        exposureWithDedupe(key, variant);
         continue;
       }
 
