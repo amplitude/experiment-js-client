@@ -3,6 +3,41 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.2.4...@amplitude/experiment-tag@0.2.5) (2024-11-27)
+
+
+### Bug Fixes
+
+* dedupe control/off exposures ([#142](https://github.com/amplitude/experiment-js-client/issues/142)) ([6495b0c](https://github.com/amplitude/experiment-js-client/commit/6495b0c6a0c900a93b07995371646078703b393f))
+
+
+
+
+
+## [0.2.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.2.3...@amplitude/experiment-tag@0.2.4) (2024-11-26)
+
+**Note:** Version bump only for package @amplitude/experiment-tag
+
+
+
+
+
+## [0.2.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.2.2...@amplitude/experiment-tag@0.2.3) (2024-11-18)
+
+**Note:** Version bump only for package @amplitude/experiment-tag
+
+
+
+
+
+## [0.2.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.2.1...@amplitude/experiment-tag@0.2.2) (2024-10-31)
+
+**Note:** Version bump only for package @amplitude/experiment-tag
+
+
+
+
+
 ## [0.2.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.2.0...@amplitude/experiment-tag@0.2.1) (2024-10-30)
 
 **Note:** Version bump only for package @amplitude/experiment-tag

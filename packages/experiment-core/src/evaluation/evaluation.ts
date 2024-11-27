@@ -69,26 +69,43 @@ export class EvaluationEngine {
         return undefined;
       }
     }
+
+    const match = this.evaluateConditions(target, segment.conditions);
+
+    // On match, bucket the user.
+    if (match) {
+      const variantKey = this.bucket(target, segment);
+      if (variantKey !== undefined) {
+        return flag.variants[variantKey];
+      } else {
+        return undefined;
+      }
+    }
+
+    return undefined;
+  }
+
+  public evaluateConditions(
+    target: EvaluationTarget,
+    conditions: EvaluationCondition[][],
+  ): boolean {
     // Outer list logic is "or" (||)
-    for (const conditions of segment.conditions) {
+    for (const innerConditions of conditions) {
       let match = true;
-      for (const condition of conditions) {
+
+      for (const condition of innerConditions) {
         match = this.matchCondition(target, condition);
         if (!match) {
           break;
         }
       }
-      // On match, bucket the user.
+
       if (match) {
-        const variantKey = this.bucket(target, segment);
-        if (variantKey !== undefined) {
-          return flag.variants[variantKey];
-        } else {
-          return undefined;
-        }
+        return true;
       }
     }
-    return undefined;
+
+    return false;
   }
 
   private matchCondition(

@@ -3,6 +3,36 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.13.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.12.3...@amplitude/experiment-js-client@1.13.0) (2024-11-26)
+
+
+### Features
+
+* increase flag polling interval; add flag poller interval config ([#141](https://github.com/amplitude/experiment-js-client/issues/141)) ([29b1640](https://github.com/amplitude/experiment-js-client/commit/29b1640f54ac0cab1ac1795d0ffd104a1fbf44d5))
+
+
+
+
+
+## [1.12.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.12.2...@amplitude/experiment-js-client@1.12.3) (2024-11-18)
+
+
+### Bug Fixes
+
+* catch flag fetch timeout error when not in debug mode ([#137](https://github.com/amplitude/experiment-js-client/issues/137)) ([59da6d4](https://github.com/amplitude/experiment-js-client/commit/59da6d4acd8309595d7c88ad1761b5ddd4364fbb))
+
+
+
+
+
+## [1.12.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.12.1...@amplitude/experiment-js-client@1.12.2) (2024-10-31)
+
+**Note:** Version bump only for package @amplitude/experiment-js-client
+
+
+
+
+
 ## [1.12.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.12.0...@amplitude/experiment-js-client@1.12.1) (2024-10-30)
 
 
