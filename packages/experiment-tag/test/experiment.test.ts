@@ -667,7 +667,7 @@ describe('initializeExperiment', () => {
               },
             },
             treatment: {
-              value: 'treatment',
+              key: 'treatment',
             },
           },
         },
