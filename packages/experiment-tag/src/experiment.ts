@@ -7,10 +7,10 @@ import {
 } from '@amplitude/experiment-core';
 import {
   Experiment,
-  ExperimentUser,
   Variant,
   Variants,
   AmplitudeIntegrationPlugin,
+  ExperimentConfig,
 } from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
@@ -30,7 +30,11 @@ let previousUrl: string | undefined;
 // Cache to track exposure for the current URL, should be cleared on URL change
 let urlExposureCache: { [url: string]: { [key: string]: string | undefined } };
 
-export const initializeExperiment = (apiKey: string, initialFlags: string) => {
+export const initializeExperiment = async (
+  apiKey: string,
+  initialFlags: string,
+  config: ExperimentConfig = {},
+) => {
   const globalScope = getGlobalScope();
   if (globalScope?.webExperiment) {
     return;
@@ -42,7 +46,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   previousUrl = undefined;
   urlExposureCache = {};
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
-  let user: ExperimentUser;
+  let user;
   try {
     user = JSON.parse(
       globalScope.localStorage.getItem(experimentStorageName) || '{}',
@@ -51,14 +55,21 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     user = {};
   }
 
-  // create new user if it does not exist, or it does not have device_id
-  if (Object.keys(user).length === 0 || !user.device_id) {
-    user = {};
-    user.device_id = UUID();
-    globalScope.localStorage.setItem(
-      experimentStorageName,
-      JSON.stringify(user),
-    );
+  // create new user if it does not exist, or it does not have device_id or web_exp_id
+  if (Object.keys(user).length === 0 || !user.device_id || !user.web_exp_id) {
+    if (!user.device_id || !user.web_exp_id) {
+      // if user has device_id, migrate it to web_exp_id
+      if (user.device_id) {
+        user.web_exp_id = user.device_id;
+      } else {
+        const uuid = UUID();
+        user = { device_id: uuid, web_exp_id: uuid };
+      }
+      globalScope.localStorage.setItem(
+        experimentStorageName,
+        JSON.stringify(user),
+      );
+    }
   }
 
   const urlParams = getUrlParams();
@@ -71,41 +82,77 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     );
     return;
   }
-  // force variant if in preview mode
-  if (urlParams['PREVIEW']) {
-    const parsedFlags = JSON.parse(initialFlags);
-    parsedFlags.forEach((flag: EvaluationFlag) => {
-      if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
-        // Strip the preview query param
-        globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
-        );
 
-        // Keep page targeting segments
-        const pageTargetingSegments = flag.segments.filter((segment) =>
-          isPageTargetingSegment(segment),
-        );
+  let isRemoteBlocking = false;
+  const remoteFlagKeys: Set<string> = new Set();
+  const locaFlagKeys: Set<string> = new Set();
+  const parsedFlags = JSON.parse(initialFlags);
 
-        // Create or update the preview segment
-        const previewSegment = {
-          metadata: { segmentName: 'preview' },
-          variant: urlParams[flag.key],
-        };
+  parsedFlags.forEach((flag: EvaluationFlag) => {
+    // force variant if in preview mode
+    if (
+      urlParams['PREVIEW'] &&
+      flag.key in urlParams &&
+      urlParams[flag.key] in flag.variants
+    ) {
+      // Strip the preview query param
+      globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
+      );
 
-        flag.segments = [...pageTargetingSegments, previewSegment];
+      // Keep page targeting segments
+      const pageTargetingSegments = flag.segments.filter((segment) =>
+        isPageTargetingSegment(segment),
+      );
+
+      // Create or update the preview segment
+      const previewSegment = {
+        metadata: { segmentName: 'preview' },
+        variant: urlParams[flag.key],
+      };
+
+      flag.segments = [...pageTargetingSegments, previewSegment];
+
+      if (flag?.metadata?.evaluationMode !== 'local') {
+        // make the remote flag locally evaluable
+        flag.metadata = flag.metadata || {};
+        flag.metadata.evaluationMode = 'local';
       }
-    });
-    initialFlags = JSON.stringify(parsedFlags);
-  }
+    }
 
+    if (flag?.metadata?.evaluationMode !== 'local') {
+      remoteFlagKeys.add(flag.key);
+      // check whether any remote flags are blocking
+      if (!isRemoteBlocking && flag.metadata?.isBlocking) {
+        isRemoteBlocking = true;
+        // Apply anti-flicker css if any remote flags are blocking
+        if (!globalScope.document.getElementById('amp-exp-css')) {
+          const id = 'amp-exp-css';
+          const s = document.createElement('style');
+          s.id = id;
+          s.innerText =
+            '* { visibility: hidden !important; background-image: none !important; }';
+          document.head.appendChild(s);
+          globalScope.window.setTimeout(function () {
+            s.remove();
+          }, 1000);
+        }
+      }
+    } else {
+      locaFlagKeys.add(flag.key);
+    }
+  });
+  initialFlags = JSON.stringify(parsedFlags);
+
+  // initialize the experiment
   globalScope.webExperiment = Experiment.initialize(apiKey, {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     internalInstanceNameSuffix: 'web',
-    fetchOnStart: false,
     initialFlags: initialFlags,
+    ...config,
   });
 
   // If no integration has been set, use an amplitude integration.
@@ -121,14 +168,34 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   globalScope.webExperiment.addPlugin(globalScope.experimentIntegration);
   globalScope.webExperiment.setUser(user);
 
-  const variants = globalScope.webExperiment.all();
-
   setUrlChangeListener();
-  applyVariants(variants);
+
+  // apply local variants
+  applyVariants(globalScope.webExperiment.all(), locaFlagKeys);
+
+  if (!isRemoteBlocking) {
+    // Remove anti-flicker css if remote flags are not blocking
+    globalScope.document.getElementById?.('amp-exp-css')?.remove();
+  }
+
+  if (remoteFlagKeys.size === 0) {
+    return;
+  }
+
+  try {
+    await globalScope.webExperiment.doFlags();
+    // apply remote variants
+    applyVariants(globalScope.webExperiment.all(), remoteFlagKeys);
+  } catch (error) {
+    console.warn('Error fetching remote flags:', error);
+  }
 };
 
-const applyVariants = (variants: Variants | undefined) => {
-  if (!variants) {
+const applyVariants = (
+  variants: Variants,
+  flagKeys: Set<string> | undefined = undefined,
+) => {
+  if (Object.keys(variants).length === 0) {
     return;
   }
   const globalScope = getGlobalScope();
@@ -142,6 +209,9 @@ const applyVariants = (variants: Variants | undefined) => {
     urlExposureCache[currentUrl] = {};
   }
   for (const key in variants) {
+    if (flagKeys && !flagKeys.has(key)) {
+      continue;
+    }
     const variant = variants[key];
     const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
     if (isWebExperimentation) {
