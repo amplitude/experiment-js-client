@@ -5,6 +5,7 @@ import {
   getGlobalScope,
   isLocalStorageAvailable,
 } from '@amplitude/experiment-core';
+import { safeGlobal } from '@amplitude/experiment-core';
 import {
   Experiment,
   ExperimentUser,
@@ -12,6 +13,7 @@ import {
   Variants,
   AmplitudeIntegrationPlugin,
 } from '@amplitude/experiment-js-client';
+import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { getInjectUtils } from './inject-utils';
@@ -23,6 +25,8 @@ import {
   UUID,
   concatenateQueryParamsOf,
 } from './util';
+
+safeGlobal.Experiment = FeatureExperiment;
 
 const appliedInjections: Set<string> = new Set();
 const appliedMutations: MutationController[] = [];

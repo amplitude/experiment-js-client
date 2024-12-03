@@ -1,4 +1,5 @@
 import * as coreUtil from '@amplitude/experiment-core';
+import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { initializeExperiment } from 'src/experiment';
 import * as experiment from 'src/experiment';
@@ -735,4 +736,8 @@ describe('initializeExperiment', () => {
     );
     expect(mockExposure).not.toHaveBeenCalled();
   });
+});
+
+test('feature experiment on global Experiment object', () => {
+  expect(safeGlobal.Experiment).toBeDefined();
 });
