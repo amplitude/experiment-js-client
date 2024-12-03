@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.13.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.13.1...@amplitude/experiment-js-client@1.13.2) (2024-12-03)
+
+
+### Bug Fixes
+
+* misconfigured polling interval ([e0e9525](https://github.com/amplitude/experiment-js-client/commit/e0e95259b617bddcca894e469a1c0e81b7523b82))
+
+
+
+
+
 ## [1.13.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.13.0...@amplitude/experiment-js-client@1.13.1) (2024-12-02)
 
 **Note:** Version bump only for package @amplitude/experiment-js-client
