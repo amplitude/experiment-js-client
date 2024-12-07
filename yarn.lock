@@ -3611,10 +3611,9 @@ dom-accessibility-api@^0.5.1:
   resolved "https://registry.yarnpkg.com/dom-accessibility-api/-/dom-accessibility-api-0.5.16.tgz#5a7429e6066eb3664d911e33fb0e45de8eb08453"
   integrity sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==
 
-dom-mutator@^0.7.0:
-  version "0.7.0"
-  resolved "https://registry.yarnpkg.com/dom-mutator/-/dom-mutator-0.7.0.tgz#3d2a46bca1e93757bc643e9bede8360a41ced83d"
-  integrity sha512-WgpTCBkYaib9lanHAkBuHirP1q5yQi1RDzlNsqvIDCgDkNyEhvFvsnmaz3ZztoRhtz6/ZwBrGs/VohlSstCt5g==
+"dom-mutator@git+ssh://git@github.com:amplitude/dom-mutator#nested-html-fix":
+  version "0.7.1"
+  resolved "git+ssh://git@github.com:amplitude/dom-mutator#aba9316945a43cc7f2abbd759ed72b84e7f92ffc"
 
 domexception@^4.0.0:
   version "4.0.0"
