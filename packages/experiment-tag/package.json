@@ -20,17 +20,20 @@
     "build-dev": "NODE_ENV=development rm -rf dist && rollup -c && node example/build_example.js",
     "clean": "rimraf node_modules dist",
     "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "patch-package"
   },
   "bugs": {
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
   "dependencies": {
     "@amplitude/experiment-js-client": "^1.11.0",
-    "dom-mutator": "^0.6.0"
+    "dom-mutator": "^0.7.0"
   },
   "devDependencies": {
-    "@rollup/plugin-terser": "^0.4.4"
+    "@rollup/plugin-terser": "^0.4.4",
+    "patch-package": "^8.0.0",
+    "postinstall-postinstall": "^2.1.0"
   },
   "files": [
     "dist"
