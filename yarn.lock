@@ -3574,7 +3574,7 @@ dom-accessibility-api@^0.5.1:
 
 "dom-mutator@git+ssh://git@github.com:amplitude/dom-mutator#nested-html-fix":
   version "0.7.1"
-  resolved "git+ssh://git@github.com:amplitude/dom-mutator#aba9316945a43cc7f2abbd759ed72b84e7f92ffc"
+  resolved "git+ssh://git@github.com:amplitude/dom-mutator#86232f6caa011c4bcec3523e58bd918ed967906d"
 
 domexception@^4.0.0:
   version "4.0.0"
