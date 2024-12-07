@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@amplitude/experiment-js-client": "^1.11.0",
-    "dom-mutator": "^0.6.0"
+    "dom-mutator": "git+ssh://git@github.com:amplitude/dom-mutator#nested-html-fix"
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4"
