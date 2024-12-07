@@ -1,4 +1,4 @@
-import { EvaluationVariant } from '@amplitude/experiment-core';
+import { EvaluationVariant, getGlobalScope } from '@amplitude/experiment-core';
 
 import { ExperimentUser } from '../types/user';
 import { Variant } from '../types/variant';
@@ -10,6 +10,13 @@ export const convertUserToContext = (
     return {};
   }
   const context: Record<string, unknown> = { user: user };
+  // add page context
+  const globalScope = getGlobalScope();
+  if (globalScope) {
+    context.page = {
+      url: globalScope.location.href,
+    };
+  }
   const groups: Record<string, Record<string, unknown>> = {};
   if (!user.groups) {
     return context;

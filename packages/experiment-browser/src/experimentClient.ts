@@ -12,14 +12,14 @@ import {
   Poller,
   SdkEvaluationApi,
   SdkFlagApi,
+  TimeoutError,
   topologicalSort,
 } from '@amplitude/experiment-core';
 
 import { version as PACKAGE_VERSION } from '../package.json';
 
 import { Defaults, ExperimentConfig } from './config';
-import { ConnectorUserProvider } from './integration/connector';
-import { DefaultUserProvider } from './integration/default';
+import { IntegrationManager } from './integration/manager';
 import {
   getFlagStorage,
   getVariantStorage,
@@ -31,6 +31,7 @@ import { FetchHttpClient, WrapperClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
 import { Exposure, ExposureTrackingProvider } from './types/exposure';
+import { ExperimentPlugin, IntegrationPlugin } from './types/plugin';
 import { ExperimentUserProvider } from './types/provider';
 import { isFallback, Source, VariantSource } from './types/source';
 import { ExperimentUser } from './types/user';
@@ -56,7 +57,7 @@ const fetchBackoffAttempts = 8;
 const fetchBackoffMinMillis = 500;
 const fetchBackoffMaxMillis = 10000;
 const fetchBackoffScalar = 1.5;
-const flagPollerIntervalMillis = 60000;
+const minFlagPollerIntervalMillis = 60000;
 
 const euServerUrl = 'https://api.lab.eu.amplitude.com';
 const euFlagsServerUrl = 'https://flag.lab.eu.amplitude.com';
@@ -79,11 +80,9 @@ export class ExperimentClient implements Client {
   private userProvider: ExperimentUserProvider | undefined;
   private exposureTrackingProvider: ExposureTrackingProvider | undefined;
   private retriesBackoff: Backoff | undefined;
-  private poller: Poller = new Poller(
-    () => this.doFlags(),
-    flagPollerIntervalMillis,
-  );
+  private poller: Poller;
   private isRunning = false;
+  private readonly integrationManager: IntegrationManager;
 
   // Deprecated
   private analyticsProvider: SessionAnalyticsProvider | undefined;
@@ -114,7 +113,17 @@ export class ExperimentClient implements Client {
         (config?.serverZone?.toLowerCase() === 'eu'
           ? euFlagsServerUrl
           : Defaults.flagsServerUrl),
+      // Force minimum flag config polling interval.
+      flagConfigPollingIntervalMillis:
+        config.flagConfigPollingIntervalMillis < minFlagPollerIntervalMillis
+          ? minFlagPollerIntervalMillis
+          : config.flagConfigPollingIntervalMillis ??
+            Defaults.flagConfigPollingIntervalMillis,
     };
+    this.poller = new Poller(
+      () => this.doFlags(),
+      this.config.flagConfigPollingIntervalMillis,
+    );
     // Transform initialVariants
     if (this.config.initialVariants) {
       for (const flagKey in this.config.initialVariants) {
@@ -136,6 +145,7 @@ export class ExperimentClient implements Client {
         this.config.exposureTrackingProvider,
       );
     }
+    this.integrationManager = new IntegrationManager(this.config, this);
     // Setup Remote APIs
     const httpClient = new WrapperClient(
       this.config.httpClient || FetchHttpClient,
@@ -252,7 +262,13 @@ export class ExperimentClient implements Client {
         options,
       );
     } catch (e) {
-      console.error(e);
+      if (this.config.debug) {
+        if (e instanceof TimeoutError) {
+          console.debug(e);
+        } else {
+          console.error(e);
+        }
+      }
     }
     return this;
   }
@@ -666,12 +682,19 @@ export class ExperimentClient implements Client {
     }
   }
 
+  private cleanUserPropsForFetch(user: ExperimentUser): ExperimentUser {
+    const cleanedUser = { ...user };
+    delete cleanedUser.cookie;
+    return cleanedUser;
+  }
+
   private async doFetch(
     user: ExperimentUser,
     timeoutMillis: number,
     options?: FetchOptions,
   ): Promise<Variants> {
-    user = await this.addContextOrWait(user, 10000);
+    user = await this.addContextOrWait(user);
+    user = this.cleanUserPropsForFetch(user);
     this.debug('[Experiment] Fetch variants for user: ', user);
     const results = await this.evaluationApi.getVariants(user, {
       timeoutMillis: timeoutMillis,
@@ -686,13 +709,22 @@ export class ExperimentClient implements Client {
   }
 
   private async doFlags(): Promise<void> {
-    const flags = await this.flagApi.getFlags({
-      libraryName: 'experiment-js-client',
-      libraryVersion: PACKAGE_VERSION,
-      timeoutMillis: this.config.fetchTimeoutMillis,
-    });
-    this.flags.clear();
-    this.flags.putAll(flags);
+    try {
+      const flags = await this.flagApi.getFlags({
+        libraryName: 'experiment-js-client',
+        libraryVersion: PACKAGE_VERSION,
+        timeoutMillis: this.config.fetchTimeoutMillis,
+      });
+      this.flags.clear();
+      this.flags.putAll(flags);
+    } catch (e) {
+      if (e instanceof TimeoutError) {
+        this.config.debug && console.debug(e);
+      } else {
+        throw e;
+      }
+    }
+
     try {
       this.flags.store();
     } catch (e) {
@@ -749,13 +781,16 @@ export class ExperimentClient implements Client {
 
   private addContext(user: ExperimentUser): ExperimentUser {
     const providedUser = this.userProvider?.getUser();
+    const integrationUser = this.integrationManager.getUser();
     const mergedUserProperties = {
-      ...user?.user_properties,
       ...providedUser?.user_properties,
+      ...integrationUser.user_properties,
+      ...user?.user_properties,
     };
     return {
       library: `experiment-js-client/${PACKAGE_VERSION}`,
-      ...this.userProvider?.getUser(),
+      ...providedUser,
+      ...integrationUser,
       ...user,
       user_properties: mergedUserProperties,
     };
@@ -763,14 +798,8 @@ export class ExperimentClient implements Client {
 
   private async addContextOrWait(
     user: ExperimentUser,
-    ms: number,
   ): Promise<ExperimentUser> {
-    if (this.userProvider instanceof DefaultUserProvider) {
-      if (this.userProvider.userProvider instanceof ConnectorUserProvider) {
-        await this.userProvider.userProvider.identityReady(ms);
-      }
-    }
-
+    await this.integrationManager.ready();
     return this.addContext(user);
   }
 
@@ -791,6 +820,12 @@ export class ExperimentClient implements Client {
   }
 
   private exposureInternal(key: string, sourceVariant: SourceVariant): void {
+    // Variant metadata may disable exposure tracking remotely.
+    const trackExposure =
+      (sourceVariant.variant?.metadata?.trackExposure as boolean) ?? true;
+    if (!trackExposure) {
+      return;
+    }
     this.legacyExposureInternal(
       key,
       sourceVariant.variant,
@@ -816,6 +851,7 @@ export class ExperimentClient implements Client {
     }
     if (metadata) exposure.metadata = metadata;
     this.exposureTrackingProvider?.track(exposure);
+    this.integrationManager.track(exposure);
   }
 
   private legacyExposureInternal(
@@ -847,6 +883,16 @@ export class ExperimentClient implements Client {
       return e.statusCode < 400 || e.statusCode >= 500 || e.statusCode === 429;
     }
     return true;
+  }
+
+  /**
+   * Add a plugin to the experiment client.
+   * @param plugin the plugin to add.
+   */
+  public addPlugin(plugin: ExperimentPlugin): void {
+    if (plugin.type === 'integration') {
+      this.integrationManager.setIntegration(plugin as IntegrationPlugin);
+    }
   }
 }
 

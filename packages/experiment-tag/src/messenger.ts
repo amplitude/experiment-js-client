@@ -1,4 +1,4 @@
-import { getGlobalScope } from './util';
+import { getGlobalScope } from '@amplitude/experiment-core';
 
 export class WindowMessenger {
   static setup() {
@@ -12,7 +12,13 @@ export class WindowMessenger {
         }>,
       ) => {
         const match = /^.*\.amplitude\.com$/;
-        if (!match.test(new URL(e.origin).hostname)) {
+        try {
+          if (!e.origin || !match.test(new URL(e.origin).hostname)) {
+            return;
+          }
+        } catch {
+          // The security check failed on exception, return without throwing.
+          // new URL(e.origin) can throw.
           return;
         }
         if (e.data.type === 'OpenOverlay') {

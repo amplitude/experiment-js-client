@@ -1,20 +1,5 @@
-export const getGlobalScope = (): typeof globalThis | undefined => {
-  if (typeof globalThis !== 'undefined') {
-    return globalThis;
-  }
-  if (typeof window !== 'undefined') {
-    return window;
-  }
-  if (typeof self !== 'undefined') {
-    return self;
-  }
-  if (typeof global !== 'undefined') {
-    return global;
-  }
-  return undefined;
-};
+import { getGlobalScope } from '@amplitude/experiment-core';
 
-// Get URL parameters
 export const getUrlParams = (): Record<string, string> => {
   const globalScope = getGlobalScope();
   const searchParams = new URLSearchParams(globalScope?.location.search);
@@ -72,27 +57,18 @@ export const UUID = function (a?: any): string {
 };
 
 export const matchesUrl = (urlArray: string[], urlString: string): boolean => {
-  const cleanUrlString = urlString.replace(/\/$/, '');
+  urlString = urlString.replace(/\/$/, '');
 
   return urlArray.some((url) => {
-    const cleanUrl = url.replace(/\/$/, '');
-    return cleanUrl === cleanUrlString;
+    url = url.replace(/\/$/, ''); // remove trailing slash
+    url = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // escape url for regex
+    url = url.replace(/\\\*/, '.*'); // replace escaped * with .*
+    const regex = new RegExp(`^${url}$`);
+    // Check regex match with and without trailing slash. For example,
+    // `https://example.com/*` would not match `https://example.com` without
+    // this addition.
+    return regex.test(urlString) || regex.test(urlString + '/');
   });
-};
-
-export const isLocalStorageAvailable = (): boolean => {
-  const globalScope = getGlobalScope();
-  if (globalScope) {
-    try {
-      const testKey = 'EXP_test';
-      globalScope.localStorage.setItem(testKey, testKey);
-      globalScope.localStorage.removeItem(testKey);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-  return false;
 };
 
 export const concatenateQueryParamsOf = (
@@ -100,13 +76,14 @@ export const concatenateQueryParamsOf = (
   redirectUrl: string,
 ): string => {
   const globalUrlObj = new URL(currentUrl);
-  const urlObj = new URL(redirectUrl);
+  const redirectUrlObj = new URL(redirectUrl);
+  const resultUrlObj = new URL(redirectUrl);
 
   globalUrlObj.searchParams.forEach((value, key) => {
-    if (!urlObj.searchParams.has(key)) {
-      urlObj.searchParams.set(key, value);
+    if (!redirectUrlObj.searchParams.has(key)) {
+      resultUrlObj.searchParams.append(key, value);
     }
   });
 
-  return urlObj.toString();
+  return resultUrlObj.toString();
 };

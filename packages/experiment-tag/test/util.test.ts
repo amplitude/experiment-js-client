@@ -1,13 +1,13 @@
+import * as coreUtil from '@amplitude/experiment-core';
 import {
   concatenateQueryParamsOf,
   getUrlParams,
   matchesUrl,
   urlWithoutParamsAndAnchor,
 } from 'src/util';
-import * as util from 'src/util';
 
 // Mock the getGlobalScope function
-const spyGetGlobalScope = jest.spyOn(util, 'getGlobalScope');
+const spyGetGlobalScope = jest.spyOn(coreUtil, 'getGlobalScope');
 
 describe('matchesUrl', () => {
   // Existing test cases
@@ -148,6 +148,17 @@ describe('concateQueryParamsOf', () => {
         'https://test2.com?utm_source=testing2',
       ),
     ).toBe('https://test2.com/?utm_source=testing2&utm_medium=new_url');
+  });
+
+  it('should concatenate multiple query params if both urls have', () => {
+    expect(
+      concatenateQueryParamsOf(
+        'https://test.com?utm_medium=new_url&utm_medium=new_url2&utm_source=testing',
+        'https://test2.com?utm_source=testing2',
+      ),
+    ).toBe(
+      'https://test2.com/?utm_source=testing2&utm_medium=new_url&utm_medium=new_url2',
+    );
   });
 
   it('should not include anchors from current url', () => {

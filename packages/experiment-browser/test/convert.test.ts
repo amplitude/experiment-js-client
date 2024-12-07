@@ -1,7 +1,13 @@
+import * as util from '@amplitude/experiment-core';
+
 import { ExperimentUser } from '../src/types/user';
 import { convertUserToContext } from '../src/util/convert';
 
 describe('convertUserToContext', () => {
+  beforeEach(() => {
+    jest.spyOn(util, 'getGlobalScope').mockReturnValue(undefined);
+  });
+
   describe('groups', () => {
     test('undefined user', () => {
       const user: ExperimentUser | undefined = undefined;

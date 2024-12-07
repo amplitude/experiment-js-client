@@ -9,8 +9,13 @@ export { ExperimentConfig } from './config';
 export {
   AmplitudeUserProvider,
   AmplitudeAnalyticsProvider,
-} from './integration/amplitude';
-export { Experiment } from './factory';
+} from './providers/amplitude';
+export { AmplitudeIntegrationPlugin } from './integration/amplitude';
+export {
+  Experiment,
+  initialize,
+  initializeWithAmplitudeAnalytics,
+} from './factory';
 export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';
 export { Client, FetchOptions } from './types/client';
@@ -23,3 +28,9 @@ export { Source } from './types/source';
 export { ExperimentUser } from './types/user';
 export { Variant, Variants } from './types/variant';
 export { Exposure, ExposureTrackingProvider } from './types/exposure';
+export {
+  ExperimentPlugin,
+  IntegrationPlugin,
+  ExperimentPluginType,
+  ExperimentEvent,
+} from './types/plugin';
