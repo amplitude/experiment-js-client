@@ -46,13 +46,6 @@ jobs:
         ssh-keyscan github.com >> ~/.ssh/known_hosts
       shell: bash
 
-    - name: Debug SSH Key Setup
-      run: |
-        ls -la ~/.ssh
-        cat ~/.ssh/id_ed25519
-        ssh -vT git@github.com
-      shell: bash
-
     - name: Install
       run: yarn install --frozen-lockfile
 
