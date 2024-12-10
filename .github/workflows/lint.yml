@@ -12,8 +12,6 @@ jobs:
     steps:
     - name: Check out Git repository
       uses: actions/checkout@v2
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Cache Node Modules
       uses: actions/cache@v2
