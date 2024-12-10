@@ -30,15 +30,6 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
-    - name: Test Secret Availability
-      run: |
-        if [ -z "${{ secrets.DOM_MUTATOR_ACCESS_KEY }}" ]; then
-          echo "Secret DOM_MUTATOR_ACCESS_KEY is not accessible."
-          exit 1
-        else
-          echo "Secret DOM_MUTATOR_ACCESS_KEY is accessible."
-        fi
-
     - name: Set up SSH for deploy key
       run: |
         mkdir -p ~/.ssh
