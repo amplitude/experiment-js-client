@@ -12,6 +12,8 @@ jobs:
     steps:
     - name: Check out Git repository
       uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Cache Node Modules
       uses: actions/cache@v2
@@ -23,6 +25,9 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 16
+
+    - name: List Secrets
+      run: echo "Secrets: ${{ secrets }}"
 
     - name: Test Secret Availability
       run: |
