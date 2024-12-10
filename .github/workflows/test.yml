@@ -30,6 +30,24 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
+    - name: Test Secret Availability
+      run: |
+        if [ -z "${{ secrets.DOM_MUTATOR_ACCESS_KEY }}" ]; then
+          echo "Secret DOM_MUTATOR_ACCESS_KEY is not accessible."
+          exit 1
+        else
+          echo "Secret DOM_MUTATOR_ACCESS_KEY is accessible."
+        fi
+
+    - name: Set up SSH for deploy key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.DOM_MUTATOR_ACCESS_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+        ssh -vT git@github.com
+      shell: bash
+
     - name: Install
       run: yarn install --frozen-lockfile
 

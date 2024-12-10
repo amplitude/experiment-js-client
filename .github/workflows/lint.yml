@@ -27,7 +27,7 @@ jobs:
         node-version: 16
 
     - name: List Secrets
-      run: echo "Secrets: ${{ secrets }}"
+      run: "echo 'Secrets: ${{ secrets }}'"
 
     - name: Test Secret Availability
       run: |
