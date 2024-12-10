@@ -6,9 +6,6 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -26,6 +23,15 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 16
+
+    - name: Test Secret Availability
+      run: |
+        if [ -z "${{ secrets.DEPLOY_KEY }}" ]; then
+          echo "Secret DEPLOY_KEY is not accessible."
+          exit 1
+        else
+          echo "Secret DEPLOY_KEY is accessible."
+        fi
 
     - name: Set up SSH for deploy key
       run: |
