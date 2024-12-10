@@ -24,10 +24,13 @@ jobs:
       with:
         node-version: 16
 
-    - name: Setup SSH key for dom-mutator
-      uses: ./.github/workflows/setup-ssh.yml
-      with:
-        deploy_key: ${{ secrets.DOM_MUTATOR_ACCESS_KEY }}
+    - name: Set up SSH for deploy key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.DOM_MUTATOR_ACCESS_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+      shell: bash
 
     - name: Install
       run: yarn install --frozen-lockfile
