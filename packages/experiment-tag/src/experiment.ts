@@ -124,6 +124,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   globalScope.experimentIntegration.type = 'integration';
   globalScope.webExperiment.addPlugin(globalScope.experimentIntegration);
   globalScope.webExperiment.setUser(user);
+  globalScope.webExperiment.reapplyVariants = reapplyVariants;
 
   const variants = globalScope.webExperiment.all();
 
@@ -223,6 +224,16 @@ const revertMutations = () => {
   }
 };
 
+export const reapplyVariants = () => {
+  const globalScope = getGlobalScope();
+  if (!globalScope) {
+    return;
+  }
+
+  revertMutations();
+  applyVariants(globalScope.webExperiment.all());
+};
+
 const handleInject = (action, key: string, variant: Variant) => {
   const globalScope = getGlobalScope();
   if (!globalScope) {
@@ -303,8 +314,7 @@ export const setUrlChangeListener = () => {
   }
   // Add URL change listener for back/forward navigation
   globalScope.addEventListener('popstate', () => {
-    revertMutations();
-    applyVariants(globalScope.webExperiment.all());
+    reapplyVariants();
   });
 
   // Create wrapper functions for pushState and replaceState
@@ -317,8 +327,7 @@ export const setUrlChangeListener = () => {
       // Call the original pushState
       const result = originalPushState.apply(this, args);
       // Revert mutations and apply variants
-      revertMutations();
-      applyVariants(globalScope.webExperiment.all());
+      reapplyVariants();
       previousUrl = globalScope.location.href;
       return result;
     };
@@ -328,8 +337,7 @@ export const setUrlChangeListener = () => {
       // Call the original replaceState
       const result = originalReplaceState.apply(this, args);
       // Revert mutations and apply variants
-      revertMutations();
-      applyVariants(globalScope.webExperiment.all());
+      reapplyVariants();
       previousUrl = globalScope.location.href;
       return result;
     };
