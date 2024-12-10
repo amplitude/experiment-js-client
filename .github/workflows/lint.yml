@@ -26,11 +26,11 @@ jobs:
 
     - name: Test Secret Availability
       run: |
-        if [ -z "${{ secrets.DEPLOY_KEY }}" ]; then
-          echo "Secret DEPLOY_KEY is not accessible."
+        if [ -z "${{ secrets.DOM_MUTATOR_ACCESS_KEY }}" ]; then
+          echo "Secret DOM_MUTATOR_ACCESS_KEY is not accessible."
           exit 1
         else
-          echo "Secret DEPLOY_KEY is accessible."
+          echo "Secret DOM_MUTATOR_ACCESS_KEY is accessible."
         fi
 
     - name: Set up SSH for deploy key
