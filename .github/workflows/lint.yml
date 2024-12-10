@@ -13,6 +13,11 @@ jobs:
     - name: Check out Git repository
       uses: actions/checkout@v2
 
+    - name: Setup SSH key for dom-mutator
+      uses: ./.github/workflows/setup-ssh.yml
+      with:
+        deploy_key: ${{ secrets.DOM_MUTATOR_ACCESS_KEY }}
+
     - name: Cache Node Modules
       uses: actions/cache@v2
       with:

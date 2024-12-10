@@ -29,6 +29,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Setup SSH key for dom-mutator
+        uses: ./.github/workflows/setup-ssh.yml
+        with:
+          deploy_key: ${{ secrets.DOM_MUTATOR_ACCESS_KEY }}
+
       # Needed for lerna version to determine last tag
       - name: Fetch
         run: git fetch --prune --unshallow --tags
