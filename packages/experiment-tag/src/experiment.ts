@@ -63,6 +63,7 @@ export const initializeExperiment = async (
         user.web_exp_id = user.device_id;
       } else {
         const uuid = UUID();
+        // both IDs are set for backwards compatibility, to be removed in future update
         user = { device_id: uuid, web_exp_id: uuid };
       }
       globalScope.localStorage.setItem(
@@ -125,20 +126,10 @@ export const initializeExperiment = async (
     if (flag?.metadata?.evaluationMode !== 'local') {
       remoteFlagKeys.add(flag.key);
       // check whether any remote flags are blocking
-      if (!isRemoteBlocking && flag.metadata?.isBlocking) {
+      if (!isRemoteBlocking && flag.metadata?.blockingEvaluation) {
         isRemoteBlocking = true;
         // Apply anti-flicker css if any remote flags are blocking
-        if (!globalScope.document.getElementById('amp-exp-css')) {
-          const id = 'amp-exp-css';
-          const s = document.createElement('style');
-          s.id = id;
-          s.innerText =
-            '* { visibility: hidden !important; background-image: none !important; }';
-          document.head.appendChild(s);
-          globalScope.window.setTimeout(function () {
-            s.remove();
-          }, 1000);
-        }
+        applyAntiFlickerCss();
       }
     } else {
       locaFlagKeys.add(flag.key);
@@ -152,6 +143,10 @@ export const initializeExperiment = async (
     // @ts-ignore
     internalInstanceNameSuffix: 'web',
     initialFlags: initialFlags,
+    // timeout for fetching remote flags
+    fetchTimeoutMillis: 5000,
+    pollOnStart: false,
+    fetchOnStart: false,
     ...config,
   });
 
@@ -184,11 +179,11 @@ export const initializeExperiment = async (
 
   try {
     await globalScope.webExperiment.doFlags();
-    // apply remote variants
-    applyVariants(globalScope.webExperiment.all(), remoteFlagKeys);
   } catch (error) {
     console.warn('Error fetching remote flags:', error);
   }
+  // apply remote variants, if fetch is unsuccessful, use localStorage flags
+  applyVariants(globalScope.webExperiment.all(), remoteFlagKeys);
 };
 
 const applyVariants = (
@@ -428,5 +423,21 @@ const exposureWithDedupe = (key: string, variant: Variant) => {
   if (shouldTrackExposure) {
     globalScope.webExperiment.exposure(key);
     urlExposureCache[currentUrl][key] = variant.key;
+  }
+};
+
+const applyAntiFlickerCss = () => {
+  const globalScope = getGlobalScope();
+  if (!globalScope) return;
+  if (!globalScope.document.getElementById('amp-exp-css')) {
+    const id = 'amp-exp-css';
+    const s = document.createElement('style');
+    s.id = id;
+    s.innerText =
+      '* { visibility: hidden !important; background-image: none !important; }';
+    document.head.appendChild(s);
+    globalScope.window.setTimeout(function () {
+      s.remove();
+    }, 1000);
   }
 };
