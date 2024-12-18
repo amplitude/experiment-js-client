@@ -1,4 +1,6 @@
 import * as experimentCore from '@amplitude/experiment-core';
+import * as coreUtil from '@amplitude/experiment-core';
+import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
 import { initializeExperiment } from 'src/experiment';
@@ -505,4 +507,8 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
   });
+});
+
+test('feature experiment on global Experiment object', () => {
+  expect(safeGlobal.Experiment).toBeDefined();
 });
