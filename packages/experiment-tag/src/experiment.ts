@@ -75,32 +75,65 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     );
     return;
   }
-  // force variant if in preview mode
-  if (urlParams['PREVIEW']) {
-    const parsedFlags = JSON.parse(initialFlags);
+
+  let sessionStoragePreview = {};
+  try {
+    sessionStoragePreview = JSON.parse(
+      globalScope.sessionStorage.getItem(`${experimentStorageName}_PREVIEW`) ||
+        '{}',
+    );
+  } catch {
+    // do nothing
+  }
+
+  // Determine if the app is in preview mode
+  const isPreviewMode =
+    urlParams['PREVIEW'] === 'true' ||
+    Object.keys(sessionStoragePreview).length > 0;
+
+  if (isPreviewMode) {
+    const flagToVariant: Record<string, string> = {};
+    const parsedFlags = JSON.parse(initialFlags); // Parse the initial flags for evaluation
+
     parsedFlags.forEach((flag: EvaluationFlag) => {
-      if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
-        // Strip the preview query param
-        globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
+      // Check if the flag key has a valid variant in either URL params or session storage
+      const variant = urlParams[flag.key] || sessionStoragePreview[flag.key];
+
+      if (variant && variant in flag.variants) {
+        flagToVariant[flag.key] = variant;
+
+        // Filter the existing segments to keep only page-targeting ones
+        const pageTargetingSegments = flag.segments.filter(
+          isPageTargetingSegment,
         );
 
-        // Keep page targeting segments
-        const pageTargetingSegments = flag.segments.filter((segment) =>
-          isPageTargetingSegment(segment),
-        );
-
-        // Create or update the preview segment
-        const previewSegment = {
-          metadata: { segmentName: 'preview' },
-          variant: urlParams[flag.key],
-        };
-
-        flag.segments = [...pageTargetingSegments, previewSegment];
+        // Add a new preview segment with the forced variant
+        flag.segments = [
+          ...pageTargetingSegments,
+          { metadata: { segmentName: 'preview' }, variant },
+        ];
       }
     });
+
+    // If preview mode was initiated via URL, store the preview state in session storage
+    if (urlParams['PREVIEW'] === 'true') {
+      globalScope.sessionStorage?.setItem(
+        `${experimentStorageName}_PREVIEW`,
+        JSON.stringify(flagToVariant),
+      );
+
+      // Remove the preview-related query parameters from the URL
+      globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(globalScope.location.href, [
+          'PREVIEW',
+          ...Object.keys(flagToVariant),
+        ]),
+      );
+    }
+
+    // Update `initialFlags` with the modified flags
     initialFlags = JSON.stringify(parsedFlags);
   }
 
