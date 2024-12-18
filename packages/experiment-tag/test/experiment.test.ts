@@ -398,7 +398,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledWith('test-1');
   });
 
-  test('remote evaluation - fetch fail, local evaluation success', () => {
+  test('remote evaluation - fetch fail, locally evaluate remote and local flags success', () => {
     const initialFlags = [
       // remote flag
       createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
@@ -413,27 +413,27 @@ describe('initializeExperiment', () => {
       httpClient: mockHttpClient,
     }).then(() => {
       // check remote fetch failed safely
-      expect(mockExposure).toHaveBeenCalledTimes(1);
+      expect(mockExposure).toHaveBeenCalledTimes(2);
     });
     // check local flag variant actions called
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test-1');
   });
 
-  test('remote evaluation - fetch fail, test no variant actions called', () => {
+  test('remote evaluation - fetch fail, test initialFlags variant actions called', () => {
     const initialFlags = [
       // remote flag
       createMutateFlag('test', 'treatment', [], [], [], 'remote'),
     ];
-    const remoteFlags = [createMutateFlag('test', 'treatment')];
 
-    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 404);
+    const mockHttpClient = new MockHttpClient('', 404);
 
     initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
       httpClient: mockHttpClient,
     }).then(() => {
-      // check remote fetch failed safely
-      expect(mockExposure).toHaveBeenCalledTimes(0);
+      // check remote variant actions applied
+      expect(mockExposure).toHaveBeenCalledTimes(1);
+      expect(mockExposure).toHaveBeenCalledWith('test');
     });
     // check local flag variant actions called
     expect(mockExposure).toHaveBeenCalledTimes(0);
@@ -472,9 +472,6 @@ describe('initializeExperiment', () => {
       // check remote fetch not called
       expect(doFlagsMock).toHaveBeenCalledTimes(0);
     });
-    // check local flag variant actions called
-    expect(mockExposure).toHaveBeenCalledTimes(1);
-    expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
   test('remote evaluation - fetch successful, fetched flag overwrites initial flag', async () => {

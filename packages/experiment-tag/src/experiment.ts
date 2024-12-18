@@ -86,55 +86,62 @@ export const initializeExperiment = async (
 
   let isRemoteBlocking = false;
   const remoteFlagKeys: Set<string> = new Set();
-  const locaFlagKeys: Set<string> = new Set();
+  const localFlagKeys: Set<string> = new Set();
   const parsedFlags = JSON.parse(initialFlags);
 
   parsedFlags.forEach((flag: EvaluationFlag) => {
-    // force variant if in preview mode
+    const { key, variants, segments, metadata = {} } = flag;
+
+    // Force variant if in preview mode
     if (
       urlParams['PREVIEW'] &&
-      flag.key in urlParams &&
-      urlParams[flag.key] in flag.variants
+      key in urlParams &&
+      urlParams[key] in variants
     ) {
-      // Strip the preview query param
+      // Remove preview-related query parameters from the URL
       globalScope.history.replaceState(
         {},
         '',
-        removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
+        removeQueryParams(globalScope.location.href, ['PREVIEW', key]),
       );
 
-      // Keep page targeting segments
-      const pageTargetingSegments = flag.segments.filter((segment) =>
-        isPageTargetingSegment(segment),
-      );
+      // Retain only page-targeting segments
+      const pageTargetingSegments = segments.filter(isPageTargetingSegment);
 
-      // Create or update the preview segment
+      // Add or update the preview segment
       const previewSegment = {
         metadata: { segmentName: 'preview' },
-        variant: urlParams[flag.key],
+        variant: urlParams[key],
       };
 
+      // Update the flag's segments to include the preview segment
       flag.segments = [...pageTargetingSegments, previewSegment];
 
-      if (flag?.metadata?.evaluationMode !== 'local') {
-        // make the remote flag locally evaluable
-        flag.metadata = flag.metadata || {};
-        flag.metadata.evaluationMode = 'local';
-      }
+      // make all preview flags local
+      metadata.evaluationMode = 'local';
     }
 
-    if (flag?.metadata?.evaluationMode !== 'local') {
-      remoteFlagKeys.add(flag.key);
-      // check whether any remote flags are blocking
-      if (!isRemoteBlocking && flag.metadata?.blockingEvaluation) {
+    if (metadata.evaluationMode !== 'local') {
+      remoteFlagKeys.add(key);
+
+      // allow local evaluation for remote flags
+      metadata.evaluationMode = 'local';
+
+      // Check if any remote flags are blocking
+      if (!isRemoteBlocking && metadata.blockingEvaluation) {
         isRemoteBlocking = true;
-        // Apply anti-flicker css if any remote flags are blocking
+
+        // Apply anti-flicker CSS to prevent UI flicker
         applyAntiFlickerCss();
       }
     } else {
-      locaFlagKeys.add(flag.key);
+      // Add locally evaluable flags to the local flag set
+      localFlagKeys.add(key);
     }
+
+    flag.metadata = metadata;
   });
+
   initialFlags = JSON.stringify(parsedFlags);
 
   // initialize the experiment
@@ -144,7 +151,7 @@ export const initializeExperiment = async (
     internalInstanceNameSuffix: 'web',
     initialFlags: initialFlags,
     // timeout for fetching remote flags
-    fetchTimeoutMillis: 5000,
+    fetchTimeoutMillis: 1000,
     pollOnStart: false,
     fetchOnStart: false,
     ...config,
@@ -163,10 +170,10 @@ export const initializeExperiment = async (
   globalScope.webExperiment.addPlugin(globalScope.experimentIntegration);
   globalScope.webExperiment.setUser(user);
 
-  setUrlChangeListener();
+  setUrlChangeListener(new Set([...localFlagKeys, ...remoteFlagKeys]));
 
   // apply local variants
-  applyVariants(globalScope.webExperiment.all(), locaFlagKeys);
+  applyVariants(globalScope.webExperiment.all(), localFlagKeys);
 
   if (!isRemoteBlocking) {
     // Remove anti-flicker css if remote flags are not blocking
@@ -182,7 +189,7 @@ export const initializeExperiment = async (
   } catch (error) {
     console.warn('Error fetching remote flags:', error);
   }
-  // apply remote variants, if fetch is unsuccessful, use localStorage flags
+  // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
   applyVariants(globalScope.webExperiment.all(), remoteFlagKeys);
 };
 
@@ -357,7 +364,7 @@ const handleInject = (action, key: string, variant: Variant) => {
   exposureWithDedupe(key, variant);
 };
 
-export const setUrlChangeListener = () => {
+export const setUrlChangeListener = (flagKeys: Set<string>) => {
   const globalScope = getGlobalScope();
   if (!globalScope) {
     return;
@@ -365,7 +372,7 @@ export const setUrlChangeListener = () => {
   // Add URL change listener for back/forward navigation
   globalScope.addEventListener('popstate', () => {
     revertMutations();
-    applyVariants(globalScope.webExperiment.all());
+    applyVariants(globalScope.webExperiment.all(), flagKeys);
   });
 
   // Create wrapper functions for pushState and replaceState
@@ -379,7 +386,7 @@ export const setUrlChangeListener = () => {
       const result = originalPushState.apply(this, args);
       // Revert mutations and apply variants
       revertMutations();
-      applyVariants(globalScope.webExperiment.all());
+      applyVariants(globalScope.webExperiment.all(), flagKeys);
       previousUrl = globalScope.location.href;
       return result;
     };
@@ -390,7 +397,7 @@ export const setUrlChangeListener = () => {
       const result = originalReplaceState.apply(this, args);
       // Revert mutations and apply variants
       revertMutations();
-      applyVariants(globalScope.webExperiment.all());
+      applyVariants(globalScope.webExperiment.all(), flagKeys);
       previousUrl = globalScope.location.href;
       return result;
     };

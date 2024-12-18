@@ -1,6 +1,6 @@
 export const createRedirectFlag = (
   flagKey = 'test',
-  variant: string,
+  variant: 'treatment' | 'control' | 'off',
   treatmentUrl: string,
   controlUrl: string | undefined = undefined,
   segments: any[] = [],
@@ -63,7 +63,7 @@ export const createRedirectFlag = (
 
 export const createMutateFlag = (
   flagKey = 'test',
-  variant: string,
+  variant: 'treatment' | 'control' | 'off',
   treatmentMutations: any[] = [],
   controlMutations: any[] = [],
   segments: any[] = [],
