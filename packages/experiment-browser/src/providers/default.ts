@@ -119,14 +119,20 @@ export class DefaultUserProvider implements ExperimentUserProvider {
 
   private getUrlParam(): Record<string, string | string[]> {
     if (!this.globalScope) {
-      return {};
+      return undefined;
     }
 
     const params: Record<string, string[]> = {};
-    for (const [name, value] of new URL(this.globalScope?.location?.href)
-      .searchParams) {
-      params[name] = [...(params[name] ?? []), ...value.split(',')];
+
+    try {
+      const url = new URL(this.globalScope.location.href);
+      for (const [name, value] of url.searchParams) {
+        params[name] = [...(params[name] ?? []), ...value.split(',')];
+      }
+    } catch (error) {
+      return undefined;
     }
+
     return Object.entries(params).reduce<Record<string, string | string[]>>(
       (acc, [name, value]) => {
         acc[name] = value.length == 1 ? value[0] : value;
