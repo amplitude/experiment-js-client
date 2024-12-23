@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-tag",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "description": "Amplitude Experiment Javascript Snippet",
   "author": "Amplitude",
   "homepage": "https://github.com/amplitude/experiment-js-client",
@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@amplitude/experiment-core": "^0.10.1",
-    "@amplitude/experiment-js-client": "^1.13.2",
+    "@amplitude/experiment-js-client": "^1.14.0",
     "dom-mutator": "git+ssh://git@github.com:amplitude/dom-mutator#nested-html-fix"
   },
   "devDependencies": {

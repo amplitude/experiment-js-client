@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.14.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.13.2...@amplitude/experiment-js-client@1.14.0) (2024-12-23)
+
+
+### Bug Fixes
+
+* catch error in getUrlParam() in DefaultUserProvider ([#150](https://github.com/amplitude/experiment-js-client/issues/150)) ([007ff68](https://github.com/amplitude/experiment-js-client/commit/007ff684e40a0a78b538a99647e84101ac37e693))
+
+
+### Features
+
+* add feature experiment support in web script ([#140](https://github.com/amplitude/experiment-js-client/issues/140)) ([bf60c05](https://github.com/amplitude/experiment-js-client/commit/bf60c05107388ece6f5469b182c2b521fe7957ef))
+
+
+
+
+
 ## [1.13.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.13.1...@amplitude/experiment-js-client@1.13.2) (2024-12-03)
 
 
