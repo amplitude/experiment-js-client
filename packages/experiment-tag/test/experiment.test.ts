@@ -1,8 +1,7 @@
 import * as experimentCore from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
-import { initializeExperiment } from 'src/experiment';
-import * as experiment from 'src/experiment';
+import { WebExperiment } from 'src/experiment';
 import * as util from 'src/util';
 import { stringify } from 'ts-jest';
 
@@ -23,7 +22,9 @@ describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
-  jest.spyOn(experiment, 'setUrlChangeListener').mockReturnValue(undefined);
+  jest
+    .spyOn(WebExperiment.prototype, 'setUrlChangeListener')
+    .mockReturnValue(undefined);
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
   jest.spyOn(util, 'UUID').mockReturnValue('mock');
   let mockGlobal;
@@ -51,32 +52,41 @@ describe('initializeExperiment', () => {
   });
 
   test('should initialize experiment with empty user', () => {
-    initializeExperiment(stringify(apiKey), JSON.stringify([]));
+    const webExperiment = new WebExperiment(
+      stringify(apiKey),
+      JSON.stringify([]),
+    );
+    webExperiment.initializeExperiment();
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       device_id: 'mock',
       web_exp_id: 'mock',
     });
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
-      'EXP_1',
+      'EXP_' + stringify(apiKey),
       JSON.stringify({ device_id: 'mock', web_exp_id: 'mock' }),
     );
   });
 
   test('experiment should not run without localStorage', () => {
+    const webExperiment = new WebExperiment(
+      stringify(apiKey),
+      JSON.stringify([]),
+    );
     jest
       .spyOn(experimentCore, 'isLocalStorageAvailable')
       .mockReturnValue(false);
-    initializeExperiment(stringify(apiKey), '');
+    webExperiment.initializeExperiment();
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 
   test('treatment variant on control page - should redirect and call exposure', () => {
-    initializeExperiment(
+    const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
     );
+    webExperiment.initializeExperiment();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
@@ -85,13 +95,13 @@ describe('initializeExperiment', () => {
   });
 
   test('control variant on control page - should not redirect but call exposure', () => {
-    initializeExperiment(
+    const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
       ]),
     );
-
+    webExperiment.initializeExperiment();
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
     expect(mockGlobal.history.replaceState).toBeCalledTimes(0);
@@ -116,13 +126,13 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    initializeExperiment(
+    const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
     );
-
+    webExperiment.initializeExperiment();
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
       {},
@@ -150,12 +160,13 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    initializeExperiment(
+    const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
     );
+    webExperiment.initializeExperiment();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
@@ -200,7 +211,7 @@ describe('initializeExperiment', () => {
       },
     ];
 
-    initializeExperiment(
+    const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -212,6 +223,7 @@ describe('initializeExperiment', () => {
         ),
       ]),
     );
+    webExperiment.initializeExperiment();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledTimes(0);
@@ -240,7 +252,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    initializeExperiment(
+    const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -251,6 +263,7 @@ describe('initializeExperiment', () => {
         ),
       ]),
     );
+    webExperiment.initializeExperiment();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2?param3=c&param1=a&param2=b',
@@ -259,12 +272,13 @@ describe('initializeExperiment', () => {
   });
 
   test('should behave as control variant when payload is empty', () => {
-    initializeExperiment(
+    const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2?param3=c'),
       ]),
     );
+    webExperiment.initializeExperiment();
 
     expect(mockGlobal.location.replace).not.toHaveBeenCalled();
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -296,7 +310,7 @@ describe('initializeExperiment', () => {
         variant: 'off',
       },
     ];
-    initializeExperiment(
+    const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -308,6 +322,7 @@ describe('initializeExperiment', () => {
         ),
       ]),
     );
+    webExperiment.initializeExperiment();
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
@@ -336,7 +351,7 @@ describe('initializeExperiment', () => {
         variant: 'off',
       },
     ];
-    initializeExperiment(
+    const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -348,6 +363,7 @@ describe('initializeExperiment', () => {
         ),
       ]),
     );
+    webExperiment.initializeExperiment();
     expect(mockExposure).not.toHaveBeenCalled();
   });
 
@@ -362,9 +378,14 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify([]));
 
-    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
-      httpClient: mockHttpClient,
-    }).then(() => {
+    const webExperiment = new WebExperiment(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      {
+        httpClient: mockHttpClient,
+      },
+    );
+    webExperiment.initializeExperiment().then(() => {
       expect(mockHttpClient.requestUrl).toBe(
         'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
       );
@@ -386,9 +407,14 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
 
-    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
-      httpClient: mockHttpClient,
-    }).then(() => {
+    const webExperiment = new WebExperiment(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      {
+        httpClient: mockHttpClient,
+      },
+    );
+    webExperiment.initializeExperiment().then(() => {
       // check remote flag variant actions called after successful fetch
       expect(mockExposure).toHaveBeenCalledTimes(2);
       expect(mockExposure).toHaveBeenCalledWith('test-2');
@@ -409,9 +435,14 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 404);
 
-    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
-      httpClient: mockHttpClient,
-    }).then(() => {
+    const webExperiment = new WebExperiment(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      {
+        httpClient: mockHttpClient,
+      },
+    );
+    webExperiment.initializeExperiment().then(() => {
       // check remote fetch failed safely
       expect(mockExposure).toHaveBeenCalledTimes(2);
     });
@@ -428,9 +459,14 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient('', 404);
 
-    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
-      httpClient: mockHttpClient,
-    }).then(() => {
+    const webExperiment = new WebExperiment(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      {
+        httpClient: mockHttpClient,
+      },
+    );
+    webExperiment.initializeExperiment().then(() => {
       // check remote variant actions applied
       expect(mockExposure).toHaveBeenCalledTimes(1);
       expect(mockExposure).toHaveBeenCalledWith('test');
@@ -466,9 +502,14 @@ describe('initializeExperiment', () => {
       ExperimentClient.prototype as any,
       'doFlags',
     );
-    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
-      httpClient: mockHttpClient,
-    }).then(() => {
+    const webExperiment = new WebExperiment(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      {
+        httpClient: mockHttpClient,
+      },
+    );
+    webExperiment.initializeExperiment().then(() => {
       // check remote fetch not called
       expect(doFlagsMock).toHaveBeenCalledTimes(0);
     });
@@ -491,13 +532,14 @@ describe('initializeExperiment', () => {
     ];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
 
-    await initializeExperiment(
+    const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
         httpClient: mockHttpClient,
       },
     );
+    await webExperiment.initializeExperiment();
     // check treatment variant called
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
