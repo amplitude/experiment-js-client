@@ -11,6 +11,7 @@ import { ExperimentEvent } from 'src/types/plugin';
 describe('IntegrationManager', () => {
   let manager: IntegrationManager;
   beforeEach(() => {
+    safeGlobal.sessionStorage.clear();
     safeGlobal.localStorage.clear();
     const config = { test: 'config' } as ExperimentConfig;
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -199,17 +200,81 @@ describe('IntegrationManager', () => {
         },
       });
     });
+    test('un exposure is deduped', () => {
+      manager.track({ flag_key: 'flag-key' });
+      manager.track({ flag_key: 'flag-key' });
+      manager.track({ flag_key: 'flag-key' });
+      expect(manager['queue']['inMemoryQueue'].length).toEqual(1);
+      expect(manager['queue']['inMemoryQueue'][0]).toEqual({
+        eventType: '$exposure',
+        eventProperties: {
+          flag_key: 'flag-key',
+        },
+      });
+    });
+    test('different variant values for same key are all tracked', () => {
+      manager.track({ flag_key: 'flag-key' });
+      manager.track({ flag_key: 'flag-key', variant: 'control' });
+      manager.track({ flag_key: 'flag-key' });
+      manager.track({ flag_key: 'flag-key', variant: 'control' });
+      manager.track({ flag_key: 'flag-key', variant: 'treatment' });
+      expect(manager['queue']['inMemoryQueue'].length).toEqual(5);
+      expect(manager['queue']['inMemoryQueue'][0]).toEqual({
+        eventType: '$exposure',
+        eventProperties: {
+          flag_key: 'flag-key',
+        },
+      });
+      expect(manager['queue']['inMemoryQueue'][1]).toEqual({
+        eventType: '$exposure',
+        eventProperties: {
+          flag_key: 'flag-key',
+          variant: 'control',
+        },
+      });
+      expect(manager['queue']['inMemoryQueue'][2]).toEqual({
+        eventType: '$exposure',
+        eventProperties: {
+          flag_key: 'flag-key',
+        },
+      });
+      expect(manager['queue']['inMemoryQueue'][3]).toEqual({
+        eventType: '$exposure',
+        eventProperties: {
+          flag_key: 'flag-key',
+          variant: 'control',
+        },
+      });
+      expect(manager['queue']['inMemoryQueue'][4]).toEqual({
+        eventType: '$exposure',
+        eventProperties: {
+          flag_key: 'flag-key',
+          variant: 'treatment',
+        },
+      });
+    });
   });
 });
 
 describe('SessionDedupeCache', () => {
   beforeEach(() => {
+    safeGlobal.sessionStorage.setItem(
+      'EXP_sent_$default_instance',
+      `{"flag-key":"variant"}`,
+    );
     safeGlobal.sessionStorage.clear();
+  });
+  test('old storage is cleared', () => {
+    const instanceName = '$default_instance';
+    new SessionDedupeCache(instanceName);
+    expect(
+      safeGlobal.sessionStorage.getItem('EXP_sent_$default_instance'),
+    ).toBeNull();
   });
   test('test storage key', () => {
     const instanceName = '$default_instance';
     const cache = new SessionDedupeCache(instanceName);
-    expect(cache['storageKey']).toEqual('EXP_sent_$default_instance');
+    expect(cache['storageKey']).toEqual('EXP_sent_v2_$default_instance');
   });
   test('should track with empty storage returns true, sets storage', () => {
     const instanceName = '$default_instance';
@@ -222,7 +287,7 @@ describe('SessionDedupeCache', () => {
     const storedCache = JSON.parse(
       safeGlobal.sessionStorage.getItem(cache['storageKey']),
     );
-    const expected = { 'flag-key': 'on' };
+    const expected = { 'flag-key': exposure };
     expect(storedCache).toEqual(expected);
     expect(cache['inMemoryCache']).toEqual(expected);
   });
@@ -234,14 +299,14 @@ describe('SessionDedupeCache', () => {
       variant: 'on',
     };
     safeGlobal.sessionStorage.setItem(
-      'EXP_sent_$default_instance',
-      JSON.stringify({ [`${exposure.flag_key}`]: exposure.variant }),
+      cache['storageKey'],
+      JSON.stringify({ [`${exposure.flag_key}`]: exposure }),
     );
     expect(cache.shouldTrack(exposure)).toEqual(false);
     const storedCache = JSON.parse(
-      safeGlobal.sessionStorage.getItem('EXP_sent_$default_instance'),
+      safeGlobal.sessionStorage.getItem(cache['storageKey']),
     );
-    const expected = { 'flag-key': 'on' };
+    const expected = { 'flag-key': exposure };
     expect(storedCache).toEqual(expected);
     expect(cache['inMemoryCache']).toEqual(expected);
   });
@@ -252,17 +317,21 @@ describe('SessionDedupeCache', () => {
       flag_key: 'flag-key',
       variant: 'on',
     };
+    const exposure2 = {
+      flag_key: 'flag-key-2',
+      variant: 'on',
+    };
     safeGlobal.sessionStorage.setItem(
-      'EXP_sent_$default_instance',
-      JSON.stringify({ [`${exposure.flag_key}-2`]: exposure.variant }),
+      cache['storageKey'],
+      JSON.stringify({ [exposure2.flag_key]: exposure2 }),
     );
     expect(cache.shouldTrack(exposure)).toEqual(true);
     const storedCache = JSON.parse(
-      safeGlobal.sessionStorage.getItem('EXP_sent_$default_instance'),
+      safeGlobal.sessionStorage.getItem(cache['storageKey']),
     );
     const expected = {
-      'flag-key': 'on',
-      'flag-key-2': 'on',
+      'flag-key': exposure,
+      'flag-key-2': exposure2,
     };
     expect(storedCache).toEqual(expected);
     expect(cache['inMemoryCache']).toEqual(expected);
