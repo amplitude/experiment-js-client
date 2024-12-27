@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.14.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.14.0...@amplitude/experiment-js-client@1.14.1) (2024-12-27)
+
+
+### Bug Fixes
+
+* fix unexposure events not deduped by integration ([#151](https://github.com/amplitude/experiment-js-client/issues/151)) ([24ebf3e](https://github.com/amplitude/experiment-js-client/commit/24ebf3ee42c11b088e526839146747b6a49e354a))
+
+
+
+
+
 # [1.14.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.13.2...@amplitude/experiment-js-client@1.14.0) (2024-12-23)
 
 
