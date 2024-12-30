@@ -8,7 +8,6 @@ import {
 import {
   Experiment,
   Variant,
-  Variants,
   AmplitudeIntegrationPlugin,
   ExperimentConfig,
   ExperimentClient,
@@ -18,6 +17,7 @@ import mutate, { MutationController } from 'dom-mutator';
 import { getInjectUtils } from './inject-utils';
 import { WindowMessenger } from './messenger';
 import {
+  convertEvaluationVariantToVariant,
   getUrlParams,
   removeQueryParams,
   urlWithoutParamsAndAnchor,
@@ -25,19 +25,22 @@ import {
   concatenateQueryParamsOf,
 } from './util';
 
+const PAGE_NOT_TARGETED = 'Page not targeted';
+const PAGE_IS_EXCLUDED = 'Page is excluded';
+
 export class WebExperiment {
   private readonly apiKey: string;
-  private initialFlags: string;
+  private readonly initialFlags: [];
   private readonly config: ExperimentConfig;
   private readonly globalScope = getGlobalScope();
+  private experimentClient: ExperimentClient | undefined;
   private appliedInjections: Set<string> = new Set();
-  private appliedMutations: MutationController[] = [];
+  private appliedMutations: Record<string, MutationController[]> = {};
   private previousUrl: string | undefined;
   // Cache to track exposure for the current URL, should be cleared on URL change
-  private urlExposureCache: {
-    [url: string]: { [key: string]: string | undefined };
-  } = {};
-  private experimentClient: ExperimentClient | undefined;
+  private urlExposureCache: Record<string, Record<string, string | undefined>> =
+    {};
+  private flagVariantMap: Record<string, Record<string, Variant>> = {};
 
   constructor(
     apiKey: string,
@@ -45,8 +48,16 @@ export class WebExperiment {
     config: ExperimentConfig = {},
   ) {
     this.apiKey = apiKey;
-    this.initialFlags = initialFlags;
     this.config = config;
+    this.initialFlags = JSON.parse(initialFlags);
+    this.initialFlags.forEach((flag: EvaluationFlag) => {
+      const variants = flag.variants;
+      this.flagVariantMap[flag.key] = {};
+      Object.keys(variants).forEach((variantKey) => {
+        this.flagVariantMap[flag.key][variantKey] =
+          convertEvaluationVariantToVariant(flag.variants[variantKey]);
+      });
+    });
   }
 
   public async initializeExperiment() {
@@ -102,11 +113,10 @@ export class WebExperiment {
     }
 
     let isRemoteBlocking = false;
-    const remoteFlagKeys: Set<string> = new Set();
-    const localFlagKeys: Set<string> = new Set();
-    const parsedFlags = JSON.parse(this.initialFlags);
+    const remoteFlagKeys: string[] = [];
+    const localFlagKeys: string[] = [];
 
-    parsedFlags.forEach((flag: EvaluationFlag) => {
+    this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, segments, metadata = {} } = flag;
 
       // Force variant if in preview mode
@@ -141,7 +151,7 @@ export class WebExperiment {
       }
 
       if (metadata.evaluationMode !== 'local') {
-        remoteFlagKeys.add(key);
+        remoteFlagKeys.push(key);
 
         // allow local evaluation for remote flags
         metadata.evaluationMode = 'local';
@@ -155,20 +165,20 @@ export class WebExperiment {
         }
       } else {
         // Add locally evaluable flags to the local flag set
-        localFlagKeys.add(key);
+        localFlagKeys.push(key);
       }
 
       flag.metadata = metadata;
     });
 
-    this.initialFlags = JSON.stringify(parsedFlags);
+    const initialFlagsString = JSON.stringify(this.initialFlags);
 
     // initialize the experiment
     this.experimentClient = Experiment.initialize(this.apiKey, {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       internalInstanceNameSuffix: 'web',
-      initialFlags: this.initialFlags,
+      initialFlags: initialFlagsString,
       // timeout for fetching remote flags
       fetchTimeoutMillis: 1000,
       pollOnStart: false,
@@ -189,17 +199,17 @@ export class WebExperiment {
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(user);
 
-    this.setUrlChangeListener(new Set([...localFlagKeys, ...remoteFlagKeys]));
+    this.setUrlChangeListener([...localFlagKeys, ...remoteFlagKeys]);
 
     // apply local variants
-    this.applyVariants(this.experimentClient.all(), localFlagKeys);
+    this.applyVariants(localFlagKeys);
 
     if (!isRemoteBlocking) {
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
 
-    if (remoteFlagKeys.size === 0) {
+    if (remoteFlagKeys.length === 0) {
       return;
     }
 
@@ -211,13 +221,22 @@ export class WebExperiment {
       console.warn('Error fetching remote flags:', error);
     }
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
-    this.applyVariants(this.experimentClient.all(), remoteFlagKeys);
+    this.applyVariants(remoteFlagKeys);
   }
 
-  public applyVariants(
-    variants: Variants,
-    flagKeys: Set<string> | undefined = undefined,
-  ) {
+  /**
+   * Get the underlying ExperimentClient instance.
+   */
+  public getExperimentClient(): ExperimentClient | undefined {
+    return this.experimentClient;
+  }
+
+  /**
+   * Apply variants to the page.
+   * @param flagKeys
+   */
+  public applyVariants(flagKeys: string[] | undefined = undefined) {
+    const variants = this.experimentClient?.all() || {};
     if (Object.keys(variants).length === 0) {
       return;
     }
@@ -232,7 +251,7 @@ export class WebExperiment {
       this.urlExposureCache[currentUrl] = {};
     }
     for (const key in variants) {
-      if (flagKeys && !flagKeys.has(key)) {
+      if (flagKeys && !flagKeys.includes(key)) {
         continue;
       }
       const variant = variants[key];
@@ -250,16 +269,148 @@ export class WebExperiment {
         }
 
         if (payloadIsArray) {
+          this.handleVariantAction(key, variant);
+        }
+      }
+    }
+  }
+
+  /**
+   * Revert mutations applied by the experiment.
+   * @param flagKeys
+   */
+  public revertMutations(flagKeys: string[] | undefined = undefined) {
+    if (!flagKeys) {
+      flagKeys = Object.keys(this.appliedMutations);
+    }
+    for (const key of flagKeys) {
+      this.appliedMutations[key]?.forEach((mutationController) => {
+        mutationController.revert();
+      });
+      delete this.appliedMutations[key];
+    }
+  }
+
+  /**
+   * Get redirect URLs for flags.
+   * @param flagKeys
+   */
+  public getRedirectUrls(
+    flagKeys: string[],
+  ): Record<string, Record<string, string>> {
+    const redirectUrlMap: Record<string, Record<string, string>> = {};
+    for (const key of flagKeys) {
+      if (this.flagVariantMap[key] === undefined) {
+        continue;
+      }
+      const variants = this.flagVariantMap[key];
+      const redirectUrls = {};
+      Object.keys(variants).forEach((variantKey) => {
+        const variant = variants[variantKey];
+        const payload = variant.payload;
+        if (payload && Array.isArray(payload)) {
           for (const action of variant.payload) {
             if (action.action === 'redirect') {
-              this.handleRedirect(action, key, variant);
-            } else if (action.action === 'mutate') {
-              this.handleMutate(action, key, variant);
-            } else if (action.action === 'inject') {
-              this.handleInject(action, key, variant);
+              const url = action.data?.url;
+              if (url) {
+                redirectUrls[key] = action.data.url;
+              }
             }
           }
         }
+      });
+    }
+    return redirectUrlMap;
+  }
+
+  /**
+   * Preview the effect of a variant on the page.
+   * @param key
+   * @param variant
+   */
+  public previewVariant(key: string, variant: string) {
+    if (this.appliedMutations[key]) {
+      this.revertMutations([key]);
+    }
+    let flag: EvaluationFlag | undefined;
+    this.initialFlags.forEach((f: EvaluationFlag) => {
+      if (f.key === key) {
+        flag = f;
+      }
+    });
+    if (!flag) {
+      return;
+    }
+    const variantObject = convertEvaluationVariantToVariant(
+      flag.variants[variant],
+    );
+    if (!variantObject) {
+      return;
+    }
+    const payload = variantObject.payload;
+    if (!payload || !Array.isArray(payload)) {
+      return;
+    }
+    this.handleVariantAction(key, variantObject);
+  }
+
+  /**
+   * Set URL change listener to revert mutations and apply variants on back/forward navigation.
+   * @param flagKeys
+   */
+  public setUrlChangeListener(flagKeys: string[]) {
+    const globalScope = getGlobalScope();
+    if (!globalScope) {
+      return;
+    }
+    // Add URL change listener for back/forward navigation
+    globalScope.addEventListener('popstate', () => {
+      this.revertMutations();
+      this.applyVariants(flagKeys);
+    });
+
+    const handleUrlChange = () => {
+      this.revertMutations();
+      this.applyVariants(flagKeys);
+      this.previousUrl = globalScope.location.href;
+    };
+
+    // Create wrapper functions for pushState and replaceState
+    const wrapHistoryMethods = () => {
+      const originalPushState = history.pushState;
+      const originalReplaceState = history.replaceState;
+
+      // Wrapper for pushState
+      history.pushState = function (...args) {
+        // Call the original pushState
+        const result = originalPushState.apply(this, args);
+        // Revert mutations and apply variants
+        handleUrlChange();
+        return result;
+      };
+
+      // Wrapper for replaceState
+      history.replaceState = function (...args) {
+        // Call the original replaceState
+        const result = originalReplaceState.apply(this, args);
+        // Revert mutations and apply variants
+        handleUrlChange();
+        return result;
+      };
+    };
+
+    // Initialize the wrapper
+    wrapHistoryMethods();
+  }
+
+  private handleVariantAction(key: string, variant: Variant) {
+    for (const action of variant.payload) {
+      if (action.action === 'redirect') {
+        this.handleRedirect(action, key, variant);
+      } else if (action.action === 'mutate') {
+        this.handleMutate(action, key, variant);
+      } else if (action.action === 'inject') {
+        this.handleInject(action, key, variant);
       }
     }
   }
@@ -300,16 +451,12 @@ export class WebExperiment {
       return;
     }
     const mutations = action.data?.mutations;
+    const mutationControllers: MutationController[] = [];
     mutations.forEach((m) => {
-      this.appliedMutations.push(mutate.declarative(m));
+      mutationControllers.push(mutate.declarative(m));
     });
+    this.appliedMutations[key] = mutationControllers;
     this.exposureWithDedupe(key, variant);
-  }
-
-  public revertMutations() {
-    while (this.appliedMutations.length > 0) {
-      this.appliedMutations.pop()?.revert();
-    }
   }
 
   private handleInject(action, key: string, variant: Variant) {
@@ -374,67 +521,24 @@ export class WebExperiment {
       );
     }
     // Push mutation to remove CSS and any custom state cleanup set in utils.
-    this.appliedMutations.push({
-      revert: () => {
-        if (utils.remove) utils.remove();
-        style?.remove();
-        script?.remove();
-        this.appliedInjections.delete(id);
+    this.appliedMutations[key] = [
+      {
+        revert: () => {
+          if (utils.remove) utils.remove();
+          style?.remove();
+          script?.remove();
+          this.appliedInjections.delete(id);
+        },
       },
-    });
+    ];
     this.exposureWithDedupe(key, variant);
-  }
-
-  public setUrlChangeListener(flagKeys: Set<string>) {
-    const globalScope = getGlobalScope();
-    if (!globalScope) {
-      return;
-    }
-    // Add URL change listener for back/forward navigation
-    globalScope.addEventListener('popstate', () => {
-      this.revertMutations();
-      this.applyVariants(this.experimentClient?.all() || {}, flagKeys);
-    });
-
-    const handleUrlChange = () => {
-      this.revertMutations();
-      this.applyVariants(this.experimentClient?.all() || {}, flagKeys);
-      this.previousUrl = globalScope.location.href;
-    };
-
-    // Create wrapper functions for pushState and replaceState
-    const wrapHistoryMethods = () => {
-      const originalPushState = history.pushState;
-      const originalReplaceState = history.replaceState;
-
-      // Wrapper for pushState
-      history.pushState = function (...args) {
-        // Call the original pushState
-        const result = originalPushState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
-        return result;
-      };
-
-      // Wrapper for replaceState
-      history.replaceState = function (...args) {
-        // Call the original replaceState
-        const result = originalReplaceState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
-        return result;
-      };
-    };
-
-    // Initialize the wrapper
-    wrapHistoryMethods();
   }
 
   private isPageTargetingSegment(segment: EvaluationSegment) {
     return (
       segment.metadata?.trackExposure === false &&
-      (segment.metadata?.segmentName === 'Page not targeted' ||
-        segment.metadata?.segmentName === 'Page is excluded')
+      (segment.metadata?.segmentName === PAGE_NOT_TARGETED ||
+        segment.metadata?.segmentName === PAGE_IS_EXCLUDED)
     );
   }
 
