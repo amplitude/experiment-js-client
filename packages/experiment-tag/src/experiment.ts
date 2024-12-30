@@ -11,6 +11,8 @@ import {
   AmplitudeIntegrationPlugin,
   ExperimentConfig,
   ExperimentClient,
+  ExperimentUser,
+  Variants,
 } from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
@@ -232,7 +234,7 @@ export class WebExperiment {
   }
 
   /**
-   * Apply variants to the page.
+   * Apply evaluated variants to the page.
    * @param flagKeys
    */
   public applyVariants(flagKeys: string[] | undefined = undefined) {
@@ -332,18 +334,11 @@ export class WebExperiment {
     if (this.appliedMutations[key]) {
       this.revertMutations([key]);
     }
-    let flag: EvaluationFlag | undefined;
-    this.initialFlags.forEach((f: EvaluationFlag) => {
-      if (f.key === key) {
-        flag = f;
-      }
-    });
+    const flag = this.flagVariantMap[key];
     if (!flag) {
       return;
     }
-    const variantObject = convertEvaluationVariantToVariant(
-      flag.variants[variant],
-    );
+    const variantObject = flag[variant];
     if (!variantObject) {
       return;
     }
@@ -352,6 +347,50 @@ export class WebExperiment {
       return;
     }
     this.handleVariantAction(key, variantObject);
+  }
+
+  /**
+   * Get all variants for a user. If user is not provided, the current user is used.
+   * If currentUrl is not provided, the current URL is used.
+   * If flagKeys is not provided, all variants are returned.
+   * @param user
+   * @param currentUrl
+   * @param flagKeys
+   */
+  public getVariants(
+    user: ExperimentUser | undefined = undefined,
+    currentUrl: string | undefined = undefined,
+    flagKeys: string[] | undefined = undefined,
+  ): Variants {
+    if (!this.experimentClient) {
+      return {};
+    }
+    const existingUser = this.experimentClient?.getUser();
+    if (user) {
+      if (currentUrl) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        user.currentUrl = currentUrl;
+      }
+      this.experimentClient.setUser(user);
+    } else {
+      this.experimentClient.setUser({
+        ...existingUser,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        currentUrl: currentUrl,
+      });
+    }
+    const variants = this.experimentClient.all();
+    if (flagKeys) {
+      const filteredVariants = {};
+      for (const key of flagKeys) {
+        filteredVariants[key] = variants[key];
+      }
+      return filteredVariants;
+    }
+    this.experimentClient.setUser(existingUser);
+    return variants;
   }
 
   /**
