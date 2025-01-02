@@ -573,15 +573,14 @@ describe('helper methods', () => {
     jest.clearAllMocks();
   });
 
-  const originalLocation = global.location; // Save the original global location
+  const originalLocation = global.location;
 
   afterEach(() => {
-    // Restore the original global location after each test
     Object.defineProperty(global, 'location', {
       value: originalLocation,
       writable: true,
     });
-    jest.restoreAllMocks(); // Restore any mocked functions
+    jest.restoreAllMocks();
   });
   test('get redirect urls', () => {
     const initialFlags = [
