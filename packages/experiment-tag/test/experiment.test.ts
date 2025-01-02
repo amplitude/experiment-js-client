@@ -585,14 +585,21 @@ describe('helper methods', () => {
   test('get redirect urls', () => {
     const initialFlags = [
       // remote flag
-      createRedirectFlag('test', 'treatment', 'http://test.com/2'),
+      createRedirectFlag(
+        'test',
+        'treatment',
+        'http://test.com/2',
+        'http://test.com',
+      ),
     ];
     const webExperiment = new WebExperiment(
       stringify(apiKey),
       JSON.stringify(initialFlags),
     );
     const redirectUrls = webExperiment.getRedirectUrls();
-    expect(redirectUrls).toEqual({ test: { treatment: 'http://test.com/2' } });
+    expect(redirectUrls).toEqual({
+      test: { control: 'http://test.com', treatment: 'http://test.com/2' },
+    });
   });
 
   test('get active experiments on current page', () => {

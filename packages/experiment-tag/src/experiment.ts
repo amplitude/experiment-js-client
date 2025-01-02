@@ -9,7 +9,6 @@ import {
   Experiment,
   Variant,
   AmplitudeIntegrationPlugin,
-  ExperimentConfig,
   ExperimentClient,
   ExperimentUser,
   Variants,
@@ -205,11 +204,12 @@ export class WebExperiment {
       return;
     }
 
-    this.config.reapplyVariantsOnNavigation &&
+    if (this.config.reapplyVariantsOnNavigation) {
       this.setUrlChangeListener([
         ...this.localFlagKeys,
         ...this.remoteFlagKeys,
       ]);
+    }
 
     // apply local variants
     this.applyVariants(this.localFlagKeys);
@@ -267,6 +267,15 @@ export class WebExperiment {
         });
       }
     }
+  }
+
+  /**
+   * Set the previous URL for tracking back/forward navigation. Set previous URL to prevent infinite redirection loop
+   * in single-page applications.
+   * @param url
+   */
+  public setPreviousUrl(url: string) {
+    this.previousUrl = url;
   }
 
   /**
