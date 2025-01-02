@@ -16,6 +16,7 @@ import {
 } from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
+import { WebExperimentConfig } from './config';
 import { getInjectUtils } from './inject-utils';
 import { WindowMessenger } from './messenger';
 import {
@@ -33,21 +34,24 @@ const PAGE_IS_EXCLUDED = 'Page is excluded';
 export class WebExperiment {
   private readonly apiKey: string;
   private readonly initialFlags: [];
-  private readonly config: ExperimentConfig;
+  private readonly config: WebExperimentConfig;
   private readonly globalScope = getGlobalScope();
-  private experimentClient: ExperimentClient | undefined;
+  private readonly experimentClient: ExperimentClient | undefined;
   private appliedInjections: Set<string> = new Set();
   private appliedMutations: Record<string, MutationController[]> = {};
-  private previousUrl: string | undefined;
+  private previousUrl: string | undefined = undefined;
   // Cache to track exposure for the current URL, should be cleared on URL change
   private urlExposureCache: Record<string, Record<string, string | undefined>> =
     {};
   private flagVariantMap: Record<string, Record<string, Variant>> = {};
+  private localFlagKeys: string[] = [];
+  private remoteFlagKeys: string[] = [];
+  private isRemoteBlocking = false;
 
   constructor(
     apiKey: string,
     initialFlags: string,
-    config: ExperimentConfig = {},
+    config: WebExperimentConfig = {},
   ) {
     this.apiKey = apiKey;
     this.config = config;
@@ -60,9 +64,6 @@ export class WebExperiment {
           convertEvaluationVariantToVariant(flag.variants[variantKey]);
       });
     });
-  }
-
-  public async initializeExperiment() {
     if (this.globalScope?.webExperiment) {
       return;
     }
@@ -73,8 +74,6 @@ export class WebExperiment {
     }
 
     this.globalScope.webExperiment = this;
-    this.previousUrl = undefined;
-    this.urlExposureCache = {};
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     let user;
     try {
@@ -114,10 +113,6 @@ export class WebExperiment {
       return;
     }
 
-    let isRemoteBlocking = false;
-    const remoteFlagKeys: string[] = [];
-    const localFlagKeys: string[] = [];
-
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, segments, metadata = {} } = flag;
 
@@ -153,21 +148,21 @@ export class WebExperiment {
       }
 
       if (metadata.evaluationMode !== 'local') {
-        remoteFlagKeys.push(key);
+        this.remoteFlagKeys.push(key);
 
         // allow local evaluation for remote flags
         metadata.evaluationMode = 'local';
 
         // Check if any remote flags are blocking
-        if (!isRemoteBlocking && metadata.blockingEvaluation) {
-          isRemoteBlocking = true;
+        if (!this.isRemoteBlocking && metadata.blockingEvaluation) {
+          this.isRemoteBlocking = true;
 
           // Apply anti-flicker CSS to prevent UI flicker
           this.applyAntiFlickerCss();
         }
       } else {
         // Add locally evaluable flags to the local flag set
-        localFlagKeys.push(key);
+        this.localFlagKeys.push(key);
       }
 
       flag.metadata = metadata;
@@ -200,30 +195,40 @@ export class WebExperiment {
     this.globalScope.experimentIntegration.type = 'integration';
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(user);
+  }
 
-    this.setUrlChangeListener([...localFlagKeys, ...remoteFlagKeys]);
-
-    // apply local variants
-    this.applyVariants(localFlagKeys);
-
-    if (!isRemoteBlocking) {
-      // Remove anti-flicker css if remote flags are not blocking
-      this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
-    }
-
-    if (remoteFlagKeys.length === 0) {
+  /**
+   * Start the experiment.
+   */
+  public async start() {
+    if (!this.experimentClient) {
       return;
     }
 
-    try {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      await this.experimentClient.doFlags();
-    } catch (error) {
-      console.warn('Error fetching remote flags:', error);
+    this.config.reapplyVariantsOnNavigation &&
+      this.setUrlChangeListener([
+        ...this.localFlagKeys,
+        ...this.remoteFlagKeys,
+      ]);
+
+    // apply local variants
+    this.applyVariants(this.localFlagKeys);
+
+    if (
+      !this.isRemoteBlocking ||
+      !this.config.applyAntiFlickerForRemoteBlocking
+    ) {
+      // Remove anti-flicker css if remote flags are not blocking
+      this.globalScope?.document.getElementById?.('amp-exp-css')?.remove();
     }
+
+    if (this.remoteFlagKeys.length === 0) {
+      return;
+    }
+
+    await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
-    this.applyVariants(remoteFlagKeys);
+    this.applyVariants(this.remoteFlagKeys);
   }
 
   /**
@@ -231,6 +236,37 @@ export class WebExperiment {
    */
   public getExperimentClient(): ExperimentClient | undefined {
     return this.experimentClient;
+  }
+
+  /**
+   * Set the context for evaluating experiments.
+   * If user is not provided, the current user is used.
+   * If currentUrl is not provided, the current URL is used.
+   * @param user
+   * @param currentUrl
+   */
+  public setContext(
+    user: ExperimentUser | undefined = undefined,
+    currentUrl: string | undefined = undefined,
+  ) {
+    if (this.experimentClient) {
+      const existingUser = this.experimentClient?.getUser();
+      if (user) {
+        if (currentUrl) {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          user.currentUrl = currentUrl;
+        }
+        this.experimentClient.setUser(user);
+      } else {
+        this.experimentClient.setUser({
+          ...existingUser,
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          currentUrl: currentUrl,
+        });
+      }
+    }
   }
 
   /**
@@ -298,9 +334,12 @@ export class WebExperiment {
    * @param flagKeys
    */
   public getRedirectUrls(
-    flagKeys: string[],
+    flagKeys: string[] | undefined = undefined,
   ): Record<string, Record<string, string>> {
     const redirectUrlMap: Record<string, Record<string, string>> = {};
+    if (!flagKeys) {
+      flagKeys = Object.keys(this.flagVariantMap);
+    }
     for (const key of flagKeys) {
       if (this.flagVariantMap[key] === undefined) {
         continue;
@@ -315,12 +354,15 @@ export class WebExperiment {
             if (action.action === 'redirect') {
               const url = action.data?.url;
               if (url) {
-                redirectUrls[key] = action.data.url;
+                redirectUrls[variantKey] = action.data.url;
               }
             }
           }
         }
       });
+      if (Object.keys(redirectUrls).length > 0) {
+        redirectUrlMap[key] = redirectUrls;
+      }
     }
     return redirectUrlMap;
   }
@@ -366,21 +408,7 @@ export class WebExperiment {
       return {};
     }
     const existingUser = this.experimentClient?.getUser();
-    if (user) {
-      if (currentUrl) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        user.currentUrl = currentUrl;
-      }
-      this.experimentClient.setUser(user);
-    } else {
-      this.experimentClient.setUser({
-        ...existingUser,
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        currentUrl: currentUrl,
-      });
-    }
+    this.setContext(user, currentUrl);
     const variants = this.experimentClient.all();
     if (flagKeys) {
       const filteredVariants = {};
@@ -389,8 +417,36 @@ export class WebExperiment {
       }
       return filteredVariants;
     }
-    this.experimentClient.setUser(existingUser);
+    this.setContext(existingUser, undefined);
     return variants;
+  }
+
+  /**
+   * Fetch remote flags based on the current user.
+   */
+  public async fetchRemoteFlags() {
+    if (!this.experimentClient) {
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      await this.experimentClient.doFlags();
+    } catch (error) {
+      console.warn('Error fetching remote flags:', error);
+    }
+  }
+
+  public getActiveExperimentsOnPage(
+    currentUrl: string | undefined = undefined,
+  ): string[] {
+    const variants = this.getVariants(undefined, currentUrl);
+    return Object.keys(variants).filter((key) => {
+      return (
+        variants[key].metadata?.segmentName !== PAGE_NOT_TARGETED &&
+        variants[key].metadata?.segmentName !== PAGE_IS_EXCLUDED
+      );
+    });
   }
 
   /**
