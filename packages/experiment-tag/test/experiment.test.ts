@@ -1,9 +1,17 @@
+import * as experimentCore from '@amplitude/experiment-core';
 import * as coreUtil from '@amplitude/experiment-core';
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
+import { Base64 } from 'js-base64';
 import { initializeExperiment } from 'src/experiment';
 import * as experiment from 'src/experiment';
 import * as util from 'src/util';
+import { stringify } from 'ts-jest';
+
+import { createMutateFlag, createRedirectFlag } from './util/create-flag';
+import { MockHttpClient } from './util/mock-http-client';
+
+let apiKey = 0;
 
 jest.mock('src/messenger', () => {
   return {
@@ -13,19 +21,19 @@ jest.mock('src/messenger', () => {
   };
 });
 
-jest.spyOn(experiment, 'setUrlChangeListener').mockReturnValue(undefined);
-
 describe('initializeExperiment', () => {
-  const mockGetGlobalScope = jest.spyOn(coreUtil, 'getGlobalScope');
+  const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
+  jest.spyOn(experiment, 'setUrlChangeListener').mockReturnValue(undefined);
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
   jest.spyOn(util, 'UUID').mockReturnValue('mock');
   let mockGlobal;
 
   beforeEach(() => {
-    jest.spyOn(coreUtil, 'isLocalStorageAvailable').mockReturnValue(true);
+    apiKey++;
     jest.clearAllMocks();
+    jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
     mockGlobal = {
       localStorage: {
         getItem: jest.fn().mockReturnValue(undefined),
@@ -45,134 +53,30 @@ describe('initializeExperiment', () => {
   });
 
   test('should initialize experiment with empty user', () => {
-    initializeExperiment(
-      '1',
-      JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
-            deliveryMethod: 'web',
-          },
-          segments: [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'treatment',
-            },
-          ],
-          variants: {
-            control: {
-              key: 'control',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com',
-                  },
-                },
-              ],
-              value: 'control',
-            },
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
-        },
-      ]),
-    );
+    initializeExperiment(stringify(apiKey), JSON.stringify([]));
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       device_id: 'mock',
+      web_exp_id: 'mock',
     });
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       'EXP_1',
-      JSON.stringify({ device_id: 'mock' }),
+      JSON.stringify({ device_id: 'mock', web_exp_id: 'mock' }),
     );
   });
 
   test('experiment should not run without localStorage', () => {
-    jest.spyOn(coreUtil, 'isLocalStorageAvailable').mockReturnValue(false);
-    initializeExperiment('2', '');
+    jest
+      .spyOn(experimentCore, 'isLocalStorageAvailable')
+      .mockReturnValue(false);
+    initializeExperiment(stringify(apiKey), '');
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 
   test('treatment variant on control page - should redirect and call exposure', () => {
     initializeExperiment(
-      '3',
+      stringify(apiKey),
       JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
-            deliveryMethod: 'web',
-          },
-          segments: [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'treatment',
-            },
-          ],
-          variants: {
-            control: {
-              key: 'control',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com',
-                  },
-                },
-              ],
-              value: 'control',
-            },
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
-        },
+        createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
     );
 
@@ -184,47 +88,9 @@ describe('initializeExperiment', () => {
 
   test('control variant on control page - should not redirect but call exposure', () => {
     initializeExperiment(
-      '4',
+      stringify(apiKey),
       JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
-            deliveryMethod: 'web',
-          },
-          segments: [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'control',
-            },
-          ],
-          variants: {
-            control: {
-              key: 'control',
-              payload: [],
-              value: 'control',
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
-        },
+        createRedirectFlag('test', 'control', 'http://test.com/2'),
       ]),
     );
 
@@ -253,52 +119,9 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
     initializeExperiment(
-      '5',
+      stringify(apiKey),
       JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 20,
-            deliveryMethod: 'web',
-          },
-          segments: [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'treatment',
-            },
-          ],
-          variants: {
-            control: {
-              key: 'control',
-              payload: [],
-              value: 'control',
-            },
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
-        },
+        createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
     );
 
@@ -330,60 +153,9 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
     initializeExperiment(
-      '6',
+      stringify(apiKey),
       JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
-            deliveryMethod: 'web',
-          },
-          segments: [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'control',
-            },
-          ],
-          variants: {
-            control: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com',
-                  },
-                },
-              ],
-              value: 'control',
-            },
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
-        },
+        createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
     );
 
@@ -411,69 +183,35 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    initializeExperiment(
-      '7',
-      JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 1,
-            deliveryMethod: 'web',
-          },
-          segments: [
+    const pageTargetingSegments = [
+      {
+        conditions: [
+          [
             {
-              conditions: [
-                [
-                  {
-                    op: 'regex does not match',
-                    selector: ['context', 'page', 'url'],
-                    values: ['^http:\\/\\/test.com/$'],
-                  },
-                ],
-              ],
-              metadata: {
-                segmentName: 'Page not targeted',
-                trackExposure: false,
-              },
-              variant: 'off',
-            },
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'treatment',
+              op: 'regex does not match',
+              selector: ['context', 'page', 'url'],
+              values: ['^http:\\/\\/test.com/$'],
             },
           ],
-          variants: {
-            control: {
-              key: 'control',
-              payload: [],
-              value: 'control',
-            },
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
+        ],
+        metadata: {
+          segmentName: 'Page not targeted',
+          trackExposure: false,
         },
+        variant: 'off',
+      },
+    ];
+
+    initializeExperiment(
+      stringify(apiKey),
+      JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          pageTargetingSegments,
+        ),
       ]),
     );
 
@@ -505,60 +243,14 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
     initializeExperiment(
-      '8',
+      stringify(apiKey),
       JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 20,
-            urlMatch: ['http://test.com'],
-            deliveryMethod: 'web',
-          },
-          segments: [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'treatment',
-            },
-          ],
-          variants: {
-            control: {
-              key: 'control',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com',
-                  },
-                },
-              ],
-              value: 'control',
-            },
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2?param3=c',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
-        },
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2?param3=c',
+          'http://test.com/',
+        ),
       ]),
     );
 
@@ -570,46 +262,9 @@ describe('initializeExperiment', () => {
 
   test('should behave as control variant when payload is empty', () => {
     initializeExperiment(
-      '9',
+      stringify(apiKey),
       JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            experimentKey: 'exp-1',
-            flagType: 'experiment',
-            flagVersion: 20,
-            deliveryMethod: 'web',
-          },
-          segments: [
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'control',
-            },
-          ],
-          variants: {
-            control: {
-              key: 'control',
-              payload: [],
-              value: 'control',
-            },
-            treatment: {
-              key: 'treatment',
-              payload: [
-                {
-                  action: 'redirect',
-                  data: {
-                    url: 'http://test.com/2',
-                  },
-                },
-              ],
-              value: 'treatment',
-            },
-          },
-        },
+        createRedirectFlag('test', 'control', 'http://test.com/2?param3=c'),
       ]),
     );
 
@@ -624,54 +279,35 @@ describe('initializeExperiment', () => {
       },
       writable: true,
     });
-    jest.spyOn(coreUtil, 'getGlobalScope');
-    initializeExperiment(
-      '10',
-      JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            flagType: 'experiment',
-            deliveryMethod: 'web',
-          },
-          segments: [
+    jest.spyOn(experimentCore, 'getGlobalScope');
+    const pageTargetingSegments = [
+      {
+        conditions: [
+          [
             {
-              conditions: [
-                [
-                  {
-                    op: 'regex does not match',
-                    selector: ['context', 'page', 'url'],
-                    values: ['^http:\\/\\/test.*'],
-                  },
-                ],
-              ],
-              metadata: {
-                segmentName: 'Page not targeted',
-                trackExposure: false,
-              },
-              variant: 'off',
-            },
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'treatment',
+              op: 'regex does not match',
+              selector: ['context', 'page', 'url'],
+              values: ['^http:\\/\\/test.*'],
             },
           ],
-          variants: {
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-            },
-          },
+        ],
+        metadata: {
+          segmentName: 'Page not targeted',
+          trackExposure: false,
         },
+        variant: 'off',
+      },
+    ];
+    initializeExperiment(
+      stringify(apiKey),
+      JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          pageTargetingSegments,
+        ),
       ]),
     );
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -684,57 +320,192 @@ describe('initializeExperiment', () => {
       },
       writable: true,
     });
-    initializeExperiment(
-      '11',
-      JSON.stringify([
-        {
-          key: 'test',
-          metadata: {
-            deployed: true,
-            evaluationMode: 'local',
-            flagType: 'experiment',
-            deliveryMethod: 'web',
-          },
-          segments: [
+    const pageTargetingSegments = [
+      {
+        conditions: [
+          [
             {
-              conditions: [
-                [
-                  {
-                    op: 'regex match',
-                    selector: ['context', 'page', 'url'],
-                    values: ['.*test\\.com$'],
-                  },
-                ],
-              ],
-              metadata: {
-                segmentName: 'Page is excluded',
-                trackExposure: false,
-              },
-              variant: 'off',
-            },
-            {
-              metadata: {
-                segmentName: 'All Other Users',
-              },
-              variant: 'treatment',
+              op: 'regex match',
+              selector: ['context', 'page', 'url'],
+              values: ['.*test\\.com$'],
             },
           ],
-          variants: {
-            off: {
-              key: 'off',
-              metadata: {
-                default: true,
-              },
-            },
-            treatment: {
-              key: 'treatment',
-              value: 'treatment',
-            },
-          },
+        ],
+        metadata: {
+          segmentName: 'Page is excluded',
+          trackExposure: false,
         },
+        variant: 'off',
+      },
+    ];
+    initializeExperiment(
+      stringify(apiKey),
+      JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          pageTargetingSegments,
+        ),
       ]),
     );
     expect(mockExposure).not.toHaveBeenCalled();
+  });
+
+  test('remote evaluation - request web remote flags', () => {
+    const mockUser = { user_id: 'user_id', device_id: 'device_id' };
+    jest.spyOn(ExperimentClient.prototype, 'getUser').mockReturnValue(mockUser);
+
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+    ];
+
+    const mockHttpClient = new MockHttpClient(JSON.stringify([]));
+
+    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
+      httpClient: mockHttpClient,
+    }).then(() => {
+      expect(mockHttpClient.requestUrl).toBe(
+        'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
+      );
+      // check flag fetch called with correct query param and header
+      expect(mockHttpClient.requestHeader['X-Amp-Exp-User']).toBe(
+        Base64.encodeURL(JSON.stringify(mockUser)),
+      );
+    });
+  });
+
+  test('remote evaluation - fetch successful', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      // local flag
+      createMutateFlag('test-1', 'treatment'),
+    ];
+    const remoteFlags = [createMutateFlag('test-2', 'treatment')];
+
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
+
+    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
+      httpClient: mockHttpClient,
+    }).then(() => {
+      // check remote flag variant actions called after successful fetch
+      expect(mockExposure).toHaveBeenCalledTimes(2);
+      expect(mockExposure).toHaveBeenCalledWith('test-2');
+    });
+    // check local flag variant actions called
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test-1');
+  });
+
+  test('remote evaluation - fetch fail, locally evaluate remote and local flags success', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      // local flag
+      createMutateFlag('test-1', 'treatment'),
+    ];
+    const remoteFlags = [createMutateFlag('test-2', 'treatment')];
+
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 404);
+
+    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
+      httpClient: mockHttpClient,
+    }).then(() => {
+      // check remote fetch failed safely
+      expect(mockExposure).toHaveBeenCalledTimes(2);
+    });
+    // check local flag variant actions called
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test-1');
+  });
+
+  test('remote evaluation - fetch fail, test initialFlags variant actions called', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [], [], [], 'remote'),
+    ];
+
+    const mockHttpClient = new MockHttpClient('', 404);
+
+    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
+      httpClient: mockHttpClient,
+    }).then(() => {
+      // check remote variant actions applied
+      expect(mockExposure).toHaveBeenCalledTimes(1);
+      expect(mockExposure).toHaveBeenCalledWith('test');
+    });
+    // check local flag variant actions called
+    expect(mockExposure).toHaveBeenCalledTimes(0);
+  });
+
+  test('remote evaluation - test preview successful, does not fetch remote flags', () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      location: {
+        href: 'http://test.com/',
+        replace: jest.fn(),
+        search: '?test=treatment&PREVIEW=true',
+      },
+      document: { referrer: '' },
+      history: { replaceState: jest.fn() },
+    };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [], [], [], 'remote'),
+    ];
+    const remoteFlags = [createMutateFlag('test', 'treatment')];
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
+    const doFlagsMock = jest.spyOn(
+      ExperimentClient.prototype as any,
+      'doFlags',
+    );
+    initializeExperiment(stringify(apiKey), JSON.stringify(initialFlags), {
+      httpClient: mockHttpClient,
+    }).then(() => {
+      // check remote fetch not called
+      expect(doFlagsMock).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  test('remote evaluation - fetch successful, fetched flag overwrites initial flag', async () => {
+    const initialFlags = [
+      // remote flag
+      createRedirectFlag(
+        'test',
+        'control',
+        'http://test.com/2',
+        undefined,
+        [],
+        'remote',
+      ),
+    ];
+    const remoteFlags = [
+      createRedirectFlag('test', 'treatment', 'http://test.com/2'),
+    ];
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
+
+    await initializeExperiment(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      {
+        httpClient: mockHttpClient,
+      },
+    );
+    // check treatment variant called
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+    expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+      'http://test.com/2',
+    );
   });
 });
 
