@@ -1,3 +1,5 @@
+import { Base64 } from 'js-base64';
+
 import { EvaluationFlag } from '../evaluation/flag';
 import { HttpClient } from '../transport/http';
 
@@ -6,7 +8,10 @@ export type GetFlagsOptions = {
   libraryVersion: string;
   evaluationMode?: string;
   timeoutMillis?: number;
+  user?: Record<string, unknown>;
+  deliveryMethod?: string | undefined;
 };
+
 export interface FlagApi {
   getFlags(options?: GetFlagsOptions): Promise<Record<string, EvaluationFlag>>;
 }
@@ -25,6 +30,7 @@ export class SdkFlagApi implements FlagApi {
     this.serverUrl = serverUrl;
     this.httpClient = httpClient;
   }
+
   public async getFlags(
     options?: GetFlagsOptions,
   ): Promise<Record<string, EvaluationFlag>> {
@@ -36,8 +42,17 @@ export class SdkFlagApi implements FlagApi {
         'X-Amp-Exp-Library'
       ] = `${options.libraryName}/${options.libraryVersion}`;
     }
+    if (options?.user) {
+      headers['X-Amp-Exp-User'] = Base64.encodeURL(
+        JSON.stringify(options.user),
+      );
+    }
     const response = await this.httpClient.request({
-      requestUrl: `${this.serverUrl}/sdk/v2/flags`,
+      requestUrl:
+        `${this.serverUrl}/sdk/v2/flags` +
+        (options?.deliveryMethod
+          ? `?delivery_method=${options.deliveryMethod}`
+          : ''),
       method: 'GET',
       headers: headers,
       timeoutMillis: options?.timeoutMillis,

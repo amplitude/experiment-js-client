@@ -8,10 +8,10 @@ import {
 import { safeGlobal } from '@amplitude/experiment-core';
 import {
   Experiment,
-  ExperimentUser,
   Variant,
   Variants,
   AmplitudeIntegrationPlugin,
+  ExperimentConfig,
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
@@ -34,7 +34,11 @@ let previousUrl: string | undefined;
 // Cache to track exposure for the current URL, should be cleared on URL change
 let urlExposureCache: { [url: string]: { [key: string]: string | undefined } };
 
-export const initializeExperiment = (apiKey: string, initialFlags: string) => {
+export const initializeExperiment = async (
+  apiKey: string,
+  initialFlags: string,
+  config: ExperimentConfig = {},
+) => {
   const globalScope = getGlobalScope();
   if (globalScope?.webExperiment) {
     return;
@@ -46,7 +50,7 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   previousUrl = undefined;
   urlExposureCache = {};
   const experimentStorageName = `EXP_${apiKey.slice(0, 10)}`;
-  let user: ExperimentUser;
+  let user;
   try {
     user = JSON.parse(
       globalScope.localStorage.getItem(experimentStorageName) || '{}',
@@ -55,14 +59,24 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     user = {};
   }
 
-  // create new user if it does not exist, or it does not have device_id
-  if (Object.keys(user).length === 0 || !user.device_id) {
-    user = {};
-    user.device_id = UUID();
-    globalScope.localStorage.setItem(
-      experimentStorageName,
-      JSON.stringify(user),
-    );
+  // create new user if it does not exist, or it does not have device_id or web_exp_id
+  if (Object.keys(user).length === 0 || !user.device_id || !user.web_exp_id) {
+    if (!user.device_id || !user.web_exp_id) {
+      // if user has device_id, migrate it to web_exp_id
+      if (user.device_id) {
+        user.web_exp_id = user.device_id;
+      } else if (user.web_exp_id) {
+        user.device_id = user.web_exp_id;
+      } else {
+        const uuid = UUID();
+        // both IDs are set for backwards compatibility, to be removed in future update
+        user = { device_id: uuid, web_exp_id: uuid };
+      }
+      globalScope.localStorage.setItem(
+        experimentStorageName,
+        JSON.stringify(user),
+      );
+    }
   }
 
   const urlParams = getUrlParams();
@@ -75,41 +89,78 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
     );
     return;
   }
-  // force variant if in preview mode
-  if (urlParams['PREVIEW']) {
-    const parsedFlags = JSON.parse(initialFlags);
-    parsedFlags.forEach((flag: EvaluationFlag) => {
-      if (flag.key in urlParams && urlParams[flag.key] in flag.variants) {
-        // Strip the preview query param
-        globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(globalScope.location.href, ['PREVIEW', flag.key]),
-        );
 
-        // Keep page targeting segments
-        const pageTargetingSegments = flag.segments.filter((segment) =>
-          isPageTargetingSegment(segment),
-        );
+  let isRemoteBlocking = false;
+  const remoteFlagKeys: Set<string> = new Set();
+  const localFlagKeys: Set<string> = new Set();
+  const parsedFlags = JSON.parse(initialFlags);
 
-        // Create or update the preview segment
-        const previewSegment = {
-          metadata: { segmentName: 'preview' },
-          variant: urlParams[flag.key],
-        };
+  parsedFlags.forEach((flag: EvaluationFlag) => {
+    const { key, variants, segments, metadata = {} } = flag;
 
-        flag.segments = [...pageTargetingSegments, previewSegment];
+    // Force variant if in preview mode
+    if (
+      urlParams['PREVIEW'] &&
+      key in urlParams &&
+      urlParams[key] in variants
+    ) {
+      // Remove preview-related query parameters from the URL
+      globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(globalScope.location.href, ['PREVIEW', key]),
+      );
+
+      // Retain only page-targeting segments
+      const pageTargetingSegments = segments.filter(isPageTargetingSegment);
+
+      // Add or update the preview segment
+      const previewSegment = {
+        metadata: { segmentName: 'preview' },
+        variant: urlParams[key],
+      };
+
+      // Update the flag's segments to include the preview segment
+      flag.segments = [...pageTargetingSegments, previewSegment];
+
+      // make all preview flags local
+      metadata.evaluationMode = 'local';
+    }
+
+    if (metadata.evaluationMode !== 'local') {
+      remoteFlagKeys.add(key);
+
+      // allow local evaluation for remote flags
+      metadata.evaluationMode = 'local';
+
+      // Check if any remote flags are blocking
+      if (!isRemoteBlocking && metadata.blockingEvaluation) {
+        isRemoteBlocking = true;
+
+        // Apply anti-flicker CSS to prevent UI flicker
+        applyAntiFlickerCss();
       }
-    });
-    initialFlags = JSON.stringify(parsedFlags);
-  }
+    } else {
+      // Add locally evaluable flags to the local flag set
+      localFlagKeys.add(key);
+    }
 
+    flag.metadata = metadata;
+  });
+
+  initialFlags = JSON.stringify(parsedFlags);
+
+  // initialize the experiment
   globalScope.webExperiment = Experiment.initialize(apiKey, {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     internalInstanceNameSuffix: 'web',
-    fetchOnStart: false,
     initialFlags: initialFlags,
+    // timeout for fetching remote flags
+    fetchTimeoutMillis: 1000,
+    pollOnStart: false,
+    fetchOnStart: false,
+    ...config,
   });
 
   // If no integration has been set, use an amplitude integration.
@@ -125,14 +176,34 @@ export const initializeExperiment = (apiKey: string, initialFlags: string) => {
   globalScope.webExperiment.addPlugin(globalScope.experimentIntegration);
   globalScope.webExperiment.setUser(user);
 
-  const variants = globalScope.webExperiment.all();
+  setUrlChangeListener(new Set([...localFlagKeys, ...remoteFlagKeys]));
 
-  setUrlChangeListener();
-  applyVariants(variants);
+  // apply local variants
+  applyVariants(globalScope.webExperiment.all(), localFlagKeys);
+
+  if (!isRemoteBlocking) {
+    // Remove anti-flicker css if remote flags are not blocking
+    globalScope.document.getElementById?.('amp-exp-css')?.remove();
+  }
+
+  if (remoteFlagKeys.size === 0) {
+    return;
+  }
+
+  try {
+    await globalScope.webExperiment.doFlags();
+  } catch (error) {
+    console.warn('Error fetching remote flags:', error);
+  }
+  // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
+  applyVariants(globalScope.webExperiment.all(), remoteFlagKeys);
 };
 
-const applyVariants = (variants: Variants | undefined) => {
-  if (!variants) {
+const applyVariants = (
+  variants: Variants,
+  flagKeys: Set<string> | undefined = undefined,
+) => {
+  if (Object.keys(variants).length === 0) {
     return;
   }
   const globalScope = getGlobalScope();
@@ -146,6 +217,9 @@ const applyVariants = (variants: Variants | undefined) => {
     urlExposureCache[currentUrl] = {};
   }
   for (const key in variants) {
+    if (flagKeys && !flagKeys.has(key)) {
+      continue;
+    }
     const variant = variants[key];
     const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
     if (isWebExperimentation) {
@@ -296,7 +370,7 @@ const handleInject = (action, key: string, variant: Variant) => {
   exposureWithDedupe(key, variant);
 };
 
-export const setUrlChangeListener = () => {
+export const setUrlChangeListener = (flagKeys: Set<string>) => {
   const globalScope = getGlobalScope();
   if (!globalScope) {
     return;
@@ -304,7 +378,7 @@ export const setUrlChangeListener = () => {
   // Add URL change listener for back/forward navigation
   globalScope.addEventListener('popstate', () => {
     revertMutations();
-    applyVariants(globalScope.webExperiment.all());
+    applyVariants(globalScope.webExperiment.all(), flagKeys);
   });
 
   // Create wrapper functions for pushState and replaceState
@@ -318,7 +392,7 @@ export const setUrlChangeListener = () => {
       const result = originalPushState.apply(this, args);
       // Revert mutations and apply variants
       revertMutations();
-      applyVariants(globalScope.webExperiment.all());
+      applyVariants(globalScope.webExperiment.all(), flagKeys);
       previousUrl = globalScope.location.href;
       return result;
     };
@@ -329,7 +403,7 @@ export const setUrlChangeListener = () => {
       const result = originalReplaceState.apply(this, args);
       // Revert mutations and apply variants
       revertMutations();
-      applyVariants(globalScope.webExperiment.all());
+      applyVariants(globalScope.webExperiment.all(), flagKeys);
       previousUrl = globalScope.location.href;
       return result;
     };
@@ -362,5 +436,21 @@ const exposureWithDedupe = (key: string, variant: Variant) => {
   if (shouldTrackExposure) {
     globalScope.webExperiment.exposure(key);
     urlExposureCache[currentUrl][key] = variant.key;
+  }
+};
+
+const applyAntiFlickerCss = () => {
+  const globalScope = getGlobalScope();
+  if (!globalScope) return;
+  if (!globalScope.document.getElementById('amp-exp-css')) {
+    const id = 'amp-exp-css';
+    const s = document.createElement('style');
+    s.id = id;
+    s.innerText =
+      '* { visibility: hidden !important; background-image: none !important; }';
+    document.head.appendChild(s);
+    globalScope.window.setTimeout(function () {
+      s.remove();
+    }, 1000);
   }
 };
