@@ -126,10 +126,14 @@ export class IntegrationManager {
 export class SessionDedupeCache {
   private readonly storageKey: string;
   private readonly isSessionStorageAvailable = isSessionStorageAvailable();
-  private inMemoryCache: Record<string, string> = {};
+  private inMemoryCache: Record<string, Exposure> = {};
 
   constructor(instanceName: string) {
-    this.storageKey = `EXP_sent_${instanceName}`;
+    this.storageKey = `EXP_sent_v2_${instanceName}`;
+    // Remove previous version of storage if it exists.
+    if (isSessionStorageAvailable) {
+      safeGlobal.sessionStorage.removeItem(`EXP_sent_${instanceName}`);
+    }
   }
 
   shouldTrack(exposure: Exposure): boolean {
@@ -138,11 +142,11 @@ export class SessionDedupeCache {
       return true;
     }
     this.loadCache();
-    const value = this.inMemoryCache[exposure.flag_key];
+    const cachedExposure = this.inMemoryCache[exposure.flag_key];
     let shouldTrack = false;
-    if (!value) {
+    if (!cachedExposure || cachedExposure.variant !== exposure.variant) {
       shouldTrack = true;
-      this.inMemoryCache[exposure.flag_key] = exposure.variant;
+      this.inMemoryCache[exposure.flag_key] = exposure;
     }
     this.storeCache();
     return shouldTrack;

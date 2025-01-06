@@ -403,7 +403,7 @@ export class EvaluationEngine {
   }
 
   private coerceString(value: unknown | undefined): string | undefined {
-    if (!value) {
+    if (value === undefined || value === null) {
       return undefined;
     }
     if (typeof value === 'object') {

@@ -7,6 +7,7 @@ import { stringify } from 'ts-jest';
 
 import { createMutateFlag, createRedirectFlag } from './util/create-flag';
 import { MockHttpClient } from './util/mock-http-client';
+import { safeGlobal } from '@amplitude/experiment-core';
 
 let apiKey = 0;
 
@@ -547,6 +548,10 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
   });
+});
+
+test('feature experiment on global Experiment object', () => {
+  expect(safeGlobal.Experiment).toBeDefined();
 });
 
 describe('helper methods', () => {

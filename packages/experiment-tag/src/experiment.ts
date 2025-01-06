@@ -4,6 +4,7 @@ import {
   EvaluationSegment,
   getGlobalScope,
   isLocalStorageAvailable,
+  safeGlobal,
 } from '@amplitude/experiment-core';
 import {
   Experiment,
@@ -13,6 +14,7 @@ import {
   ExperimentUser,
   Variants,
 } from '@amplitude/experiment-js-client';
+import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { WebExperimentConfig } from './config';
@@ -29,6 +31,8 @@ import {
 
 const PAGE_NOT_TARGETED = 'Page not targeted';
 const PAGE_IS_EXCLUDED = 'Page is excluded';
+
+safeGlobal.Experiment = FeatureExperiment;
 
 export class WebExperiment {
   private readonly apiKey: string;

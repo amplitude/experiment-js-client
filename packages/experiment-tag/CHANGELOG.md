@@ -3,6 +3,46 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.3.0...@amplitude/experiment-tag@0.3.1) (2024-12-27)
+
+**Note:** Version bump only for package @amplitude/experiment-tag
+
+
+
+
+
+# [0.3.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.2.7...@amplitude/experiment-tag@0.3.0) (2024-12-23)
+
+
+### Bug Fixes
+
+* Add patch dom mutator ([#146](https://github.com/amplitude/experiment-js-client/issues/146)) ([a1afcfa](https://github.com/amplitude/experiment-js-client/commit/a1afcfa2161ba75d8756800e153b180adce36d8a))
+
+
+### Features
+
+* add feature experiment support in web script ([#140](https://github.com/amplitude/experiment-js-client/issues/140)) ([bf60c05](https://github.com/amplitude/experiment-js-client/commit/bf60c05107388ece6f5469b182c2b521fe7957ef))
+
+
+
+
+
+## [0.2.7](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.2.6...@amplitude/experiment-tag@0.2.7) (2024-12-03)
+
+**Note:** Version bump only for package @amplitude/experiment-tag
+
+
+
+
+
+## [0.2.6](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.2.5...@amplitude/experiment-tag@0.2.6) (2024-12-02)
+
+**Note:** Version bump only for package @amplitude/experiment-tag
+
+
+
+
+
 ## [0.2.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.2.4...@amplitude/experiment-tag@0.2.5) (2024-11-27)
 
 

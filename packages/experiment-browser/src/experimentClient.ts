@@ -122,7 +122,7 @@ export class ExperimentClient implements Client {
     };
     this.poller = new Poller(
       () => this.doFlags(),
-      config.flagConfigPollingIntervalMillis,
+      this.config.flagConfigPollingIntervalMillis,
     );
     // Transform initialVariants
     if (this.config.initialVariants) {

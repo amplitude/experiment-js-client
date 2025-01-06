@@ -1,11 +1,14 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
+import { safeGlobal } from '@amplitude/experiment-core';
 
 import { Defaults, ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
 import { AmplitudeIntegrationPlugin } from './integration/amplitude';
 import { DefaultUserProvider } from './providers/default';
 
-const instances = {};
+// Global instances for debugging.
+safeGlobal.experimentInstances = {};
+const instances = safeGlobal.experimentInstances;
 
 const getInstanceName = (config: ExperimentConfig): string => {
   return config?.instanceName || Defaults.instanceName;
@@ -18,7 +21,7 @@ const getInstanceName = (config: ExperimentConfig): string => {
  * @param apiKey The deployment API Key
  * @param config See {@link ExperimentConfig} for config options
  */
-const initialize = (
+export const initialize = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {
@@ -52,7 +55,7 @@ const initialize = (
  * @param apiKey The deployment API Key
  * @param config See {@link ExperimentConfig} for config options
  */
-const initializeWithAmplitudeAnalytics = (
+export const initializeWithAmplitudeAnalytics = (
   apiKey: string,
   config?: ExperimentConfig,
 ): ExperimentClient => {

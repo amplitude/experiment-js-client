@@ -3,6 +3,52 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.14.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.14.0...@amplitude/experiment-js-client@1.14.1) (2024-12-27)
+
+
+### Bug Fixes
+
+* fix unexposure events not deduped by integration ([#151](https://github.com/amplitude/experiment-js-client/issues/151)) ([24ebf3e](https://github.com/amplitude/experiment-js-client/commit/24ebf3ee42c11b088e526839146747b6a49e354a))
+
+
+
+
+
+# [1.14.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.13.2...@amplitude/experiment-js-client@1.14.0) (2024-12-23)
+
+
+### Bug Fixes
+
+* catch error in getUrlParam() in DefaultUserProvider ([#150](https://github.com/amplitude/experiment-js-client/issues/150)) ([007ff68](https://github.com/amplitude/experiment-js-client/commit/007ff684e40a0a78b538a99647e84101ac37e693))
+
+
+### Features
+
+* add feature experiment support in web script ([#140](https://github.com/amplitude/experiment-js-client/issues/140)) ([bf60c05](https://github.com/amplitude/experiment-js-client/commit/bf60c05107388ece6f5469b182c2b521fe7957ef))
+
+
+
+
+
+## [1.13.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.13.1...@amplitude/experiment-js-client@1.13.2) (2024-12-03)
+
+
+### Bug Fixes
+
+* misconfigured polling interval ([e0e9525](https://github.com/amplitude/experiment-js-client/commit/e0e95259b617bddcca894e469a1c0e81b7523b82))
+
+
+
+
+
+## [1.13.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.13.0...@amplitude/experiment-js-client@1.13.1) (2024-12-02)
+
+**Note:** Version bump only for package @amplitude/experiment-js-client
+
+
+
+
+
 # [1.13.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.12.3...@amplitude/experiment-js-client@1.13.0) (2024-11-26)
 
 
