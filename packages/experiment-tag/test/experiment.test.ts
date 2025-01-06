@@ -736,6 +736,134 @@ describe('initializeExperiment', () => {
     );
     expect(mockExposure).not.toHaveBeenCalled();
   });
+
+  test('preview - should set sessionStorage', () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      sessionStorage: {
+        setItem: jest.fn(),
+      },
+      location: {
+        href: 'http://test.com/2',
+        replace: jest.fn(),
+        search: '?test=treatment&PREVIEW=true',
+      },
+      document: { referrer: '' },
+      history: { replaceState: jest.fn() },
+    };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    initializeExperiment(
+      'session',
+      JSON.stringify([
+        {
+          key: 'test',
+          metadata: {
+            deployed: true,
+            evaluationMode: 'local',
+            flagType: 'experiment',
+            deliveryMethod: 'web',
+          },
+          segments: [],
+          variants: {
+            control: {
+              key: 'control',
+              payload: [],
+              value: 'control',
+            },
+            off: {
+              key: 'off',
+              metadata: {
+                default: true,
+              },
+            },
+            treatment: {
+              key: 'treatment',
+              payload: [],
+              value: 'treatment',
+            },
+          },
+        },
+      ]),
+    );
+
+    expect(mockGlobal.sessionStorage.setItem).toHaveBeenCalledWith(
+      'EXP_session_PREVIEW',
+      JSON.stringify({ test: 'treatment' }),
+    );
+  });
+
+  test('preview - sessionStorage persistence', () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      sessionStorage: {
+        getItem: jest
+          .fn()
+          .mockReturnValue(JSON.stringify({ test: 'treatment' })),
+      },
+      location: {
+        href: 'http://test.com/2',
+        replace: jest.fn(),
+      },
+      document: { referrer: '' },
+      history: { replaceState: jest.fn() },
+    };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    initializeExperiment(
+      'session_persistence',
+      JSON.stringify([
+        {
+          key: 'test',
+          metadata: {
+            deployed: true,
+            evaluationMode: 'local',
+            flagType: 'experiment',
+            deliveryMethod: 'web',
+          },
+          segments: [
+            {
+              metadata: {
+                segmentName: 'All Other Users',
+              },
+              variant: 'off',
+            },
+          ],
+          variants: {
+            control: {
+              key: 'control',
+              payload: [],
+              value: 'control',
+            },
+            off: {
+              key: 'off',
+              metadata: {
+                default: true,
+                trackExposure: false,
+              },
+            },
+            treatment: {
+              key: 'treatment',
+              payload: [],
+              value: 'treatment',
+            },
+          },
+        },
+      ]),
+    );
+
+    expect(mockExposure).toHaveBeenCalledWith('test');
+  });
 });
 
 test('feature experiment on global Experiment object', () => {
