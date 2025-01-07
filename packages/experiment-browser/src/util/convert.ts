@@ -12,11 +12,14 @@ export const convertUserToContext = (
   const context: Record<string, unknown> = { user: user };
   // add page context
   const globalScope = getGlobalScope();
-  context.page = {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    url: user.currentUrl ?? globalScope?.location.href,
-  };
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const currentUrl = user.currentUrl || globalScope?.location.href;
+  if (currentUrl) {
+    context.page = {
+      url: currentUrl,
+    };
+  }
   const groups: Record<string, Record<string, unknown>> = {};
   if (!user.groups) {
     return context;
