@@ -1,4 +1,5 @@
 import * as experimentCore from '@amplitude/experiment-core';
+import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
 import { WebExperiment } from 'src/experiment';
@@ -7,7 +8,6 @@ import { stringify } from 'ts-jest';
 
 import { createMutateFlag, createRedirectFlag } from './util/create-flag';
 import { MockHttpClient } from './util/mock-http-client';
-import { safeGlobal } from '@amplitude/experiment-core';
 
 let apiKey = 0;
 

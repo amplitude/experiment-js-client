@@ -21,6 +21,11 @@ import { WebExperimentConfig } from './config';
 import { getInjectUtils } from './inject-utils';
 import { WindowMessenger } from './messenger';
 import {
+  ApplyVariantsOption,
+  RevertVariantsOptions,
+  WebExperimentContext,
+} from './types';
+import {
   convertEvaluationVariantToVariant,
   getUrlParams,
   removeQueryParams,
@@ -216,7 +221,7 @@ export class WebExperiment {
     }
 
     // apply local variants
-    this.applyVariants(this.localFlagKeys);
+    this.applyVariants({ flagKeys: this.localFlagKeys });
 
     if (
       !this.isRemoteBlocking ||
@@ -232,7 +237,7 @@ export class WebExperiment {
 
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
-    this.applyVariants(this.remoteFlagKeys);
+    this.applyVariants({ flagKeys: this.remoteFlagKeys });
   }
 
   /**
@@ -244,30 +249,26 @@ export class WebExperiment {
 
   /**
    * Set the context for evaluating experiments.
-   * If user is not provided, the current user is used.
-   * If currentUrl is not provided, the current URL is used.
-   * @param user
-   * @param currentUrl
+   * If user is undefined, the current user is used.
+   * If currentUrl is undefined, the current URL is used.
+   * @param webExperimentContext
    */
-  public setContext(
-    user: ExperimentUser | undefined = undefined,
-    currentUrl: string | undefined = undefined,
-  ) {
+  public setContext(webExperimentContext: WebExperimentContext) {
     if (this.experimentClient) {
       const existingUser = this.experimentClient?.getUser();
-      if (user) {
-        if (currentUrl) {
+      if (webExperimentContext.user) {
+        if (webExperimentContext.currentUrl) {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
           user.currentUrl = currentUrl;
         }
-        this.experimentClient.setUser(user);
+        this.experimentClient.setUser(webExperimentContext.user);
       } else {
         this.experimentClient.setUser({
           ...existingUser,
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
-          currentUrl: currentUrl,
+          currentUrl: webExperimentContext.currentUrl,
         });
       }
     }
@@ -284,9 +285,10 @@ export class WebExperiment {
 
   /**
    * Apply evaluated variants to the page.
-   * @param flagKeys
+   * @param applyVariantsOption
    */
-  public applyVariants(flagKeys: string[] | undefined = undefined) {
+  public applyVariants(applyVariantsOption?: ApplyVariantsOption) {
+    const { flagKeys } = applyVariantsOption || {};
     const variants = this.experimentClient?.all() || {};
     if (Object.keys(variants).length === 0) {
       return;
@@ -328,9 +330,10 @@ export class WebExperiment {
 
   /**
    * Revert mutations applied by the experiment.
-   * @param flagKeys
+   * @param revertVariantsOptions
    */
-  public revertMutations(flagKeys: string[] | undefined = undefined) {
+  public revertVariants(revertVariantsOptions?: RevertVariantsOptions) {
+    let { flagKeys } = revertVariantsOptions || {};
     if (!flagKeys) {
       flagKeys = Object.keys(this.appliedMutations);
     }
@@ -347,7 +350,7 @@ export class WebExperiment {
    * @param flagKeys
    */
   public getRedirectUrls(
-    flagKeys: string[] | undefined = undefined,
+    flagKeys?: string[],
   ): Record<string, Record<string, string>> {
     const redirectUrlMap: Record<string, Record<string, string>> = {};
     if (!flagKeys) {
@@ -387,7 +390,7 @@ export class WebExperiment {
    */
   public previewVariant(key: string, variant: string) {
     if (this.appliedMutations[key]) {
-      this.revertMutations([key]);
+      this.revertVariants({ flagKeys: [key] });
     }
     const flag = this.flagVariantMap[key];
     if (!flag) {
@@ -405,23 +408,24 @@ export class WebExperiment {
   }
 
   /**
-   * Get all variants for a user. If user is not provided, the current user is used.
-   * If currentUrl is not provided, the current URL is used.
-   * If flagKeys is not provided, all variants are returned.
-   * @param user
-   * @param currentUrl
+   * Get all variants for a given WebExperimentContext.
+   * If user is undefined, the current user is used.
+   * If currentUrl is undefined, the current URL is used.
+   * If flagKeys is undefined, all variants are returned.
+   * @param webExperimentContext
    * @param flagKeys
    */
   public getVariants(
-    user: ExperimentUser | undefined = undefined,
-    currentUrl: string | undefined = undefined,
-    flagKeys: string[] | undefined = undefined,
+    webExperimentContext?: WebExperimentContext,
+    flagKeys?: string[],
   ): Variants {
     if (!this.experimentClient) {
       return {};
     }
-    const existingUser = this.experimentClient?.getUser();
-    this.setContext(user, currentUrl);
+    const existingContext: WebExperimentContext = {
+      user: this.experimentClient?.getUser(),
+    };
+    webExperimentContext && this.setContext(webExperimentContext);
     const variants = this.experimentClient.all();
     if (flagKeys) {
       const filteredVariants = {};
@@ -430,7 +434,7 @@ export class WebExperiment {
       }
       return filteredVariants;
     }
-    this.setContext(existingUser, undefined);
+    this.setContext(existingContext);
     return variants;
   }
 
@@ -450,10 +454,8 @@ export class WebExperiment {
     }
   }
 
-  public getActiveExperimentsOnPage(
-    currentUrl: string | undefined = undefined,
-  ): string[] {
-    const variants = this.getVariants(undefined, currentUrl);
+  public getActiveExperimentsOnPage(currentUrl?: string): string[] {
+    const variants = this.getVariants({ currentUrl: currentUrl });
     return Object.keys(variants).filter((key) => {
       return (
         variants[key].metadata?.segmentName !== PAGE_NOT_TARGETED &&
@@ -473,13 +475,13 @@ export class WebExperiment {
     }
     // Add URL change listener for back/forward navigation
     globalScope.addEventListener('popstate', () => {
-      this.revertMutations();
-      this.applyVariants(flagKeys);
+      this.revertVariants();
+      this.applyVariants({ flagKeys: flagKeys });
     });
 
     const handleUrlChange = () => {
-      this.revertMutations();
-      this.applyVariants(flagKeys);
+      this.revertVariants();
+      this.applyVariants({ flagKeys: flagKeys });
       this.previousUrl = globalScope.location.href;
     };
 
