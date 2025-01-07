@@ -64,14 +64,6 @@ export class WebExperiment {
     this.apiKey = apiKey;
     this.config = config;
     this.initialFlags = JSON.parse(initialFlags);
-    this.initialFlags.forEach((flag: EvaluationFlag) => {
-      const variants = flag.variants;
-      this.flagVariantMap[flag.key] = {};
-      Object.keys(variants).forEach((variantKey) => {
-        this.flagVariantMap[flag.key][variantKey] =
-          convertEvaluationVariantToVariant(flag.variants[variantKey]);
-      });
-    });
     if (this.globalScope?.webExperiment) {
       return;
     }
@@ -123,6 +115,12 @@ export class WebExperiment {
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, segments, metadata = {} } = flag;
+
+      this.flagVariantMap[key] = {};
+      Object.keys(variants).forEach((variantKey) => {
+        this.flagVariantMap[key][variantKey] =
+          convertEvaluationVariantToVariant(variants[variantKey]);
+      });
 
       // Force variant if in preview mode
       if (
