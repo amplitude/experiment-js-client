@@ -59,16 +59,18 @@ export const initializeExperiment = async (
     user = {};
   }
 
-  // create new user if it does not exist, or it does not have web_exp_id
-  if (Object.keys(user).length === 0 || !user.web_exp_id) {
-    // if user has device_id, migrate it to web_exp_id
-    if (user.device_id) {
-      user.web_exp_id = user.device_id;
-      delete user.device_id;
-    } else {
-      const uuid = UUID();
-      user = { web_exp_id: uuid };
-    }
+  // migrate device_id to web_exp_id if it exists
+  // if web_exp_id does not exist, create a new one
+  // if both web_exp_id and device_id exist, remove device_id
+  if (!user.web_exp_id) {
+    user.web_exp_id = user.device_id || UUID();
+    delete user.device_id;
+    globalScope.localStorage.setItem(
+      experimentStorageName,
+      JSON.stringify(user),
+    );
+  } else if (user.web_exp_id && user.device_id) {
+    delete user.device_id;
     globalScope.localStorage.setItem(
       experimentStorageName,
       JSON.stringify(user),
