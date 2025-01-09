@@ -59,24 +59,20 @@ export const initializeExperiment = async (
     user = {};
   }
 
-  // create new user if it does not exist, or it does not have device_id or web_exp_id
-  if (Object.keys(user).length === 0 || !user.device_id || !user.web_exp_id) {
-    if (!user.device_id || !user.web_exp_id) {
-      // if user has device_id, migrate it to web_exp_id
-      if (user.device_id) {
-        user.web_exp_id = user.device_id;
-      } else if (user.web_exp_id) {
-        user.device_id = user.web_exp_id;
-      } else {
-        const uuid = UUID();
-        // both IDs are set for backwards compatibility, to be removed in future update
-        user = { device_id: uuid, web_exp_id: uuid };
-      }
-      globalScope.localStorage.setItem(
-        experimentStorageName,
-        JSON.stringify(user),
-      );
+  // create new user if it does not exist, or it does not have web_exp_id
+  if (Object.keys(user).length === 0 || !user.web_exp_id) {
+    // if user has device_id, migrate it to web_exp_id
+    if (user.device_id) {
+      user.web_exp_id = user.device_id;
+      delete user.device_id;
+    } else {
+      const uuid = UUID();
+      user = { web_exp_id: uuid };
     }
+    globalScope.localStorage.setItem(
+      experimentStorageName,
+      JSON.stringify(user),
+    );
   }
 
   const urlParams = getUrlParams();
