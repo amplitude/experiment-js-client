@@ -59,9 +59,10 @@ export const initializeExperiment = async (
     user = {};
   }
 
-  // migrate device_id to web_exp_id if it exists
-  // if web_exp_id does not exist, create a new one
-  // if both web_exp_id and device_id exist, remove device_id
+  // if web_exp_id does not exist:
+  // 1. if device_id exists, migrate device_id to web_exp_id and remove device_id
+  // 2. if device_id does not exist, create a new web_exp_id
+  // 3. if both device_id and web_exp_id exist, remove device_id
   if (!user.web_exp_id) {
     user.web_exp_id = user.device_id || UUID();
     delete user.device_id;
