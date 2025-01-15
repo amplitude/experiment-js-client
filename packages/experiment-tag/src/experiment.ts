@@ -131,14 +131,6 @@ export const initializeExperiment = async (
 
       // allow local evaluation for remote flags
       metadata.evaluationMode = 'local';
-
-      // Check if any remote flags are blocking
-      if (!isRemoteBlocking && metadata.blockingEvaluation) {
-        isRemoteBlocking = true;
-
-        // Apply anti-flicker CSS to prevent UI flicker
-        applyAntiFlickerCss();
-      }
     } else {
       // Add locally evaluable flags to the local flag set
       localFlagKeys.add(key);
@@ -161,6 +153,23 @@ export const initializeExperiment = async (
     fetchOnStart: false,
     ...config,
   });
+
+  // evaluate variants for page targeting
+  const variants: Variants = globalScope.webExperiment.all();
+
+  for (const [key, variant] of Object.entries(variants)) {
+    // only apply antiflicker for remote flags active on the page
+    if (
+      remoteFlagKeys.has(key) &&
+      variant.metadata?.blockingEvaluation &&
+      variant.metadata?.segmentName !== 'Page not targeted' &&
+      variant.metadata?.segmentName !== 'Page is excluded'
+    ) {
+      isRemoteBlocking = true;
+      // Apply anti-flicker CSS to prevent UI flicker
+      applyAntiFlickerCss();
+    }
+  }
 
   // If no integration has been set, use an amplitude integration.
   if (!globalScope.experimentIntegration) {
