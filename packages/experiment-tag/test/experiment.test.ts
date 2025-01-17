@@ -2,7 +2,11 @@ import * as experimentCore from '@amplitude/experiment-core';
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
-import {PAGE_IS_EXCLUDED_SEGMENT_NAME, PAGE_NOT_TARGETED_SEGMENT_NAME, WebExperiment} from 'src/experiment';
+import {
+  PAGE_IS_EXCLUDED_SEGMENT_NAME,
+  PAGE_NOT_TARGETED_SEGMENT_NAME,
+  WebExperiment,
+} from 'src/experiment';
 import * as util from 'src/util';
 import { stringify } from 'ts-jest';
 
