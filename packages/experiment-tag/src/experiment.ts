@@ -11,7 +11,6 @@ import {
   Variant,
   AmplitudeIntegrationPlugin,
   ExperimentClient,
-  ExperimentUser,
   Variants,
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
@@ -34,8 +33,8 @@ import {
   concatenateQueryParamsOf,
 } from './util';
 
-const PAGE_NOT_TARGETED = 'Page not targeted';
-const PAGE_IS_EXCLUDED = 'Page is excluded';
+export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
+export const PAGE_IS_EXCLUDED_SEGMENT_NAME = 'Page is excluded';
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -84,22 +83,23 @@ export class WebExperiment {
       user = {};
     }
 
-    // create new user if it does not exist, or it does not have device_id or web_exp_id
-    if (Object.keys(user).length === 0 || !user.device_id || !user.web_exp_id) {
-      if (!user.device_id || !user.web_exp_id) {
-        // if user has device_id, migrate it to web_exp_id
-        if (user.device_id) {
-          user.web_exp_id = user.device_id;
-        } else {
-          const uuid = UUID();
-          // both IDs are set for backwards compatibility, to be removed in future update
-          user = { device_id: uuid, web_exp_id: uuid };
-        }
-        this.globalScope.localStorage.setItem(
-          experimentStorageName,
-          JSON.stringify(user),
-        );
-      }
+    // if web_exp_id does not exist:
+    // 1. if device_id exists, migrate device_id to web_exp_id and remove device_id
+    // 2. if device_id does not exist, create a new web_exp_id
+    // 3. if both device_id and web_exp_id exist, remove device_id
+    if (!user.web_exp_id) {
+      user.web_exp_id = user.device_id || UUID();
+      delete user.device_id;
+      this.globalScope.localStorage.setItem(
+        experimentStorageName,
+        JSON.stringify(user),
+      );
+    } else if (user.web_exp_id && user.device_id) {
+      delete user.device_id;
+      this.globalScope.localStorage.setItem(
+        experimentStorageName,
+        JSON.stringify(user),
+      );
     }
 
     const urlParams = getUrlParams();
@@ -158,14 +158,6 @@ export class WebExperiment {
 
         // allow local evaluation for remote flags
         metadata.evaluationMode = 'local';
-
-        // Check if any remote flags are blocking
-        if (!this.isRemoteBlocking && metadata.blockingEvaluation) {
-          this.isRemoteBlocking = true;
-
-          // Apply anti-flicker CSS to prevent UI flicker
-          this.applyAntiFlickerCss();
-        }
       } else {
         // Add locally evaluable flags to the local flag set
         this.localFlagKeys.push(key);
@@ -189,6 +181,23 @@ export class WebExperiment {
       ...this.config,
     });
 
+    // evaluate variants for page targeting
+    const variants: Variants = this.experimentClient.all();
+
+    for (const [key, variant] of Object.entries(variants)) {
+      // only apply antiflicker for remote flags active on the page
+      if (
+        this.remoteFlagKeys.includes(key) &&
+        variant.metadata?.blockingEvaluation &&
+        variant.metadata?.segmentName !== PAGE_NOT_TARGETED_SEGMENT_NAME &&
+        variant.metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
+      ) {
+        this.isRemoteBlocking = true;
+        // Apply anti-flicker CSS to prevent UI flicker
+        this.applyAntiFlickerCss();
+      }
+    }
+
     // If no integration has been set, use an amplitude integration.
     if (!this.globalScope.experimentIntegration) {
       const connector = AnalyticsConnector.getInstance('$default_instance');
@@ -201,6 +210,16 @@ export class WebExperiment {
     this.globalScope.experimentIntegration.type = 'integration';
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(user);
+
+    // If no integration has been set, use an amplitude integration.
+    if (!this.globalScope.experimentIntegration) {
+      const connector = AnalyticsConnector.getInstance('$default_instance');
+      this.globalScope.experimentIntegration = new AmplitudeIntegrationPlugin(
+        apiKey,
+        connector,
+        0,
+      );
+    }
   }
 
   /**
@@ -456,8 +475,9 @@ export class WebExperiment {
     const variants = this.getVariants({ currentUrl: currentUrl });
     return Object.keys(variants).filter((key) => {
       return (
-        variants[key].metadata?.segmentName !== PAGE_NOT_TARGETED &&
-        variants[key].metadata?.segmentName !== PAGE_IS_EXCLUDED
+        variants[key].metadata?.segmentName !==
+          PAGE_NOT_TARGETED_SEGMENT_NAME &&
+        variants[key].metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
       );
     });
   }
@@ -645,8 +665,8 @@ export class WebExperiment {
   private isPageTargetingSegment(segment: EvaluationSegment) {
     return (
       segment.metadata?.trackExposure === false &&
-      (segment.metadata?.segmentName === PAGE_NOT_TARGETED ||
-        segment.metadata?.segmentName === PAGE_IS_EXCLUDED)
+      (segment.metadata?.segmentName === PAGE_NOT_TARGETED_SEGMENT_NAME ||
+        segment.metadata?.segmentName === PAGE_IS_EXCLUDED_SEGMENT_NAME)
     );
   }
 

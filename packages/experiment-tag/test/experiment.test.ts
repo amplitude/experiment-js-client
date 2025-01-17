@@ -2,7 +2,7 @@ import * as experimentCore from '@amplitude/experiment-core';
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
-import { WebExperiment } from 'src/experiment';
+import {PAGE_IS_EXCLUDED_SEGMENT_NAME, PAGE_NOT_TARGETED_SEGMENT_NAME, WebExperiment} from 'src/experiment';
 import * as util from 'src/util';
 import { stringify } from 'ts-jest';
 
@@ -59,12 +59,11 @@ describe('initializeExperiment', () => {
     );
     webExperiment.start();
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
-      device_id: 'mock',
       web_exp_id: 'mock',
     });
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       'EXP_' + stringify(apiKey),
-      JSON.stringify({ device_id: 'mock', web_exp_id: 'mock' }),
+      JSON.stringify({ web_exp_id: 'mock' }),
     );
   });
 
@@ -205,7 +204,7 @@ describe('initializeExperiment', () => {
           ],
         ],
         metadata: {
-          segmentName: 'Page not targeted',
+          segmentName: PAGE_NOT_TARGETED_SEGMENT_NAME,
           trackExposure: false,
         },
         variant: 'off',
@@ -305,7 +304,7 @@ describe('initializeExperiment', () => {
           ],
         ],
         metadata: {
-          segmentName: 'Page not targeted',
+          segmentName: PAGE_NOT_TARGETED_SEGMENT_NAME,
           trackExposure: false,
         },
         variant: 'off',
@@ -346,7 +345,7 @@ describe('initializeExperiment', () => {
           ],
         ],
         metadata: {
-          segmentName: 'Page is excluded',
+          segmentName: PAGE_IS_EXCLUDED_SEGMENT_NAME,
           trackExposure: false,
         },
         variant: 'off',
@@ -627,7 +626,7 @@ describe('helper methods', () => {
           ],
         ],
         metadata: {
-          segmentName: 'Page not targeted',
+          segmentName: PAGE_NOT_TARGETED_SEGMENT_NAME,
           trackExposure: false,
         },
         variant: 'off',
@@ -645,7 +644,7 @@ describe('helper methods', () => {
           ],
         ],
         metadata: {
-          segmentName: 'Page is excluded',
+          segmentName: PAGE_IS_EXCLUDED_SEGMENT_NAME,
           trackExposure: false,
         },
         variant: 'off',
