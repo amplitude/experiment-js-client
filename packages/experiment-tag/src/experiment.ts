@@ -455,19 +455,28 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (webExperimentContext) this.setContext(webExperimentContext);
 
     const allVariants = this.experimentClient.all();
-    const variants = Object.fromEntries(
-      Object.entries(allVariants).filter(
-        ([key]) =>
-          !flagKeys ||
-          flagKeys.includes(key) ||
-          this.localFlagKeys.includes(key) ||
-          this.remoteFlagKeys.includes(key),
-      ),
+
+    const isRelevantKey = (key: string) =>
+      !flagKeys ||
+      flagKeys.includes(key) ||
+      this.localFlagKeys.includes(key) ||
+      this.remoteFlagKeys.includes(key);
+
+    const variants = Object.keys(allVariants).reduce<Record<string, any>>(
+      (acc, key) => {
+        if (isRelevantKey(key)) acc[key] = allVariants[key];
+        return acc;
+      },
+      {},
     );
 
     this.setContext(existingContext);
-    return flagKeys
-      ? Object.fromEntries(flagKeys.map((key) => [key, variants[key]]))
+
+    return flagKeys?.length
+      ? flagKeys.reduce<Record<string, any>>((acc, key) => {
+          if (key in variants) acc[key] = variants[key];
+          return acc;
+        }, {})
       : variants;
   }
 
