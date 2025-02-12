@@ -587,25 +587,26 @@ describe('helper methods', () => {
     });
     jest.restoreAllMocks();
   });
-  test('get redirect urls', () => {
-    const initialFlags = [
-      // remote flag
-      createRedirectFlag(
-        'test',
-        'treatment',
-        'http://test.com/2',
-        'http://test.com',
-      ),
-    ];
-    const webExperiment = new DefaultWebExperimentClient(
-      stringify(apiKey),
-      JSON.stringify(initialFlags),
-    );
-    const redirectUrls = webExperiment.getRedirectUrls();
-    expect(redirectUrls).toEqual({
-      test: { control: 'http://test.com', treatment: 'http://test.com/2' },
-    });
-  });
+
+  // test('get redirect urls', () => {
+  //   const initialFlags = [
+  //     // remote flag
+  //     createRedirectFlag(
+  //       'test',
+  //       'treatment',
+  //       'http://test.com/2',
+  //       'http://test.com',
+  //     ),
+  //   ];
+  //   const webExperiment = new DefaultWebExperimentClient(
+  //     stringify(apiKey),
+  //     JSON.stringify(initialFlags),
+  //   );
+  //   const redirectUrls = webExperiment.getRedirectUrls();
+  //   expect(redirectUrls).toEqual({
+  //     test: { control: 'http://test.com', treatment: 'http://test.com/2' },
+  //   });
+  // });
 
   test('get active experiments on current page', () => {
     Object.defineProperty(global, 'location', {

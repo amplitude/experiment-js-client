@@ -69,12 +69,25 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    WindowMessenger.setup();
     if (!isLocalStorageAvailable() || !this.globalScope) {
       return;
     }
 
     this.globalScope.webExperiment = this;
+
+    const urlParams = getUrlParams();
+
+    // if in visual edit mode, remove the query param
+    if (urlParams['VISUAL_EDITOR']) {
+      WindowMessenger.setup();
+      this.globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(this.globalScope.location.href, ['VISUAL_EDITOR']),
+      );
+      return;
+    }
+
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     let user;
     try {
@@ -102,17 +115,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         experimentStorageName,
         JSON.stringify(user),
       );
-    }
-
-    const urlParams = getUrlParams();
-    // if in visual edit mode, remove the query param
-    if (urlParams['VISUAL_EDITOR']) {
-      this.globalScope.history.replaceState(
-        {},
-        '',
-        removeQueryParams(this.globalScope.location.href, ['VISUAL_EDITOR']),
-      );
-      return;
     }
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
@@ -364,6 +366,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       delete this.appliedMutations[key];
     }
   }
+
   //
   // /**
   //  * Get redirect URLs for flags.
