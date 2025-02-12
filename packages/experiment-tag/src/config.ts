@@ -6,12 +6,12 @@ export interface WebExperimentConfig extends ExperimentConfig {
    */
   reapplyVariantsOnNavigation?: boolean;
   /**
-   * Determines whether anti-flicker CSS should be applied for remote blocking flags.
+   * Determines whether anti-flicker CSS should be applied for experiments with remote properties.
    */
-  applyAntiFlickerForRemoteBlocking?: boolean;
+  applyRemoteExperimentAntiFlicker?: boolean;
 }
 
 export const Defaults: WebExperimentConfig = {
   reapplyVariantsOnNavigation: true,
-  applyAntiFlickerForRemoteBlocking: true,
+  applyRemoteExperimentAntiFlicker: true,
 };

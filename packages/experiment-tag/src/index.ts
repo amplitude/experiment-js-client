@@ -1,2 +1,2 @@
-export { WebExperiment } from './experiment';
+export { DefaultWebExperimentClient } from './experiment';
 export { WebExperimentConfig } from './config';

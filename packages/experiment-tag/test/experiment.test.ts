@@ -5,7 +5,7 @@ import { Base64 } from 'js-base64';
 import {
   PAGE_IS_EXCLUDED_SEGMENT_NAME,
   PAGE_NOT_TARGETED_SEGMENT_NAME,
-  WebExperiment,
+  DefaultWebExperimentClient,
 } from 'src/experiment';
 import * as util from 'src/util';
 import { stringify } from 'ts-jest';
@@ -27,9 +27,6 @@ describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
-  jest
-    .spyOn(WebExperiment.prototype, 'setUrlChangeListener')
-    .mockReturnValue(undefined);
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
   jest.spyOn(util, 'UUID').mockReturnValue('mock');
   let mockGlobal;
@@ -57,7 +54,7 @@ describe('initializeExperiment', () => {
   });
 
   test('should initialize experiment with empty user', () => {
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([]),
     );
@@ -75,7 +72,7 @@ describe('initializeExperiment', () => {
     jest
       .spyOn(experimentCore, 'isLocalStorageAvailable')
       .mockReturnValue(false);
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([]),
     );
@@ -84,7 +81,7 @@ describe('initializeExperiment', () => {
   });
 
   test('treatment variant on control page - should redirect and call exposure', () => {
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
@@ -99,7 +96,7 @@ describe('initializeExperiment', () => {
   });
 
   test('control variant on control page - should not redirect but call exposure', () => {
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
@@ -130,7 +127,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
@@ -164,7 +161,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
@@ -215,7 +212,7 @@ describe('initializeExperiment', () => {
       },
     ];
 
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -256,7 +253,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -276,7 +273,7 @@ describe('initializeExperiment', () => {
   });
 
   test('should behave as control variant when payload is empty', () => {
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2?param3=c'),
@@ -314,7 +311,7 @@ describe('initializeExperiment', () => {
         variant: 'off',
       },
     ];
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -355,7 +352,7 @@ describe('initializeExperiment', () => {
         variant: 'off',
       },
     ];
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -382,7 +379,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify([]));
 
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -411,7 +408,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
 
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -439,7 +436,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 404);
 
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -463,7 +460,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient('', 404);
 
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -506,7 +503,7 @@ describe('initializeExperiment', () => {
       ExperimentClient.prototype as any,
       'doFlags',
     );
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -536,7 +533,7 @@ describe('initializeExperiment', () => {
     ];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
 
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -600,7 +597,7 @@ describe('helper methods', () => {
         'http://test.com',
       ),
     ];
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify(initialFlags),
     );
@@ -654,7 +651,7 @@ describe('helper methods', () => {
         variant: 'off',
       },
     ];
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -690,7 +687,7 @@ describe('helper methods', () => {
         variant: 'treatment',
       },
     ];
-    const webExperiment = new WebExperiment(
+    const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('flag-1', 'control', '', undefined, targetedSegment),
