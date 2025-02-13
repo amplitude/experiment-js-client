@@ -185,7 +185,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
 
     // evaluate variants for page targeting
-    const variants: Variants = this.experimentClient.all();
+    const variants: Variants = this.getVariants();
 
     for (const [key, variant] of Object.entries(variants)) {
       // only apply antiflicker for remote flags active on the page
@@ -225,20 +225,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  static async create(
-    apiKey: string,
-    initialFlags: string,
-    config: WebExperimentConfig = {},
-  ) {
-    const webExperiment = new DefaultWebExperimentClient(
-      apiKey,
-      initialFlags,
-      config,
-    );
-    await webExperiment.start();
-  }
-
-  // TODO start/pause mutations?
   private async start() {
     if (!this.experimentClient) {
       return;
@@ -271,6 +257,19 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.applyVariants({ flagKeys: this.remoteFlagKeys });
   }
 
+  static async create(
+    apiKey: string,
+    initialFlags: string,
+    config: WebExperimentConfig = {},
+  ) {
+    const webExperiment = new DefaultWebExperimentClient(
+      apiKey,
+      initialFlags,
+      config,
+    );
+    await webExperiment.start();
+  }
+
   /**
    * Get the underlying ExperimentClient instance.
    */
@@ -284,7 +283,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public applyVariants(applyVariantsOption?: ApplyVariantsOptions) {
     const { flagKeys } = applyVariantsOption || {};
-    const variants = this.experimentClient?.all() || {};
+    const variants = this.getVariants();
     if (Object.keys(variants).length === 0) {
       return;
     }
@@ -343,7 +342,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   /**
    * Preview the effect of a variant on the page.
-   * @param PreviewVariantsOptions
+   * @param previewVariantsOptions
    */
   public previewVariants(previewVariantsOptions: PreviewVariantsOptions) {
     const { keyToVariant } = previewVariantsOptions;
@@ -388,6 +387,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }, {});
   }
 
+  public getActiveExperiments(): string[] {
+    const variants = this.getVariants();
+    return Object.keys(variants).filter((key) => {
+      return (
+        variants[key].metadata?.segmentName !==
+          PAGE_NOT_TARGETED_SEGMENT_NAME &&
+        variants[key].metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
+      );
+    });
+  }
+
   private async fetchRemoteFlags() {
     if (!this.experimentClient) {
       return;
@@ -399,17 +409,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     } catch (error) {
       console.warn('Error fetching remote flags:', error);
     }
-  }
-
-  public getActiveExperiments(): string[] {
-    const variants = this.getVariants();
-    return Object.keys(variants).filter((key) => {
-      return (
-        variants[key].metadata?.segmentName !==
-          PAGE_NOT_TARGETED_SEGMENT_NAME &&
-        variants[key].metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
-      );
-    });
   }
 
   private handleVariantAction(key: string, variant: Variant) {
