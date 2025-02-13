@@ -23,7 +23,6 @@ import {
   ApplyVariantsOptions,
   PreviewVariantsOptions,
   RevertVariantsOptions,
-  WebExperimentContext,
 } from './types';
 import {
   convertEvaluationVariantToVariant,
@@ -226,10 +225,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  /**
-   * Start the experiment.
-   */
-  public async start() {
+  static async create(
+    apiKey: string,
+    initialFlags: string,
+    config: WebExperimentConfig = {},
+  ) {
+    const webExperiment = new DefaultWebExperimentClient(
+      apiKey,
+      initialFlags,
+      config,
+    );
+    await webExperiment.start();
+  }
+
+  // TODO start/pause mutations?
+  private async start() {
     if (!this.experimentClient) {
       return;
     }
@@ -266,42 +276,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public getExperimentClient(): ExperimentClient | undefined {
     return this.experimentClient;
-  }
-
-  /**
-   * Set the context for evaluating experiments.
-   * If user is undefined, the current user is used.
-   * If currentUrl is undefined, the current URL is used.
-   * @param webExperimentContext
-   */
-  public setContext(webExperimentContext: WebExperimentContext) {
-    if (this.experimentClient) {
-      const existingUser = this.experimentClient?.getUser();
-      if (webExperimentContext.user) {
-        if (webExperimentContext.currentUrl) {
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          user.currentUrl = currentUrl;
-        }
-        this.experimentClient.setUser(webExperimentContext.user);
-      } else {
-        this.experimentClient.setUser({
-          ...existingUser,
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          currentUrl: webExperimentContext.currentUrl,
-        });
-      }
-    }
-  }
-
-  /**
-   * Set the previous URL for tracking back/forward navigation. Set previous URL to prevent infinite redirection loop
-   * in single-page applications.
-   * @param url
-   */
-  public setPreviousUrl(url: string) {
-    this.previousUrl = url;
   }
 
   /**
@@ -367,49 +341,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  //
-  // /**
-  //  * Get redirect URLs for flags.
-  //  * @param flagKeys
-  //  */
-  // public getRedirectUrls(
-  //   flagKeys?: string[],
-  // ): Record<string, Record<string, string>> {
-  //   const redirectUrlMap: Record<string, Record<string, string>> = {};
-  //   if (!flagKeys) {
-  //     flagKeys = Object.keys(this.flagVariantMap);
-  //   }
-  //   for (const key of flagKeys) {
-  //     if (this.flagVariantMap[key] === undefined) {
-  //       continue;
-  //     }
-  //     const variants = this.flagVariantMap[key];
-  //     const redirectUrls = {};
-  //     Object.keys(variants).forEach((variantKey) => {
-  //       const variant = variants[variantKey];
-  //       const payload = variant.payload;
-  //       if (payload && Array.isArray(payload)) {
-  //         for (const action of variant.payload) {
-  //           if (action.action === 'redirect') {
-  //             const url = action.data?.url;
-  //             if (url) {
-  //               redirectUrls[variantKey] = action.data.url;
-  //             }
-  //           }
-  //         }
-  //       }
-  //     });
-  //     if (Object.keys(redirectUrls).length > 0) {
-  //       redirectUrlMap[key] = redirectUrls;
-  //     }
-  //   }
-  //   return redirectUrlMap;
-  // }
-
   /**
    * Preview the effect of a variant on the page.
-   * @param key
-   * @param variant
+   * @param PreviewVariantsOptions
    */
   public previewVariants(previewVariantsOptions: PreviewVariantsOptions) {
     const { keyToVariant } = previewVariantsOptions;
@@ -438,52 +372,23 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Get all variants for a given WebExperimentContext.
-   * If user is undefined, the current user is used.
-   * If currentUrl is undefined, the current URL is used.
-   * If flagKeys is undefined, all variants are returned.
-   * @param webExperimentContext
-   * @param flagKeys
+   * Get all variants for the current web experiment context.
    */
-  public getVariants(
-    webExperimentContext?: WebExperimentContext,
-    flagKeys?: string[],
-  ): Variants {
+  public getVariants(): Variants {
     if (!this.experimentClient) return {};
-
-    const existingContext = { user: this.experimentClient.getUser() };
-    if (webExperimentContext) this.setContext(webExperimentContext);
 
     const allVariants = this.experimentClient.all();
 
     const isRelevantKey = (key: string) =>
-      !flagKeys ||
-      flagKeys.includes(key) ||
-      this.localFlagKeys.includes(key) ||
-      this.remoteFlagKeys.includes(key);
+      this.localFlagKeys.includes(key) || this.remoteFlagKeys.includes(key);
 
-    const variants = Object.keys(allVariants).reduce<Record<string, any>>(
-      (acc, key) => {
-        if (isRelevantKey(key)) acc[key] = allVariants[key];
-        return acc;
-      },
-      {},
-    );
-
-    this.setContext(existingContext);
-
-    return flagKeys?.length
-      ? flagKeys.reduce<Record<string, any>>((acc, key) => {
-          if (key in variants) acc[key] = variants[key];
-          return acc;
-        }, {})
-      : variants;
+    return Object.keys(allVariants).reduce<Record<string, any>>((acc, key) => {
+      if (isRelevantKey(key)) acc[key] = allVariants[key];
+      return acc;
+    }, {});
   }
 
-  /**
-   * Fetch remote flags based on the current user context.
-   */
-  public async fetchRemoteFlags() {
+  private async fetchRemoteFlags() {
     if (!this.experimentClient) {
       return;
     }
@@ -496,21 +401,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  public getActiveExperimentsOnPage(currentUrl?: string): string[] {
-    const variants = this.getVariants({ currentUrl: currentUrl });
+  public getActiveExperiments(): string[] {
+    const variants = this.getVariants();
     return Object.keys(variants).filter((key) => {
       return (
         variants[key].metadata?.segmentName !==
           PAGE_NOT_TARGETED_SEGMENT_NAME &&
         variants[key].metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
       );
-    });
-  }
-
-  public setRefreshVariantsListener(eventType: string) {
-    this.globalScope?.addEventListener(eventType, () => {
-      this.revertVariants();
-      this.applyVariants();
     });
   }
 

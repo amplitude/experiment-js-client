@@ -54,11 +54,7 @@ describe('initializeExperiment', () => {
   });
 
   test('should initialize experiment with empty user', () => {
-    const webExperiment = new DefaultWebExperimentClient(
-      stringify(apiKey),
-      JSON.stringify([]),
-    );
-    webExperiment.start();
+    DefaultWebExperimentClient.create(stringify(apiKey), JSON.stringify([]));
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       web_exp_id: 'mock',
     });
@@ -72,23 +68,17 @@ describe('initializeExperiment', () => {
     jest
       .spyOn(experimentCore, 'isLocalStorageAvailable')
       .mockReturnValue(false);
-    const webExperiment = new DefaultWebExperimentClient(
-      stringify(apiKey),
-      JSON.stringify([]),
-    );
-    webExperiment.start();
+    DefaultWebExperimentClient.create(stringify(apiKey), JSON.stringify([]));
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 
   test('treatment variant on control page - should redirect and call exposure', () => {
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
     );
-    webExperiment.start();
-
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
     );
@@ -96,13 +86,12 @@ describe('initializeExperiment', () => {
   });
 
   test('control variant on control page - should not redirect but call exposure', () => {
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
       ]),
     );
-    webExperiment.start();
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
     expect(mockGlobal.history.replaceState).toBeCalledTimes(0);
@@ -127,13 +116,12 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
     );
-    webExperiment.start();
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
       {},
@@ -161,13 +149,12 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
     );
-    webExperiment.start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
@@ -212,7 +199,7 @@ describe('initializeExperiment', () => {
       },
     ];
 
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -224,7 +211,6 @@ describe('initializeExperiment', () => {
         ),
       ]),
     );
-    webExperiment.start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledTimes(0);
@@ -253,7 +239,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -264,7 +250,6 @@ describe('initializeExperiment', () => {
         ),
       ]),
     );
-    webExperiment.start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2?param3=c&param1=a&param2=b',
@@ -273,13 +258,12 @@ describe('initializeExperiment', () => {
   });
 
   test('should behave as control variant when payload is empty', () => {
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2?param3=c'),
       ]),
     );
-    webExperiment.start();
 
     expect(mockGlobal.location.replace).not.toHaveBeenCalled();
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -311,7 +295,7 @@ describe('initializeExperiment', () => {
         variant: 'off',
       },
     ];
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -323,7 +307,6 @@ describe('initializeExperiment', () => {
         ),
       ]),
     );
-    webExperiment.start();
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
@@ -352,7 +335,7 @@ describe('initializeExperiment', () => {
         variant: 'off',
       },
     ];
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -364,7 +347,6 @@ describe('initializeExperiment', () => {
         ),
       ]),
     );
-    webExperiment.start();
     expect(mockExposure).not.toHaveBeenCalled();
   });
 
@@ -379,14 +361,13 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify([]));
 
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
         httpClient: mockHttpClient,
       },
-    );
-    webExperiment.start().then(() => {
+    ).then(() => {
       expect(mockHttpClient.requestUrl).toBe(
         'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
       );
@@ -408,14 +389,13 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
 
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
         httpClient: mockHttpClient,
       },
-    );
-    webExperiment.start().then(() => {
+    ).then(() => {
       // check remote flag variant actions called after successful fetch
       expect(mockExposure).toHaveBeenCalledTimes(2);
       expect(mockExposure).toHaveBeenCalledWith('test-2');
@@ -436,14 +416,13 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 404);
 
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
         httpClient: mockHttpClient,
       },
-    );
-    webExperiment.start().then(() => {
+    ).then(() => {
       // check remote fetch failed safely
       expect(mockExposure).toHaveBeenCalledTimes(2);
     });
@@ -460,14 +439,13 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient('', 404);
 
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
         httpClient: mockHttpClient,
       },
-    );
-    webExperiment.start().then(() => {
+    ).then(() => {
       // check remote variant actions applied
       expect(mockExposure).toHaveBeenCalledTimes(1);
       expect(mockExposure).toHaveBeenCalledWith('test');
@@ -503,14 +481,13 @@ describe('initializeExperiment', () => {
       ExperimentClient.prototype as any,
       'doFlags',
     );
-    const webExperiment = new DefaultWebExperimentClient(
+    DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
         httpClient: mockHttpClient,
       },
-    );
-    webExperiment.start().then(() => {
+    ).then(() => {
       // check remote fetch not called
       expect(doFlagsMock).toHaveBeenCalledTimes(0);
     });
@@ -533,14 +510,13 @@ describe('initializeExperiment', () => {
     ];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
 
-    const webExperiment = new DefaultWebExperimentClient(
+    await DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
         httpClient: mockHttpClient,
       },
     );
-    await webExperiment.start();
     // check treatment variant called
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -587,26 +563,6 @@ describe('helper methods', () => {
     });
     jest.restoreAllMocks();
   });
-
-  // test('get redirect urls', () => {
-  //   const initialFlags = [
-  //     // remote flag
-  //     createRedirectFlag(
-  //       'test',
-  //       'treatment',
-  //       'http://test.com/2',
-  //       'http://test.com',
-  //     ),
-  //   ];
-  //   const webExperiment = new DefaultWebExperimentClient(
-  //     stringify(apiKey),
-  //     JSON.stringify(initialFlags),
-  //   );
-  //   const redirectUrls = webExperiment.getRedirectUrls();
-  //   expect(redirectUrls).toEqual({
-  //     test: { control: 'http://test.com', treatment: 'http://test.com/2' },
-  //   });
-  // });
 
   test('get active experiments on current page', () => {
     Object.defineProperty(global, 'location', {
@@ -671,12 +627,8 @@ describe('helper methods', () => {
         ),
       ]),
     );
-    let activeExperiments = webExperiment.getActiveExperimentsOnPage();
+    const activeExperiments = webExperiment.getActiveExperiments();
     expect(activeExperiments).toEqual(['targeted']);
-    activeExperiments = webExperiment.getActiveExperimentsOnPage(
-      'http://override.com',
-    );
-    expect(activeExperiments).toEqual(['non-targeted']);
   });
 
   test('get variants', () => {

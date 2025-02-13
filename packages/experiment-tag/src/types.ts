@@ -1,10 +1,3 @@
-import { ExperimentUser } from '@amplitude/experiment-js-client';
-
-export type WebExperimentContext = {
-  user?: ExperimentUser;
-  currentUrl?: string;
-};
-
 export type ApplyVariantsOptions = {
   flagKeys?: string[];
 };
