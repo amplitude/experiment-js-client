@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.15.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.14.1...@amplitude/experiment-js-client@1.15.0) (2025-02-14)
+
+
+### Features
+
+* Web experiment remote evaluation ([#138](https://github.com/amplitude/experiment-js-client/issues/138)) ([d7c167f](https://github.com/amplitude/experiment-js-client/commit/d7c167f2df625bd15b6a2af2c2cb01a5e1ccc108))
+
+
+
+
+
 ## [1.14.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.14.0...@amplitude/experiment-js-client@1.14.1) (2024-12-27)
 
 

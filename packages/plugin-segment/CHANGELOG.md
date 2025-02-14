@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.9](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-plugin-segment@0.2.8...@amplitude/experiment-plugin-segment@0.2.9) (2025-02-14)
+
+
+### Bug Fixes
+
+* segment plugin use local initialized variable ([#156](https://github.com/amplitude/experiment-js-client/issues/156)) ([7de1608](https://github.com/amplitude/experiment-js-client/commit/7de16086a8ad9fb1b5a44c2179d3b794021bf199))
+
+
+
+
+
 ## [0.2.8](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-plugin-segment@0.2.7...@amplitude/experiment-plugin-segment@0.2.8) (2024-12-27)
 
 **Note:** Version bump only for package @amplitude/experiment-plugin-segment
