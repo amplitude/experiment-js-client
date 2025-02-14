@@ -15,16 +15,22 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
     return options.instance || snippetInstance(options.instanceKey);
   };
   getInstance();
+  let initialized = false;
   const plugin: IntegrationPlugin = {
     name: '@amplitude/experiment-plugin-segment',
     type: 'integration',
     setup(): Promise<void> {
       const instance = getInstance();
-      return new Promise<void>((resolve) => instance.ready(() => resolve()));
+      return new Promise<void>((resolve) =>
+        instance.ready(() => {
+          initialized = true;
+          resolve();
+        }),
+      );
     },
     getUser(): ExperimentUser {
       const instance = getInstance();
-      if (instance.initialized) {
+      if (initialized) {
         return {
           user_id: instance.user().id(),
           device_id: instance.user().anonymousId(),
@@ -42,7 +48,7 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
     },
     track(event: ExperimentEvent): boolean {
       const instance = getInstance();
-      if (!instance.initialized) return false;
+      if (!initialized) return false;
       instance.track(event.eventType, event.eventProperties);
       return true;
     },
