@@ -13,10 +13,14 @@ const impression: ExperimentEvent = {
   eventProperties: { flag_key: 'flag-key', variant: 'on' },
 };
 
-const mockAnalytics = (): Analytics =>
+const mockAnalytics = (isReady = true): Analytics =>
   ({
-    initialized: true,
     initialize: () => Promise.resolve({} as Analytics),
+    ready: isReady
+      ? (fn) => fn()
+      : () => {
+          // Do nothing
+        },
     user: () => ({
       id: () => userId,
       anonymousId: () => anonymousId,
@@ -35,22 +39,22 @@ describe('SegmentIntegrationPlugin', () => {
     instance = mockAnalytics();
   });
 
-  test('name', () => {
+  test('name', async () => {
     const plugin = segmentIntegrationPlugin();
     expect(plugin.name).toEqual('@amplitude/experiment-plugin-segment');
   });
-  test('type', () => {
+  test('type', async () => {
     const plugin = segmentIntegrationPlugin();
     expect(plugin.type).toEqual('integration');
   });
-  test('sets analytics global if not already defined', () => {
+  test('sets analytics global if not already defined', async () => {
     segmentIntegrationPlugin();
     expect(safeGlobal.analytics).toBeDefined();
     const expected = snippetInstance();
     expect(safeGlobal.analytics).toEqual(expected);
     expect(JSON.stringify(safeGlobal.analytics)).toEqual(JSON.stringify([]));
   });
-  test('does not set analytics global if not already defined', () => {
+  test('does not set analytics global if not already defined', async () => {
     safeGlobal.analytics = ['test'];
     segmentIntegrationPlugin();
     expect(safeGlobal.analytics).toBeDefined();
@@ -60,7 +64,7 @@ describe('SegmentIntegrationPlugin', () => {
       JSON.stringify(['test']),
     );
   });
-  test('with instance key, sets analytics global if not already defined', () => {
+  test('with instance key, sets analytics global if not already defined', async () => {
     segmentIntegrationPlugin({ instanceKey: 'asdf' });
     expect(safeGlobal.analytics).toBeUndefined();
     expect(safeGlobal.asdf).toBeDefined();
@@ -68,7 +72,7 @@ describe('SegmentIntegrationPlugin', () => {
     expect(safeGlobal.asdf).toEqual(expected);
     expect(JSON.stringify(safeGlobal.asdf)).toEqual(JSON.stringify([]));
   });
-  test('with instance key, does not set analytics global if not already defined', () => {
+  test('with instance key, does not set analytics global if not already defined', async () => {
     safeGlobal.asdf = ['test'];
     segmentIntegrationPlugin({ instanceKey: 'asdf' });
     expect(safeGlobal.analytics).toBeUndefined();
@@ -77,25 +81,25 @@ describe('SegmentIntegrationPlugin', () => {
     expect(safeGlobal.asdf).toEqual(expected);
     expect(JSON.stringify(safeGlobal.asdf)).toEqual(JSON.stringify(['test']));
   });
-  test('with instance config, does not set instance', () => {
+  test('with instance config, does not set instance', async () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     segmentIntegrationPlugin({ instance });
     expect(safeGlobal.analytics).toBeUndefined();
   });
   describe('setup', () => {
-    test('no options, setup function exists', () => {
+    test('no options, setup function exists', async () => {
       const plugin = segmentIntegrationPlugin();
       expect(plugin.setup).toBeDefined();
     });
-    test('setup config false, setup function undefined', () => {
+    test('setup config false, setup function undefined', async () => {
       const plugin = segmentIntegrationPlugin({ skipSetup: true });
       expect(plugin.setup).toBeUndefined();
       expect(safeGlobal.analytics).toBeDefined();
     });
   });
   describe('getUser', () => {
-    test('returns user from local storage', () => {
+    test('returns user from local storage', async () => {
       const plugin = segmentIntegrationPlugin();
       expect(plugin.getUser()).toEqual({});
       safeGlobal.localStorage.setItem(
@@ -118,22 +122,28 @@ describe('SegmentIntegrationPlugin', () => {
         user_properties: traits,
       });
     });
-    test('with instance, returns user from instance', () => {
+    test('with instance, returns user from instance', async () => {
       const plugin = segmentIntegrationPlugin({ instance });
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      await plugin.setup();
       expect(plugin.getUser()).toEqual({
         user_id: userId,
         device_id: anonymousId,
         user_properties: traits,
       });
     });
-    test('with instance, not initialized, returns user from local storage', () => {
-      instance.initialized = false;
+    test('with instance, not initialized, returns user from local storage', async () => {
+      instance = mockAnalytics(false);
       const plugin = segmentIntegrationPlugin({ instance });
       expect(plugin.getUser()).toEqual({});
     });
-    test('without instance, initialized, returns user from instance', () => {
+    test('without instance, initialized, returns user from instance', async () => {
       safeGlobal.analytics = mockAnalytics();
       const plugin = segmentIntegrationPlugin();
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      await plugin.setup();
       expect(plugin.getUser()).toEqual({
         user_id: userId,
         device_id: anonymousId,
@@ -142,21 +152,24 @@ describe('SegmentIntegrationPlugin', () => {
     });
   });
   describe('track', () => {
-    test('without instance, not initialized, returns false', () => {
+    test('without instance, not initialized, returns false', async () => {
       const plugin = segmentIntegrationPlugin();
       expect(plugin.track(impression)).toEqual(false);
     });
-    test('without instance, initialized, returns true', () => {
+    test('without instance, initialized, returns true', async () => {
       safeGlobal.analytics = mockAnalytics();
       const plugin = segmentIntegrationPlugin();
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      await plugin.setup();
       expect(plugin.track(impression)).toEqual(true);
     });
-    test('with instance, not initialized, returns false', () => {
-      instance.initialized = false;
+    test('with instance, not initialized, returns false', async () => {
+      instance = mockAnalytics(false);
       const plugin = segmentIntegrationPlugin({ instance });
       expect(plugin.track(impression)).toEqual(false);
     });
-    test('with instance, initialized, returns false', () => {
+    test('with instance, initialized, returns false', async () => {
       const plugin = segmentIntegrationPlugin();
       expect(plugin.track(impression)).toEqual(false);
     });
