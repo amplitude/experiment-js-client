@@ -30,6 +30,7 @@ describe('initializeExperiment', () => {
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
   jest.spyOn(util, 'UUID').mockReturnValue('mock');
   let mockGlobal;
+  let antiFlickerSpy;
 
   beforeEach(() => {
     apiKey++;
@@ -47,10 +48,14 @@ describe('initializeExperiment', () => {
       },
       document: { referrer: '' },
       history: { replaceState: jest.fn() },
+      addEventListener: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
+    antiFlickerSpy = jest
+      .spyOn(DefaultWebExperimentClient.prototype as any, 'applyAntiFlickerCss')
+      .mockImplementation(jest.fn());
   });
 
   test('should initialize experiment with empty user', () => {
@@ -62,6 +67,54 @@ describe('initializeExperiment', () => {
       'EXP_' + stringify(apiKey),
       JSON.stringify({ web_exp_id: 'mock' }),
     );
+  });
+
+  test('set web experiment config', () => {
+    const mockGlobal = {
+      localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      location: {
+        href: 'http://test.com',
+        replace: jest.fn(),
+        search: '?test=control&PREVIEW=true',
+      },
+
+      document: { referrer: '' },
+      history: { replaceState: jest.fn() },
+      addEventListener: jest.fn(),
+      experimentConfig: {
+        useDefaultNavigationListener: false,
+        applyRemoteExperimentAntiFlicker: false,
+      },
+    };
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+    const setDefaultSpy = jest.spyOn(
+      DefaultWebExperimentClient.prototype as any,
+      'setDefaultNavigationListener',
+    );
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      // local flag
+      createMutateFlag('test-1', 'treatment'),
+    ];
+    const remoteFlags = [createMutateFlag('test-2', 'treatment')];
+
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
+
+    DefaultWebExperimentClient.create(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      {
+        httpClient: mockHttpClient,
+      },
+    ).then();
+    expect(setDefaultSpy).not.toHaveBeenCalled();
+    expect(antiFlickerSpy).not.toHaveBeenCalled();
   });
 
   test('experiment should not run without localStorage', () => {
@@ -111,6 +164,7 @@ describe('initializeExperiment', () => {
 
       document: { referrer: '' },
       history: { replaceState: jest.fn() },
+      addEventListener: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -144,6 +198,7 @@ describe('initializeExperiment', () => {
       },
       document: { referrer: '' },
       history: { replaceState: jest.fn() },
+      addEventListener: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -175,6 +230,7 @@ describe('initializeExperiment', () => {
       },
       document: { referrer: '' },
       history: { replaceState: jest.fn() },
+      addEventListener: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -234,6 +290,7 @@ describe('initializeExperiment', () => {
       },
       document: { referrer: '' },
       history: { replaceState: jest.fn() },
+      addEventListener: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -378,7 +435,7 @@ describe('initializeExperiment', () => {
     });
   });
 
-  test('remote evaluation - fetch successful', () => {
+  test('remote evaluation - fetch successful, antiflicker applied', () => {
     const initialFlags = [
       // remote flag
       createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
@@ -386,9 +443,7 @@ describe('initializeExperiment', () => {
       createMutateFlag('test-1', 'treatment'),
     ];
     const remoteFlags = [createMutateFlag('test-2', 'treatment')];
-
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
-
     DefaultWebExperimentClient.create(
       stringify(apiKey),
       JSON.stringify(initialFlags),
@@ -403,6 +458,7 @@ describe('initializeExperiment', () => {
     // check local flag variant actions called
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test-1');
+    expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
   test('remote evaluation - fetch fail, locally evaluate remote and local flags success', () => {
@@ -429,6 +485,7 @@ describe('initializeExperiment', () => {
     // check local flag variant actions called
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test-1');
+    expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
   test('remote evaluation - fetch fail, test initialFlags variant actions called', () => {
@@ -452,6 +509,7 @@ describe('initializeExperiment', () => {
     });
     // check local flag variant actions called
     expect(mockExposure).toHaveBeenCalledTimes(0);
+    expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
   test('remote evaluation - test preview successful, does not fetch remote flags', () => {
@@ -467,6 +525,7 @@ describe('initializeExperiment', () => {
       },
       document: { referrer: '' },
       history: { replaceState: jest.fn() },
+      addEventListener: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -491,6 +550,7 @@ describe('initializeExperiment', () => {
       // check remote fetch not called
       expect(doFlagsMock).toHaveBeenCalledTimes(0);
     });
+    expect(antiFlickerSpy).toHaveBeenCalledTimes(0);
   });
 
   test('remote evaluation - fetch successful, fetched flag overwrites initial flag', async () => {
@@ -545,6 +605,7 @@ describe('helper methods', () => {
       },
       document: { referrer: '' },
       history: { replaceState: jest.fn() },
+      addEventListener: jest.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore

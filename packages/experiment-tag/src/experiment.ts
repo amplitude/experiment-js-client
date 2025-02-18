@@ -16,7 +16,7 @@ import {
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
-import { WebExperimentConfig } from './config';
+import { Defaults, WebExperimentConfig } from './config';
 import { getInjectUtils } from './inject-utils';
 import { WindowMessenger } from './messenger';
 import {
@@ -62,13 +62,27 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     config: WebExperimentConfig = {},
   ) {
     this.apiKey = apiKey;
-    this.config = config;
     this.initialFlags = JSON.parse(initialFlags);
-    if (this.globalScope?.webExperiment) {
+    // merge config with defaults and experimentConfig (if provided)
+    this.config = {
+      ...Defaults,
+      ...config,
+    };
+    this.config = {
+      ...Defaults,
+      ...config,
+      ...Object.fromEntries(
+        Object.entries(this.globalScope?.experimentConfig ?? {}).filter(
+          ([, v]) => v !== undefined,
+        ),
+      ),
+    };
+
+    if (!isLocalStorageAvailable() || !this.globalScope) {
       return;
     }
 
-    if (!isLocalStorageAvailable() || !this.globalScope) {
+    if (this.globalScope?.webExperiment) {
       return;
     }
 
@@ -187,17 +201,19 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // evaluate variants for page targeting
     const variants: Variants = this.getVariants();
 
-    for (const [key, variant] of Object.entries(variants)) {
-      // only apply antiflicker for remote flags active on the page
-      if (
-        this.remoteFlagKeys.includes(key) &&
-        variant.metadata?.blockingEvaluation &&
-        variant.metadata?.segmentName !== PAGE_NOT_TARGETED_SEGMENT_NAME &&
-        variant.metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
-      ) {
-        this.isRemoteBlocking = true;
-        // Apply anti-flicker CSS to prevent UI flicker
-        this.applyAntiFlickerCss();
+    if (this.config.applyRemoteExperimentAntiFlicker) {
+      for (const [key, variant] of Object.entries(variants)) {
+        // only apply antiflicker for remote flags active on the page
+        if (
+          this.remoteFlagKeys.includes(key) &&
+          variant.metadata?.blockingEvaluation &&
+          variant.metadata?.segmentName !== PAGE_NOT_TARGETED_SEGMENT_NAME &&
+          variant.metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
+        ) {
+          this.isRemoteBlocking = true;
+          // Apply anti-flicker CSS to prevent UI flicker
+          this.applyAntiFlickerCss();
+        }
       }
     }
 
@@ -230,8 +246,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    if (this.config.reapplyVariantsOnNavigation) {
-      this.setDefaultUrlChangeListener([
+    if (this.config.useDefaultNavigationListener) {
+      this.setDefaultNavigationListener([
         ...this.localFlagKeys,
         ...this.remoteFlagKeys,
       ]);
@@ -240,10 +256,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
 
-    if (
-      !this.isRemoteBlocking ||
-      !this.config.applyRemoteExperimentAntiFlicker
-    ) {
+    if (!this.isRemoteBlocking) {
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope?.document.getElementById?.('amp-exp-css')?.remove();
     }
@@ -271,7 +284,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Get the underlying ExperimentClient instance.
+   * Get the underlying {@link ExperimentClient} instance.
    */
   public getExperimentClient(): ExperimentClient | undefined {
     return this.experimentClient;
@@ -324,7 +337,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Revert mutations applied by the experiment.
+   * Revert variant actions applied by the experiment.
    * @param revertVariantsOptions
    */
   public revertVariants(revertVariantsOptions?: RevertVariantsOptions) {
@@ -387,6 +400,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }, {});
   }
 
+  /**
+   * Get the list of experiments that are active on the current page.
+   */
   public getActiveExperiments(): string[] {
     const variants = this.getVariants();
     return Object.keys(variants).filter((key) => {
@@ -583,7 +599,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private setDefaultUrlChangeListener(flagKeys: string[]) {
+  private setDefaultNavigationListener(flagKeys: string[]) {
     if (!this.globalScope) {
       return;
     }

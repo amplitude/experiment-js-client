@@ -4,7 +4,7 @@ export const createRedirectFlag = (
   treatmentUrl: string,
   controlUrl: string | undefined = undefined,
   segments: any[] = [],
-  evaluationMode = 'local',
+  evaluationMode: 'local' | 'remote' = 'local',
 ) => {
   const controlPayload = controlUrl
     ? [
@@ -67,7 +67,8 @@ export const createMutateFlag = (
   treatmentMutations: any[] = [],
   controlMutations: any[] = [],
   segments: any[] = [],
-  evaluationMode = 'local',
+  evaluationMode: 'local' | 'remote' = 'local',
+  blockingEvaluation = true,
 ) => {
   return {
     key: flagKey,
@@ -76,6 +77,7 @@ export const createMutateFlag = (
       evaluationMode: evaluationMode,
       flagType: 'experiment',
       deliveryMethod: 'web',
+      blockingEvaluation: evaluationMode === 'remote' && blockingEvaluation,
     },
     segments: [
       ...segments,
