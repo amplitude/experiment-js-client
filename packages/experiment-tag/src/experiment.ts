@@ -237,8 +237,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    if (this.config.useDefaultNavigationListener) {
-      this.setDefaultNavigationListener([
+    if (this.config.useDefaultNavigationHandler) {
+      this.setDefaultNavigationHandler([
         ...this.localFlagKeys,
         ...this.remoteFlagKeys,
       ]);
@@ -465,6 +465,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (!this.globalScope) {
       return;
     }
+    // Check for repeat invocations
+    if (this.appliedMutations[key]) {
+      return;
+    }
     const mutations = action.data?.mutations;
     const mutationControllers: MutationController[] = [];
     mutations.forEach((m) => {
@@ -476,6 +480,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   private handleInject(action, key: string, variant: Variant) {
     if (!this.globalScope) {
+      return;
+    }
+    // Check for repeat invocations
+    if (this.appliedMutations[key]) {
       return;
     }
     // Validate and transform ID
@@ -590,7 +598,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private setDefaultNavigationListener(flagKeys: string[]) {
+  private setDefaultNavigationHandler(flagKeys: string[]) {
     if (!this.globalScope) {
       return;
     }

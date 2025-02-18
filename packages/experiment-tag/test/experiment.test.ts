@@ -85,7 +85,7 @@ describe('initializeExperiment', () => {
       history: { replaceState: jest.fn() },
       addEventListener: jest.fn(),
       experimentConfig: {
-        useDefaultNavigationListener: false,
+        useDefaultNavigationHandler: false,
         applyRemoteExperimentAntiFlicker: false,
       },
     };
@@ -94,7 +94,7 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     const setDefaultSpy = jest.spyOn(
       DefaultWebExperimentClient.prototype as any,
-      'setDefaultNavigationListener',
+      'setDefaultNavigationHandler',
     );
     const initialFlags = [
       // remote flag
