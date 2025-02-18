@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.10](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-plugin-segment@0.2.9...@amplitude/experiment-plugin-segment@0.2.10) (2025-02-18)
+
+
+### Bug Fixes
+
+* add poller to segment plugin for npm use case ([#157](https://github.com/amplitude/experiment-js-client/issues/157)) ([1ec2fc3](https://github.com/amplitude/experiment-js-client/commit/1ec2fc332b44790dfd01d1d4a3e43cd0be0a738f))
+
+
+
+
+
 ## [0.2.9](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-plugin-segment@0.2.8...@amplitude/experiment-plugin-segment@0.2.9) (2025-02-14)
 
 
