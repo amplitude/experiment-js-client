@@ -21,12 +21,24 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
     type: 'integration',
     setup(): Promise<void> {
       const instance = getInstance();
-      return new Promise<void>((resolve) =>
+      return new Promise<void>((resolve) => {
         instance.ready(() => {
           initialized = true;
           resolve();
-        }),
-      );
+        });
+        // If the segment SDK is installed via the @segment/analytics-next npm
+        // package then function calls to the snippet are not respected.
+        if (!options.instance) {
+          const interval = safeGlobal.setInterval(() => {
+            const instance = getInstance();
+            if (instance.initialized || instance.instance?.initialized) {
+              initialized = true;
+              safeGlobal.clearInterval(interval);
+              resolve();
+            }
+          }, 50);
+        }
+      });
     },
     getUser(): ExperimentUser {
       const instance = getInstance();

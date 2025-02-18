@@ -4,6 +4,11 @@ import { Analytics } from '@segment/analytics-next';
 import { segmentIntegrationPlugin } from 'src/plugin';
 import { snippetInstance } from 'src/snippet';
 
+export const sleep = (time: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, time);
+  });
+
 const anonymousId = 'anon';
 const userId = 'user';
 const traits = { k: 'v' };
@@ -15,6 +20,7 @@ const impression: ExperimentEvent = {
 
 const mockAnalytics = (isReady = true): Analytics =>
   ({
+    initialized: false,
     initialize: () => Promise.resolve({} as Analytics),
     ready: isReady
       ? (fn) => fn()
@@ -172,6 +178,24 @@ describe('SegmentIntegrationPlugin', () => {
     test('with instance, initialized, returns false', async () => {
       const plugin = segmentIntegrationPlugin();
       expect(plugin.track(impression)).toEqual(false);
+    });
+  });
+  describe('npm installation', () => {
+    test('poller catches initialized instance', async () => {
+      instance = mockAnalytics(false);
+      const plugin = segmentIntegrationPlugin();
+      let resolved = false;
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      plugin.setup().then(() => {
+        resolved = true;
+      });
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      window.analytics = instance;
+      instance.initialized = true;
+      await sleep(100);
+      expect(resolved).toEqual(true);
     });
   });
 });
