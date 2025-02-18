@@ -67,17 +67,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.config = {
       ...Defaults,
       ...config,
+      ...(this.globalScope?.experimentConfig ?? {}),
     };
-    this.config = {
-      ...Defaults,
-      ...config,
-      ...Object.fromEntries(
-        Object.entries(this.globalScope?.experimentConfig ?? {}).filter(
-          ([, v]) => v !== undefined,
-        ),
-      ),
-    };
-
     if (!isLocalStorageAvailable() || !this.globalScope) {
       return;
     }
