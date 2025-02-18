@@ -55,6 +55,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private localFlagKeys: string[] = [];
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
+  private customRedirectHandler: ((url: string) => void) | undefined;
 
   constructor(
     apiKey: string,
@@ -283,10 +284,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   /**
    * Apply evaluated variants to the page.
-   * @param applyVariantsOption
+   * @param options
    */
-  public applyVariants(applyVariantsOption?: ApplyVariantsOptions) {
-    const { flagKeys } = applyVariantsOption || {};
+  public applyVariants(options?: ApplyVariantsOptions) {
+    const { flagKeys } = options || {};
     const variants = this.getVariants();
     if (Object.keys(variants).length === 0) {
       return;
@@ -329,10 +330,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   /**
    * Revert variant actions applied by the experiment.
-   * @param revertVariantsOptions
+   * @param options
    */
-  public revertVariants(revertVariantsOptions?: RevertVariantsOptions) {
-    let { flagKeys } = revertVariantsOptions || {};
+  public revertVariants(options?: RevertVariantsOptions) {
+    let { flagKeys } = options || {};
     if (!flagKeys) {
       flagKeys = Object.keys(this.appliedMutations);
     }
@@ -346,10 +347,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   /**
    * Preview the effect of a variant on the page.
-   * @param previewVariantsOptions
+   * @param options
    */
-  public previewVariants(previewVariantsOptions: PreviewVariantsOptions) {
-    const { keyToVariant } = previewVariantsOptions;
+  public previewVariants(options: PreviewVariantsOptions) {
+    const { keyToVariant } = options;
     if (!keyToVariant) {
       return;
     }
@@ -405,6 +406,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
   }
 
+  /**
+   * Set a custom redirect handler.
+   */
+  public setRedirectHandler(handler: (url: string) => void) {
+    this.customRedirectHandler = handler;
+  }
+
   private async fetchRemoteFlags() {
     if (!this.experimentClient) {
       return;
@@ -458,6 +466,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
     // perform redirection
+
+    if (this.customRedirectHandler) {
+      this.customRedirectHandler(targetUrl);
+      return;
+    }
     this.globalScope.location.replace(targetUrl);
   }
 

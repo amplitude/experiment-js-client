@@ -13,13 +13,15 @@ import {
 export interface WebExperimentClient {
   getExperimentClient(): ExperimentClient | undefined;
 
-  applyVariants(applyVariantsOptions?: ApplyVariantsOptions): void;
+  applyVariants(options?: ApplyVariantsOptions): void;
 
-  revertVariants(revertVariantsOptions?: RevertVariantsOptions): void;
+  revertVariants(options?: RevertVariantsOptions): void;
 
-  previewVariants(previewVariantsOptions: PreviewVariantsOptions): void;
+  previewVariants(options: PreviewVariantsOptions): void;
 
   getVariants(): Variants;
 
   getActiveExperiments(): string[];
+
+  setRedirectHandler(handler: (url: string) => void): void;
 }
