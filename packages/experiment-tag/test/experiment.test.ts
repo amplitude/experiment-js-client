@@ -117,11 +117,20 @@ describe('initializeExperiment', () => {
     expect(antiFlickerSpy).not.toHaveBeenCalled();
   });
 
-  test('experiment should not run without localStorage', () => {
+  test('experiment should not run without localStorage', async () => {
     jest
       .spyOn(experimentCore, 'isLocalStorageAvailable')
       .mockReturnValue(false);
-    DefaultWebExperimentClient.create(stringify(apiKey), JSON.stringify([]));
+    try {
+      await DefaultWebExperimentClient.create(
+        stringify(apiKey),
+        JSON.stringify([]),
+      );
+    } catch (error: any) {
+      expect(error.message).toBe(
+        'Amplitude Web Experiment Client could not be initialized.',
+      );
+    }
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 

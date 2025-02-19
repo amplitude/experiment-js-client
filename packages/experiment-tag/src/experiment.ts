@@ -36,6 +36,7 @@ import { WebExperimentClient } from './web-experiment';
 
 export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
 export const PAGE_IS_EXCLUDED_SEGMENT_NAME = 'Page is excluded';
+export const PREVIEW_SEGMENT_NAME = 'Preview';
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -62,6 +63,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     initialFlags: string,
     config: WebExperimentConfig = {},
   ) {
+    if (!this.globalScope || !isLocalStorageAvailable()) {
+      throw new Error(
+        'Amplitude Web Experiment Client could not be initialized.',
+      );
+    }
     this.apiKey = apiKey;
     this.initialFlags = JSON.parse(initialFlags);
     // merge config with defaults and experimentConfig (if provided)
@@ -70,15 +76,88 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ...config,
       ...(this.globalScope?.experimentConfig ?? {}),
     };
-    if (!isLocalStorageAvailable() || !this.globalScope) {
-      return;
-    }
 
     if (this.globalScope?.webExperiment) {
-      return;
+      return this.globalScope?.webExperiment;
     }
 
     this.globalScope.webExperiment = this;
+
+    const urlParams = getUrlParams();
+
+    this.initialFlags.forEach((flag: EvaluationFlag) => {
+      const { key, variants, segments, metadata = {} } = flag;
+
+      this.flagVariantMap[key] = {};
+      Object.keys(variants).forEach((variantKey) => {
+        this.flagVariantMap[key][variantKey] =
+          convertEvaluationVariantToVariant(variants[variantKey]);
+      });
+
+      // Force variant if in preview mode
+      if (
+        urlParams['PREVIEW'] &&
+        key in urlParams &&
+        urlParams[key] in variants
+      ) {
+        // Remove preview-related query parameters from the URL
+        this.globalScope?.history.replaceState(
+          {},
+          '',
+          removeQueryParams(this.globalScope.location.href, ['PREVIEW', key]),
+        );
+
+        // Retain only page-targeting segments
+        const pageTargetingSegments = segments.filter(
+          this.isPageTargetingSegment,
+        );
+
+        // Add or update the preview segment
+        const previewSegment = {
+          metadata: { segmentName: PREVIEW_SEGMENT_NAME },
+          variant: urlParams[key],
+        };
+
+        // Update the flag's segments to include the preview segment
+        flag.segments = [...pageTargetingSegments, previewSegment];
+
+        // make all preview flags local
+        metadata.evaluationMode = 'local';
+      }
+
+      if (metadata.evaluationMode !== 'local') {
+        this.remoteFlagKeys.push(key);
+
+        // allow local evaluation for remote flags
+        metadata.evaluationMode = 'local';
+      } else {
+        // Add locally evaluable flags to the local flag set
+        this.localFlagKeys.push(key);
+      }
+
+      flag.metadata = metadata;
+    });
+
+    const initialFlagsString = JSON.stringify(this.initialFlags);
+
+    // initialize the experiment
+    this.experimentClient = Experiment.initialize(this.apiKey, {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      internalInstanceNameSuffix: 'web',
+      initialFlags: initialFlagsString,
+      // timeout for fetching remote flags
+      fetchTimeoutMillis: 1000,
+      pollOnStart: false,
+      fetchOnStart: false,
+      ...this.config,
+    });
+  }
+
+  private async start() {
+    if (!this.experimentClient || !this.globalScope) {
+      return;
+    }
 
     const urlParams = getUrlParams();
 
@@ -122,74 +201,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
 
-    this.initialFlags.forEach((flag: EvaluationFlag) => {
-      const { key, variants, segments, metadata = {} } = flag;
-
-      this.flagVariantMap[key] = {};
-      Object.keys(variants).forEach((variantKey) => {
-        this.flagVariantMap[key][variantKey] =
-          convertEvaluationVariantToVariant(variants[variantKey]);
-      });
-
-      // Force variant if in preview mode
-      if (
-        urlParams['PREVIEW'] &&
-        key in urlParams &&
-        urlParams[key] in variants
-      ) {
-        // Remove preview-related query parameters from the URL
-        this.globalScope?.history.replaceState(
-          {},
-          '',
-          removeQueryParams(this.globalScope.location.href, ['PREVIEW', key]),
-        );
-
-        // Retain only page-targeting segments
-        const pageTargetingSegments = segments.filter(
-          this.isPageTargetingSegment,
-        );
-
-        // Add or update the preview segment
-        const previewSegment = {
-          metadata: { segmentName: 'preview' },
-          variant: urlParams[key],
-        };
-
-        // Update the flag's segments to include the preview segment
-        flag.segments = [...pageTargetingSegments, previewSegment];
-
-        // make all preview flags local
-        metadata.evaluationMode = 'local';
-      }
-
-      if (metadata.evaluationMode !== 'local') {
-        this.remoteFlagKeys.push(key);
-
-        // allow local evaluation for remote flags
-        metadata.evaluationMode = 'local';
-      } else {
-        // Add locally evaluable flags to the local flag set
-        this.localFlagKeys.push(key);
-      }
-
-      flag.metadata = metadata;
-    });
-
-    const initialFlagsString = JSON.stringify(this.initialFlags);
-
-    // initialize the experiment
-    this.experimentClient = Experiment.initialize(this.apiKey, {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      internalInstanceNameSuffix: 'web',
-      initialFlags: initialFlagsString,
-      // timeout for fetching remote flags
-      fetchTimeoutMillis: 1000,
-      pollOnStart: false,
-      fetchOnStart: false,
-      ...this.config,
-    });
-
     // evaluate variants for page targeting
     const variants: Variants = this.getVariants();
 
@@ -209,7 +220,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
-    // If no integration has been set, use an amplitude integration.
+    // If no integration has been set, use an Amplitude integration.
     if (!this.globalScope.experimentIntegration) {
       const connector = AnalyticsConnector.getInstance('$default_instance');
       this.globalScope.experimentIntegration = new AmplitudeIntegrationPlugin(
@@ -226,16 +237,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (!this.globalScope.experimentIntegration) {
       const connector = AnalyticsConnector.getInstance('$default_instance');
       this.globalScope.experimentIntegration = new AmplitudeIntegrationPlugin(
-        apiKey,
+        this.apiKey,
         connector,
         0,
       );
-    }
-  }
-
-  private async start() {
-    if (!this.experimentClient) {
-      return;
     }
 
     if (this.config.useDefaultNavigationHandler) {
@@ -273,6 +278,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       config,
     );
     await webExperiment.start();
+    return webExperiment;
   }
 
   /**
