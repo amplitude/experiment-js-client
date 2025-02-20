@@ -15,7 +15,7 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
     return options.instance || snippetInstance(options.instanceKey);
   };
   getInstance();
-  let initialized = false;
+  let ready = false;
   const plugin: IntegrationPlugin = {
     name: '@amplitude/experiment-plugin-segment',
     type: 'integration',
@@ -23,7 +23,7 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
       const instance = getInstance();
       return new Promise<void>((resolve) => {
         instance.ready(() => {
-          initialized = true;
+          ready = true;
           resolve();
         });
         // If the segment SDK is installed via the @segment/analytics-next npm
@@ -31,8 +31,8 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
         if (!options.instance) {
           const interval = safeGlobal.setInterval(() => {
             const instance = getInstance();
-            if (instance.initialized || instance.instance?.initialized) {
-              initialized = true;
+            if (instance.initialized) {
+              ready = true;
               safeGlobal.clearInterval(interval);
               resolve();
             }
@@ -42,7 +42,7 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
     },
     getUser(): ExperimentUser {
       const instance = getInstance();
-      if (initialized) {
+      if (ready) {
         return {
           user_id: instance.user().id(),
           device_id: instance.user().anonymousId(),
@@ -60,7 +60,7 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
     },
     track(event: ExperimentEvent): boolean {
       const instance = getInstance();
-      if (!initialized) return false;
+      if (!ready) return false;
       instance.track(event.eventType, event.eventProperties);
       return true;
     },
