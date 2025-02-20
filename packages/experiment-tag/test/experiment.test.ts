@@ -59,7 +59,10 @@ describe('initializeExperiment', () => {
   });
 
   test('should initialize experiment with empty user', () => {
-    DefaultWebExperimentClient.create(stringify(apiKey), JSON.stringify([]));
+    DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify([]),
+    );
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       web_exp_id: 'mock',
     });
@@ -106,7 +109,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
 
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -122,7 +125,7 @@ describe('initializeExperiment', () => {
       .spyOn(experimentCore, 'isLocalStorageAvailable')
       .mockReturnValue(false);
     try {
-      await DefaultWebExperimentClient.create(
+      await DefaultWebExperimentClient.getInstance(
         stringify(apiKey),
         JSON.stringify([]),
       );
@@ -135,7 +138,7 @@ describe('initializeExperiment', () => {
   });
 
   test('treatment variant on control page - should redirect and call exposure', () => {
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
@@ -148,7 +151,7 @@ describe('initializeExperiment', () => {
   });
 
   test('control variant on control page - should not redirect but call exposure', () => {
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
@@ -179,7 +182,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
@@ -213,7 +216,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
@@ -264,7 +267,7 @@ describe('initializeExperiment', () => {
       },
     ];
 
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -305,7 +308,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -324,7 +327,7 @@ describe('initializeExperiment', () => {
   });
 
   test('should behave as control variant when payload is empty', () => {
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2?param3=c'),
@@ -361,7 +364,7 @@ describe('initializeExperiment', () => {
         variant: 'off',
       },
     ];
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -401,7 +404,7 @@ describe('initializeExperiment', () => {
         variant: 'off',
       },
     ];
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -427,7 +430,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify([]));
 
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -453,7 +456,7 @@ describe('initializeExperiment', () => {
     ];
     const remoteFlags = [createMutateFlag('test-2', 'treatment')];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -481,7 +484,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 404);
 
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -505,7 +508,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient('', 404);
 
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -549,7 +552,7 @@ describe('initializeExperiment', () => {
       ExperimentClient.prototype as any,
       'doFlags',
     );
-    DefaultWebExperimentClient.create(
+    DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {
@@ -579,7 +582,7 @@ describe('initializeExperiment', () => {
     ];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
 
-    await DefaultWebExperimentClient.create(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       {

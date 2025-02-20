@@ -44,8 +44,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;
   private readonly initialFlags: [];
   private readonly config: WebExperimentConfig;
-  private readonly globalScope = getGlobalScope();
-  private readonly experimentClient: ExperimentClient | undefined;
+  private readonly globalScope: typeof globalThis;
+  private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
   private appliedMutations: Record<string, MutationController[]> = {};
   private previousUrl: string | undefined = undefined;
@@ -63,25 +63,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     initialFlags: string,
     config: WebExperimentConfig = {},
   ) {
-    if (!this.globalScope || !isLocalStorageAvailable()) {
+    const globalScope = getGlobalScope();
+    if (!globalScope || !isLocalStorageAvailable()) {
       throw new Error(
         'Amplitude Web Experiment Client could not be initialized.',
       );
     }
+    this.globalScope = globalScope;
     this.apiKey = apiKey;
     this.initialFlags = JSON.parse(initialFlags);
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
       ...config,
-      ...(this.globalScope?.experimentConfig ?? {}),
+      ...(this.globalScope.experimentConfig ?? {}),
     };
-
-    if (this.globalScope?.webExperiment) {
-      return this.globalScope?.webExperiment;
-    }
-
-    this.globalScope.webExperiment = this;
 
     const urlParams = getUrlParams();
 
@@ -101,7 +97,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         urlParams[key] in variants
       ) {
         // Remove preview-related query parameters from the URL
-        this.globalScope?.history.replaceState(
+        this.globalScope.history.replaceState(
           {},
           '',
           removeQueryParams(this.globalScope.location.href, ['PREVIEW', key]),
@@ -152,13 +148,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       fetchOnStart: false,
       ...this.config,
     });
+    if (this.globalScope.webExperiment) {
+      return this.globalScope.webExperiment;
+    }
+    this.globalScope.webExperiment = this;
   }
 
   private async start() {
-    if (!this.experimentClient || !this.globalScope) {
-      return;
-    }
-
     const urlParams = getUrlParams();
 
     // if in visual edit mode, remove the query param
@@ -233,16 +229,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(user);
 
-    // If no integration has been set, use an amplitude integration.
-    if (!this.globalScope.experimentIntegration) {
-      const connector = AnalyticsConnector.getInstance('$default_instance');
-      this.globalScope.experimentIntegration = new AmplitudeIntegrationPlugin(
-        this.apiKey,
-        connector,
-        0,
-      );
-    }
-
     if (this.config.useDefaultNavigationHandler) {
       this.setDefaultNavigationHandler([
         ...this.localFlagKeys,
@@ -255,7 +241,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     if (!this.isRemoteBlocking) {
       // Remove anti-flicker css if remote flags are not blocking
-      this.globalScope?.document.getElementById?.('amp-exp-css')?.remove();
+      this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
 
     if (this.remoteFlagKeys.length === 0) {
@@ -267,17 +253,28 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.applyVariants({ flagKeys: this.remoteFlagKeys });
   }
 
-  static async create(
+  static async getInstance(
     apiKey: string,
     initialFlags: string,
     config: WebExperimentConfig = {},
-  ) {
+  ): Promise<DefaultWebExperimentClient> {
+    const globalScope = getGlobalScope();
+    if (!globalScope) {
+      throw new Error(
+        'Amplitude Web Experiment Client could not be initialized.',
+      );
+    }
+    // if the client has already been initialized, return the existing instance
+    if (globalScope?.webExperiment) {
+      return globalScope.webExperiment;
+    }
     const webExperiment = new DefaultWebExperimentClient(
       apiKey,
       initialFlags,
       config,
     );
     await webExperiment.start();
+    globalScope.webExperiment = webExperiment;
     return webExperiment;
   }
 
@@ -296,9 +293,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const { flagKeys } = options || {};
     const variants = this.getVariants();
     if (Object.keys(variants).length === 0) {
-      return;
-    }
-    if (!this.globalScope) {
       return;
     }
     const currentUrl = urlWithoutParamsAndAnchor(
@@ -385,8 +379,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Get all variants for the current web experiment context.
    */
   public getVariants(): Variants {
-    if (!this.experimentClient) return {};
-
     const allVariants = this.experimentClient.all();
 
     const isRelevantKey = (key: string) =>
@@ -420,9 +412,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private async fetchRemoteFlags() {
-    if (!this.experimentClient) {
-      return;
-    }
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
@@ -445,9 +434,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleRedirect(action, key: string, variant: Variant) {
-    if (!this.globalScope) {
-      return;
-    }
     const referrerUrl = urlWithoutParamsAndAnchor(
       this.previousUrl || this.globalScope.document.referrer,
     );
@@ -481,9 +467,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleMutate(action, key: string, variant: Variant) {
-    if (!this.globalScope) {
-      return;
-    }
     // Check for repeat invocations
     if (this.appliedMutations[key]) {
       return;
@@ -498,9 +481,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleInject(action, key: string, variant: Variant) {
-    if (!this.globalScope) {
-      return;
-    }
     // Check for repeat invocations
     if (this.appliedMutations[key]) {
       return;
@@ -584,8 +564,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private exposureWithDedupe(key: string, variant: Variant) {
-    if (!this.globalScope) return;
-
     const shouldTrackVariant = variant.metadata?.['trackExposure'] ?? true;
     const currentUrl = urlWithoutParamsAndAnchor(
       this.globalScope.location.href,
@@ -597,13 +575,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const shouldTrackExposure = shouldTrackVariant && !hasTrackedVariant;
 
     if (shouldTrackExposure) {
-      this.experimentClient?.exposure(key);
+      this.experimentClient.exposure(key);
       this.urlExposureCache[currentUrl][key] = variant.key;
     }
   }
 
   private applyAntiFlickerCss() {
-    if (!this.globalScope) return;
     if (!this.globalScope.document.getElementById('amp-exp-css')) {
       const id = 'amp-exp-css';
       const s = document.createElement('style');
@@ -618,11 +595,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private setDefaultNavigationHandler(flagKeys: string[]) {
-    if (!this.globalScope) {
-      return;
-    }
     // Add URL change listener for back/forward navigation
-    this.globalScope?.addEventListener('popstate', () => {
+    this.globalScope.addEventListener('popstate', () => {
       this.revertVariants();
       this.applyVariants({ flagKeys: flagKeys });
     });
@@ -630,7 +604,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const handleUrlChange = () => {
       this.revertVariants();
       this.applyVariants({ flagKeys: flagKeys });
-      this.previousUrl = this.globalScope?.location.href;
+      this.previousUrl = this.globalScope.location.href;
     };
 
     // Create wrapper functions for pushState and replaceState
