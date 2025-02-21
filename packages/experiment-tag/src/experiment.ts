@@ -253,6 +253,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.applyVariants({ flagKeys: this.remoteFlagKeys });
   }
 
+  /**
+   * Get singleton of the {@link DefaultWebExperimentClient} if it has already been initialized.
+   * If not, initialize the client and return the instance.
+   * @param apiKey
+   * @param initialFlags
+   * @param config
+   */
   static async getInstance(
     apiKey: string,
     initialFlags: string,
@@ -281,7 +288,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   /**
    * Get the underlying {@link ExperimentClient} instance.
    */
-  public getExperimentClient(): ExperimentClient | undefined {
+  public getExperimentClient(): ExperimentClient {
     return this.experimentClient;
   }
 

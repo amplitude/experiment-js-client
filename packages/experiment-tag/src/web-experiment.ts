@@ -11,7 +11,7 @@ import {
  */
 
 export interface WebExperimentClient {
-  getExperimentClient(): ExperimentClient | undefined;
+  getExperimentClient(): ExperimentClient;
 
   applyVariants(options?: ApplyVariantsOptions): void;
 
