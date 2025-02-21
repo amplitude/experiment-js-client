@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.11](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-plugin-segment@0.2.10...@amplitude/experiment-plugin-segment@0.2.11) (2025-02-21)
+
+
+### Bug Fixes
+
+* segment plugin abstract nested instance ([#158](https://github.com/amplitude/experiment-js-client/issues/158)) ([1e73757](https://github.com/amplitude/experiment-js-client/commit/1e73757bae98dfd8af1761c5e7c77ee7d1989fe0))
+
+
+
+
+
 ## [0.2.10](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-plugin-segment@0.2.9...@amplitude/experiment-plugin-segment@0.2.10) (2025-02-18)
 
 
