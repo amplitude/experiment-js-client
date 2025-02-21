@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is the Web Experimentation SDK for Amplitude Experiment. Currently, only split-URL experiments are supported.
+This is the Web Experimentation SDK for Amplitude Experiment.
 
 ## Generate example
 
