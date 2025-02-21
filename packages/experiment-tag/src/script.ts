@@ -6,7 +6,9 @@ const serverZone = '{{SERVER_ZONE}}';
 
 DefaultWebExperimentClient.getInstance(API_KEY, initialFlags, {
   serverZone: serverZone,
-}).then(() => {
-  // Remove anti-flicker css if it exists
-  document.getElementById('amp-exp-css')?.remove();
-});
+})
+  .start()
+  .then(() => {
+    // Remove anti-flicker css if it exists
+    document.getElementById('amp-exp-css')?.remove();
+  });

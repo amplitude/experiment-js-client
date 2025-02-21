@@ -62,7 +62,7 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([]),
-    );
+    ).start();
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       web_exp_id: 'mock',
     });
@@ -89,7 +89,6 @@ describe('initializeExperiment', () => {
       addEventListener: jest.fn(),
       experimentConfig: {
         useDefaultNavigationHandler: false,
-        applyRemoteExperimentAntiFlicker: false,
       },
     };
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -115,9 +114,10 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    ).then();
+    )
+      .start()
+      .then();
     expect(setDefaultSpy).not.toHaveBeenCalled();
-    expect(antiFlickerSpy).not.toHaveBeenCalled();
   });
 
   test('experiment should not run without localStorage', async () => {
@@ -128,7 +128,7 @@ describe('initializeExperiment', () => {
       await DefaultWebExperimentClient.getInstance(
         stringify(apiKey),
         JSON.stringify([]),
-      );
+      ).start();
     } catch (error: any) {
       expect(error.message).toBe(
         'Amplitude Web Experiment Client could not be initialized.',
@@ -143,7 +143,7 @@ describe('initializeExperiment', () => {
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
-    );
+    ).start();
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
     );
@@ -156,7 +156,7 @@ describe('initializeExperiment', () => {
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
       ]),
-    );
+    ).start();
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
     expect(mockGlobal.history.replaceState).toBeCalledTimes(0);
@@ -187,7 +187,7 @@ describe('initializeExperiment', () => {
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
-    );
+    ).start();
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
       {},
@@ -221,7 +221,7 @@ describe('initializeExperiment', () => {
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
-    );
+    ).start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
@@ -318,7 +318,7 @@ describe('initializeExperiment', () => {
           'http://test.com/',
         ),
       ]),
-    );
+    ).start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2?param3=c&param1=a&param2=b',
@@ -332,7 +332,7 @@ describe('initializeExperiment', () => {
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2?param3=c'),
       ]),
-    );
+    ).start();
 
     expect(mockGlobal.location.replace).not.toHaveBeenCalled();
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -375,7 +375,7 @@ describe('initializeExperiment', () => {
           pageTargetingSegments,
         ),
       ]),
-    );
+    ).start();
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
@@ -436,15 +436,17 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    ).then(() => {
-      expect(mockHttpClient.requestUrl).toBe(
-        'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
-      );
-      // check flag fetch called with correct query param and header
-      expect(mockHttpClient.requestHeader['X-Amp-Exp-User']).toBe(
-        Base64.encodeURL(JSON.stringify(mockUser)),
-      );
-    });
+    )
+      .start()
+      .then(() => {
+        expect(mockHttpClient.requestUrl).toBe(
+          'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
+        );
+        // check flag fetch called with correct query param and header
+        expect(mockHttpClient.requestHeader['X-Amp-Exp-User']).toBe(
+          Base64.encodeURL(JSON.stringify(mockUser)),
+        );
+      });
   });
 
   test('remote evaluation - fetch successful, antiflicker applied', () => {
@@ -462,11 +464,13 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    ).then(() => {
-      // check remote flag variant actions called after successful fetch
-      expect(mockExposure).toHaveBeenCalledTimes(2);
-      expect(mockExposure).toHaveBeenCalledWith('test-2');
-    });
+    )
+      .start()
+      .then(() => {
+        // check remote flag variant actions called after successful fetch
+        expect(mockExposure).toHaveBeenCalledTimes(2);
+        expect(mockExposure).toHaveBeenCalledWith('test-2');
+      });
     // check local flag variant actions called
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test-1');
@@ -490,10 +494,12 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    ).then(() => {
-      // check remote fetch failed safely
-      expect(mockExposure).toHaveBeenCalledTimes(2);
-    });
+    )
+      .start()
+      .then(() => {
+        // check remote fetch failed safely
+        expect(mockExposure).toHaveBeenCalledTimes(2);
+      });
     // check local flag variant actions called
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test-1');
@@ -514,11 +520,13 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    ).then(() => {
-      // check remote variant actions applied
-      expect(mockExposure).toHaveBeenCalledTimes(1);
-      expect(mockExposure).toHaveBeenCalledWith('test');
-    });
+    )
+      .start()
+      .then(() => {
+        // check remote variant actions applied
+        expect(mockExposure).toHaveBeenCalledTimes(1);
+        expect(mockExposure).toHaveBeenCalledWith('test');
+      });
     // check local flag variant actions called
     expect(mockExposure).toHaveBeenCalledTimes(0);
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
@@ -558,10 +566,12 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    ).then(() => {
-      // check remote fetch not called
-      expect(doFlagsMock).toHaveBeenCalledTimes(0);
-    });
+    )
+      .start()
+      .then(() => {
+        // check remote fetch not called
+        expect(doFlagsMock).toHaveBeenCalledTimes(0);
+      });
     expect(antiFlickerSpy).toHaveBeenCalledTimes(0);
   });
 
@@ -588,7 +598,7 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    );
+    ).start();
     // check treatment variant called
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');

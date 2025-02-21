@@ -57,6 +57,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
+  private isRunning = false;
 
   constructor(
     apiKey: string,
@@ -90,7 +91,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           convertEvaluationVariantToVariant(variants[variantKey]);
       });
 
-      // Force variant if in preview mode
+      // Update initialFlags to force variant if in preview mode
       if (
         urlParams['PREVIEW'] &&
         key in urlParams &&
@@ -148,13 +149,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       fetchOnStart: false,
       ...this.config,
     });
-    if (this.globalScope.webExperiment) {
-      return this.globalScope.webExperiment;
-    }
-    this.globalScope.webExperiment = this;
   }
 
-  private async start() {
+  /**
+   * Start the web experiment client.
+   */
+  public async start() {
+    if (this.isRunning) {
+      return;
+    }
     const urlParams = getUrlParams();
 
     // if in visual edit mode, remove the query param
@@ -200,19 +203,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // evaluate variants for page targeting
     const variants: Variants = this.getVariants();
 
-    if (this.config.applyRemoteExperimentAntiFlicker) {
-      for (const [key, variant] of Object.entries(variants)) {
-        // only apply antiflicker for remote flags active on the page
-        if (
-          this.remoteFlagKeys.includes(key) &&
-          variant.metadata?.blockingEvaluation &&
-          variant.metadata?.segmentName !== PAGE_NOT_TARGETED_SEGMENT_NAME &&
-          variant.metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
-        ) {
-          this.isRemoteBlocking = true;
-          // Apply anti-flicker CSS to prevent UI flicker
-          this.applyAntiFlickerCss();
-        }
+    for (const [key, variant] of Object.entries(variants)) {
+      // only apply anti-flicker for remote flags active on the page
+      if (
+        this.remoteFlagKeys.includes(key) &&
+        variant.metadata?.blockingEvaluation &&
+        variant.metadata?.segmentName !== PAGE_NOT_TARGETED_SEGMENT_NAME &&
+        variant.metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
+      ) {
+        this.isRemoteBlocking = true;
+        // Apply anti-flicker CSS to prevent UI flicker
+        this.applyAntiFlickerCss();
       }
     }
 
@@ -251,6 +252,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
     this.applyVariants({ flagKeys: this.remoteFlagKeys });
+    this.isRunning = true;
   }
 
   /**
@@ -260,11 +262,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param initialFlags
    * @param config
    */
-  static async getInstance(
+  static getInstance(
     apiKey: string,
     initialFlags: string,
     config: WebExperimentConfig = {},
-  ): Promise<DefaultWebExperimentClient> {
+  ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
     if (!globalScope) {
       throw new Error(
@@ -280,7 +282,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       initialFlags,
       config,
     );
-    await webExperiment.start();
     globalScope.webExperiment = webExperiment;
     return webExperiment;
   }

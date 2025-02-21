@@ -8,13 +8,8 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * 2. Custom handling of navigation should be implemented such that variant actions applied on the site reflect the latest context
    */
   useDefaultNavigationHandler?: boolean;
-  /**
-   * Determines whether anti-flicker CSS should be applied for experiments with remote properties.
-   */
-  applyRemoteExperimentAntiFlicker?: boolean;
 }
 
 export const Defaults: WebExperimentConfig = {
   useDefaultNavigationHandler: true,
-  applyRemoteExperimentAntiFlicker: true,
 };

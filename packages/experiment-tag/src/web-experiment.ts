@@ -11,6 +11,8 @@ import {
  */
 
 export interface WebExperimentClient {
+  start(): void;
+
   getExperimentClient(): ExperimentClient;
 
   applyVariants(options?: ApplyVariantsOptions): void;
