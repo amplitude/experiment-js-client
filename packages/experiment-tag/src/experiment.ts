@@ -246,6 +246,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     if (this.remoteFlagKeys.length === 0) {
+      this.isRunning = true;
       return;
     }
 
