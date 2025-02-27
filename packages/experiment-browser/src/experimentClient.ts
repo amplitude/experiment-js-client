@@ -49,6 +49,7 @@ import {
 } from './util/convert';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
 import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
+import {MessageBus} from '@amplitude/experiment-tag/src/message-bus';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.

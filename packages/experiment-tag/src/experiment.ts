@@ -33,6 +33,8 @@ import {
   concatenateQueryParamsOf,
 } from './util';
 import { WebExperimentClient } from './web-experiment';
+import { MessageBus } from './message-bus';
+import { initSubscriptions, PageObject } from './subscriptions';
 
 export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
 export const PAGE_IS_EXCLUDED_SEGMENT_NAME = 'Page is excluded';
@@ -58,6 +60,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private isRemoteBlocking = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
   private isRunning = false;
+  private readonly messageBus: MessageBus;
 
   constructor(
     apiKey: string,
@@ -149,6 +152,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       fetchOnStart: false,
       ...this.config,
     });
+    this.messageBus = new MessageBus();
   }
 
   /**
@@ -231,27 +235,42 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.experimentClient.setUser(user);
 
     if (this.config.useDefaultNavigationHandler) {
-      this.setDefaultNavigationHandler([
-        ...this.localFlagKeys,
-        ...this.remoteFlagKeys,
-      ]);
+      // TODO: handle this with subscriptions
+      // this.setDefaultNavigationHandler([
+      //   ...this.localFlagKeys,
+      //   ...this.remoteFlagKeys,
+      // ]);
     }
 
     // apply local variants
-    this.applyVariants({ flagKeys: this.localFlagKeys });
+    // this.applyVariants({ flagKeys: this.localFlagKeys });
 
     if (!this.isRemoteBlocking) {
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
 
+    const TEST_PAGE_OBJECT: PageObject = {
+      conditions: undefined,
+      trigger: {
+        type: 'sdk_trigger',
+        properties: {
+          name: 'test_trigger',
+        },
+      },
+      experiments: ['test'],
+    };
+
     if (this.remoteFlagKeys.length === 0) {
+      this.isRunning = true;
+      initSubscriptions(this.messageBus, [TEST_PAGE_OBJECT]);
       return;
     }
 
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
-    this.applyVariants({ flagKeys: this.remoteFlagKeys });
+    // this.applyVariants({ flagKeys: this.remoteFlagKeys });
+    initSubscriptions(this.messageBus, [TEST_PAGE_OBJECT]);
     this.isRunning = true;
   }
 
@@ -417,6 +436,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public setRedirectHandler(handler: (url: string) => void) {
     this.customRedirectHandler = handler;
+  }
+
+  /**
+   * Manual trigger for a page view.
+   * @param name
+   */
+  public triggerView(name: string) {
+    // TODO: should wait for remote flags to be fetched
+    // send message to MessageBus for view trigger
+    this.messageBus.publish('sdk_trigger', {
+      name,
+    });
   }
 
   private async fetchRemoteFlags() {
