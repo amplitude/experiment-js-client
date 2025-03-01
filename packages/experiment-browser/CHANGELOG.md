@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.15.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.0...@amplitude/experiment-js-client@1.15.1) (2025-03-01)
+
+
+### Bug Fixes
+
+* add IP property to user object ([#160](https://github.com/amplitude/experiment-js-client/issues/160)) ([2231028](https://github.com/amplitude/experiment-js-client/commit/22310282e70ae119aee2c8d248c9380bf78a4404))
+
+
+
+
+
 # [1.15.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.14.1...@amplitude/experiment-js-client@1.15.0) (2025-02-14)
 
 

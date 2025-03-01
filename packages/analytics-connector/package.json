@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/analytics-connector",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "Connector package for Amplitude SDKs",
   "author": "Amplitude",
   "homepage": "https://github.com/amplitude/experiment-js-client",
