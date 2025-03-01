@@ -77,6 +77,11 @@ export type ExperimentUser = {
   library?: string;
 
   /**
+   * Predefined field, can be manually provided
+   */
+  ip_address?: string;
+
+  /**
    * The time first saw this user, stored in local storage, can be manually overridden
    */
   first_seen?: string;
