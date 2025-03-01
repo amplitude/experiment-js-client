@@ -251,9 +251,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     const TEST_PAGE_OBJECT: PageObject = {
-      conditions: undefined,
+      conditions: [
+        [
+          {
+            op: 'regex match',
+            selector: ['context', 'page', 'url'],
+            values: ['.*dynamic.*'],
+          },
+        ],
+      ],
       trigger: {
-        type: 'sdk_trigger',
+        type: 'manual_trigger',
         properties: {
           name: 'test_trigger',
         },
@@ -445,7 +453,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   public triggerView(name: string) {
     // TODO: should wait for remote flags to be fetched
     // send message to MessageBus for view trigger
-    this.messageBus.publish('sdk_trigger', {
+    this.messageBus.publish('manual_trigger', {
       name,
     });
   }

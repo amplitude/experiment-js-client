@@ -22,7 +22,6 @@ const evaluationEngine = new EvaluationEngine();
 const globalScope = getGlobalScope();
 
 export const initSubscriptions = (_: MessageBus, pageObjects: PageObject[]) => {
-  console.log('initSubscriptions');
   setupLocationChangePublisher(_);
   setupSDKManualPublisher(_);
   setupMutationObserverPublisher(_);
@@ -97,7 +96,7 @@ const isPageObjectActive = (page: PageObject, message) => {
     return true;
   } else if (page.trigger.type === 'location_change') {
     // TODO: handle location change message
-  } else if (page.trigger.type === 'sdk_trigger') {
+  } else if (page.trigger.type === 'manual_trigger') {
     return (message.name = page.trigger.properties.name);
   } else if (page.trigger.type === 'analytics_event') {
     // TODO: check event and event properties match

@@ -15,13 +15,13 @@ type Subscriber<T extends MessageType> = {
 type DomMutationPayload = { mutationList: MutationRecord[] };
 type LocationChangePayload = Record<string, never>;
 type AnalyticsEventPayload = AnalyticsEvent;
-type SDKTriggerPayload = { name: string };
+type ManualTriggerPayload = { name: string };
 
 export type MessagePayloads = {
   dom_mutation: DomMutationPayload;
   location_change: LocationChangePayload;
   analytics_event: AnalyticsEventPayload;
-  sdk_trigger: SDKTriggerPayload;
+  manual_trigger: ManualTriggerPayload;
   immediately: undefined;
 };
 
