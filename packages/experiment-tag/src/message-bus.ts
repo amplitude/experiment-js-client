@@ -57,6 +57,7 @@ export class MessageBus {
       identifier: listenerId,
       callback: listener,
     };
+    // TODO: debounced necessary?
     // if (debounceTimeout !== undefined) {
     //   subscriber.debouncedCallback = debounce(listener, debounceTimeout);
     // }
@@ -75,6 +76,7 @@ export class MessageBus {
     entry.subscribers.forEach((subscriber) => {
       payload = payload || ({} as MessagePayloads[T]);
       try {
+        // TODO: debounced necessary?
         // if (subscriber.debouncedCallback) {
         //   subscriber.debouncedCallback(payload);
         // } else {
@@ -97,6 +99,7 @@ export class MessageBus {
 
     for (const subscriber of entry.subscribers) {
       if (subscriber.identifier === subscriberIdentifier) {
+        // TODO: debounced necessary?
         // subscriber.debouncedCallback?.cancel();
       } else {
         activeSubscribers.push(subscriber);

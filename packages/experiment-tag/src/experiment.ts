@@ -40,6 +40,32 @@ export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
 export const PAGE_IS_EXCLUDED_SEGMENT_NAME = 'Page is excluded';
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 
+// dummy page object used for testing
+const TEST_PAGE_OBJECT: PageObject = {
+  conditions: [
+    // page targeting conditions should be in same array to be "AND"
+    [
+      {
+        op: 'regex match',
+        selector: ['context', 'page', 'url'],
+        values: ['.*dynamic.*', '.*localhost.*'],
+      },
+      {
+        op: 'regex does not match',
+        selector: ['context', 'page', 'url'],
+        values: ['.*hello.*'],
+      },
+    ],
+  ],
+  trigger: {
+    type: 'dom_mutation',
+    properties: {
+      selector: 'body > div.min-h-screen > main > div.container.mx-auto.px-5 > h2 > a',
+    },
+  },
+  experiments: ['test'],
+};
+
 safeGlobal.Experiment = FeatureExperiment;
 
 export class DefaultWebExperimentClient implements WebExperimentClient {
@@ -249,25 +275,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
-
-    const TEST_PAGE_OBJECT: PageObject = {
-      conditions: [
-        [
-          {
-            op: 'regex match',
-            selector: ['context', 'page', 'url'],
-            values: ['.*dynamic.*'],
-          },
-        ],
-      ],
-      trigger: {
-        type: 'manual_trigger',
-        properties: {
-          name: 'test_trigger',
-        },
-      },
-      experiments: ['test'],
-    };
 
     if (this.remoteFlagKeys.length === 0) {
       this.isRunning = true;
@@ -641,44 +648,44 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private setDefaultNavigationHandler(flagKeys: string[]) {
-    // Add URL change listener for back/forward navigation
-    this.globalScope.addEventListener('popstate', () => {
-      this.revertVariants();
-      this.applyVariants({ flagKeys: flagKeys });
-    });
-
-    const handleUrlChange = () => {
-      this.revertVariants();
-      this.applyVariants({ flagKeys: flagKeys });
-      this.previousUrl = this.globalScope.location.href;
-    };
-
-    // Create wrapper functions for pushState and replaceState
-    const wrapHistoryMethods = () => {
-      const originalPushState = history.pushState;
-      const originalReplaceState = history.replaceState;
-
-      // Wrapper for pushState
-      history.pushState = function (...args) {
-        // Call the original pushState
-        const result = originalPushState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
-        return result;
-      };
-
-      // Wrapper for replaceState
-      history.replaceState = function (...args) {
-        // Call the original replaceState
-        const result = originalReplaceState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
-        return result;
-      };
-    };
-
-    // Initialize the wrapper
-    wrapHistoryMethods();
-  }
+  // private setDefaultNavigationHandler() {
+  //   // Add URL change listener for back/forward navigation
+  //   this.globalScope.addEventListener('popstate', () => {
+  //     this.revertVariants();
+  //     this.applyVariants();
+  //   });
+  //
+  //   const handleUrlChange = () => {
+  //     this.revertVariants();
+  //     this.applyVariants();
+  //     this.previousUrl = this.globalScope.location.href;
+  //   };
+  //
+  //   // Create wrapper functions for pushState and replaceState
+  //   const wrapHistoryMethods = () => {
+  //     const originalPushState = history.pushState;
+  //     const originalReplaceState = history.replaceState;
+  //
+  //     // Wrapper for pushState
+  //     history.pushState = function (...args) {
+  //       // Call the original pushState
+  //       const result = originalPushState.apply(this, args);
+  //       // Revert mutations and apply variants
+  //       handleUrlChange();
+  //       return result;
+  //     };
+  //
+  //     // Wrapper for replaceState
+  //     history.replaceState = function (...args) {
+  //       // Call the original replaceState
+  //       const result = originalReplaceState.apply(this, args);
+  //       // Revert mutations and apply variants
+  //       handleUrlChange();
+  //       return result;
+  //     };
+  //   };
+  //
+  //   // Initialize the wrapper
+  //   wrapHistoryMethods();
+  // }
 }
