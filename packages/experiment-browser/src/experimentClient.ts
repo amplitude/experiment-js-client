@@ -710,16 +710,20 @@ export class ExperimentClient implements Client {
 
   private async doFlags(): Promise<void> {
     try {
+      // Web experiment adds a user to the flags request
       const isWebExperiment =
         this.config?.['internalInstanceNameSuffix'] === 'web';
-      const user = this.addContext(this.getUser());
+      let user: ExperimentUser;
+      if (isWebExperiment) {
+        user = await this.addContextOrWait(this.getUser());
+      }
       const flags = await this.flagApi.getFlags({
         libraryName: 'experiment-js-client',
         libraryVersion: PACKAGE_VERSION,
         timeoutMillis: this.config.fetchTimeoutMillis,
         deliveryMethod: isWebExperiment ? 'web' : undefined,
         user:
-          isWebExperiment && (user?.user_id || user?.device_id)
+          user?.user_id || user?.device_id
             ? { user_id: user?.user_id, device_id: user?.device_id }
             : undefined,
       });
