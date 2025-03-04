@@ -41,9 +41,13 @@ export class DebouncedMutationManager {
     this.filters = filters;
     this.options = { ...DEFAULT_OPTIONS, ...options };
 
-    this.processMutationsDebounced = debounce(this.processMutationsImmediately, this.options.debounceMs, {
-      maxWait: this.options.debounceMs * 2,
-    });
+    this.processMutationsDebounced = debounce(
+      this.processMutationsImmediately,
+      this.options.debounceMs,
+      {
+        maxWait: this.options.debounceMs * 2,
+      },
+    );
   }
 
   private shouldProcessMutation(mutation: MutationRecord): boolean {
@@ -78,7 +82,9 @@ export class DebouncedMutationManager {
 
   private handleMutations = (mutationList: MutationRecord[]): void => {
     try {
-      const filteredBatch = mutationList.filter((mutation) => this.shouldProcessMutation(mutation));
+      const filteredBatch = mutationList.filter((mutation) =>
+        this.shouldProcessMutation(mutation),
+      );
 
       if (filteredBatch.length === 0) {
         return;

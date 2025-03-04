@@ -17,7 +17,7 @@ export type PageObject = {
     properties: Record<string, unknown>;
   };
   triggerSource?: string;
-  experiments: string[];
+  experiments: Record<string, string[]>;
 };
 
 const evaluationEngine = new EvaluationEngine();
@@ -219,7 +219,7 @@ const isPageObjectActive = (page: PageObject, message) => {
     // TODO: check event and event properties match
     return true;
   } else if (page.trigger.type === 'dom_mutation') {
-    // TODO: check if element appeared
+    // TODO: take care of flicker on landing
     const element = globalScope.document.querySelector(
       // @ts-ignore
       page.trigger.properties.selector,

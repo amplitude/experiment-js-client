@@ -58,12 +58,12 @@ const TEST_PAGE_OBJECT: PageObject = {
     ],
   ],
   trigger: {
-    type: 'dom_mutation',
+    type: 'location_change',
     properties: {
-      selector: 'body > div.min-h-screen > main > div.container.mx-auto.px-5 > h2 > a',
+      name: 'test_trigger',
     },
   },
-  experiments: ['test'],
+  experiments: { test: ['treatment'] },
 };
 
 safeGlobal.Experiment = FeatureExperiment;
