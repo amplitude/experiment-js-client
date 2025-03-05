@@ -34,36 +34,88 @@ import {
 } from './util';
 import { WebExperimentClient } from './web-experiment';
 import { MessageBus } from './message-bus';
-import { initSubscriptions, PageObject } from './subscriptions';
+import { initSubscriptions, PageObjects } from './subscriptions';
 
 export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
 export const PAGE_IS_EXCLUDED_SEGMENT_NAME = 'Page is excluded';
 export const PREVIEW_SEGMENT_NAME = 'Preview';
-
-// dummy page object used for testing
-const TEST_PAGE_OBJECT: PageObject = {
-  conditions: [
-    // page targeting conditions should be in same array to be "AND"
-    [
-      {
-        op: 'regex match',
-        selector: ['context', 'page', 'url'],
-        values: ['.*dynamic.*', '.*localhost.*'],
-      },
-      {
-        op: 'regex does not match',
-        selector: ['context', 'page', 'url'],
-        values: ['.*hello.*'],
-      },
-    ],
-  ],
-  trigger: {
-    type: 'location_change',
-    properties: {
-      name: 'test_trigger',
-    },
+const DUMMY_TRUE_CONDITION = [
+  {
+    op: 'is',
+    selector: [],
+    values: ['(none)'],
   },
-  experiments: { test: ['treatment'] },
+];
+
+const DUMMY_FALSE_CONDITION = [
+  {
+    op: 'is not',
+    selector: [],
+    values: ['(none)'],
+  },
+];
+// dummy page object used for testing
+const TEST_PAGE_OBJECTS: PageObjects = {
+  A: {
+    conditions: [
+      // page targeting conditions should be in same array to be "AND"
+      // DUMMY_TRUE_CONDITION,
+      [
+        {
+          op: 'regex match',
+          selector: ['context', 'page', 'url'],
+          values: ['.*hello.*'],
+        },
+      ],
+    ],
+    trigger: {
+      type: 'location_change',
+      properties: {
+        name: 'A',
+      },
+    },
+    experiments: { test: ['treatment'] },
+  },
+  B: {
+    conditions: [
+      // DUMMY_TRUE_CONDITION,
+      // page targeting conditions should be in same array to be "AND"
+      [
+        {
+          op: 'regex match',
+          selector: ['context', 'page', 'url'],
+          values: ['.*dynamic.*'],
+        },
+      ],
+    ],
+    trigger: {
+      type: 'location_change',
+      properties: {
+        name: 'B',
+      },
+    },
+    experiments: { test: ['treatment'] },
+  },
+  C: {
+    conditions: [
+      // page targeting conditions should be in same array to be "AND"
+      // [
+      //   {
+      //     op: 'regex match',
+      //     selector: ['context', 'page', 'url'],
+      //     values: ['.*localhost.*'],
+      //   },
+      // ],
+      DUMMY_TRUE_CONDITION,
+    ],
+    trigger: {
+      type: 'location_change',
+      properties: {
+        name: 'test_trigger',
+      },
+    },
+    experiments: { test: ['treatment'] },
+  },
 };
 
 safeGlobal.Experiment = FeatureExperiment;
@@ -75,7 +127,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly globalScope: typeof globalThis;
   private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
-  private appliedMutations: Record<string, MutationController[]> = {};
+  private appliedMutations: Record<
+    string,
+    Record<string, Record<number, MutationController>>
+  > = {};
   private previousUrl: string | undefined = undefined;
   // Cache to track exposure for the current URL, should be cleared on URL change
   private urlExposureCache: Record<string, Record<string, string | undefined>> =
@@ -87,6 +142,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private customRedirectHandler: ((url: string) => void) | undefined;
   private isRunning = false;
   private readonly messageBus: MessageBus;
+  private readonly pageObjects: PageObjects = TEST_PAGE_OBJECTS;
+  private readonly activePages: Set<string> = new Set();
 
   constructor(
     apiKey: string,
@@ -275,17 +332,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
-
     if (this.remoteFlagKeys.length === 0) {
       this.isRunning = true;
-      initSubscriptions(this.messageBus, [TEST_PAGE_OBJECT]);
+      initSubscriptions(this.messageBus, TEST_PAGE_OBJECTS);
       return;
     }
 
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
     // this.applyVariants({ flagKeys: this.remoteFlagKeys });
-    initSubscriptions(this.messageBus, [TEST_PAGE_OBJECT]);
+    initSubscriptions(this.messageBus, TEST_PAGE_OBJECTS);
     this.isRunning = true;
   }
 
@@ -345,11 +401,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache = {};
       this.urlExposureCache[currentUrl] = {};
     }
-    for (const key in variants) {
-      if (flagKeys && !flagKeys.includes(key)) {
+    for (const flagKey in variants) {
+      if (flagKeys && !flagKeys.includes(flagKey)) {
         continue;
       }
-      const variant = variants[key];
+      const variant = variants[flagKey];
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
       if (isWebExperimentation) {
         const shouldTrackExposure =
@@ -359,12 +415,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         const isControlPayload =
           !variant.payload || (payloadIsArray && variant.payload.length === 0);
         if (shouldTrackExposure && isControlPayload) {
-          this.exposureWithDedupe(key, variant);
+          this.exposureWithDedupe(flagKey, variant);
           continue;
         }
 
         if (payloadIsArray) {
-          this.handleVariantAction(key, variant);
+          this.handleVariantAction(flagKey, variant);
         }
       }
     }
@@ -374,14 +430,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Revert variant actions applied by the experiment.
    * @param options
    */
+  // TODO: should be based on page objects?
   public revertVariants(options?: RevertVariantsOptions) {
     let { flagKeys } = options || {};
     if (!flagKeys) {
       flagKeys = Object.keys(this.appliedMutations);
     }
+
     for (const key of flagKeys) {
-      this.appliedMutations[key]?.forEach((mutationController) => {
-        mutationController.revert();
+      Object.values(this.appliedMutations[key])?.forEach((type) => {
+        Object.values(type).forEach((mutation) => {
+          mutation.revert();
+        });
       });
       delete this.appliedMutations[key];
     }
@@ -475,19 +535,20 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private handleVariantAction(key: string, variant: Variant) {
+  // TODO: variant action should take into account scoping
+  private handleVariantAction(flagKey: string, variant: Variant) {
     for (const action of variant.payload) {
       if (action.action === 'redirect') {
-        this.handleRedirect(action, key, variant);
+        this.handleRedirect(action, flagKey, variant);
       } else if (action.action === 'mutate') {
-        this.handleMutate(action, key, variant);
+        this.handleMutate(action, flagKey, variant);
       } else if (action.action === 'inject') {
-        this.handleInject(action, key, variant);
+        this.handleInject(action, flagKey, variant);
       }
     }
   }
 
-  private handleRedirect(action, key: string, variant: Variant) {
+  private handleRedirect(action, flagKey: string, variant: Variant) {
     const referrerUrl = urlWithoutParamsAndAnchor(
       this.previousUrl || this.globalScope.document.referrer,
     );
@@ -507,7 +568,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       redirectUrl,
     );
 
-    this.exposureWithDedupe(key, variant);
+    this.exposureWithDedupe(flagKey, variant);
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
@@ -520,23 +581,48 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.globalScope.location.replace(targetUrl);
   }
 
-  private handleMutate(action, key: string, variant: Variant) {
-    // Check for repeat invocations
-    if (this.appliedMutations[key]) {
-      return;
-    }
+  private handleMutate(action, flagKey: string, variant: Variant) {
     const mutations = action.data?.mutations;
-    const mutationControllers: MutationController[] = [];
-    mutations.forEach((m) => {
-      mutationControllers.push(mutate.declarative(m));
+    const mutationControllers: Record<number, MutationController> = {};
+
+    mutations.forEach((m, index) => {
+      // Check if mutation is scoped to page
+      if (!this.mutationActiveOnPage(m)) {
+        // Revert inactive mutation
+        this.appliedMutations[flagKey]?.['mutate']?.[index]?.revert();
+        if (this.appliedMutations[flagKey]?.['mutate']) {
+          delete this.appliedMutations[flagKey]['mutate'][index];
+        }
+      } else if (!this.appliedMutations[flagKey]?.['mutate']?.[index]) {
+        this.exposureWithDedupe(flagKey, variant);
+        // Apply mutation
+        mutationControllers[index] = mutate.declarative(m);
+      }
     });
-    this.appliedMutations[key] = mutationControllers;
-    this.exposureWithDedupe(key, variant);
+
+    if (!this.appliedMutations[flagKey]) {
+      this.appliedMutations[flagKey] = {};
+    }
+
+    // Merge instead of overwriting if there are existing mutations
+    this.appliedMutations[flagKey]['mutate'] = {
+      ...this.appliedMutations[flagKey]['mutate'],
+      ...mutationControllers,
+    };
+
+    // Delete empty objects
+    if (Object.keys(this.appliedMutations[flagKey]['mutate']).length === 0) {
+      delete this.appliedMutations[flagKey]['mutate'];
+    }
+    if (Object.keys(this.appliedMutations[flagKey]).length === 0) {
+      delete this.appliedMutations[flagKey];
+    }
   }
 
-  private handleInject(action, key: string, variant: Variant) {
+  // TODO handle scoped multiple injections
+  private handleInject(action, flagKey: string, variant: Variant) {
     // Check for repeat invocations
-    if (this.appliedMutations[key]) {
+    if (this.appliedMutations[flagKey]) {
       return;
     }
     // Validate and transform ID
@@ -591,22 +677,20 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     } catch (e) {
       script?.remove();
       console.error(
-        `Experiment inject failed for ${key} variant ${variant.key}. Reason:`,
+        `Experiment inject failed for ${flagKey} variant ${variant.key}. Reason:`,
         e,
       );
     }
     // Push mutation to remove CSS and any custom state cleanup set in utils.
-    this.appliedMutations[key] = [
-      {
-        revert: () => {
-          if (utils.remove) utils.remove();
-          style?.remove();
-          script?.remove();
-          this.appliedInjections.delete(id);
-        },
+    this.appliedMutations[flagKey]['inject'][0] = {
+      revert: () => {
+        if (utils.remove) utils.remove();
+        style?.remove();
+        script?.remove();
+        this.appliedInjections.delete(id);
       },
-    ];
-    this.exposureWithDedupe(key, variant);
+    };
+    this.exposureWithDedupe(flagKey, variant);
   }
 
   private isPageTargetingSegment(segment: EvaluationSegment) {
@@ -646,6 +730,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         s.remove();
       }, 1000);
     }
+  }
+
+  private mutationActiveOnPage(mutation): boolean {
+    const scope = mutation?.metadata?.scope;
+    return scope?.some((value) => this.activePages.has(value));
   }
 
   // private setDefaultNavigationHandler() {

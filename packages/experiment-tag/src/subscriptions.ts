@@ -5,7 +5,6 @@ import {
 } from '@amplitude/experiment-core';
 
 import { MessageBus, MessageType } from './message-bus';
-import { WebExperimentStore } from './store';
 import { DebouncedMutationManager } from './mutation-manager';
 
 export type PageObject = {
@@ -19,6 +18,8 @@ export type PageObject = {
   triggerSource?: string;
   experiments: Record<string, string[]>;
 };
+
+export type PageObjects = Record<string, PageObject>;
 
 const evaluationEngine = new EvaluationEngine();
 const globalScope = getGlobalScope();
@@ -75,7 +76,7 @@ const globalScope = getGlobalScope();
 //   };
 // };
 
-export const initSubscriptions = (_: MessageBus, pageObjects: PageObject[]) => {
+export const initSubscriptions = (_: MessageBus, pageObjects: PageObjects) => {
   setupLocationChangePublisher(_);
   setupSDKManualPublisher(_);
   setupMutationObserverPublisher(_);
@@ -160,31 +161,25 @@ const setupMessageBusTriggerSubscriptions = (_: MessageBus) => {
 
 const setupPageObjectSubscriptions = (
   _: MessageBus,
-  pageObjects: PageObject[],
+  pageObjects: PageObjects,
 ) => {
   // iterate through pageObjects, each object should be subscribed to the relevant trigger
-  for (const page of pageObjects) {
-    // subscribe to relevant triggers via message bus
-    _.subscribe(page.trigger.type, (payload) => {
-      // get variant and apply variant actions
-      applyVariantActions(page, payload);
-    });
-  }
-};
-
-const applyVariantActions = (page: PageObject, message: any) => {
-  if (!globalScope) {
-    return;
-  }
-  // check if page is active
-  if (isPageObjectActive(page, message)) {
-    // TODO: avoid evaluating all variants for each callback -> use cached variants?
-    globalScope.webExperiment.applyVariants({ flagKeys: page.experiments });
-    console.log('variants applied');
-  } else {
-    // if page is not active, revert variants (if they were applied)
-    globalScope.webExperiment.revertVariants({ flagKeys: page.experiments });
-    console.log('variants reverted');
+  for (const [key, page] of Object.entries(pageObjects)) {
+    _.subscribe(
+      page.trigger.type,
+      (payload) => {
+        // get variant and apply variant actions
+        if (isPageObjectActive(page, payload)) {
+          globalScope?.webExperiment.activePages.add(key);
+        } else {
+          globalScope?.webExperiment.activePages.delete(key);
+        }
+      },
+      undefined,
+      () => {
+        globalScope?.webExperiment.applyVariants();
+      },
+    );
   }
 };
 

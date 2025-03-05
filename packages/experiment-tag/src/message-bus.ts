@@ -1,3 +1,5 @@
+import { getGlobalScope } from '@amplitude/experiment-core';
+
 export interface EventProperties {
   [k: string]: unknown;
 }
@@ -33,15 +35,18 @@ interface SubscriberGroup<T extends MessageType> {
 
 export class MessageBus {
   private messageToSubscriberGroup: Map<MessageType, SubscriberGroup<any>>;
+  private subscriberGroupCallback: Map<MessageType, () => void>;
 
   constructor() {
     this.messageToSubscriberGroup = new Map();
+    this.subscriberGroupCallback = new Map();
   }
 
   subscribe<T extends MessageType>(
     messageType: T,
     listener: Subscriber<T>['callback'],
     listenerId: string | undefined = undefined,
+    groupCallback?: () => void,
     debounceTimeout: number | undefined = undefined,
   ): void {
     // this happens upon init, page objects "listen" to triggers relevant to them
@@ -51,6 +56,8 @@ export class MessageBus {
     if (!entry) {
       entry = { subscribers: [] };
       this.messageToSubscriberGroup.set(messageType, entry);
+      groupCallback &&
+        this.subscriberGroupCallback.set(messageType, groupCallback);
     }
 
     const subscriber: Subscriber<T> = {
@@ -86,6 +93,7 @@ export class MessageBus {
         // logger.error('Error in message subscriber:', error);
       }
     });
+    this.subscriberGroupCallback.get(messageType)?.();
   }
 
   unsubscribe<T extends MessageType>(
