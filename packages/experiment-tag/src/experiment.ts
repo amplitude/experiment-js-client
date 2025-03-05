@@ -18,7 +18,9 @@ import mutate, { MutationController } from 'dom-mutator';
 
 import { Defaults, WebExperimentConfig } from './config';
 import { getInjectUtils } from './inject-utils';
+import { MessageBus } from './message-bus';
 import { WindowMessenger } from './messenger';
+import { initSubscriptions, PageObjects } from './subscriptions';
 import {
   ApplyVariantsOptions,
   PreviewVariantsOptions,
@@ -33,8 +35,6 @@ import {
   concatenateQueryParamsOf,
 } from './util';
 import { WebExperimentClient } from './web-experiment';
-import { MessageBus } from './message-bus';
-import { initSubscriptions, PageObjects } from './subscriptions';
 
 export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
 export const PAGE_IS_EXCLUDED_SEGMENT_NAME = 'Page is excluded';
