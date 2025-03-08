@@ -124,12 +124,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       if (metadata.evaluationMode !== 'local') {
         this.remoteFlagKeys.push(key);
-
-        // allow local evaluation for remote flags
-        metadata.evaluationMode = 'local';
-      } else {
-        // Add locally evaluable flags to the local flag set
-        this.localFlagKeys.push(key);
       }
 
       flag.metadata = metadata;
@@ -147,8 +141,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       fetchTimeoutMillis: 1000,
       pollOnStart: false,
       fetchOnStart: false,
+      automaticExposureTracking: false,
       ...this.config,
     });
+    // Get all the locally available flag keys from the SDK.
+    const variants = this.experimentClient.all();
+    this.localFlagKeys = Object.keys(variants).filter(
+      (key) => variants[key]?.metadata?.evaluationMode === 'local',
+    );
   }
 
   /**
@@ -323,6 +323,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           (variant.metadata?.['trackExposure'] as boolean) ?? true;
         // if payload is falsy or empty array, consider it as control variant
         const payloadIsArray = Array.isArray(variant.payload);
+        // TODO(bgiori) this will need to change when we introduce control variant mutations
         const isControlPayload =
           !variant.payload || (payloadIsArray && variant.payload.length === 0);
         if (shouldTrackExposure && isControlPayload) {
@@ -388,15 +389,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Get all variants for the current web experiment context.
    */
   public getVariants(): Variants {
-    const allVariants = this.experimentClient.all();
-
-    const isRelevantKey = (key: string) =>
-      this.localFlagKeys.includes(key) || this.remoteFlagKeys.includes(key);
-
-    return Object.keys(allVariants).reduce<Record<string, any>>((acc, key) => {
-      if (isRelevantKey(key)) acc[key] = allVariants[key];
-      return acc;
-    }, {});
+    const variants: Variants = {};
+    for (const key of [...this.localFlagKeys, ...this.remoteFlagKeys]) {
+      variants[key] = this.experimentClient.variant(key);
+    }
+    return variants;
   }
 
   /**

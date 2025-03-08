@@ -36,6 +36,7 @@ import { ExperimentUserProvider } from './types/provider';
 import { isFallback, Source, VariantSource } from './types/source';
 import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
+import { Storage } from './types/storage';
 import {
   isLocalEvaluationMode,
   isNullOrUndefined,
@@ -49,6 +50,7 @@ import {
 } from './util/convert';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
 import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
+import { SessionStorage } from './storage/session-storage';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
@@ -83,6 +85,8 @@ export class ExperimentClient implements Client {
   private poller: Poller;
   private isRunning = false;
   private readonly integrationManager: IntegrationManager;
+  // Web experiment adds a user to the flags request
+  private readonly isWebExperiment: boolean;
 
   // Deprecated
   private analyticsProvider: SessionAnalyticsProvider | undefined;
@@ -120,6 +124,8 @@ export class ExperimentClient implements Client {
           : config.flagConfigPollingIntervalMillis ??
             Defaults.flagConfigPollingIntervalMillis,
     };
+    this.isWebExperiment =
+      this.config?.['internalInstanceNameSuffix'] === 'web';
     this.poller = new Poller(
       () => this.doFlags(),
       this.config.flagConfigPollingIntervalMillis,
@@ -161,7 +167,12 @@ export class ExperimentClient implements Client {
       httpClient,
     );
     // Storage & Caching
-    const storage = new LocalStorage();
+    let storage: Storage;
+    if (this.isWebExperiment) {
+      storage = new SessionStorage();
+    } else {
+      storage = new LocalStorage();
+    }
     this.variants = getVariantStorage(
       this.apiKey,
       this.config.instanceName,
@@ -710,18 +721,15 @@ export class ExperimentClient implements Client {
 
   private async doFlags(): Promise<void> {
     try {
-      // Web experiment adds a user to the flags request
-      const isWebExperiment =
-        this.config?.['internalInstanceNameSuffix'] === 'web';
       let user: ExperimentUser;
-      if (isWebExperiment) {
+      if (this.isWebExperiment) {
         user = await this.addContextOrWait(this.getUser());
       }
       const flags = await this.flagApi.getFlags({
         libraryName: 'experiment-js-client',
         libraryVersion: PACKAGE_VERSION,
         timeoutMillis: this.config.fetchTimeoutMillis,
-        deliveryMethod: isWebExperiment ? 'web' : undefined,
+        deliveryMethod: this.isWebExperiment ? 'web' : undefined,
         user:
           user?.user_id || user?.device_id
             ? { user_id: user?.user_id, device_id: user?.device_id }

@@ -10,7 +10,11 @@ import {
 import * as util from 'src/util';
 import { stringify } from 'ts-jest';
 
-import { createMutateFlag, createRedirectFlag } from './util/create-flag';
+import {
+  createFlag,
+  createMutateFlag,
+  createRedirectFlag,
+} from './util/create-flag';
 import { MockHttpClient } from './util/mock-http-client';
 
 let apiKey = 0;
@@ -38,6 +42,10 @@ describe('initializeExperiment', () => {
     jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
     mockGlobal = {
       localStorage: {
+        getItem: jest.fn().mockReturnValue(undefined),
+        setItem: jest.fn(),
+      },
+      sessionStorage: {
         getItem: jest.fn().mockReturnValue(undefined),
         setItem: jest.fn(),
       },
@@ -100,7 +108,7 @@ describe('initializeExperiment', () => {
     );
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      createMutateFlag('test-2', 'treatment', [], [], 'remote'),
       // local flag
       createMutateFlag('test-1', 'treatment'),
     ];
@@ -425,7 +433,7 @@ describe('initializeExperiment', () => {
 
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      createMutateFlag('test-2', 'treatment', [], [], 'remote'),
     ];
 
     const mockHttpClient = new MockHttpClient(JSON.stringify([]));
@@ -452,7 +460,7 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch successful, antiflicker applied', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      createMutateFlag('test-2', 'treatment', [], [], 'remote'),
       // local flag
       createMutateFlag('test-1', 'treatment'),
     ];
@@ -480,7 +488,7 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch fail, locally evaluate remote and local flags success', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      createMutateFlag('test-2', 'treatment', [], [], 'remote'),
       // local flag
       createMutateFlag('test-1', 'treatment'),
     ];
@@ -509,7 +517,7 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch fail, test initialFlags variant actions called', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test', 'treatment', [], [], [], 'remote'),
+      createMutateFlag('test', 'treatment', [], [], 'remote'),
     ];
 
     const mockHttpClient = new MockHttpClient('', 404);
@@ -552,7 +560,7 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     const initialFlags = [
       // remote flag
-      createMutateFlag('test', 'treatment', [], [], [], 'remote'),
+      createMutateFlag('test', 'treatment', [], [], 'remote'),
     ];
     const remoteFlags = [createMutateFlag('test', 'treatment')];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
@@ -605,6 +613,159 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
     );
+  });
+
+  describe('remote evaluation - flag already stored in session storage', () => {
+    const sessionStorageMock = () => {
+      let store = {};
+      return {
+        getItem: jest.fn((key) => store[key] || null),
+        setItem: jest.fn((key, value) => {
+          store[key] = value;
+        }),
+        removeItem: jest.fn((key) => {
+          delete store[key];
+        }),
+        clear: jest.fn(() => {
+          store = {};
+        }),
+      };
+    };
+    beforeEach(() => {
+      Object.defineProperty(safeGlobal, 'sessionStorage', {
+        value: sessionStorageMock(),
+      });
+    });
+    afterEach(() => {
+      safeGlobal.sessionStorage.clear();
+    });
+    test('evaluated, applied, and impression tracked, start updates flag in storage, applied, impression deduped', async () => {
+      const apiKey = 'api1';
+      const storageKey = `amp-exp-$default_instance-${apiKey}-flags`;
+      // Create mock session storage with initial value
+      const storedFlag = createFlag('test', 'treatment', 'local', false, {
+        flagVersion: 2,
+      });
+      safeGlobal.sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({ test: storedFlag }),
+      );
+      const initialFlags = [
+        createMutateFlag('test', 'treatment', [], [], 'remote', false, {
+          flagVersion: 3,
+        }),
+      ];
+      const remoteFlags = [
+        createMutateFlag('test', 'treatment', [], [], 'local', false, {
+          flagVersion: 4,
+        }),
+      ];
+      const client = DefaultWebExperimentClient.getInstance(
+        apiKey,
+        JSON.stringify(initialFlags),
+        {
+          httpClient: new MockHttpClient(JSON.stringify(remoteFlags), 200),
+        },
+      );
+      const integrationManagerTrack = jest.spyOn(
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        client.getExperimentClient().integrationManager,
+        'track',
+      );
+      let version = client.getExperimentClient().variant('test')
+        .metadata?.flagVersion;
+      expect(version).toEqual(2);
+      await client.start();
+      version = client.getExperimentClient().variant('test')
+        .metadata?.flagVersion;
+      expect(version).toEqual(4);
+      // check exposure tracked once
+      expect(mockExposure).toHaveBeenCalledTimes(1);
+      // Check remote flag store in storage
+      const flags = JSON.parse(
+        safeGlobal.sessionStorage.getItem(storageKey) as string,
+      );
+      expect(flags['test'].metadata.flagVersion).toEqual(4);
+      expect(flags['test'].metadata.evaluationMode).toEqual('local');
+      expect(integrationManagerTrack).toBeCalledTimes(1);
+      const call = integrationManagerTrack.mock.calls[0][0] as unknown as {
+        flag_key: string;
+        metadata: Record<string, unknown>;
+      };
+      expect(call.flag_key).toEqual('test');
+      expect(call.metadata.flagVersion).toEqual(2);
+    });
+    test('evaluated, applied, and impression tracked, start updates flag in storage, applied, impression re-tracked', async () => {
+      const apiKey = 'api2';
+      const storageKey = `amp-exp-$default_instance-${apiKey}-flags`;
+      // Create mock session storage with initial value
+      const storedFlag = createFlag('test', 'treatment', 'local', false, {
+        flagVersion: 2,
+      });
+      safeGlobal.sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({ test: storedFlag }),
+      );
+      Object.defineProperty(safeGlobal, 'sessionStorage', {
+        value: sessionStorageMock,
+      });
+      const initialFlags = [
+        createMutateFlag('test', 'treatment', [], [], 'remote', false, {
+          flagVersion: 3,
+        }),
+      ];
+      const remoteFlags = [
+        createMutateFlag('test', 'control', [], [], 'local', false, {
+          flagVersion: 4,
+        }),
+      ];
+      const client = DefaultWebExperimentClient.getInstance(
+        apiKey,
+        JSON.stringify(initialFlags),
+        {
+          httpClient: new MockHttpClient(JSON.stringify(remoteFlags), 200),
+        },
+      );
+      const integrationManagerTrack = jest.spyOn(
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        client.getExperimentClient().integrationManager,
+        'track',
+      );
+      let version = client.getExperimentClient().variant('test')
+        .metadata?.flagVersion;
+      expect(version).toEqual(2);
+      await client.start();
+      version = client.getExperimentClient().variant('test')
+        .metadata?.flagVersion;
+      expect(version).toEqual(4);
+      // check exposure tracked once
+      expect(mockExposure).toHaveBeenCalledTimes(2);
+      // Check remote flag store in storage
+      const flags = JSON.parse(
+        safeGlobal.sessionStorage.getItem(storageKey) as string,
+      );
+      expect(flags['test'].metadata.flagVersion).toEqual(4);
+      expect(flags['test'].metadata.evaluationMode).toEqual('local');
+      expect(integrationManagerTrack).toBeCalledTimes(2);
+      const call1 = integrationManagerTrack.mock.calls[0][0] as unknown as {
+        flag_key: string;
+        variant: string;
+        metadata: Record<string, unknown>;
+      };
+      const call2 = integrationManagerTrack.mock.calls[1][0] as unknown as {
+        flag_key: string;
+        variant: string;
+        metadata: Record<string, unknown>;
+      };
+      expect(call1.flag_key).toEqual('test');
+      expect(call1.variant).toEqual('treatment');
+      expect(call1.metadata.flagVersion).toEqual(2);
+      expect(call2.flag_key).toEqual('test');
+      expect(call2.variant).toEqual('control');
+      expect(call2.metadata.flagVersion).toEqual(4);
+    });
   });
 });
 
