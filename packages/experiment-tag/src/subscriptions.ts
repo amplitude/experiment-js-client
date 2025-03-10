@@ -1,80 +1,17 @@
+import { getGlobalScope, EvaluationEngine } from '@amplitude/experiment-core';
+
 import {
-  EvaluationCondition,
-  getGlobalScope,
-  EvaluationEngine,
-} from '@amplitude/experiment-core';
-
-import { MessageBus, MessageType } from './message-bus';
+  MessageBus,
+  MessagePayloads,
+  AnalyticsEventPayload,
+  ManualTriggerPayload,
+  MessageType,
+} from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
-
-export type PageObject = {
-  // TODO: should conditions be AND or OR?
-  // TODO: page targeting should be translated into conditions differently
-  conditions?: EvaluationCondition[][];
-  trigger: {
-    type: MessageType;
-    properties: Record<string, unknown>;
-  };
-  triggerSource?: string;
-  experiments: Record<string, string[]>;
-};
-
-export type PageObjects = Record<string, PageObject>;
+import { PageObject, PageObjects } from './types';
 
 const evaluationEngine = new EvaluationEngine();
 const globalScope = getGlobalScope();
-
-// const locationSub = (_: MessageBus) => {
-//   const history = window.history;
-//
-//   const pushState = history.pushState;
-//   const replaceState = history.replaceState;
-//
-//   let cancelled = false;
-//   let oldHref = document.location.href;
-//
-//   history.pushState = function (...args) {
-//     pushState.apply(history, args);
-//     if (cancelled) return;
-//     if (oldHref === document.location.href) return;
-//
-//     oldHref = document.location.href;
-//     // NOTE: spreading window.location into new object here triggers subscribers to _.location
-//     // without this, since window.location seems to be a singleton, subscribers would not be triggered
-//     _.location = ref({ ...window.location });
-//   };
-//
-//   history.replaceState = function (...args) {
-//     replaceState.apply(history, args);
-//     if (cancelled) return;
-//     if (oldHref === document.location.href) return;
-//
-//     oldHref = document.location.href;
-//     // NOTE: spreading window.location into new object here triggers subscribers to _.location
-//     // without this, since window.location seems to be a singleton, subscribers would not be triggered
-//     _.location = ref({ ...window.location });
-//   };
-//
-//   const checkHrefChange = () => {
-//     if (oldHref !== document.location.href) {
-//       oldHref = document.location.href;
-//       _.location = ref({ ...window.location });
-//     }
-//   };
-//
-//   window.addEventListener('hashchange', checkHrefChange);
-//
-//   return () => {
-//     // NOTE: unfortunately, it is not possible to uninstall our pushState and replaceState intermediaries
-//     // because someone else may be holding a reference to them, or even may have replaced them in a similar
-//     // fashion. If we just restore the original functions, any subsequent changes to pushState and replaceState
-//     // would be overwritten.
-//     //
-//     // Instead, we simply cancel the effects and leave them in place.
-//     window.removeEventListener('hashchange', checkHrefChange);
-//     cancelled = true;
-//   };
-// };
 
 export const initSubscriptions = (_: MessageBus, pageObjects: PageObjects) => {
   setupLocationChangePublisher(_);
@@ -84,7 +21,7 @@ export const initSubscriptions = (_: MessageBus, pageObjects: PageObjects) => {
   setupPageObjectSubscriptions(_, pageObjects);
 
   // fire location_change upon landing on page
-  _.publish('location_change', {});
+  _.publish('url_change');
 };
 
 // TODO: figure out event queue for before SDKs are initialized?
@@ -92,7 +29,7 @@ const setupSDKManualPublisher = (_: MessageBus) => {
   globalScope?.document.addEventListener('manual_trigger', (event) => {
     // @ts-ignore
     // send message to MessageBus for view trigger
-    _.publish('manual_trigger', {
+    _.publish('manual', {
       // @ts-ignore
       name: event.detail.name,
     });
@@ -103,7 +40,7 @@ const setupMutationObserverPublisher = (_: MessageBus) => {
   const mutationManager = new DebouncedMutationManager(
     document.documentElement,
     (mutationList) => {
-      _.publish('dom_mutation', { mutationList });
+      _.publish('element_appeared', { mutationList });
     },
     [],
   );
@@ -117,11 +54,11 @@ const setupLocationChangePublisher = (_: MessageBus) => {
   }
   // Add URL change listener for back/forward navigation
   globalScope.addEventListener('popstate', () => {
-    _.publish('location_change', {});
+    _.publish('url_change');
   });
 
   const handleUrlChange = () => {
-    _.publish('location_change', {});
+    _.publish('url_change');
     globalScope.webExperiment.previousUrl = globalScope.location.href;
   };
 
@@ -164,32 +101,45 @@ const setupPageObjectSubscriptions = (
   pageObjects: PageObjects,
 ) => {
   // iterate through pageObjects, each object should be subscribed to the relevant trigger
-  for (const [key, page] of Object.entries(pageObjects)) {
-    _.subscribe(
-      page.trigger.type,
-      (payload) => {
-        // get variant and apply variant actions
-        if (isPageObjectActive(page, payload)) {
-          globalScope?.webExperiment.activePages.add(key);
-        } else {
-          globalScope?.webExperiment.activePages.delete(key);
-        }
-      },
-      undefined,
-      () => {
-        globalScope?.webExperiment.applyVariants();
-      },
-    );
+  for (const [experiment, pages] of Object.entries(pageObjects)) {
+    for (const [pageName, page] of Object.entries(pages)) {
+      _.subscribe(
+        page.trigger.type,
+        (payload) => {
+          // get variant and apply variant actions
+          if (isPageObjectActive(page, payload)) {
+            globalScope?.webExperiment.updateActivePages(
+              experiment,
+              pageName,
+              true,
+            );
+          } else {
+            globalScope?.webExperiment.updateActivePages(
+              experiment,
+              pageName,
+              false,
+            );
+          }
+        },
+        undefined,
+        () => {
+          globalScope?.webExperiment.applyVariants();
+        },
+      );
+    }
   }
 };
 
-const isPageObjectActive = (page: PageObject, message) => {
+const isPageObjectActive = <T extends MessageType>(
+  page: PageObject,
+  message: MessagePayloads[T],
+): boolean => {
   if (!globalScope) {
     return false;
   }
-  // check conditions
+
+  // Check conditions
   if (page.conditions) {
-    // evaluate conditions
     const matchConditions = evaluationEngine.evaluateConditions(
       {
         context: { page: { url: globalScope.location.href } },
@@ -202,32 +152,40 @@ const isPageObjectActive = (page: PageObject, message) => {
     }
   }
 
-  // check if page is active
-  if (page.trigger.type === 'immediately') {
-    return true;
-  } else if (page.trigger.type === 'location_change') {
-    // TODO: handle location change message - what needs to be checked?
-    return true;
-  } else if (page.trigger.type === 'manual_trigger') {
-    return message.name === page.trigger.properties.name;
-  } else if (page.trigger.type === 'analytics_event') {
-    // TODO: check event and event properties match
-    return true;
-  } else if (page.trigger.type === 'dom_mutation') {
-    // TODO: take care of flicker on landing
-    const element = globalScope.document.querySelector(
-      // @ts-ignore
-      page.trigger.properties.selector,
-    );
-    if (element) {
-      const style = window.getComputedStyle(element);
-      const isDisplayNone = style.display === 'none';
-      const isVisibilityHidden = style.visibility === 'hidden';
-      const isHidden = isDisplayNone || isVisibilityHidden;
-      if (!isHidden) {
-        return true;
-      }
+  // Check if page is active
+  switch (page.trigger.type) {
+    case 'url_change':
+      return true;
+
+    case 'manual':
+      return (
+        (message as ManualTriggerPayload).name === page.trigger.properties.name
+      );
+
+    case 'analytics_event': {
+      const eventMessage = message as AnalyticsEventPayload;
+      return (
+        eventMessage.event_type === page.trigger.properties.event_type &&
+        Object.entries(page.trigger.properties.event_properties || {}).every(
+          ([key, value]) => eventMessage.event_properties[key] === value,
+        )
+      );
     }
-    return false;
+
+    //TODO: fix to check payload?
+    case 'element_appeared': {
+      // const mutationMessage = message as DomMutationPayload;
+      const element = globalScope.document.querySelector(
+        page.trigger.properties.selector as string,
+      );
+      if (element) {
+        const style = window.getComputedStyle(element);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+      }
+      return false;
+    }
+
+    default:
+      return false;
   }
 };

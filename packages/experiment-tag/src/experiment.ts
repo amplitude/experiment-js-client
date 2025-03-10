@@ -20,9 +20,10 @@ import { Defaults, WebExperimentConfig } from './config';
 import { getInjectUtils } from './inject-utils';
 import { MessageBus } from './message-bus';
 import { WindowMessenger } from './messenger';
-import { initSubscriptions, PageObjects } from './subscriptions';
+import { initSubscriptions } from './subscriptions';
 import {
   ApplyVariantsOptions,
+  PageObjects,
   PreviewVariantsOptions,
   RevertVariantsOptions,
 } from './types';
@@ -39,84 +40,6 @@ import { WebExperimentClient } from './web-experiment';
 export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
 export const PAGE_IS_EXCLUDED_SEGMENT_NAME = 'Page is excluded';
 export const PREVIEW_SEGMENT_NAME = 'Preview';
-const DUMMY_TRUE_CONDITION = [
-  {
-    op: 'is',
-    selector: [],
-    values: ['(none)'],
-  },
-];
-
-const DUMMY_FALSE_CONDITION = [
-  {
-    op: 'is not',
-    selector: [],
-    values: ['(none)'],
-  },
-];
-// dummy page object used for testing
-const TEST_PAGE_OBJECTS: PageObjects = {
-  A: {
-    conditions: [
-      // page targeting conditions should be in same array to be "AND"
-      // DUMMY_TRUE_CONDITION,
-      [
-        {
-          op: 'regex match',
-          selector: ['context', 'page', 'url'],
-          values: ['.*hello.*'],
-        },
-      ],
-    ],
-    trigger: {
-      type: 'location_change',
-      properties: {
-        name: 'A',
-      },
-    },
-    experiments: { test: ['treatment'] },
-  },
-  B: {
-    conditions: [
-      // DUMMY_TRUE_CONDITION,
-      // page targeting conditions should be in same array to be "AND"
-      [
-        {
-          op: 'regex match',
-          selector: ['context', 'page', 'url'],
-          values: ['.*dynamic.*'],
-        },
-      ],
-    ],
-    trigger: {
-      type: 'location_change',
-      properties: {
-        name: 'B',
-      },
-    },
-    experiments: { test: ['treatment'] },
-  },
-  C: {
-    conditions: [
-      // page targeting conditions should be in same array to be "AND"
-      // [
-      //   {
-      //     op: 'regex match',
-      //     selector: ['context', 'page', 'url'],
-      //     values: ['.*localhost.*'],
-      //   },
-      // ],
-      DUMMY_TRUE_CONDITION,
-    ],
-    trigger: {
-      type: 'location_change',
-      properties: {
-        name: 'test_trigger',
-      },
-    },
-    experiments: { test: ['treatment'] },
-  },
-};
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -142,12 +65,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private customRedirectHandler: ((url: string) => void) | undefined;
   private isRunning = false;
   private readonly messageBus: MessageBus;
-  private readonly pageObjects: PageObjects = TEST_PAGE_OBJECTS;
-  private readonly activePages: Set<string> = new Set();
+  private readonly pageObjects: PageObjects;
+  private readonly activePages: Record<string, Set<string>> = {};
 
   constructor(
     apiKey: string,
     initialFlags: string,
+    pageObjects: string,
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
@@ -159,6 +83,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.globalScope = globalScope;
     this.apiKey = apiKey;
     this.initialFlags = JSON.parse(initialFlags);
+    this.pageObjects = JSON.parse(pageObjects);
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
@@ -318,30 +243,26 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.experimentClient.setUser(user);
 
     if (this.config.useDefaultNavigationHandler) {
-      // TODO: handle this with subscriptions
-      // this.setDefaultNavigationHandler([
-      //   ...this.localFlagKeys,
-      //   ...this.remoteFlagKeys,
-      // ]);
+      // TODO: how to handle?
     }
 
     // apply local variants
     // this.applyVariants({ flagKeys: this.localFlagKeys });
 
     if (!this.isRemoteBlocking) {
+      // TODO: when to remove?
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
     if (this.remoteFlagKeys.length === 0) {
       this.isRunning = true;
-      initSubscriptions(this.messageBus, TEST_PAGE_OBJECTS);
+      initSubscriptions(this.messageBus, this.pageObjects);
       return;
     }
 
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
-    // this.applyVariants({ flagKeys: this.remoteFlagKeys });
-    initSubscriptions(this.messageBus, TEST_PAGE_OBJECTS);
+    initSubscriptions(this.messageBus, this.pageObjects);
     this.isRunning = true;
   }
 
@@ -350,11 +271,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * If not, initialize the client and return the instance.
    * @param apiKey
    * @param initialFlags
+   * @param pageObjects
    * @param config
    */
   static getInstance(
     apiKey: string,
     initialFlags: string,
+    pageObjects: string,
     config: WebExperimentConfig = {},
   ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
@@ -370,6 +293,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const webExperiment = new DefaultWebExperimentClient(
       apiKey,
       initialFlags,
+      pageObjects,
       config,
     );
     globalScope.webExperiment = webExperiment;
@@ -520,7 +444,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   public triggerView(name: string) {
     // TODO: should wait for remote flags to be fetched
     // send message to MessageBus for view trigger
-    this.messageBus.publish('manual_trigger', {
+    this.messageBus.publish('manual', {
       name,
     });
   }
@@ -535,7 +459,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  // TODO: variant action should take into account scoping
+  // Variant actions are scoped to page objects
   private handleVariantAction(flagKey: string, variant: Variant) {
     for (const action of variant.payload) {
       if (action.action === 'redirect') {
@@ -549,6 +473,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleRedirect(action, flagKey: string, variant: Variant) {
+    if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
+      return;
+    }
+
     const referrerUrl = urlWithoutParamsAndAnchor(
       this.previousUrl || this.globalScope.document.referrer,
     );
@@ -587,7 +515,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     mutations.forEach((m, index) => {
       // Check if mutation is scoped to page
-      if (!this.mutationActiveOnPage(m)) {
+      if (!this.isActionActiveOnPage(flagKey, m?.metadata?.scope)) {
         // Revert inactive mutation
         this.appliedMutations[flagKey]?.['mutate']?.[index]?.revert();
         if (this.appliedMutations[flagKey]?.['mutate']) {
@@ -619,7 +547,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  // TODO handle scoped multiple injections
+  // TODO: scope-checking will depend on multiple inject schema
   private handleInject(action, flagKey: string, variant: Variant) {
     // Check for repeat invocations
     if (this.appliedMutations[flagKey]) {
@@ -732,49 +660,32 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private mutationActiveOnPage(mutation): boolean {
-    const scope = mutation?.metadata?.scope;
-    return scope?.some((value) => this.activePages.has(value));
+  private updateActivePages(
+    flagKey: string,
+    pageName: string,
+    isActive: boolean,
+  ) {
+    if (!this.activePages[flagKey]) {
+      this.activePages[flagKey] = new Set();
+    }
+    if (isActive) {
+      this.activePages[flagKey].add(pageName);
+    } else {
+      this.activePages[flagKey].delete(pageName);
+      if (this.activePages[flagKey].size === 0) {
+        delete this.activePages[flagKey];
+      }
+    }
   }
 
-  // private setDefaultNavigationHandler() {
-  //   // Add URL change listener for back/forward navigation
-  //   this.globalScope.addEventListener('popstate', () => {
-  //     this.revertVariants();
-  //     this.applyVariants();
-  //   });
-  //
-  //   const handleUrlChange = () => {
-  //     this.revertVariants();
-  //     this.applyVariants();
-  //     this.previousUrl = this.globalScope.location.href;
-  //   };
-  //
-  //   // Create wrapper functions for pushState and replaceState
-  //   const wrapHistoryMethods = () => {
-  //     const originalPushState = history.pushState;
-  //     const originalReplaceState = history.replaceState;
-  //
-  //     // Wrapper for pushState
-  //     history.pushState = function (...args) {
-  //       // Call the original pushState
-  //       const result = originalPushState.apply(this, args);
-  //       // Revert mutations and apply variants
-  //       handleUrlChange();
-  //       return result;
-  //     };
-  //
-  //     // Wrapper for replaceState
-  //     history.replaceState = function (...args) {
-  //       // Call the original replaceState
-  //       const result = originalReplaceState.apply(this, args);
-  //       // Revert mutations and apply variants
-  //       handleUrlChange();
-  //       return result;
-  //     };
-  //   };
-  //
-  //   // Initialize the wrapper
-  //   wrapHistoryMethods();
-  // }
+  private isActionActiveOnPage(
+    flagKey: string,
+    scope: string[] | undefined,
+  ): boolean {
+    // if no scope is provided, do not apply variant
+    if (!scope) {
+      return false;
+    }
+    return scope.some((page) => this.activePages[flagKey]?.has(page) ?? false);
+  }
 }

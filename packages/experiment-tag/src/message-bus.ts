@@ -1,5 +1,3 @@
-import { getGlobalScope } from '@amplitude/experiment-core';
-
 export interface EventProperties {
   [k: string]: unknown;
 }
@@ -14,17 +12,15 @@ type Subscriber<T extends MessageType> = {
   callback: (payload: MessagePayloads[T]) => void;
 };
 
-type DomMutationPayload = { mutationList: MutationRecord[] };
-type LocationChangePayload = Record<string, never>;
-type AnalyticsEventPayload = AnalyticsEvent;
-type ManualTriggerPayload = { name: string };
+export type ElementAppearedPayload = { mutationList: MutationRecord[] };
+export type AnalyticsEventPayload = AnalyticsEvent;
+export type ManualTriggerPayload = { name: string };
 
 export type MessagePayloads = {
-  dom_mutation: DomMutationPayload;
-  location_change: LocationChangePayload;
+  element_appeared: ElementAppearedPayload;
+  url_change: undefined;
   analytics_event: AnalyticsEventPayload;
-  manual_trigger: ManualTriggerPayload;
-  immediately: undefined;
+  manual: ManualTriggerPayload;
 };
 
 export type MessageType = keyof MessagePayloads;
