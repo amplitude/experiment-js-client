@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.5.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.4.1...@amplitude/experiment-tag@0.5.0) (2025-03-11)
+
+
+### Bug Fixes
+
+* store remote flags in session storage for reuse within session ([#162](https://github.com/amplitude/experiment-js-client/issues/162)) ([ef19343](https://github.com/amplitude/experiment-js-client/commit/ef19343f89303889dc616176d545f5fb9a525e59))
+
+
+### Features
+
+* WebExperiment class ([#152](https://github.com/amplitude/experiment-js-client/issues/152)) ([468fa3a](https://github.com/amplitude/experiment-js-client/commit/468fa3aed52739e049fdb67bc159de7a8aa94e0f))
+
+
+
+
+
 ## [0.4.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.4.0...@amplitude/experiment-tag@0.4.1) (2025-03-01)
 
 **Note:** Version bump only for package @amplitude/experiment-tag

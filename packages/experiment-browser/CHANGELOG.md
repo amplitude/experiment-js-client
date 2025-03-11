@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.15.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.1...@amplitude/experiment-js-client@1.15.2) (2025-03-11)
+
+
+### Bug Fixes
+
+* store remote flags in session storage for reuse within session ([#162](https://github.com/amplitude/experiment-js-client/issues/162)) ([ef19343](https://github.com/amplitude/experiment-js-client/commit/ef19343f89303889dc616176d545f5fb9a525e59))
+* wait for context before web experiment flags req ([#161](https://github.com/amplitude/experiment-js-client/issues/161)) ([420302a](https://github.com/amplitude/experiment-js-client/commit/420302add6de12ebc78b3b34d8af5a088a259fcf))
+
+
+
+
+
 ## [1.15.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.0...@amplitude/experiment-js-client@1.15.1) (2025-03-01)
 
 
