@@ -27,6 +27,7 @@ import {
   transformVariantFromStorage,
 } from './storage/cache';
 import { LocalStorage } from './storage/local-storage';
+import { SessionStorage } from './storage/session-storage';
 import { FetchHttpClient, WrapperClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
@@ -34,6 +35,7 @@ import { Exposure, ExposureTrackingProvider } from './types/exposure';
 import { ExperimentPlugin, IntegrationPlugin } from './types/plugin';
 import { ExperimentUserProvider } from './types/provider';
 import { isFallback, Source, VariantSource } from './types/source';
+import { Storage } from './types/storage';
 import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
 import {
@@ -83,6 +85,8 @@ export class ExperimentClient implements Client {
   private poller: Poller;
   private isRunning = false;
   private readonly integrationManager: IntegrationManager;
+  // Web experiment adds a user to the flags request
+  private readonly isWebExperiment: boolean;
 
   // Deprecated
   private analyticsProvider: SessionAnalyticsProvider | undefined;
@@ -120,6 +124,8 @@ export class ExperimentClient implements Client {
           : config.flagConfigPollingIntervalMillis ??
             Defaults.flagConfigPollingIntervalMillis,
     };
+    const internalInstanceName = this.config?.['internalInstanceNameSuffix'];
+    this.isWebExperiment = internalInstanceName === 'web';
     this.poller = new Poller(
       () => this.doFlags(),
       this.config.flagConfigPollingIntervalMillis,
@@ -161,13 +167,21 @@ export class ExperimentClient implements Client {
       httpClient,
     );
     // Storage & Caching
-    const storage = new LocalStorage();
+    let storage: Storage;
+    const storageInstanceName = internalInstanceName
+      ? `${this.config.instanceName}-${internalInstanceName}`
+      : this.config.instanceName;
+    if (this.isWebExperiment) {
+      storage = new SessionStorage();
+    } else {
+      storage = new LocalStorage();
+    }
     this.variants = getVariantStorage(
       this.apiKey,
-      this.config.instanceName,
+      storageInstanceName,
       storage,
     );
-    this.flags = getFlagStorage(this.apiKey, this.config.instanceName, storage);
+    this.flags = getFlagStorage(this.apiKey, storageInstanceName, storage);
     try {
       this.flags.load();
       this.variants.load();
@@ -710,18 +724,15 @@ export class ExperimentClient implements Client {
 
   private async doFlags(): Promise<void> {
     try {
-      // Web experiment adds a user to the flags request
-      const isWebExperiment =
-        this.config?.['internalInstanceNameSuffix'] === 'web';
       let user: ExperimentUser;
-      if (isWebExperiment) {
+      if (this.isWebExperiment) {
         user = await this.addContextOrWait(this.getUser());
       }
       const flags = await this.flagApi.getFlags({
         libraryName: 'experiment-js-client',
         libraryVersion: PACKAGE_VERSION,
         timeoutMillis: this.config.fetchTimeoutMillis,
-        deliveryMethod: isWebExperiment ? 'web' : undefined,
+        deliveryMethod: this.isWebExperiment ? 'web' : undefined,
         user:
           user?.user_id || user?.device_id
             ? { user_id: user?.user_id, device_id: user?.device_id }

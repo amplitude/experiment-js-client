@@ -1,3 +1,5 @@
+import { EvaluationFlag } from '@amplitude/experiment-core';
+
 export const createRedirectFlag = (
   flagKey = 'test',
   variant: 'treatment' | 'control' | 'off',
@@ -5,7 +7,7 @@ export const createRedirectFlag = (
   controlUrl: string | undefined = undefined,
   segments: any[] = [],
   evaluationMode: 'local' | 'remote' = 'local',
-) => {
+): EvaluationFlag => {
   const controlPayload = controlUrl
     ? [
         {
@@ -61,15 +63,33 @@ export const createRedirectFlag = (
   };
 };
 
+export const createFlag = (
+  flagKey = 'test',
+  variant: 'treatment' | 'control' | 'off',
+  evaluationMode: 'local' | 'remote' = 'local',
+  blockingEvaluation = true,
+  metadata: Record<string, any> = {},
+): EvaluationFlag => {
+  return createMutateFlag(
+    flagKey,
+    variant,
+    [],
+    [],
+    evaluationMode,
+    blockingEvaluation,
+    metadata,
+  );
+};
+
 export const createMutateFlag = (
   flagKey = 'test',
   variant: 'treatment' | 'control' | 'off',
   treatmentMutations: any[] = [],
-  controlMutations: any[] = [],
   segments: any[] = [],
   evaluationMode: 'local' | 'remote' = 'local',
   blockingEvaluation = true,
-) => {
+  metadata: Record<string, any> = {},
+): EvaluationFlag => {
   return {
     key: flagKey,
     metadata: {
@@ -78,6 +98,7 @@ export const createMutateFlag = (
       flagType: 'experiment',
       deliveryMethod: 'web',
       blockingEvaluation: evaluationMode === 'remote' && blockingEvaluation,
+      ...metadata,
     },
     segments: [
       ...segments,
@@ -91,14 +112,7 @@ export const createMutateFlag = (
     variants: {
       control: {
         key: 'control',
-        payload: [
-          {
-            action: 'mutate',
-            data: {
-              mutations: controlMutations,
-            },
-          },
-        ],
+        payload: [],
         value: 'control',
       },
       off: {
