@@ -641,7 +641,7 @@ describe('initializeExperiment', () => {
     });
     test('evaluated, applied, and impression tracked, start updates flag in storage, applied, impression deduped', async () => {
       const apiKey = 'api1';
-      const storageKey = `amp-exp-$default_instance-${apiKey}-flags`;
+      const storageKey = `amp-exp-$default_instance-web-${apiKey}-flags`;
       // Create mock session storage with initial value
       const storedFlag = createFlag('test', 'treatment', 'local', false, {
         flagVersion: 2,
@@ -698,7 +698,7 @@ describe('initializeExperiment', () => {
     });
     test('evaluated, applied, and impression tracked, start updates flag in storage, applied, impression re-tracked', async () => {
       const apiKey = 'api2';
-      const storageKey = `amp-exp-$default_instance-${apiKey}-flags`;
+      const storageKey = `amp-exp-$default_instance-web-${apiKey}-flags`;
       // Create mock session storage with initial value
       const storedFlag = createFlag('test', 'treatment', 'local', false, {
         flagVersion: 2,

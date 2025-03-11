@@ -27,6 +27,7 @@ import {
   transformVariantFromStorage,
 } from './storage/cache';
 import { LocalStorage } from './storage/local-storage';
+import { SessionStorage } from './storage/session-storage';
 import { FetchHttpClient, WrapperClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
@@ -34,9 +35,9 @@ import { Exposure, ExposureTrackingProvider } from './types/exposure';
 import { ExperimentPlugin, IntegrationPlugin } from './types/plugin';
 import { ExperimentUserProvider } from './types/provider';
 import { isFallback, Source, VariantSource } from './types/source';
+import { Storage } from './types/storage';
 import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
-import { Storage } from './types/storage';
 import {
   isLocalEvaluationMode,
   isNullOrUndefined,
@@ -50,7 +51,6 @@ import {
 } from './util/convert';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
 import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
-import { SessionStorage } from './storage/session-storage';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
@@ -124,8 +124,8 @@ export class ExperimentClient implements Client {
           : config.flagConfigPollingIntervalMillis ??
             Defaults.flagConfigPollingIntervalMillis,
     };
-    this.isWebExperiment =
-      this.config?.['internalInstanceNameSuffix'] === 'web';
+    const internalInstanceName = this.config?.['internalInstanceNameSuffix'];
+    this.isWebExperiment = internalInstanceName === 'web';
     this.poller = new Poller(
       () => this.doFlags(),
       this.config.flagConfigPollingIntervalMillis,
@@ -168,6 +168,9 @@ export class ExperimentClient implements Client {
     );
     // Storage & Caching
     let storage: Storage;
+    const storageInstanceName = internalInstanceName
+      ? `${this.config.instanceName}-${internalInstanceName}`
+      : this.config.instanceName;
     if (this.isWebExperiment) {
       storage = new SessionStorage();
     } else {
@@ -175,10 +178,10 @@ export class ExperimentClient implements Client {
     }
     this.variants = getVariantStorage(
       this.apiKey,
-      this.config.instanceName,
+      storageInstanceName,
       storage,
     );
-    this.flags = getFlagStorage(this.apiKey, this.config.instanceName, storage);
+    this.flags = getFlagStorage(this.apiKey, storageInstanceName, storage);
     try {
       this.flags.load();
       this.variants.load();
