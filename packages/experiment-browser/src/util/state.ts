@@ -26,14 +26,14 @@ export const parseAmplitudeCookie = (
   try {
     // New format
     if (newFormat) {
-      const decoding = Buffer.from(value, 'base64').toString('utf-8');
+      const decoding = atob(value);
       return JSON.parse(decodeURIComponent(decoding)) as AmplitudeState;
     }
     // Old format
     const values = value.split('.');
     let userId = undefined;
     if (values.length >= 2 && values[1]) {
-      userId = Buffer.from(values[1], 'base64').toString('utf-8');
+      userId = atob(values[1]);
     }
     return {
       deviceId: values[0],
