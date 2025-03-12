@@ -14,7 +14,7 @@ export const parseAmplitudeCookie = (
   let value: string | undefined = undefined;
   const cookies = safeGlobal.document.cookie.split('; ');
   for (const cookie of cookies) {
-    const [cookieKey, cookieValue] = cookie.split('=');
+    const [cookieKey, cookieValue] = cookie.split('=', 2);
     if (cookieKey === key) {
       value = decodeURIComponent(cookieValue);
     }
