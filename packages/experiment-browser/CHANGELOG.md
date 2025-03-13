@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.15.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.2...@amplitude/experiment-js-client@1.15.3) (2025-03-13)
+
+
+### Bug Fixes
+
+* fix cookie parsing for b64 strings ([#163](https://github.com/amplitude/experiment-js-client/issues/163)) ([6840113](https://github.com/amplitude/experiment-js-client/commit/68401130ffcf4e38c2c35c56c74343f40f0b7bd6))
+
+
+
+
+
 ## [1.15.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.1...@amplitude/experiment-js-client@1.15.2) (2025-03-11)
 
 
