@@ -472,6 +472,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
+  // TODO: handle scoped redirect
   private handleRedirect(action, flagKey: string, variant: Variant) {
     if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
       return;
