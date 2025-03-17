@@ -250,7 +250,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // this.applyVariants({ flagKeys: this.localFlagKeys });
 
     if (!this.isRemoteBlocking) {
-      // TODO: when to remove?
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }

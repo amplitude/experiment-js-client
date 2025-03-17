@@ -43,7 +43,6 @@ export class MessageBus {
     listener: Subscriber<T>['callback'],
     listenerId: string | undefined = undefined,
     groupCallback?: () => void,
-    debounceTimeout: number | undefined = undefined,
   ): void {
     // this happens upon init, page objects "listen" to triggers relevant to them
     let entry = this.messageToSubscriberGroup.get(
@@ -60,10 +59,6 @@ export class MessageBus {
       identifier: listenerId,
       callback: listener,
     };
-    // TODO: debounced necessary?
-    // if (debounceTimeout !== undefined) {
-    //   subscriber.debouncedCallback = debounce(listener, debounceTimeout);
-    // }
     entry.subscribers.push(subscriber);
   }
 
@@ -78,38 +73,8 @@ export class MessageBus {
 
     entry.subscribers.forEach((subscriber) => {
       payload = payload || ({} as MessagePayloads[T]);
-      try {
-        // TODO: debounced necessary?
-        // if (subscriber.debouncedCallback) {
-        //   subscriber.debouncedCallback(payload);
-        // } else {
-        subscriber.callback(payload);
-        // }
-      } catch (error) {
-        // logger.error('Error in message subscriber:', error);
-      }
+      subscriber.callback(payload);
     });
     this.subscriberGroupCallback.get(messageType)?.();
-  }
-
-  unsubscribe<T extends MessageType>(
-    messageType: T,
-    subscriberIdentifier: string,
-  ): void {
-    const entry = this.messageToSubscriberGroup.get(messageType);
-    if (!entry) return;
-
-    const activeSubscribers: typeof entry.subscribers = [];
-
-    for (const subscriber of entry.subscribers) {
-      if (subscriber.identifier === subscriberIdentifier) {
-        // TODO: debounced necessary?
-        // subscriber.debouncedCallback?.cancel();
-      } else {
-        activeSubscribers.push(subscriber);
-      }
-    }
-
-    entry.subscribers = activeSubscribers;
   }
 }
