@@ -27,6 +27,39 @@ jest.mock('src/messenger', () => {
   };
 });
 
+const newMockGlobal = (overrides?: Record<string, unknown>) => {
+  return {
+    localStorage: {
+      getItem: jest.fn().mockReturnValue(undefined),
+      setItem: jest.fn(),
+    },
+    sessionStorage: {
+      getItem: jest.fn().mockReturnValue(undefined),
+      setItem: jest.fn(),
+    },
+    location: {
+      href: 'http://test.com',
+      replace: jest.fn(),
+      search: '',
+    },
+    document: { referrer: '' },
+    history: { replaceState: jest.fn() },
+    addEventListener: jest.fn(),
+    experimentIntegration: {
+      track: () => {
+        return true;
+      },
+      getUser: () => {
+        return {
+          user_id: 'user',
+          device_id: 'device',
+        };
+      },
+    },
+    ...overrides,
+  };
+};
+
 describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
   jest.spyOn(ExperimentClient.prototype, 'setUser');
@@ -40,24 +73,7 @@ describe('initializeExperiment', () => {
     apiKey++;
     jest.clearAllMocks();
     jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
-    mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
-      sessionStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
-      location: {
-        href: 'http://test.com',
-        replace: jest.fn(),
-        search: '',
-      },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    mockGlobal = newMockGlobal();
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -81,24 +97,16 @@ describe('initializeExperiment', () => {
   });
 
   test('set web experiment config', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com',
         replace: jest.fn(),
         search: '?test=control&PREVIEW=true',
       },
-
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
       experimentConfig: {
         useDefaultNavigationHandler: false,
       },
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -171,21 +179,13 @@ describe('initializeExperiment', () => {
   });
 
   test('preview - force control variant', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com',
         replace: jest.fn(),
         search: '?test=control&PREVIEW=true',
       },
-
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -206,20 +206,13 @@ describe('initializeExperiment', () => {
   });
 
   test('preview - force treatment variant when on control page', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/',
         replace: jest.fn(),
         search: '?test=treatment&PREVIEW=true',
       },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -238,20 +231,13 @@ describe('initializeExperiment', () => {
   });
 
   test('preview - force treatment variant when on treatment page', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/2',
         replace: jest.fn(),
         search: '?test=treatment&PREVIEW=true',
       },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -298,20 +284,13 @@ describe('initializeExperiment', () => {
   });
 
   test('concatenate query params from original and redirected url', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/?param1=a&param2=b',
         replace: jest.fn(),
         search: '?param1=a&param2=b',
       },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -541,20 +520,13 @@ describe('initializeExperiment', () => {
   });
 
   test('remote evaluation - test preview successful, does not fetch remote flags', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/',
         replace: jest.fn(),
         search: '?test=treatment&PREVIEW=true',
       },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -776,20 +748,7 @@ test('feature experiment on global Experiment object', () => {
 describe('helper methods', () => {
   beforeEach(() => {
     const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
-      location: {
-        href: 'http://test.com',
-        replace: jest.fn(),
-        search: '',
-      },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    const mockGlobal = newMockGlobal();
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
