@@ -1,7 +1,6 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import {
   EvaluationFlag,
-  EvaluationSegment,
   getGlobalScope,
   isLocalStorageAvailable,
   safeGlobal,
@@ -37,8 +36,6 @@ import {
 } from './util';
 import { WebExperimentClient } from './web-experiment';
 
-export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
-export const PAGE_IS_EXCLUDED_SEGMENT_NAME = 'Page is excluded';
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 
 safeGlobal.Experiment = FeatureExperiment;
@@ -94,7 +91,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const urlParams = getUrlParams();
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
-      const { key, variants, segments, metadata = {} } = flag;
+      const { key, variants, metadata = {} } = flag;
 
       this.flagVariantMap[key] = {};
       Object.keys(variants).forEach((variantKey) => {
@@ -102,7 +99,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           convertEvaluationVariantToVariant(variants[variantKey]);
       });
 
-      // TODO: fix preview logic
       // Update initialFlags to force variant if in preview mode
       if (
         urlParams['PREVIEW'] &&
@@ -207,17 +203,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
 
-    // TODO: deal with updated page targeting evaluation
+    initSubscriptions(this.messageBus, this.pageObjects, this.config);
+
+    // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
+    // TODO: what if url_listeners fire due to multiple loads?
+    this.messageBus.publish('url_change', { updateActivePages: true });
+
     // evaluate variants for page targeting
     const variants: Variants = this.getVariants();
 
-    for (const [key, variant] of Object.entries(variants)) {
+    for (const [flagKey, variant] of Object.entries(variants)) {
       // only apply anti-flicker for remote flags active on the page
       if (
-        this.remoteFlagKeys.includes(key) &&
+        this.remoteFlagKeys.includes(flagKey) &&
         variant.metadata?.blockingEvaluation &&
-        variant.metadata?.segmentName !== PAGE_NOT_TARGETED_SEGMENT_NAME &&
-        variant.metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
+        Object.keys(this.activePages).includes(flagKey)
       ) {
         this.isRemoteBlocking = true;
         // Apply anti-flicker CSS to prevent UI flicker
@@ -242,12 +242,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
-
-    initSubscriptions(this.messageBus, this.pageObjects, this.config);
-
-    // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
-    // TODO: what if url_listeners fire due to multiple loads?
-    this.messageBus.publish('url_change', { updateActivePages: true });
 
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
@@ -410,7 +404,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     return variants;
   }
 
-  // TODO: fix active pages evaluation - based on page + user?
   /**
    * Get the list of experiments that are active on the current page.
    */
@@ -606,14 +599,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       },
     };
     this.exposureWithDedupe(flagKey, variant);
-  }
-
-  private isPageTargetingSegment(segment: EvaluationSegment) {
-    return (
-      segment.metadata?.trackExposure === false &&
-      (segment.metadata?.segmentName === PAGE_NOT_TARGETED_SEGMENT_NAME ||
-        segment.metadata?.segmentName === PAGE_IS_EXCLUDED_SEGMENT_NAME)
-    );
   }
 
   private exposureWithDedupe(key: string, variant: Variant) {

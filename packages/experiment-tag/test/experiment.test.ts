@@ -6,11 +6,7 @@ import { DefaultWebExperimentClient } from 'src/experiment';
 import * as util from 'src/util';
 import { stringify } from 'ts-jest';
 
-import {
-  createFlag,
-  createMutateFlag,
-  createRedirectFlag,
-} from './util/create-flag';
+import { createMutateFlag, createRedirectFlag } from './util/create-flag';
 import { createPageObject } from './util/create-page-object';
 import { MockHttpClient } from './util/mock-http-client';
 
@@ -60,6 +56,21 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
     },
     ...overrides,
   };
+};
+
+// disable mutation observer for tests
+global.MutationObserver = class {
+  observe() {
+    // do nothing
+  }
+
+  disconnect() {
+    // do nothing
+  }
+
+  takeRecords() {
+    return [];
+  }
 };
 
 describe('initializeExperiment', () => {

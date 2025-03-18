@@ -24,24 +24,9 @@ export const initSubscriptions = (
   if (!options.useDefaultNavigationHandler) {
     setupLocationChangePublisher(_);
   }
-  // setupMutationObserverPublisher(_);
-  // setupSDKManualPublisher(_);
-  // setupMessageBusTriggerSubscriptions(_);
+  setupMutationObserverPublisher(_);
   setupPageObjectSubscriptions(_, pageObjects);
 };
-
-// TODO: figure out event queue for before SDKs are initialized?
-// const setupSDKManualPublisher = (_: MessageBus) => {
-// const globalScope = getGlobalScope();
-// globalScope?.document.addEventListener('manual_trigger', (event) => {
-//   // @ts-ignore
-//   // send message to MessageBus for view trigger
-//   _.publish('manual', {
-//     // @ts-ignore
-//     name: event.detail.name,
-//   });
-// });
-// };
 
 const setupMutationObserverPublisher = (_: MessageBus) => {
   const globalScope = getGlobalScope();
@@ -58,7 +43,7 @@ const setupMutationObserverPublisher = (_: MessageBus) => {
   return mutationManager.observe();
 };
 
-// TODO: fix in reference to assistance-browser
+// TODO: update to be more robust
 const setupLocationChangePublisher = (_: MessageBus) => {
   const globalScope = getGlobalScope();
   if (!globalScope) {
@@ -100,13 +85,7 @@ const setupLocationChangePublisher = (_: MessageBus) => {
 
   // Initialize the wrapper
   wrapHistoryMethods();
-
-  window.addEventListener('hashchange', handleUrlChange);
 };
-
-// const setupMessageBusTriggerSubscriptions = (_: MessageBus) => {
-//
-// };
 
 const setupPageObjectSubscriptions = (
   _: MessageBus,
@@ -156,7 +135,6 @@ const isPageObjectActive = <T extends MessageType>(
 
   // Check conditions
   if (page.conditions) {
-    const url = globalScope.location.href;
     const matchConditions = evaluationEngine.evaluateConditions(
       {
         context: { page: { url: globalScope.location.href } },
@@ -189,7 +167,7 @@ const isPageObjectActive = <T extends MessageType>(
       );
     }
 
-    //TODO: fix to check payload?
+    //TODO: check payload?
     case 'element_appeared': {
       // const mutationMessage = message as DomMutationPayload;
       const element = globalScope.document.querySelector(
