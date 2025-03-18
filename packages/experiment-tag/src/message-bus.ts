@@ -15,10 +15,11 @@ type Subscriber<T extends MessageType> = {
 export type ElementAppearedPayload = { mutationList: MutationRecord[] };
 export type AnalyticsEventPayload = AnalyticsEvent;
 export type ManualTriggerPayload = { name: string };
+export type UrlChangePayload = { updateActivePages?: boolean };
 
 export type MessagePayloads = {
   element_appeared: ElementAppearedPayload;
-  url_change: undefined;
+  url_change: UrlChangePayload;
   analytics_event: AnalyticsEventPayload;
   manual: ManualTriggerPayload;
 };
@@ -27,11 +28,12 @@ export type MessageType = keyof MessagePayloads;
 
 interface SubscriberGroup<T extends MessageType> {
   subscribers: Subscriber<T>[];
+  callback?: (payload: MessagePayloads[T]) => void;
 }
 
 export class MessageBus {
   private messageToSubscriberGroup: Map<MessageType, SubscriberGroup<any>>;
-  private subscriberGroupCallback: Map<MessageType, () => void>;
+  private subscriberGroupCallback: Map<MessageType, (any) => void>;
 
   constructor() {
     this.messageToSubscriberGroup = new Map();
@@ -42,7 +44,7 @@ export class MessageBus {
     messageType: T,
     listener: Subscriber<T>['callback'],
     listenerId: string | undefined = undefined,
-    groupCallback?: () => void,
+    groupCallback?: (payload: MessagePayloads[T]) => void,
   ): void {
     // this happens upon init, page objects "listen" to triggers relevant to them
     let entry = this.messageToSubscriberGroup.get(
@@ -75,6 +77,6 @@ export class MessageBus {
       payload = payload || ({} as MessagePayloads[T]);
       subscriber.callback(payload);
     });
-    this.subscriberGroupCallback.get(messageType)?.();
+    this.subscriberGroupCallback.get(messageType)?.(payload);
   }
 }

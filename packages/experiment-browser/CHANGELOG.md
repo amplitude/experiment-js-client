@@ -3,6 +3,51 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.15.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.2...@amplitude/experiment-js-client@1.15.3) (2025-03-13)
+
+
+### Bug Fixes
+
+* fix cookie parsing for b64 strings ([#163](https://github.com/amplitude/experiment-js-client/issues/163)) ([6840113](https://github.com/amplitude/experiment-js-client/commit/68401130ffcf4e38c2c35c56c74343f40f0b7bd6))
+
+
+
+
+
+## [1.15.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.1...@amplitude/experiment-js-client@1.15.2) (2025-03-11)
+
+
+### Bug Fixes
+
+* store remote flags in session storage for reuse within session ([#162](https://github.com/amplitude/experiment-js-client/issues/162)) ([ef19343](https://github.com/amplitude/experiment-js-client/commit/ef19343f89303889dc616176d545f5fb9a525e59))
+* wait for context before web experiment flags req ([#161](https://github.com/amplitude/experiment-js-client/issues/161)) ([420302a](https://github.com/amplitude/experiment-js-client/commit/420302add6de12ebc78b3b34d8af5a088a259fcf))
+
+
+
+
+
+## [1.15.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.0...@amplitude/experiment-js-client@1.15.1) (2025-03-01)
+
+
+### Bug Fixes
+
+* add IP property to user object ([#160](https://github.com/amplitude/experiment-js-client/issues/160)) ([2231028](https://github.com/amplitude/experiment-js-client/commit/22310282e70ae119aee2c8d248c9380bf78a4404))
+
+
+
+
+
+# [1.15.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.14.1...@amplitude/experiment-js-client@1.15.0) (2025-02-14)
+
+
+### Features
+
+* Web experiment remote evaluation ([#138](https://github.com/amplitude/experiment-js-client/issues/138)) ([d7c167f](https://github.com/amplitude/experiment-js-client/commit/d7c167f2df625bd15b6a2af2c2cb01a5e1ccc108))
+
+
+
+
+
 ## [1.14.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.14.0...@amplitude/experiment-js-client@1.14.1) (2024-12-27)
 
 

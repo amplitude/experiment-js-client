@@ -59,7 +59,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private urlExposureCache: Record<string, Record<string, string | undefined>> =
     {};
   private flagVariantMap: Record<string, Record<string, Variant>> = {};
-  private localFlagKeys: string[] = [];
+  private readonly localFlagKeys: string[] = [];
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
@@ -102,6 +102,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           convertEvaluationVariantToVariant(variants[variantKey]);
       });
 
+      // TODO: fix preview logic
       // Update initialFlags to force variant if in preview mode
       if (
         urlParams['PREVIEW'] &&
@@ -114,12 +115,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           '',
           removeQueryParams(this.globalScope.location.href, ['PREVIEW', key]),
         );
-
-        // Retain only page-targeting segments
-        const pageTargetingSegments = segments.filter(
-          this.isPageTargetingSegment,
-        );
-
         // Add or update the preview segment
         const previewSegment = {
           metadata: { segmentName: PREVIEW_SEGMENT_NAME },
@@ -127,7 +122,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         };
 
         // Update the flag's segments to include the preview segment
-        flag.segments = [...pageTargetingSegments, previewSegment];
+        flag.segments = [previewSegment];
 
         // make all preview flags local
         metadata.evaluationMode = 'local';
@@ -135,12 +130,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       if (metadata.evaluationMode !== 'local') {
         this.remoteFlagKeys.push(key);
-
-        // allow local evaluation for remote flags
-        metadata.evaluationMode = 'local';
-      } else {
-        // Add locally evaluable flags to the local flag set
-        this.localFlagKeys.push(key);
       }
 
       flag.metadata = metadata;
@@ -158,8 +147,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       fetchTimeoutMillis: 1000,
       pollOnStart: false,
       fetchOnStart: false,
+      automaticExposureTracking: false,
       ...this.config,
     });
+    // Get all the locally available flag keys from the SDK.
+    const variants = this.experimentClient.all();
+    this.localFlagKeys = Object.keys(variants).filter(
+      (key) => variants[key]?.metadata?.evaluationMode === 'local',
+    );
     this.messageBus = new MessageBus();
   }
 
@@ -212,6 +207,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
 
+    // TODO: deal with updated page targeting evaluation
     // evaluate variants for page targeting
     const variants: Variants = this.getVariants();
 
@@ -235,33 +231,35 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.globalScope.experimentIntegration = new AmplitudeIntegrationPlugin(
         this.apiKey,
         connector,
-        0,
+        100,
       );
     }
     this.globalScope.experimentIntegration.type = 'integration';
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(user);
 
-    if (this.config.useDefaultNavigationHandler) {
-      // TODO: how to handle?
-    }
-
-    // apply local variants
-    // this.applyVariants({ flagKeys: this.localFlagKeys });
-
     if (!this.isRemoteBlocking) {
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
+
+    initSubscriptions(this.messageBus, this.pageObjects, this.config);
+
+    // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
+    // TODO: what if url_listeners fire due to multiple loads?
+    this.messageBus.publish('url_change', { updateActivePages: true });
+
+    // apply local variants
+    this.applyVariants({ flagKeys: this.localFlagKeys });
+
     if (this.remoteFlagKeys.length === 0) {
       this.isRunning = true;
-      initSubscriptions(this.messageBus, this.pageObjects);
       return;
     }
 
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
-    initSubscriptions(this.messageBus, this.pageObjects);
+    this.applyVariants({ flagKeys: this.remoteFlagKeys });
     this.isRunning = true;
   }
 
@@ -324,26 +322,27 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache = {};
       this.urlExposureCache[currentUrl] = {};
     }
-    for (const flagKey in variants) {
-      if (flagKeys && !flagKeys.includes(flagKey)) {
+    for (const key in variants) {
+      if (flagKeys && !flagKeys.includes(key)) {
         continue;
       }
-      const variant = variants[flagKey];
+      const variant = variants[key];
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
       if (isWebExperimentation) {
         const shouldTrackExposure =
           (variant.metadata?.['trackExposure'] as boolean) ?? true;
         // if payload is falsy or empty array, consider it as control variant
         const payloadIsArray = Array.isArray(variant.payload);
+        // TODO(bgiori) this will need to change when we introduce control variant mutations
         const isControlPayload =
           !variant.payload || (payloadIsArray && variant.payload.length === 0);
         if (shouldTrackExposure && isControlPayload) {
-          this.exposureWithDedupe(flagKey, variant);
+          this.exposureWithDedupe(key, variant);
           continue;
         }
 
         if (payloadIsArray) {
-          this.handleVariantAction(flagKey, variant);
+          this.handleVariantAction(key, variant);
         }
       }
     }
@@ -404,29 +403,19 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Get all variants for the current web experiment context.
    */
   public getVariants(): Variants {
-    const allVariants = this.experimentClient.all();
-
-    const isRelevantKey = (key: string) =>
-      this.localFlagKeys.includes(key) || this.remoteFlagKeys.includes(key);
-
-    return Object.keys(allVariants).reduce<Record<string, any>>((acc, key) => {
-      if (isRelevantKey(key)) acc[key] = allVariants[key];
-      return acc;
-    }, {});
+    const variants: Variants = {};
+    for (const key of [...this.localFlagKeys, ...this.remoteFlagKeys]) {
+      variants[key] = this.experimentClient.variant(key);
+    }
+    return variants;
   }
 
+  // TODO: fix active pages evaluation - based on page + user?
   /**
    * Get the list of experiments that are active on the current page.
    */
   public getActiveExperiments(): string[] {
-    const variants = this.getVariants();
-    return Object.keys(variants).filter((key) => {
-      return (
-        variants[key].metadata?.segmentName !==
-          PAGE_NOT_TARGETED_SEGMENT_NAME &&
-        variants[key].metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
-      );
-    });
+    return Object.keys(this.activePages);
   }
 
   /**
@@ -458,15 +447,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  // Variant actions are scoped to page objects
-  private handleVariantAction(flagKey: string, variant: Variant) {
+  private handleVariantAction(key: string, variant: Variant) {
     for (const action of variant.payload) {
       if (action.action === 'redirect') {
-        this.handleRedirect(action, flagKey, variant);
+        this.handleRedirect(action, key, variant);
       } else if (action.action === 'mutate') {
-        this.handleMutate(action, flagKey, variant);
+        this.handleMutate(action, key, variant);
       } else if (action.action === 'inject') {
-        this.handleInject(action, flagKey, variant);
+        this.handleInject(action, key, variant);
       }
     }
   }
@@ -512,7 +500,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private handleMutate(action, flagKey: string, variant: Variant) {
     const mutations = action.data?.mutations;
     const mutationControllers: Record<number, MutationController> = {};
-
     mutations.forEach((m, index) => {
       // Check if mutation is scoped to page
       if (!this.isActionActiveOnPage(flagKey, m?.metadata?.scope)) {

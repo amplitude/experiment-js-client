@@ -3,6 +3,55 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.0...@amplitude/experiment-tag@0.5.1) (2025-03-13)
+
+**Note:** Version bump only for package @amplitude/experiment-tag
+
+
+
+
+
+# [0.5.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.4.1...@amplitude/experiment-tag@0.5.0) (2025-03-11)
+
+
+### Bug Fixes
+
+* store remote flags in session storage for reuse within session ([#162](https://github.com/amplitude/experiment-js-client/issues/162)) ([ef19343](https://github.com/amplitude/experiment-js-client/commit/ef19343f89303889dc616176d545f5fb9a525e59))
+
+
+### Features
+
+* WebExperiment class ([#152](https://github.com/amplitude/experiment-js-client/issues/152)) ([468fa3a](https://github.com/amplitude/experiment-js-client/commit/468fa3aed52739e049fdb67bc159de7a8aa94e0f))
+
+
+
+
+
+## [0.4.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.4.0...@amplitude/experiment-tag@0.4.1) (2025-03-01)
+
+**Note:** Version bump only for package @amplitude/experiment-tag
+
+
+
+
+
+# [0.4.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.3.1...@amplitude/experiment-tag@0.4.0) (2025-02-14)
+
+
+### Bug Fixes
+
+* Web Experiment - only apply antiflicker for active experiments on page ([#155](https://github.com/amplitude/experiment-js-client/issues/155)) ([5d6f5d1](https://github.com/amplitude/experiment-js-client/commit/5d6f5d16f2e88ac60166f80053ecc34b13285081))
+
+
+### Features
+
+* migrate to use web_exp_id for web experiment device_id bucketing ([#154](https://github.com/amplitude/experiment-js-client/issues/154)) ([6c7c3ba](https://github.com/amplitude/experiment-js-client/commit/6c7c3bacebe3f8c6077f5d2532d5a06259e374bf))
+* Web experiment remote evaluation ([#138](https://github.com/amplitude/experiment-js-client/issues/138)) ([d7c167f](https://github.com/amplitude/experiment-js-client/commit/d7c167f2df625bd15b6a2af2c2cb01a5e1ccc108))
+
+
+
+
+
 ## [0.3.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.3.0...@amplitude/experiment-tag@0.3.1) (2024-12-27)
 
 **Note:** Version bump only for package @amplitude/experiment-tag

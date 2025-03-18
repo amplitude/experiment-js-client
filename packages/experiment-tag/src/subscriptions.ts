@@ -11,34 +11,45 @@ import { DebouncedMutationManager } from './mutation-manager';
 import { PageObject, PageObjects } from './types';
 
 const evaluationEngine = new EvaluationEngine();
-const globalScope = getGlobalScope();
 
-export const initSubscriptions = (_: MessageBus, pageObjects: PageObjects) => {
-  setupLocationChangePublisher(_);
-  setupSDKManualPublisher(_);
-  setupMutationObserverPublisher(_);
-  setupMessageBusTriggerSubscriptions(_);
+type initOptions = {
+  useDefaultNavigationHandler?: boolean;
+};
+
+export const initSubscriptions = (
+  _: MessageBus,
+  pageObjects: PageObjects,
+  options: initOptions,
+) => {
+  if (!options.useDefaultNavigationHandler) {
+    setupLocationChangePublisher(_);
+  }
+  // setupMutationObserverPublisher(_);
+  // setupSDKManualPublisher(_);
+  // setupMessageBusTriggerSubscriptions(_);
   setupPageObjectSubscriptions(_, pageObjects);
-
-  // fire location_change upon landing on page
-  _.publish('url_change');
 };
 
 // TODO: figure out event queue for before SDKs are initialized?
-const setupSDKManualPublisher = (_: MessageBus) => {
-  globalScope?.document.addEventListener('manual_trigger', (event) => {
-    // @ts-ignore
-    // send message to MessageBus for view trigger
-    _.publish('manual', {
-      // @ts-ignore
-      name: event.detail.name,
-    });
-  });
-};
+// const setupSDKManualPublisher = (_: MessageBus) => {
+// const globalScope = getGlobalScope();
+// globalScope?.document.addEventListener('manual_trigger', (event) => {
+//   // @ts-ignore
+//   // send message to MessageBus for view trigger
+//   _.publish('manual', {
+//     // @ts-ignore
+//     name: event.detail.name,
+//   });
+// });
+// };
 
 const setupMutationObserverPublisher = (_: MessageBus) => {
+  const globalScope = getGlobalScope();
+  if (!globalScope) {
+    return;
+  }
   const mutationManager = new DebouncedMutationManager(
-    document.documentElement,
+    globalScope.document.documentElement,
     (mutationList) => {
       _.publish('element_appeared', { mutationList });
     },
@@ -49,6 +60,7 @@ const setupMutationObserverPublisher = (_: MessageBus) => {
 
 // TODO: fix in reference to assistance-browser
 const setupLocationChangePublisher = (_: MessageBus) => {
+  const globalScope = getGlobalScope();
   if (!globalScope) {
     return;
   }
@@ -92,14 +104,15 @@ const setupLocationChangePublisher = (_: MessageBus) => {
   window.addEventListener('hashchange', handleUrlChange);
 };
 
-const setupMessageBusTriggerSubscriptions = (_: MessageBus) => {
-  //
-};
+// const setupMessageBusTriggerSubscriptions = (_: MessageBus) => {
+//
+// };
 
 const setupPageObjectSubscriptions = (
   _: MessageBus,
   pageObjects: PageObjects,
 ) => {
+  const globalScope = getGlobalScope();
   // iterate through pageObjects, each object should be subscribed to the relevant trigger
   for (const [experiment, pages] of Object.entries(pageObjects)) {
     for (const [pageName, page] of Object.entries(pages)) {
@@ -122,8 +135,10 @@ const setupPageObjectSubscriptions = (
           }
         },
         undefined,
-        () => {
-          globalScope?.webExperiment.applyVariants();
+        (payload) => {
+          if (!('updateActivePages' in payload) || !payload.updateActivePages) {
+            globalScope?.webExperiment.applyVariants();
+          }
         },
       );
     }
@@ -134,12 +149,14 @@ const isPageObjectActive = <T extends MessageType>(
   page: PageObject,
   message: MessagePayloads[T],
 ): boolean => {
+  const globalScope = getGlobalScope();
   if (!globalScope) {
     return false;
   }
 
   // Check conditions
   if (page.conditions) {
+    const url = globalScope.location.href;
     const matchConditions = evaluationEngine.evaluateConditions(
       {
         context: { page: { url: globalScope.location.href } },

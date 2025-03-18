@@ -2,18 +2,24 @@ import * as experimentCore from '@amplitude/experiment-core';
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
-import {
-  PAGE_IS_EXCLUDED_SEGMENT_NAME,
-  PAGE_NOT_TARGETED_SEGMENT_NAME,
-  DefaultWebExperimentClient,
-} from 'src/experiment';
+import { DefaultWebExperimentClient } from 'src/experiment';
 import * as util from 'src/util';
 import { stringify } from 'ts-jest';
 
-import { createMutateFlag, createRedirectFlag } from './util/create-flag';
+import {
+  createFlag,
+  createMutateFlag,
+  createRedirectFlag,
+} from './util/create-flag';
+import { createPageObject } from './util/create-page-object';
 import { MockHttpClient } from './util/mock-http-client';
 
 let apiKey = 0;
+const DEFAULT_PAGE_OBJECTS = {
+  test: createPageObject('A', 'url_change', undefined, 'http://test.com'),
+};
+const DEFAULT_REDIRECT_SCOPE = { treatment: ['A'], control: ['A'] };
+const DEFAULT_MUTATE_SCOPE = { metadata: { scope: ['A'] } };
 
 jest.mock('src/messenger', () => {
   return {
@@ -22,6 +28,39 @@ jest.mock('src/messenger', () => {
     },
   };
 });
+
+const newMockGlobal = (overrides?: Record<string, unknown>) => {
+  return {
+    localStorage: {
+      getItem: jest.fn().mockReturnValue(undefined),
+      setItem: jest.fn(),
+    },
+    sessionStorage: {
+      getItem: jest.fn().mockReturnValue(undefined),
+      setItem: jest.fn(),
+    },
+    location: {
+      href: 'http://test.com',
+      replace: jest.fn(),
+      search: '',
+    },
+    document: { referrer: '' },
+    history: { replaceState: jest.fn() },
+    addEventListener: jest.fn(),
+    experimentIntegration: {
+      track: () => {
+        return true;
+      },
+      getUser: () => {
+        return {
+          user_id: 'user',
+          device_id: 'device',
+        };
+      },
+    },
+    ...overrides,
+  };
+};
 
 describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
@@ -36,20 +75,7 @@ describe('initializeExperiment', () => {
     apiKey++;
     jest.clearAllMocks();
     jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
-    mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
-      location: {
-        href: 'http://test.com',
-        replace: jest.fn(),
-        search: '',
-      },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    mockGlobal = newMockGlobal();
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -62,6 +88,7 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([]),
+      JSON.stringify({}),
     ).start();
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       web_exp_id: 'mock',
@@ -73,34 +100,22 @@ describe('initializeExperiment', () => {
   });
 
   test('set web experiment config', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com',
         replace: jest.fn(),
         search: '?test=control&PREVIEW=true',
       },
-
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
       experimentConfig: {
         useDefaultNavigationHandler: false,
       },
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
-    const setDefaultSpy = jest.spyOn(
-      DefaultWebExperimentClient.prototype as any,
-      'setDefaultNavigationHandler',
-    );
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      createMutateFlag('test-2', 'treatment', [], [], 'remote'),
       // local flag
       createMutateFlag('test-1', 'treatment'),
     ];
@@ -108,16 +123,15 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
 
-    DefaultWebExperimentClient.getInstance(
+    const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify({}),
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then();
-    expect(setDefaultSpy).not.toHaveBeenCalled();
+    );
+    expect((client as any).config.useDefaultNavigationHandler).toBe(false);
   });
 
   test('experiment should not run without localStorage', async () => {
@@ -128,6 +142,7 @@ describe('initializeExperiment', () => {
       await DefaultWebExperimentClient.getInstance(
         stringify(apiKey),
         JSON.stringify([]),
+        JSON.stringify({}),
       ).start();
     } catch (error: any) {
       expect(error.message).toBe(
@@ -141,8 +156,15 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag('test', 'treatment', 'http://test.com/2'),
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
@@ -156,6 +178,7 @@ describe('initializeExperiment', () => {
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
       ]),
+      JSON.stringify({}),
     ).start();
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -163,21 +186,13 @@ describe('initializeExperiment', () => {
   });
 
   test('preview - force control variant', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com',
         replace: jest.fn(),
         search: '?test=control&PREVIEW=true',
       },
-
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -187,6 +202,7 @@ describe('initializeExperiment', () => {
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
@@ -198,20 +214,13 @@ describe('initializeExperiment', () => {
   });
 
   test('preview - force treatment variant when on control page', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/',
         replace: jest.fn(),
         search: '?test=treatment&PREVIEW=true',
       },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -219,8 +228,15 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag('test', 'treatment', 'http://test.com/2'),
+        createRedirectFlag(
+          'test',
+          'control',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
@@ -230,54 +246,23 @@ describe('initializeExperiment', () => {
   });
 
   test('preview - force treatment variant when on treatment page', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/2',
         replace: jest.fn(),
         search: '?test=treatment&PREVIEW=true',
       },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const pageTargetingSegments = [
-      {
-        conditions: [
-          [
-            {
-              op: 'regex does not match',
-              selector: ['context', 'page', 'url'],
-              values: ['^http:\\/\\/test.com/$'],
-            },
-          ],
-        ],
-        metadata: {
-          segmentName: PAGE_NOT_TARGETED_SEGMENT_NAME,
-          trackExposure: false,
-        },
-        variant: 'off',
-      },
-    ];
-
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag(
-          'test',
-          'treatment',
-          'http://test.com/2',
-          undefined,
-          pageTargetingSegments,
-        ),
+        createRedirectFlag('test', 'treatment', 'http://test.com/2', undefined),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     );
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
@@ -290,20 +275,13 @@ describe('initializeExperiment', () => {
   });
 
   test('concatenate query params from original and redirected url', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/?param1=a&param2=b',
         replace: jest.fn(),
         search: '?param1=a&param2=b',
       },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -316,8 +294,10 @@ describe('initializeExperiment', () => {
           'treatment',
           'http://test.com/2?param3=c',
           'http://test.com/',
+          DEFAULT_REDIRECT_SCOPE,
         ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
@@ -330,8 +310,15 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag('test', 'control', 'http://test.com/2?param3=c'),
+        createRedirectFlag(
+          'test',
+          'control',
+          'http://test.com/2?param3=c',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
 
     expect(mockGlobal.location.replace).not.toHaveBeenCalled();
@@ -346,24 +333,6 @@ describe('initializeExperiment', () => {
       writable: true,
     });
     jest.spyOn(experimentCore, 'getGlobalScope');
-    const pageTargetingSegments = [
-      {
-        conditions: [
-          [
-            {
-              op: 'regex does not match',
-              selector: ['context', 'page', 'url'],
-              values: ['^http:\\/\\/test.*'],
-            },
-          ],
-        ],
-        metadata: {
-          segmentName: PAGE_NOT_TARGETED_SEGMENT_NAME,
-          trackExposure: false,
-        },
-        variant: 'off',
-      },
-    ];
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
@@ -372,9 +341,10 @@ describe('initializeExperiment', () => {
           'treatment',
           'http://test.com/2',
           undefined,
-          pageTargetingSegments,
+          DEFAULT_REDIRECT_SCOPE,
         ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
@@ -382,28 +352,10 @@ describe('initializeExperiment', () => {
   test('on non-targeted page, should not call exposure', () => {
     Object.defineProperty(global, 'location', {
       value: {
-        href: 'http://test.com',
+        href: 'http://non-targeted.com',
       },
       writable: true,
     });
-    const pageTargetingSegments = [
-      {
-        conditions: [
-          [
-            {
-              op: 'regex match',
-              selector: ['context', 'page', 'url'],
-              values: ['.*test\\.com$'],
-            },
-          ],
-        ],
-        metadata: {
-          segmentName: PAGE_IS_EXCLUDED_SEGMENT_NAME,
-          trackExposure: false,
-        },
-        variant: 'off',
-      },
-    ];
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
@@ -412,9 +364,10 @@ describe('initializeExperiment', () => {
           'treatment',
           'http://test.com/2',
           undefined,
-          pageTargetingSegments,
+          DEFAULT_REDIRECT_SCOPE,
         ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     );
     expect(mockExposure).not.toHaveBeenCalled();
   });
@@ -425,7 +378,7 @@ describe('initializeExperiment', () => {
 
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      createMutateFlag('test', 'treatment', [], [], 'remote'),
     ];
 
     const mockHttpClient = new MockHttpClient(JSON.stringify([]));
@@ -433,6 +386,7 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
       {
         httpClient: mockHttpClient,
       },
@@ -452,15 +406,37 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch successful, antiflicker applied', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      createMutateFlag(
+        'test-2',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE],
+        [],
+        'remote',
+      ),
       // local flag
-      createMutateFlag('test-1', 'treatment'),
+      createMutateFlag('test-1', 'treatment', [DEFAULT_MUTATE_SCOPE]),
     ];
-    const remoteFlags = [createMutateFlag('test-2', 'treatment')];
+    const remoteFlags = [
+      createMutateFlag('test-2', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+    ];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify({
+        'test-1': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+        'test-2': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+      }),
       {
         httpClient: mockHttpClient,
       },
@@ -480,9 +456,25 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch fail, locally evaluate remote and local flags success', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], [], 'remote'),
+      createMutateFlag(
+        'test-2',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE],
+        [],
+        'remote',
+        true,
+        {},
+      ),
       // local flag
-      createMutateFlag('test-1', 'treatment'),
+      createMutateFlag(
+        'test-1',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE],
+        [],
+        'local',
+        true,
+        {},
+      ),
     ];
     const remoteFlags = [createMutateFlag('test-2', 'treatment')];
 
@@ -491,6 +483,20 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify({
+        'test-1': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+        'test-2': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+      }),
       {
         httpClient: mockHttpClient,
       },
@@ -509,7 +515,13 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch fail, test initialFlags variant actions called', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test', 'treatment', [], [], [], 'remote'),
+      createMutateFlag(
+        'test',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE],
+        [],
+        'remote',
+      ),
     ];
 
     const mockHttpClient = new MockHttpClient('', 404);
@@ -517,6 +529,7 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
       {
         httpClient: mockHttpClient,
       },
@@ -533,26 +546,19 @@ describe('initializeExperiment', () => {
   });
 
   test('remote evaluation - test preview successful, does not fetch remote flags', () => {
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
+    const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/',
         replace: jest.fn(),
         search: '?test=treatment&PREVIEW=true',
       },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     const initialFlags = [
       // remote flag
-      createMutateFlag('test', 'treatment', [], [], [], 'remote'),
+      createMutateFlag('test', 'treatment', [], [], 'remote'),
     ];
     const remoteFlags = [createMutateFlag('test', 'treatment')];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
@@ -563,6 +569,7 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
       {
         httpClient: mockHttpClient,
       },
@@ -583,28 +590,233 @@ describe('initializeExperiment', () => {
         'control',
         'http://test.com/2',
         undefined,
-        [],
+        DEFAULT_REDIRECT_SCOPE,
+        undefined,
         'remote',
       ),
     ];
     const remoteFlags = [
-      createRedirectFlag('test', 'treatment', 'http://test.com/2'),
+      createRedirectFlag(
+        'test',
+        'treatment',
+        'http://test.com/2',
+        undefined,
+        DEFAULT_REDIRECT_SCOPE,
+      ),
     ];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
 
     await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
       {
         httpClient: mockHttpClient,
       },
-    ).start();
+    )
+      .start()
+      .then();
     // check treatment variant called
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
     );
+  });
+
+  describe('remote evaluation - flag already stored in session storage', () => {
+    const sessionStorageMock = () => {
+      let store = {};
+      return {
+        getItem: jest.fn((key) => store[key] || null),
+        setItem: jest.fn((key, value) => {
+          store[key] = value;
+        }),
+        removeItem: jest.fn((key) => {
+          delete store[key];
+        }),
+        clear: jest.fn(() => {
+          store = {};
+        }),
+      };
+    };
+    beforeEach(() => {
+      Object.defineProperty(safeGlobal, 'sessionStorage', {
+        value: sessionStorageMock(),
+      });
+    });
+    afterEach(() => {
+      safeGlobal.sessionStorage.clear();
+    });
+    test('evaluated, applied, and impression tracked, start updates flag in storage, applied, impression deduped', async () => {
+      const apiKey = 'api1';
+      const storageKey = `amp-exp-$default_instance-web-${apiKey}-flags`;
+      // Create mock session storage with initial value
+      const storedFlag = createMutateFlag(
+        'test',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE],
+        [],
+        'local',
+        false,
+        {
+          flagVersion: 2,
+        },
+      );
+      safeGlobal.sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({ test: storedFlag }),
+      );
+      const initialFlags = [
+        createMutateFlag('test', 'treatment', [], [], 'remote', false, {
+          flagVersion: 3,
+        }),
+      ];
+      const remoteFlags = [
+        createMutateFlag(
+          'test',
+          'treatment',
+          [DEFAULT_MUTATE_SCOPE],
+          [],
+          'local',
+          false,
+          {
+            flagVersion: 4,
+          },
+        ),
+      ];
+      const client = DefaultWebExperimentClient.getInstance(
+        apiKey,
+        JSON.stringify(initialFlags),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+        {
+          httpClient: new MockHttpClient(JSON.stringify(remoteFlags), 200),
+        },
+      );
+      const integrationManagerTrack = jest.spyOn(
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        client.getExperimentClient().integrationManager,
+        'track',
+      );
+      let version = client.getExperimentClient().variant('test')
+        .metadata?.flagVersion;
+      expect(version).toEqual(2);
+      await client.start();
+      version = client.getExperimentClient().variant('test')
+        .metadata?.flagVersion;
+      expect(version).toEqual(4);
+      // check exposure tracked once
+      expect(mockExposure).toHaveBeenCalledTimes(1);
+      // Check remote flag store in storage
+      const flags = JSON.parse(
+        safeGlobal.sessionStorage.getItem(storageKey) as string,
+      );
+      expect(flags['test'].metadata.flagVersion).toEqual(4);
+      expect(flags['test'].metadata.evaluationMode).toEqual('local');
+      expect(integrationManagerTrack).toBeCalledTimes(1);
+      const call = integrationManagerTrack.mock.calls[0][0] as unknown as {
+        flag_key: string;
+        metadata: Record<string, unknown>;
+      };
+      expect(call.flag_key).toEqual('test');
+      expect(call.metadata.flagVersion).toEqual(2);
+    });
+    test('evaluated, applied, and impression tracked, start updates flag in storage, applied, impression re-tracked', async () => {
+      const apiKey = 'api2';
+      const storageKey = `amp-exp-$default_instance-web-${apiKey}-flags`;
+      // Create mock session storage with initial value
+      const storedFlag = createMutateFlag(
+        'test',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE],
+        [],
+        'local',
+        false,
+        {
+          flagVersion: 2,
+        },
+      );
+      safeGlobal.sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({ test: storedFlag }),
+      );
+      Object.defineProperty(safeGlobal, 'sessionStorage', {
+        value: sessionStorageMock,
+      });
+      const initialFlags = [
+        createMutateFlag(
+          'test',
+          'treatment',
+          [DEFAULT_MUTATE_SCOPE],
+          [],
+          'remote',
+          false,
+          {
+            flagVersion: 3,
+          },
+        ),
+      ];
+      const remoteFlags = [
+        createMutateFlag(
+          'test',
+          'control',
+          [DEFAULT_MUTATE_SCOPE],
+          [],
+          'local',
+          false,
+          {
+            flagVersion: 4,
+          },
+        ),
+      ];
+      const client = DefaultWebExperimentClient.getInstance(
+        apiKey,
+        JSON.stringify(initialFlags),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+        {
+          httpClient: new MockHttpClient(JSON.stringify(remoteFlags), 200),
+        },
+      );
+      const integrationManagerTrack = jest.spyOn(
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        client.getExperimentClient().integrationManager,
+        'track',
+      );
+      let version = client.getExperimentClient().variant('test')
+        .metadata?.flagVersion;
+      expect(version).toEqual(2);
+      await client.start();
+      version = client.getExperimentClient().variant('test')
+        .metadata?.flagVersion;
+      expect(version).toEqual(4);
+      // check exposure tracked once
+      expect(mockExposure).toHaveBeenCalledTimes(2);
+      // Check remote flag store in storage
+      const flags = JSON.parse(
+        safeGlobal.sessionStorage.getItem(storageKey) as string,
+      );
+      expect(flags['test'].metadata.flagVersion).toEqual(4);
+      expect(flags['test'].metadata.evaluationMode).toEqual('local');
+      expect(integrationManagerTrack).toBeCalledTimes(2);
+      const call1 = integrationManagerTrack.mock.calls[0][0] as unknown as {
+        flag_key: string;
+        variant: string;
+        metadata: Record<string, unknown>;
+      };
+      const call2 = integrationManagerTrack.mock.calls[1][0] as unknown as {
+        flag_key: string;
+        variant: string;
+        metadata: Record<string, unknown>;
+      };
+      expect(call1.flag_key).toEqual('test');
+      expect(call1.variant).toEqual('treatment');
+      expect(call1.metadata.flagVersion).toEqual(2);
+      expect(call2.flag_key).toEqual('test');
+      expect(call2.variant).toEqual('control');
+      expect(call2.metadata.flagVersion).toEqual(4);
+    });
   });
 });
 
@@ -615,20 +827,7 @@ test('feature experiment on global Experiment object', () => {
 describe('helper methods', () => {
   beforeEach(() => {
     const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
-    const mockGlobal = {
-      localStorage: {
-        getItem: jest.fn().mockReturnValue(undefined),
-        setItem: jest.fn(),
-      },
-      location: {
-        href: 'http://test.com',
-        replace: jest.fn(),
-        search: '',
-      },
-      document: { referrer: '' },
-      history: { replaceState: jest.fn() },
-      addEventListener: jest.fn(),
-    };
+    const mockGlobal = newMockGlobal();
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -655,61 +854,28 @@ describe('helper methods', () => {
       writable: true,
     });
     jest.spyOn(experimentCore, 'getGlobalScope');
-    const targetedSegment = [
-      {
-        conditions: [
-          [
-            {
-              op: 'regex does not match',
-              selector: ['context', 'page', 'url'],
-              values: ['^http:\\/\\/test.*'],
-            },
-          ],
-        ],
-        metadata: {
-          segmentName: PAGE_NOT_TARGETED_SEGMENT_NAME,
-          trackExposure: false,
-        },
-        variant: 'off',
-      },
-    ];
-    const nonTargetedSegment = [
-      {
-        conditions: [
-          [
-            {
-              op: 'regex match',
-              selector: ['context', 'page', 'url'],
-              values: ['.*test\\.com$'],
-            },
-          ],
-        ],
-        metadata: {
-          segmentName: PAGE_IS_EXCLUDED_SEGMENT_NAME,
-          trackExposure: false,
-        },
-        variant: 'off',
-      },
-    ];
-    const webExperiment = new DefaultWebExperimentClient(
+    const webExperiment = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag(
-          'targeted',
-          'treatment',
-          '',
-          undefined,
-          targetedSegment,
-        ),
-        createRedirectFlag(
-          'non-targeted',
-          'treatment',
-          '',
-          undefined,
-          nonTargetedSegment,
-        ),
+        createRedirectFlag('targeted', 'treatment', '', undefined),
+        createRedirectFlag('non-targeted', 'treatment', '', undefined),
       ]),
+      JSON.stringify({
+        targeted: createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+        'non-targeted': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://not-targeted.com',
+        ),
+      }),
     );
+    webExperiment.start();
     const activeExperiments = webExperiment.getActiveExperiments();
     expect(activeExperiments).toEqual(['targeted']);
   });
@@ -726,9 +892,17 @@ describe('helper methods', () => {
     const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag('flag-1', 'control', '', undefined, targetedSegment),
+        createRedirectFlag(
+          'flag-1',
+          'control',
+          '',
+          undefined,
+          {},
+          targetedSegment,
+        ),
         createRedirectFlag('flag-2', 'control', '', undefined),
       ]),
+      JSON.stringify({}),
     );
     const variants = webExperiment.getVariants();
     expect(variants['flag-1'].key).toEqual('treatment');

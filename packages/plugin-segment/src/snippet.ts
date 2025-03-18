@@ -17,6 +17,10 @@ export const snippetInstance = (
   // Create a queue, but don't obliterate an existing one!
   const analytics = (safeGlobal[key] = safeGlobal[key] || []);
 
+  // Return the actual instance if the global analytics is nested in an instance.
+  if (analytics.instance && analytics.instance.initialize) {
+    return analytics.instance;
+  }
   // If the real analytics.js is already on the page return.
   if (analytics.initialize) {
     return analytics;
