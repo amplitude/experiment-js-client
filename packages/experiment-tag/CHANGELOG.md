@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.1...@amplitude/experiment-tag@0.5.2) (2025-03-19)
+
+
+### Bug Fixes
+
+* change integration timeout to 100ms ([#164](https://github.com/amplitude/experiment-js-client/issues/164)) ([25e6367](https://github.com/amplitude/experiment-js-client/commit/25e63675342b3db46d1eba6a7a1509aef3009d33))
+* Web experiment variant action deduplication ([#166](https://github.com/amplitude/experiment-js-client/issues/166)) ([df23202](https://github.com/amplitude/experiment-js-client/commit/df232027aa0db64cddb3067bc543243cfcf036ec))
+
+
+
+
+
 ## [0.5.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.0...@amplitude/experiment-tag@0.5.1) (2025-03-13)
 
 **Note:** Version bump only for package @amplitude/experiment-tag
