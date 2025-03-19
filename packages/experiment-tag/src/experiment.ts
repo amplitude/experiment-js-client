@@ -37,6 +37,9 @@ import {
 import { WebExperimentClient } from './web-experiment';
 
 export const PREVIEW_SEGMENT_NAME = 'Preview';
+const MUTATE_ACTION = 'mutate';
+const INJECT_ACTION = 'inject';
+const REDIRECT_ACTION = 'redirect';
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -218,7 +221,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     initSubscriptions(this.messageBus, this.pageObjects, this.config);
 
     // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
-    // TODO: what if url_listeners fire due to multiple loads?
     this.messageBus.publish('url_change', { updateActivePages: true });
 
     // evaluate variants for page targeting
@@ -454,11 +456,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   private handleVariantAction(key: string, variant: Variant) {
     for (const action of variant.payload) {
-      if (action.action === 'redirect') {
+      if (action.action === REDIRECT_ACTION) {
         this.handleRedirect(action, key, variant);
-      } else if (action.action === 'mutate') {
+      } else if (action.action === MUTATE_ACTION) {
         this.handleMutate(action, key, variant);
-      } else if (action.action === 'inject') {
+      } else if (action.action === INJECT_ACTION) {
         this.handleInject(action, key, variant);
       }
     }
@@ -503,48 +505,52 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleMutate(action, flagKey: string, variant: Variant) {
-    const mutations = action.data?.mutations;
+    const mutations = action.data?.mutations || [];
+
+    if (mutations.length === 0) {
+      return;
+    }
+
     const mutationControllers: Record<number, MutationController> = {};
+
     mutations.forEach((m, index) => {
       // Check if mutation is scoped to page
       if (!this.isActionActiveOnPage(flagKey, m?.metadata?.scope)) {
-        // Revert inactive mutation
-        this.appliedMutations[flagKey]?.['mutate']?.[index]?.revert();
-        if (this.appliedMutations[flagKey]?.['mutate']) {
-          delete this.appliedMutations[flagKey]['mutate'][index];
+        // Revert inactive mutation if it exists
+        this.appliedMutations[flagKey]?.[MUTATE_ACTION]?.[index]?.revert();
+
+        // Delete the mutation only if it exists
+        if (this.appliedMutations[flagKey]?.[MUTATE_ACTION]?.[index]) {
+          delete this.appliedMutations[flagKey][MUTATE_ACTION][index];
         }
-      } else if (!this.appliedMutations[flagKey]?.['mutate']?.[index]) {
+      } else if (!this.appliedMutations[flagKey]?.[MUTATE_ACTION]?.[index]) {
         this.exposureWithDedupe(flagKey, variant);
         // Apply mutation
         mutationControllers[index] = mutate.declarative(m);
       }
     });
 
-    if (!this.appliedMutations[flagKey]) {
-      this.appliedMutations[flagKey] = {};
-    }
-
+    this.appliedMutations[flagKey] ??= {};
     // Merge instead of overwriting if there are existing mutations
-    this.appliedMutations[flagKey]['mutate'] = {
-      ...this.appliedMutations[flagKey]['mutate'],
+    this.appliedMutations[flagKey][MUTATE_ACTION] = {
+      ...this.appliedMutations[flagKey][MUTATE_ACTION],
       ...mutationControllers,
     };
 
-    // Delete empty objects
-    if (Object.keys(this.appliedMutations[flagKey]['mutate']).length === 0) {
-      delete this.appliedMutations[flagKey]['mutate'];
+    // Delete empty objects safely
+    if (
+      Object.keys(this.appliedMutations[flagKey][MUTATE_ACTION] || {})
+        .length === 0
+    ) {
+      delete this.appliedMutations[flagKey][MUTATE_ACTION];
     }
-    if (Object.keys(this.appliedMutations[flagKey]).length === 0) {
+    if (Object.keys(this.appliedMutations[flagKey] || {}).length === 0) {
       delete this.appliedMutations[flagKey];
     }
   }
 
-  // TODO: scope-checking will depend on multiple inject schema
+  // TODO(tyiuhc): scope-checking will depend on multiple inject schema
   private handleInject(action, flagKey: string, variant: Variant) {
-    // Check for repeat invocations
-    if (this.appliedMutations[flagKey]) {
-      return;
-    }
     // Validate and transform ID
     let id = action.data.id;
     if (!id || typeof id !== 'string' || id.length === 0) {
@@ -602,9 +608,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     // Push mutation to remove CSS and any custom state cleanup set in utils.
-    this.appliedMutations[flagKey]['inject'][0] = {
+    this.appliedMutations[flagKey] ??= {};
+    this.appliedMutations[flagKey][INJECT_ACTION] ??= [];
+
+    // Push the mutation
+    this.appliedMutations[flagKey][INJECT_ACTION][0] = {
       revert: () => {
-        if (utils.remove) utils.remove();
+        utils.remove?.();
         style?.remove();
         script?.remove();
         this.appliedInjections.delete(id);
