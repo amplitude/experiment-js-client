@@ -25,8 +25,6 @@ export const createPageObject = (
   let conditions: any[] = [DUMMY_TRUE_CONDITION];
   if (triggerType === 'url_change') {
     conditions = [
-      // page targeting conditions should be in same array to be "AND"
-      // DUMMY_TRUE_CONDITION,
       [
         {
           op: 'regex match',
