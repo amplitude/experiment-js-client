@@ -729,6 +729,55 @@ describe('initializeExperiment', () => {
     expect(Object.keys(appliedMutations).length).toEqual(0);
   });
 
+  test('page object - activePages updated upon navigation', () => {
+    const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
+    mockGetGlobalScope.mockReturnValue(
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      newMockGlobal({
+        location: {
+          href: 'http://A.com',
+        },
+      }),
+    );
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify([]),
+      JSON.stringify({
+        'test-1': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://A.com',
+        ),
+
+        'test-2': createPageObject(
+          'B',
+          'url_change',
+          undefined,
+          'http://B.com',
+        ),
+      }),
+    );
+    client.start().then();
+    let activePages = (client as any).activePages;
+    expect(activePages).toEqual({ 'test-1': new Set('A') });
+    mockGetGlobalScope.mockReturnValue(
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      newMockGlobal({
+        location: {
+          href: 'http://B.com',
+        },
+      }),
+    );
+    activePages = (client as any).activePages;
+    (client as any).messageBus.publish('url_change', {
+      updateActivePages: true,
+    });
+    expect(activePages).toEqual({ 'test-2': new Set('B') });
+  });
+
   describe('remote evaluation - flag already stored in session storage', () => {
     const sessionStorageMock = () => {
       let store = {};
