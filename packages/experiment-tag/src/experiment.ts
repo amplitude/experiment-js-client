@@ -507,10 +507,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleInject(action, key: string, variant: Variant) {
-    // Check for repeat invocations
-    if (this.appliedMutations[key]?.[INJECT_ACTION]) {
-      return;
-    }
     // Validate and transform ID
     let id = action.data.id;
     if (!id || typeof id !== 'string' || id.length === 0) {
