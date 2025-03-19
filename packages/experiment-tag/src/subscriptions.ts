@@ -43,7 +43,6 @@ const setupMutationObserverPublisher = (_: MessageBus) => {
   return mutationManager.observe();
 };
 
-// TODO: update to be more robust
 const setupLocationChangePublisher = (_: MessageBus) => {
   const globalScope = getGlobalScope();
   if (!globalScope) {
@@ -134,7 +133,7 @@ const isPageObjectActive = <T extends MessageType>(
   }
 
   // Check conditions
-  if (page.conditions) {
+  if (page.conditions && page.conditions.length > 0) {
     const matchConditions = evaluationEngine.evaluateConditions(
       {
         context: { page: { url: globalScope.location.href } },

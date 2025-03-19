@@ -8,14 +8,6 @@ const DUMMY_TRUE_CONDITION = [
   },
 ];
 
-const DUMMY_FALSE_CONDITION = [
-  {
-    op: 'is not',
-    selector: [],
-    values: ['(none)'],
-  },
-];
-
 export const createPageObject = (
   name: string,
   triggerType: MessageType,

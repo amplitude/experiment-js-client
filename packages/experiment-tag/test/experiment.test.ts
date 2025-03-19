@@ -635,6 +635,100 @@ describe('initializeExperiment', () => {
     );
   });
 
+  test('scoped mutations - experiment active, both mutations active on same page', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag(
+        'test',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE, DEFAULT_MUTATE_SCOPE],
+        [],
+      ),
+    ];
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test'));
+    expect(Object.keys(appliedMutations['test']).includes('mutate'));
+    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(2);
+  });
+
+  test('scoped mutations - experiment active, both mutations active on different pages', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [
+        { metadata: { scope: ['A'] } },
+        { metadata: { scope: ['B'] } },
+      ]),
+    ];
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      JSON.stringify({
+        test: {
+          ...createPageObject('A', 'url_change', undefined, 'http://test.com'),
+          ...createPageObject('B', 'url_change', undefined, 'http://test.com'),
+        },
+      }),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test'));
+    expect(Object.keys(appliedMutations['test']).includes('mutate'));
+    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(2);
+    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['0', '1']);
+  });
+
+  test('scoped mutations - experiment active, subset of mutations active', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [
+        { metadata: { scope: ['B'] } },
+        { metadata: { scope: ['A'] } },
+      ]),
+    ];
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test'));
+    expect(Object.keys(appliedMutations['test']).includes('mutate'));
+    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(1);
+    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['1']);
+  });
+
+  test('scoped mutations - experiment active, neither mutation active', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [
+        { metadata: { scope: ['B'] } },
+        { metadata: { scope: ['C'] } },
+      ]),
+    ];
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(0);
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).length).toEqual(0);
+  });
+
   describe('remote evaluation - flag already stored in session storage', () => {
     const sessionStorageMock = () => {
       let store = {};

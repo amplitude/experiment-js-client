@@ -47,15 +47,25 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly globalScope: typeof globalThis;
   private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
-  private appliedMutations: Record<
-    string,
-    Record<string, Record<number, MutationController>>
-  > = {};
+  private appliedMutations: {
+    [experiment: string]: {
+      [actionType: string]: {
+        [index: number]: MutationController;
+      };
+    };
+  } = {};
   private previousUrl: string | undefined = undefined;
   // Cache to track exposure for the current URL, should be cleared on URL change
-  private urlExposureCache: Record<string, Record<string, string | undefined>> =
-    {};
-  private flagVariantMap: Record<string, Record<string, Variant>> = {};
+  private urlExposureCache: {
+    [url: string]: {
+      [flagKey: string]: string | undefined; // variant
+    };
+  } = {};
+  private flagVariantMap: {
+    [flagKey: string]: {
+      [variantKey: string]: Variant;
+    };
+  } = {};
   private readonly localFlagKeys: string[] = [];
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
@@ -63,7 +73,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private isRunning = false;
   private readonly messageBus: MessageBus;
   private readonly pageObjects: PageObjects;
-  private readonly activePages: Record<string, Set<string>> = {};
+  private readonly activePages: {
+    [flagKey: string]: Set<string>;
+  } = {};
 
   constructor(
     apiKey: string,
