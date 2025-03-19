@@ -439,11 +439,11 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch successful, antiflicker applied', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], 'remote'),
+      createMutateFlag('test-2', 'treatment', [{}], [], 'remote'),
       // local flag
-      createMutateFlag('test-1', 'treatment'),
+      createMutateFlag('test-1', 'treatment', [{}]),
     ];
-    const remoteFlags = [createMutateFlag('test-2', 'treatment')];
+    const remoteFlags = [createMutateFlag('test-2', 'treatment', [{}])];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
@@ -467,9 +467,9 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch fail, locally evaluate remote and local flags success', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], 'remote'),
+      createMutateFlag('test-2', 'treatment', [{}], [], 'remote'),
       // local flag
-      createMutateFlag('test-1', 'treatment'),
+      createMutateFlag('test-1', 'treatment', [{}]),
     ];
     const remoteFlags = [createMutateFlag('test-2', 'treatment')];
 
@@ -496,7 +496,7 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch fail, test initialFlags variant actions called', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test', 'treatment', [], [], 'remote'),
+      createMutateFlag('test', 'treatment', [{}], [], 'remote'),
     ];
 
     const mockHttpClient = new MockHttpClient('', 404);
@@ -615,20 +615,28 @@ describe('initializeExperiment', () => {
       const apiKey = 'api1';
       const storageKey = `amp-exp-$default_instance-web-${apiKey}-flags`;
       // Create mock session storage with initial value
-      const storedFlag = createFlag('test', 'treatment', 'local', false, {
-        flagVersion: 2,
-      });
+      const storedFlag = createMutateFlag(
+        'test',
+        'treatment',
+        [{}],
+        [],
+        'local',
+        false,
+        {
+          flagVersion: 2,
+        },
+      );
       safeGlobal.sessionStorage.setItem(
         storageKey,
         JSON.stringify({ test: storedFlag }),
       );
       const initialFlags = [
-        createMutateFlag('test', 'treatment', [], [], 'remote', false, {
+        createMutateFlag('test', 'treatment', [{}], [], 'remote', false, {
           flagVersion: 3,
         }),
       ];
       const remoteFlags = [
-        createMutateFlag('test', 'treatment', [], [], 'local', false, {
+        createMutateFlag('test', 'treatment', [{}], [], 'local', false, {
           flagVersion: 4,
         }),
       ];
@@ -672,9 +680,17 @@ describe('initializeExperiment', () => {
       const apiKey = 'api2';
       const storageKey = `amp-exp-$default_instance-web-${apiKey}-flags`;
       // Create mock session storage with initial value
-      const storedFlag = createFlag('test', 'treatment', 'local', false, {
-        flagVersion: 2,
-      });
+      const storedFlag = createMutateFlag(
+        'test',
+        'treatment',
+        [{}],
+        [],
+        'local',
+        false,
+        {
+          flagVersion: 2,
+        },
+      );
       safeGlobal.sessionStorage.setItem(
         storageKey,
         JSON.stringify({ test: storedFlag }),
@@ -683,12 +699,12 @@ describe('initializeExperiment', () => {
         value: sessionStorageMock,
       });
       const initialFlags = [
-        createMutateFlag('test', 'treatment', [], [], 'remote', false, {
+        createMutateFlag('test', 'treatment', [{}], [], 'remote', false, {
           flagVersion: 3,
         }),
       ];
       const remoteFlags = [
-        createMutateFlag('test', 'control', [], [], 'local', false, {
+        createMutateFlag('test', 'control', [{}], [], 'local', false, {
           flagVersion: 4,
         }),
       ];
