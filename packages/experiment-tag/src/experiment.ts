@@ -360,7 +360,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Revert variant actions applied by the experiment.
    * @param options
    */
-  // TODO: should be based on page objects?
   public revertVariants(options?: RevertVariantsOptions) {
     let { flagKeys } = options || {};
     if (!flagKeys) {
@@ -466,7 +465,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  // TODO: handle scoped redirect
   private handleRedirect(action, flagKey: string, variant: Variant) {
     if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
       return;
