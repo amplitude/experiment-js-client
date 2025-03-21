@@ -1,4 +1,49 @@
-import debounce from 'lodash/debounce';
+function debounce<T extends (...args: any[]) => void>(
+  func: T,
+  wait: number,
+  options: { maxWait?: number } = {},
+): T & { cancel: () => void } {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  let lastInvokeTime = 0;
+  let maxTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  const debounced = function (...args: Parameters<T>) {
+    const now = Date.now();
+
+    if (options.maxWait && !maxTimeout) {
+      lastInvokeTime = now;
+      maxTimeout = setTimeout(() => {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+        maxTimeout = null;
+        func(...args);
+      }, options.maxWait);
+    }
+
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+
+    timeout = setTimeout(() => {
+      if (maxTimeout) {
+        clearTimeout(maxTimeout);
+        maxTimeout = null;
+      }
+      func(...args);
+    }, wait);
+  } as T & { cancel: () => void };
+
+  debounced.cancel = () => {
+    if (timeout) clearTimeout(timeout);
+    if (maxTimeout) clearTimeout(maxTimeout);
+    timeout = null;
+    maxTimeout = null;
+  };
+
+  return debounced;
+}
 
 type MutationFilter = (mutation: MutationRecord) => boolean;
 type MutationHandler = (mutations: MutationRecord[]) => void;
@@ -58,7 +103,6 @@ export class DebouncedMutationManager {
     try {
       return this.filters.every((filter) => filter(mutation));
     } catch (error) {
-      // logger.error('Error in mutation filter:', { error, mutation });
       return false;
     }
   }
@@ -71,10 +115,7 @@ export class DebouncedMutationManager {
         this.onMutations(this.pendingMutations);
       }
     } catch (error) {
-      // logger.error('Error processing mutations:', {
-      //   error,
-      //   pendingCount: this.pendingMutations.length,
-      // });
+      // do nothing
     } finally {
       this.pendingMutations = [];
     }
@@ -101,7 +142,7 @@ export class DebouncedMutationManager {
       this.pendingMutations.push(...filteredBatch);
       this.processMutationsDebounced();
     } catch (error) {
-      // logger.error('Error handling mutations:', { error, mutationCount: mutationList.length });
+      // do nothing
     }
   };
 

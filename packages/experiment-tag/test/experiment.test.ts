@@ -1011,8 +1011,18 @@ describe('helper methods', () => {
     const webExperiment = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag('targeted', 'treatment', '', undefined),
-        createRedirectFlag('non-targeted', 'treatment', '', undefined),
+        createRedirectFlag(
+          'targeted',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+        ),
+        createRedirectFlag(
+          'non-targeted',
+          'treatment',
+          'http://test.com/3',
+          undefined,
+        ),
       ]),
       JSON.stringify({
         targeted: createPageObject(

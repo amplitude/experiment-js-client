@@ -166,7 +166,6 @@ const isPageObjectActive = <T extends MessageType>(
       );
     }
 
-    //TODO: check payload?
     case 'element_appeared': {
       // const mutationMessage = message as DomMutationPayload;
       const element = globalScope.document.querySelector(

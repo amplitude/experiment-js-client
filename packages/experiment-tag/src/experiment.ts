@@ -549,8 +549,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  // TODO(tyiuhc): scope-checking will depend on multiple inject schema
   private handleInject(action, flagKey: string, variant: Variant) {
+    // TODO(tyiuhc): scope-checking will depend on multiple inject schema
+    if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
+      return;
+    }
     // Validate and transform ID
     let id = action.data.id;
     if (!id || typeof id !== 'string' || id.length === 0) {
@@ -677,8 +680,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     scope: string[] | undefined,
   ): boolean {
     // if no scope is provided, do not apply variant
+    // TODO(tyiuhc): update to return false after page targeting segments are removed
     if (!scope) {
-      return false;
+      return true;
     }
     return scope.some((page) => this.activePages[flagKey]?.has(page) ?? false);
   }
