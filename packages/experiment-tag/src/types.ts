@@ -1,3 +1,7 @@
+import { EvaluationCondition } from '@amplitude/experiment-core';
+
+import { MessageType } from './message-bus';
+
 export type ApplyVariantsOptions = {
   /**
    * A list of flag keys to apply.
@@ -18,3 +22,15 @@ export type PreviewVariantsOptions = {
    */
   keyToVariant?: Record<string, string>;
 };
+
+export type PageObject = {
+  conditions?: EvaluationCondition[][];
+  trigger: {
+    type: MessageType;
+    properties: Record<string, unknown>;
+  };
+  triggerSource?: string;
+  experiments: Record<string, string[]>;
+};
+
+export type PageObjects = Record<string, Record<string, PageObject>>;

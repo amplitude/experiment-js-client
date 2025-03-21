@@ -3,8 +3,9 @@ import { DefaultWebExperimentClient } from './experiment';
 const API_KEY = '{{DEPLOYMENT_KEY}}';
 const initialFlags = '{{INITIAL_FLAGS}}';
 const serverZone = '{{SERVER_ZONE}}';
+const pageObjects = '{{PAGE_OBJECTS}}';
 
-DefaultWebExperimentClient.getInstance(API_KEY, initialFlags, {
+DefaultWebExperimentClient.getInstance(API_KEY, initialFlags, pageObjects, {
   serverZone: serverZone,
 })
   .start()

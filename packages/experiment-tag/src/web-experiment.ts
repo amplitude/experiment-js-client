@@ -26,4 +26,6 @@ export interface WebExperimentClient {
   getActiveExperiments(): string[];
 
   setRedirectHandler(handler: (url: string) => void): void;
+
+  triggerView(name: string): void;
 }
