@@ -636,8 +636,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       history.pushState = function (...args) {
         // Call the original pushState
         const result = originalPushState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
+        if (location.href !== getGlobalScope()?.webExperiment.previousUrl) {
+          handleUrlChange();
+        }
         return result;
       };
 
@@ -645,8 +646,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       history.replaceState = function (...args) {
         // Call the original replaceState
         const result = originalReplaceState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
+        if (location.href !== getGlobalScope()?.webExperiment.previousUrl) {
+          handleUrlChange();
+        }
         return result;
       };
     };
