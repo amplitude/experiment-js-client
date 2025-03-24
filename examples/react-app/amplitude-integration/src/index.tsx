@@ -3,13 +3,25 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import * as amplitude from '@amplitude/analytics-browser';
-import { Experiment } from '@amplitude/experiment-js-client';
+import { Experiment, ExperimentAnalyticsPlugin } from '@amplitude/experiment-js-client';
+import { AmplitudeBrowser } from "@amplitude/analytics-browser";
 
 /**
  * Initialize the Amplitude Analytics SDK.
  */
 amplitude.init('API_KEY', 'user@company.com');
 amplitude.identify(new amplitude.Identify().set('premium', true))
+
+// Add experiment plugin to existing Amplitude analytics SDK
+// and call experiment APIs.
+// amplitude.init is the result of object destructuring.
+// It's part of BrowserClient interface.
+// So has to create a real object.
+const client: AmplitudeBrowser = new amplitude.AmplitudeBrowser();
+client.init('API_KEY', 'user@company.com');
+client.add(new ExperimentAnalyticsPlugin());
+void client.experiment.fetch();
+const variant = client.experiment.variant('FLAG_KEY');
 
 /**
  * Initialize the Amplitude Experiment SDK with the Amplitude Analytics
