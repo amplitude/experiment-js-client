@@ -17,7 +17,11 @@ export class ExperimentAnalyticsPlugin implements Types.EnrichmentPlugin {
   constructor() {
     Object.defineProperty(AmplitudeBrowser.prototype, 'experiment', {
       get: function () {
-        return this.plugin(ExperimentAnalyticsPlugin.name);
+        return (
+          this.plugin(
+            ExperimentAnalyticsPlugin.name,
+          ) as ExperimentAnalyticsPlugin
+        ).experiment;
       },
     });
   }
