@@ -125,7 +125,7 @@ export class IntegrationManager {
 
 export class SessionDedupeCache {
   private readonly storageKey: string;
-  private readonly isSessionStorageAvailable = isSessionStorageAvailable();
+  private readonly isSessionStorageAvailable = checkIsSessionStorageAvailable();
   private inMemoryCache: Record<string, Exposure> = {};
 
   constructor(instanceName: string) {
@@ -239,7 +239,7 @@ export class PersistentTrackingQueue {
   }
 }
 
-const isSessionStorageAvailable = (): boolean => {
+const checkIsSessionStorageAvailable = (): boolean => {
   const globalScope = getGlobalScope();
   if (globalScope) {
     try {
