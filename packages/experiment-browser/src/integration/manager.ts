@@ -131,7 +131,7 @@ export class SessionDedupeCache {
   constructor(instanceName: string) {
     this.storageKey = `EXP_sent_v2_${instanceName}`;
     // Remove previous version of storage if it exists.
-    if (isSessionStorageAvailable) {
+    if (this.isSessionStorageAvailable) {
       safeGlobal.sessionStorage.removeItem(`EXP_sent_${instanceName}`);
     }
   }
