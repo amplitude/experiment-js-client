@@ -1,4 +1,4 @@
-import { resolve as pathResolve } from 'path';
+import { join, resolve as pathResolve } from 'path';
 
 import tsConfig from '@amplitude/experiment-js-client/tsconfig.json';
 import babel from '@rollup/plugin-babel';
@@ -9,6 +9,7 @@ import replace from '@rollup/plugin-replace';
 import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
+import license from 'rollup-plugin-license';
 
 import * as packageJson from './package.json';
 
@@ -46,6 +47,11 @@ const getCommonBrowserConfig = (target) => ({
     analyze({
       summaryOnly: true,
     }),
+    license({
+      thirdParty: {
+        output: join(__dirname, 'dist', 'LICENSES'),
+      },
+    }),
   ],
 });
 
@@ -53,7 +59,7 @@ const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
     name: 'Experiment-Tag',
-    banner: `/* ${packageJson.name} v${packageJson.version} */`,
+    banner: `/* ${packageJson.name} v${packageJson.version} - For license info see https://unpkg.com/@amplitude/experiment-tag@${packageJson.version}/LICENSES */`,
     ...outputOptions,
   },
 });
