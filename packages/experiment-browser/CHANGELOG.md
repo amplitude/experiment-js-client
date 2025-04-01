@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.15.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.4...@amplitude/experiment-js-client@1.15.5) (2025-04-01)
+
+
+### Bug Fixes
+
+* dont re-add plugin; remove integration timout error log ([#173](https://github.com/amplitude/experiment-js-client/issues/173)) ([9490d83](https://github.com/amplitude/experiment-js-client/commit/9490d83bd66735aab515957d2e666f58fcf5dbad))
+
+
+
+
+
 ## [1.15.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.3...@amplitude/experiment-js-client@1.15.4) (2025-03-27)
 
 **Note:** Version bump only for package @amplitude/experiment-js-client
