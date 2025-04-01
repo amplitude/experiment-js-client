@@ -64,8 +64,7 @@ export class IntegrationManager {
           this.queue.setTracker(this.integration.track.bind(integration));
           this.resolve();
         },
-        (e) => {
-          console.error('Integration setup failed.', e);
+        () => {
           this.queue.setTracker(this.integration.track.bind(integration));
           this.resolve();
         },
