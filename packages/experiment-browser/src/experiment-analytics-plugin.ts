@@ -1,21 +1,26 @@
-import { AmplitudeBrowser, Types } from '@amplitude/analytics-browser';
+import {
+  AmplitudeCore,
+  EnrichmentPlugin,
+  CoreClient,
+  IConfig,
+} from '@amplitude/analytics-core';
 
 import { ExperimentClient } from './experimentClient';
 import { initializeWithAmplitudeAnalytics } from './factory';
 
 // Module augmentation to add experiment variable at compile time
-declare module '@amplitude/analytics-browser' {
-  interface AmplitudeBrowser {
+declare module '@amplitude/analytics-core' {
+  interface CoreClient {
     experiment: ExperimentClient;
   }
 }
 
-export class ExperimentAnalyticsPlugin implements Types.EnrichmentPlugin {
+export class ExperimentAnalyticsPlugin implements EnrichmentPlugin {
   name = 'experiment-analytics-plugin';
   experiment: ExperimentClient;
 
   constructor() {
-    Object.defineProperty(AmplitudeBrowser.prototype, 'experiment', {
+    Object.defineProperty(AmplitudeCore.prototype, 'experiment', {
       get: function () {
         return (
           this.plugin(
@@ -26,7 +31,7 @@ export class ExperimentAnalyticsPlugin implements Types.EnrichmentPlugin {
     });
   }
 
-  async setup(config: Types.BrowserConfig, client: Types.BrowserClient) {
+  async setup(config: IConfig, client: CoreClient) {
     this.experiment = initializeWithAmplitudeAnalytics(config.apiKey);
   }
 }
