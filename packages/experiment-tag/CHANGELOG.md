@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.4...@amplitude/experiment-tag@0.5.5) (2025-04-02)
+
+
+### Bug Fixes
+
+* update experiment tag packaging; export types ([#174](https://github.com/amplitude/experiment-js-client/issues/174)) ([1850ec7](https://github.com/amplitude/experiment-js-client/commit/1850ec74a7eeb362535c036d36eac243630110a0))
+
+
+
+
+
 ## [0.5.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.3...@amplitude/experiment-tag@0.5.4) (2025-04-01)
 
 
