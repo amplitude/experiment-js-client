@@ -253,6 +253,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     if (this.remoteFlagKeys.length === 0) {
+      this.previousUrl = this.globalScope.location.href;
       this.isRunning = true;
       return;
     }
@@ -260,6 +261,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
     this.applyVariants({ flagKeys: this.remoteFlagKeys });
+    this.previousUrl = this.globalScope.location.href;
     this.isRunning = true;
   }
 
@@ -636,8 +638,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       history.pushState = function (...args) {
         // Call the original pushState
         const result = originalPushState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
+        if (location.href !== getGlobalScope()?.webExperiment.previousUrl) {
+          handleUrlChange();
+        }
         return result;
       };
 
@@ -645,8 +648,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       history.replaceState = function (...args) {
         // Call the original replaceState
         const result = originalReplaceState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
+        if (location.href !== getGlobalScope()?.webExperiment.previousUrl) {
+          handleUrlChange();
+        }
         return result;
       };
     };
