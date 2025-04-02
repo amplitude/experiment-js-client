@@ -53,7 +53,7 @@ const getCommonBrowserConfig = (target) => ({
 const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
-    name: 'Experiment-Tag',
+    name: 'WebExperiment',
     banner: `/* ${packageJson.name} v${packageJson.version} - For license info see https://unpkg.com/@amplitude/experiment-tag@${packageJson.version}/LICENSES */`,
     ...outputOptions,
   },

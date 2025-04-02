@@ -16,23 +16,24 @@ import {
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
-import { Defaults, WebExperimentConfig } from './config';
-import { getInjectUtils } from './inject-utils';
-import { WindowMessenger } from './messenger';
 import {
   ApplyVariantsOptions,
+  Defaults,
   PreviewVariantsOptions,
   RevertVariantsOptions,
+  WebExperimentClient,
+  WebExperimentConfig,
 } from './types';
+import { getInjectUtils } from './util/inject';
+import { WindowMessenger } from './util/messenger';
 import {
-  convertEvaluationVariantToVariant,
+  concatenateQueryParamsOf,
   getUrlParams,
   removeQueryParams,
   urlWithoutParamsAndAnchor,
-  UUID,
-  concatenateQueryParamsOf,
-} from './util';
-import { WebExperimentClient } from './web-experiment';
+} from './util/url';
+import { UUID } from './util/uuid';
+import { convertEvaluationVariantToVariant } from './util/variant';
 
 export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
 export const PAGE_IS_EXCLUDED_SEGMENT_NAME = 'Page is excluded';
@@ -612,6 +613,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         s.remove();
       }, 1000);
     }
+  }
+
+  private removeAntiFlickerCss() {
+    this.globalScope.document.getElementById('amp-exp-css')?.remove();
   }
 
   private setDefaultNavigationHandler(flagKeys: string[]) {

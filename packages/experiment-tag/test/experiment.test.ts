@@ -6,20 +6,16 @@ import {
   PAGE_IS_EXCLUDED_SEGMENT_NAME,
   PAGE_NOT_TARGETED_SEGMENT_NAME,
   DefaultWebExperimentClient,
-} from 'src/experiment';
-import * as util from 'src/util';
+} from 'src/client';
+import * as uuid from 'src/util/uuid';
 import { stringify } from 'ts-jest';
 
-import {
-  createFlag,
-  createMutateFlag,
-  createRedirectFlag,
-} from './util/create-flag';
+import { createMutateFlag, createRedirectFlag } from './util/create-flag';
 import { MockHttpClient } from './util/mock-http-client';
 
 let apiKey = 0;
 
-jest.mock('src/messenger', () => {
+jest.mock('src/util/messenger', () => {
   return {
     WindowMessenger: {
       setup: jest.fn(),
@@ -65,7 +61,7 @@ describe('initializeExperiment', () => {
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
-  jest.spyOn(util, 'UUID').mockReturnValue('mock');
+  jest.spyOn(uuid, 'UUID').mockReturnValue('mock');
   let mockGlobal;
   let antiFlickerSpy;
 
@@ -769,7 +765,7 @@ describe('helper methods', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     apiKey++;
-    jest.spyOn(util, 'UUID').mockReturnValue('mock');
+    jest.spyOn(uuid, 'UUID').mockReturnValue('mock');
     jest.clearAllMocks();
   });
 
