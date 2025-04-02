@@ -35,6 +35,6 @@
     "rollup-plugin-license": "^3.6.0"
   },
   "files": [
-    "dist"
+    "dist/**/*"
   ]
 }

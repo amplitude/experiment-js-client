@@ -14,16 +14,11 @@ import license from 'rollup-plugin-license';
 import * as packageJson from './package.json';
 
 const getCommonBrowserConfig = (target) => ({
-  input: 'src/script.ts',
+  input: 'src/index.ts',
   treeshake: {
     moduleSideEffects: 'no-external',
   },
   plugins: [
-    replace({
-      preventAssignment: true,
-      BUILD_BROWSER: true,
-      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
-    }),
     resolve(),
     json(),
     commonjs(),
@@ -64,17 +59,18 @@ const getOutputConfig = (outputOptions) => ({
   },
 });
 
+const config = getCommonBrowserConfig('es5');
 const configs = [
   // legacy build for field "main" - ie8, umd, es5 syntax
   {
-    ...getCommonBrowserConfig('es5'),
+    ...config,
     ...getOutputConfig({
       entryFileNames: 'experiment-tag.umd.js',
       exports: 'named',
       format: 'umd',
     }),
     plugins: [
-      ...getCommonBrowserConfig('es5').plugins,
+      ...config.plugins,
       terser({
         format: {
           // Don't remove semver comment
