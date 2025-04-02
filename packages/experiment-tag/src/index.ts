@@ -1,22 +1,23 @@
-import { DefaultWebExperimentClient } from './experiment';
+import { DefaultWebExperimentClient } from './client';
+import { WebExperimentConfig } from './types';
 
-const API_KEY = '{{DEPLOYMENT_KEY}}';
-const initialFlags = '{{INITIAL_FLAGS}}';
-const serverZone = '{{SERVER_ZONE}}';
+export const initialize = (
+  apiKey: string,
+  initialFlags: string,
+  config: WebExperimentConfig,
+): void => {
+  DefaultWebExperimentClient.getInstance(apiKey, initialFlags, config)
+    .start()
+    .finally(() => {
+      // Remove anti-flicker css if it exists
+      document.getElementById('amp-exp-css')?.remove();
+    });
+};
 
-DefaultWebExperimentClient.getInstance(API_KEY, initialFlags, {
-  serverZone: serverZone,
-})
-  .start()
-  .then(() => {
-    // Remove anti-flicker css if it exists
-    document.getElementById('amp-exp-css')?.remove();
-  });
-
-export { WebExperimentClient } from 'web-experiment';
-export { WebExperimentConfig } from 'config';
 export {
   ApplyVariantsOptions,
   RevertVariantsOptions,
   PreviewVariantsOptions,
+  WebExperimentClient,
+  WebExperimentConfig,
 } from 'types';
