@@ -10,7 +10,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["dist/**/*"],
   "repository": {
     "type": "git",
     "url": "https://github.com/amplitude/experiment-js-client.git",
@@ -36,6 +35,6 @@
     "rollup-plugin-license": "^3.6.0"
   },
   "files": [
-    "dist"
+    "dist/**/*"
   ]
 }

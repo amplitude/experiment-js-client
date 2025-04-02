@@ -12,3 +12,11 @@ DefaultWebExperimentClient.getInstance(API_KEY, initialFlags, {
     // Remove anti-flicker css if it exists
     document.getElementById('amp-exp-css')?.remove();
   });
+
+export { WebExperimentClient } from 'web-experiment';
+export { WebExperimentConfig } from 'config';
+export {
+  ApplyVariantsOptions,
+  RevertVariantsOptions,
+  PreviewVariantsOptions,
+} from 'types';
