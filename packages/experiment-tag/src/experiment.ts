@@ -176,6 +176,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.isRunning) {
       return;
     }
+    initSubscriptions(this.messageBus, this.pageObjects, this.config);
     const urlParams = getUrlParams();
 
     // if in visual edit mode, remove the query param
@@ -217,8 +218,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         JSON.stringify(user),
       );
     }
-
-    initSubscriptions(this.messageBus, this.pageObjects, this.config);
 
     // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
     this.messageBus.publish('url_change', { updateActivePages: true });
@@ -418,7 +417,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Get the list of experiments that are active on the current page.
+   * Get the list of active page view objects.
    */
   public getActiveExperiments(): string[] {
     return Object.keys(this.activePages);
@@ -677,10 +676,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     flagKey: string,
     scope: string[] | undefined,
   ): boolean {
-    // if no scope is provided, do not apply variant
-    // TODO(tyiuhc): update to return false after page targeting segments are removed
+    // if no scope is provided, assume variant is active if at least ONE page in the experiment is active
     if (!scope) {
-      return true;
+      return flagKey in this.activePages;
     }
     return scope.some((page) => this.activePages[flagKey]?.has(page) ?? false);
   }
