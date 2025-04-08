@@ -19,6 +19,7 @@ import { Defaults, WebExperimentConfig } from './config';
 import { getInjectUtils } from './inject-utils';
 import { MessageBus } from './message-bus';
 import { WindowMessenger } from './messenger';
+import { SubscriptionManager } from './subscriptions';
 import {
   ApplyVariantsOptions,
   PageObjects,
@@ -34,7 +35,6 @@ import {
   concatenateQueryParamsOf,
 } from './util';
 import { WebExperimentClient } from './web-experiment';
-import { SubscriptionManager } from './subscriptions';
 
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 const MUTATE_ACTION = 'mutate';
