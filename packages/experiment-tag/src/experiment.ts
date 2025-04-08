@@ -186,6 +186,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         ...this.config,
         isVisualEditorMode: !!urlParams['VISUAL_EDITOR'],
       },
+      this.globalScope,
     );
     this.subscriptionManager.initSubscriptions();
 

@@ -1,4 +1,4 @@
-import { getGlobalScope, EvaluationEngine } from '@amplitude/experiment-core';
+import { EvaluationEngine } from '@amplitude/experiment-core';
 
 import { DefaultWebExperimentClient } from './experiment';
 import {
@@ -23,17 +23,20 @@ export class SubscriptionManager {
   private messageBus: MessageBus;
   private readonly pageObjects: PageObjects;
   private options: initOptions;
+  private readonly globalScope: typeof globalThis;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
     messageBus: MessageBus,
     pageObjects: PageObjects,
     options: initOptions,
+    globalScope: typeof globalThis,
   ) {
     this.webExperimentClient = webExperimentClient;
     this.messageBus = messageBus;
     this.pageObjects = pageObjects;
     this.options = options;
+    this.globalScope = globalScope;
   }
 
   public initSubscriptions = () => {
@@ -45,12 +48,8 @@ export class SubscriptionManager {
   };
 
   private setupMutationObserverPublisher = () => {
-    const globalScope = getGlobalScope();
-    if (!globalScope) {
-      return;
-    }
     const mutationManager = new DebouncedMutationManager(
-      globalScope.document.documentElement,
+      this.globalScope.document.documentElement,
       (mutationList) => {
         this.messageBus.publish('element_appeared', { mutationList });
       },
@@ -60,18 +59,15 @@ export class SubscriptionManager {
   };
 
   private setupLocationChangePublisher = () => {
-    const globalScope = getGlobalScope();
-    if (!globalScope) {
-      return;
-    }
     // Add URL change listener for back/forward navigation
-    globalScope.addEventListener('popstate', () => {
+    this.globalScope.addEventListener('popstate', () => {
       this.messageBus.publish('url_change');
     });
 
     const handleUrlChange = () => {
       this.messageBus.publish('url_change');
-      globalScope.webExperiment.previousUrl = globalScope.location.href;
+      this.globalScope.webExperiment.previousUrl =
+        this.globalScope.location.href;
     };
 
     // Create wrapper functions for pushState and replaceState
@@ -103,7 +99,6 @@ export class SubscriptionManager {
   };
 
   private setupPageObjectSubscriptions = () => {
-    const globalScope = getGlobalScope();
     // iterate through pageObjects, each object should be subscribed to the relevant trigger
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
       for (const [pageName, page] of Object.entries(pages)) {
@@ -130,6 +125,7 @@ export class SubscriptionManager {
             if (
               (!('updateActivePages' in payload) ||
                 !payload.updateActivePages) &&
+              // do not apply variant actions when in visual editor mode
               !this.options.isVisualEditorMode
             ) {
               this.webExperimentClient.applyVariants();
@@ -144,16 +140,11 @@ export class SubscriptionManager {
     page: PageObject,
     message: MessagePayloads[T],
   ): boolean => {
-    const globalScope = getGlobalScope();
-    if (!globalScope) {
-      return false;
-    }
-
     // Check conditions
     if (page.conditions && page.conditions.length > 0) {
       const matchConditions = evaluationEngine.evaluateConditions(
         {
-          context: { page: { url: globalScope.location.href } },
+          context: { page: { url: this.globalScope.location.href } },
           result: {},
         },
         page.conditions,
@@ -186,7 +177,7 @@ export class SubscriptionManager {
 
       case 'element_appeared': {
         // const mutationMessage = message as DomMutationPayload;
-        const element = globalScope.document.querySelector(
+        const element = this.globalScope.document.querySelector(
           page.trigger.properties.selector as string,
         );
         if (element) {

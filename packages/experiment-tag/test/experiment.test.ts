@@ -762,15 +762,11 @@ describe('initializeExperiment', () => {
     client.start().then();
     let activePages = (client as any).activePages;
     expect(activePages).toEqual({ 'test-1': new Set('A') });
-    mockGetGlobalScope.mockReturnValue(
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      newMockGlobal({
-        location: {
-          href: 'http://B.com',
-        },
-      }),
-    );
+    (client as any).subscriptionManager.globalScope = newMockGlobal({
+      location: {
+        href: 'http://B.com',
+      },
+    });
     activePages = (client as any).activePages;
     (client as any).messageBus.publish('url_change', {
       updateActivePages: true,
