@@ -19,7 +19,6 @@ import { Defaults, WebExperimentConfig } from './config';
 import { getInjectUtils } from './inject-utils';
 import { MessageBus } from './message-bus';
 import { WindowMessenger } from './messenger';
-import { initSubscriptions } from './subscriptions';
 import {
   ApplyVariantsOptions,
   PageObjects,
@@ -35,6 +34,7 @@ import {
   concatenateQueryParamsOf,
 } from './util';
 import { WebExperimentClient } from './web-experiment';
+import { SubscriptionManager } from './subscriptions';
 
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 const MUTATE_ACTION = 'mutate';
@@ -79,6 +79,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly activePages: {
     [flagKey: string]: Set<string>;
   } = {};
+  private subscriptionManager: SubscriptionManager | undefined;
 
   constructor(
     apiKey: string,
@@ -176,8 +177,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.isRunning) {
       return;
     }
-    initSubscriptions(this.messageBus, this.pageObjects, this.config);
     const urlParams = getUrlParams();
+    this.subscriptionManager = new SubscriptionManager(
+      this,
+      this.messageBus,
+      this.pageObjects,
+      {
+        ...this.config,
+        isVisualEditorMode: !!urlParams['VISUAL_EDITOR'],
+      },
+    );
+    this.subscriptionManager.initSubscriptions();
 
     // if in visual edit mode, remove the query param
     if (urlParams['VISUAL_EDITOR']) {
@@ -654,11 +664,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private updateActivePages(
-    flagKey: string,
-    pageName: string,
-    isActive: boolean,
-  ) {
+  updateActivePages(flagKey: string, pageName: string, isActive: boolean) {
     if (!this.activePages[flagKey]) {
       this.activePages[flagKey] = new Set();
     }

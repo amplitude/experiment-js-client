@@ -1,5 +1,6 @@
 import { getGlobalScope, EvaluationEngine } from '@amplitude/experiment-core';
 
+import { DefaultWebExperimentClient } from './experiment';
 import {
   MessageBus,
   MessagePayloads,
@@ -14,171 +15,189 @@ const evaluationEngine = new EvaluationEngine();
 
 type initOptions = {
   useDefaultNavigationHandler?: boolean;
+  isVisualEditorMode?: boolean;
 };
 
-export const initSubscriptions = (
-  _: MessageBus,
-  pageObjects: PageObjects,
-  options: initOptions,
-) => {
-  if (!options.useDefaultNavigationHandler) {
-    setupLocationChangePublisher(_);
+export class SubscriptionManager {
+  private webExperimentClient: DefaultWebExperimentClient;
+  private messageBus: MessageBus;
+  private readonly pageObjects: PageObjects;
+  private options: initOptions;
+
+  constructor(
+    webExperimentClient: DefaultWebExperimentClient,
+    messageBus: MessageBus,
+    pageObjects: PageObjects,
+    options: initOptions,
+  ) {
+    this.webExperimentClient = webExperimentClient;
+    this.messageBus = messageBus;
+    this.pageObjects = pageObjects;
+    this.options = options;
   }
-  setupMutationObserverPublisher(_);
-  setupPageObjectSubscriptions(_, pageObjects);
-};
 
-const setupMutationObserverPublisher = (_: MessageBus) => {
-  const globalScope = getGlobalScope();
-  if (!globalScope) {
-    return;
-  }
-  const mutationManager = new DebouncedMutationManager(
-    globalScope.document.documentElement,
-    (mutationList) => {
-      _.publish('element_appeared', { mutationList });
-    },
-    [],
-  );
-  return mutationManager.observe();
-};
-
-const setupLocationChangePublisher = (_: MessageBus) => {
-  const globalScope = getGlobalScope();
-  if (!globalScope) {
-    return;
-  }
-  // Add URL change listener for back/forward navigation
-  globalScope.addEventListener('popstate', () => {
-    _.publish('url_change');
-  });
-
-  const handleUrlChange = () => {
-    _.publish('url_change');
-    globalScope.webExperiment.previousUrl = globalScope.location.href;
-  };
-
-  // Create wrapper functions for pushState and replaceState
-  const wrapHistoryMethods = () => {
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
-
-    // Wrapper for pushState
-    history.pushState = function (...args) {
-      // Call the original pushState
-      const result = originalPushState.apply(this, args);
-      // Revert mutations and apply variants
-      handleUrlChange();
-      return result;
-    };
-
-    // Wrapper for replaceState
-    history.replaceState = function (...args) {
-      // Call the original replaceState
-      const result = originalReplaceState.apply(this, args);
-      // Revert mutations and apply variants
-      handleUrlChange();
-      return result;
-    };
-  };
-
-  // Initialize the wrapper
-  wrapHistoryMethods();
-};
-
-const setupPageObjectSubscriptions = (
-  _: MessageBus,
-  pageObjects: PageObjects,
-) => {
-  const globalScope = getGlobalScope();
-  // iterate through pageObjects, each object should be subscribed to the relevant trigger
-  for (const [experiment, pages] of Object.entries(pageObjects)) {
-    for (const [pageName, page] of Object.entries(pages)) {
-      _.subscribe(
-        page.trigger.type,
-        (payload) => {
-          // get variant and apply variant actions
-          if (isPageObjectActive(page, payload)) {
-            globalScope?.webExperiment.updateActivePages(
-              experiment,
-              pageName,
-              true,
-            );
-          } else {
-            globalScope?.webExperiment.updateActivePages(
-              experiment,
-              pageName,
-              false,
-            );
-          }
-        },
-        undefined,
-        (payload) => {
-          if (!('updateActivePages' in payload) || !payload.updateActivePages) {
-            globalScope?.webExperiment.applyVariants();
-          }
-        },
-      );
+  public initSubscriptions = () => {
+    if (!this.options.useDefaultNavigationHandler) {
+      this.setupLocationChangePublisher();
     }
-  }
-};
+    this.setupMutationObserverPublisher();
+    this.setupPageObjectSubscriptions();
+  };
 
-const isPageObjectActive = <T extends MessageType>(
-  page: PageObject,
-  message: MessagePayloads[T],
-): boolean => {
-  const globalScope = getGlobalScope();
-  if (!globalScope) {
-    return false;
-  }
-
-  // Check conditions
-  if (page.conditions && page.conditions.length > 0) {
-    const matchConditions = evaluationEngine.evaluateConditions(
-      {
-        context: { page: { url: globalScope.location.href } },
-        result: {},
+  private setupMutationObserverPublisher = () => {
+    const globalScope = getGlobalScope();
+    if (!globalScope) {
+      return;
+    }
+    const mutationManager = new DebouncedMutationManager(
+      globalScope.document.documentElement,
+      (mutationList) => {
+        this.messageBus.publish('element_appeared', { mutationList });
       },
-      page.conditions,
+      [],
     );
-    if (!matchConditions) {
-      return false;
+    return mutationManager.observe();
+  };
+
+  private setupLocationChangePublisher = () => {
+    const globalScope = getGlobalScope();
+    if (!globalScope) {
+      return;
     }
-  }
+    // Add URL change listener for back/forward navigation
+    globalScope.addEventListener('popstate', () => {
+      this.messageBus.publish('url_change');
+    });
 
-  // Check if page is active
-  switch (page.trigger.type) {
-    case 'url_change':
-      return true;
+    const handleUrlChange = () => {
+      this.messageBus.publish('url_change');
+      globalScope.webExperiment.previousUrl = globalScope.location.href;
+    };
 
-    case 'manual':
-      return (
-        (message as ManualTriggerPayload).name === page.trigger.properties.name
-      );
+    // Create wrapper functions for pushState and replaceState
+    const wrapHistoryMethods = () => {
+      const originalPushState = history.pushState;
+      const originalReplaceState = history.replaceState;
 
-    case 'analytics_event': {
-      const eventMessage = message as AnalyticsEventPayload;
-      return (
-        eventMessage.event_type === page.trigger.properties.event_type &&
-        Object.entries(page.trigger.properties.event_properties || {}).every(
-          ([key, value]) => eventMessage.event_properties[key] === value,
-        )
-      );
-    }
+      // Wrapper for pushState
+      history.pushState = function (...args) {
+        // Call the original pushState
+        const result = originalPushState.apply(this, args);
+        // Revert mutations and apply variants
+        handleUrlChange();
+        return result;
+      };
 
-    case 'element_appeared': {
-      // const mutationMessage = message as DomMutationPayload;
-      const element = globalScope.document.querySelector(
-        page.trigger.properties.selector as string,
-      );
-      if (element) {
-        const style = window.getComputedStyle(element);
-        return style.display !== 'none' && style.visibility !== 'hidden';
+      // Wrapper for replaceState
+      history.replaceState = function (...args) {
+        // Call the original replaceState
+        const result = originalReplaceState.apply(this, args);
+        // Revert mutations and apply variants
+        handleUrlChange();
+        return result;
+      };
+    };
+
+    // Initialize the wrapper
+    wrapHistoryMethods();
+  };
+
+  private setupPageObjectSubscriptions = () => {
+    const globalScope = getGlobalScope();
+    // iterate through pageObjects, each object should be subscribed to the relevant trigger
+    for (const [experiment, pages] of Object.entries(this.pageObjects)) {
+      for (const [pageName, page] of Object.entries(pages)) {
+        this.messageBus.subscribe(
+          page.trigger.type,
+          (payload) => {
+            // get variant and apply variant actions
+            if (this.isPageObjectActive(page, payload)) {
+              this.webExperimentClient.updateActivePages(
+                experiment,
+                pageName,
+                true,
+              );
+            } else {
+              this.webExperimentClient.updateActivePages(
+                experiment,
+                pageName,
+                false,
+              );
+            }
+          },
+          undefined,
+          (payload) => {
+            if (
+              (!('updateActivePages' in payload) ||
+                !payload.updateActivePages) &&
+              !this.options.isVisualEditorMode
+            ) {
+              this.webExperimentClient.applyVariants();
+            }
+          },
+        );
       }
+    }
+  };
+
+  private isPageObjectActive = <T extends MessageType>(
+    page: PageObject,
+    message: MessagePayloads[T],
+  ): boolean => {
+    const globalScope = getGlobalScope();
+    if (!globalScope) {
       return false;
     }
 
-    default:
-      return false;
-  }
-};
+    // Check conditions
+    if (page.conditions && page.conditions.length > 0) {
+      const matchConditions = evaluationEngine.evaluateConditions(
+        {
+          context: { page: { url: globalScope.location.href } },
+          result: {},
+        },
+        page.conditions,
+      );
+      if (!matchConditions) {
+        return false;
+      }
+    }
+
+    // Check if page is active
+    switch (page.trigger.type) {
+      case 'url_change':
+        return true;
+
+      case 'manual':
+        return (
+          (message as ManualTriggerPayload).name ===
+          page.trigger.properties.name
+        );
+
+      case 'analytics_event': {
+        const eventMessage = message as AnalyticsEventPayload;
+        return (
+          eventMessage.event_type === page.trigger.properties.event_type &&
+          Object.entries(page.trigger.properties.event_properties || {}).every(
+            ([key, value]) => eventMessage.event_properties[key] === value,
+          )
+        );
+      }
+
+      case 'element_appeared': {
+        // const mutationMessage = message as DomMutationPayload;
+        const element = globalScope.document.querySelector(
+          page.trigger.properties.selector as string,
+        );
+        if (element) {
+          const style = window.getComputedStyle(element);
+          return style.display !== 'none' && style.visibility !== 'hidden';
+        }
+        return false;
+      }
+
+      default:
+        return false;
+    }
+  };
+}
