@@ -64,8 +64,7 @@ export class IntegrationManager {
           this.queue.setTracker(this.integration.track.bind(integration));
           this.resolve();
         },
-        (e) => {
-          console.error('Integration setup failed.', e);
+        () => {
           this.queue.setTracker(this.integration.track.bind(integration));
           this.resolve();
         },
@@ -125,13 +124,13 @@ export class IntegrationManager {
 
 export class SessionDedupeCache {
   private readonly storageKey: string;
-  private readonly isSessionStorageAvailable = isSessionStorageAvailable();
+  private readonly isSessionStorageAvailable = checkIsSessionStorageAvailable();
   private inMemoryCache: Record<string, Exposure> = {};
 
   constructor(instanceName: string) {
     this.storageKey = `EXP_sent_v2_${instanceName}`;
     // Remove previous version of storage if it exists.
-    if (isSessionStorageAvailable) {
+    if (this.isSessionStorageAvailable) {
       safeGlobal.sessionStorage.removeItem(`EXP_sent_${instanceName}`);
     }
   }
@@ -239,7 +238,7 @@ export class PersistentTrackingQueue {
   }
 }
 
-const isSessionStorageAvailable = (): boolean => {
+const checkIsSessionStorageAvailable = (): boolean => {
   const globalScope = getGlobalScope();
   if (globalScope) {
     try {

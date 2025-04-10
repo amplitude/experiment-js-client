@@ -3,6 +3,40 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.4...@amplitude/experiment-tag@0.5.5) (2025-04-02)
+
+
+### Bug Fixes
+
+* update experiment tag packaging; export types ([#174](https://github.com/amplitude/experiment-js-client/issues/174)) ([1850ec7](https://github.com/amplitude/experiment-js-client/commit/1850ec74a7eeb362535c036d36eac243630110a0))
+
+
+
+
+
+## [0.5.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.3...@amplitude/experiment-tag@0.5.4) (2025-04-01)
+
+
+### Bug Fixes
+
+* dont re-add plugin; remove integration timout error log ([#173](https://github.com/amplitude/experiment-js-client/issues/173)) ([9490d83](https://github.com/amplitude/experiment-js-client/commit/9490d83bd66735aab515957d2e666f58fcf5dbad))
+
+
+
+
+
+## [0.5.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.2...@amplitude/experiment-tag@0.5.3) (2025-03-27)
+
+
+### Bug Fixes
+
+* remove dommutator patch; add license info to script ([#170](https://github.com/amplitude/experiment-js-client/issues/170)) ([442c309](https://github.com/amplitude/experiment-js-client/commit/442c309d4124b9f7674df1aec67f5b1558a27e0f))
+* use main branch patch of dm ([#171](https://github.com/amplitude/experiment-js-client/issues/171)) ([8326540](https://github.com/amplitude/experiment-js-client/commit/8326540c8b7bc626982c5fcdd8acea42ccddb497))
+
+
+
+
+
 ## [0.5.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.1...@amplitude/experiment-tag@0.5.2) (2025-03-19)
 
 

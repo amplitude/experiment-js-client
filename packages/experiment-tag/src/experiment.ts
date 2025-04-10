@@ -258,7 +258,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.globalScope.experimentIntegration = new AmplitudeIntegrationPlugin(
         this.apiKey,
         connector,
-        100,
+        1000,
       );
     }
     this.globalScope.experimentIntegration.type = 'integration';

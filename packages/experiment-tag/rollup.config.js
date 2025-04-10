@@ -1,4 +1,4 @@
-import { resolve as pathResolve } from 'path';
+import { join, resolve as pathResolve } from 'path';
 
 import tsConfig from '@amplitude/experiment-js-client/tsconfig.json';
 import babel from '@rollup/plugin-babel';
@@ -9,20 +9,16 @@ import replace from '@rollup/plugin-replace';
 import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
+import license from 'rollup-plugin-license';
 
 import * as packageJson from './package.json';
 
 const getCommonBrowserConfig = (target) => ({
-  input: 'src/script.ts',
+  input: 'src/index.ts',
   treeshake: {
     moduleSideEffects: 'no-external',
   },
   plugins: [
-    replace({
-      preventAssignment: true,
-      BUILD_BROWSER: true,
-      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
-    }),
     resolve(),
     json(),
     commonjs(),
@@ -46,6 +42,11 @@ const getCommonBrowserConfig = (target) => ({
     analyze({
       summaryOnly: true,
     }),
+    license({
+      thirdParty: {
+        output: join(__dirname, 'dist', 'LICENSES'),
+      },
+    }),
   ],
 });
 
@@ -53,22 +54,23 @@ const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
     name: 'Experiment-Tag',
-    banner: `/* ${packageJson.name} v${packageJson.version} */`,
+    banner: `/* ${packageJson.name} v${packageJson.version} - For license info see https://unpkg.com/@amplitude/experiment-tag@${packageJson.version}/LICENSES */`,
     ...outputOptions,
   },
 });
 
+const config = getCommonBrowserConfig('es5');
 const configs = [
   // legacy build for field "main" - ie8, umd, es5 syntax
   {
-    ...getCommonBrowserConfig('es5'),
+    ...config,
     ...getOutputConfig({
       entryFileNames: 'experiment-tag.umd.js',
       exports: 'named',
       format: 'umd',
     }),
     plugins: [
-      ...getCommonBrowserConfig('es5').plugins,
+      ...config.plugins,
       terser({
         format: {
           // Don't remove semver comment
