@@ -687,9 +687,58 @@ describe('initializeExperiment', () => {
     expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['0', '1']);
   });
 
+  test('Visual editor mode - active pages updated but variant actions not applied', () => {
+    const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
+    mockGetGlobalScope.mockReturnValue(
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      newMockGlobal({
+        location: {
+          href: 'http://A.com',
+          search: '?VISUAL_EDITOR=true',
+        },
+      }),
+    );
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify([
+        createMutateFlag('test-1', 'treatment', [{ metadata: {} }]),
+        createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
+      ]),
+      JSON.stringify({
+        'test-1': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://A.com',
+        ),
+
+        'test-2': createPageObject(
+          'B',
+          'url_change',
+          undefined,
+          'http://B.com',
+        ),
+      }),
+    );
+    client.start().then();
+    let activePages = (client as any).activePages;
+    expect(activePages).toEqual({ 'test-1': new Set('A') });
+    (client as any).subscriptionManager.globalScope = newMockGlobal({
+      location: {
+        href: 'http://B.com',
+      },
+    });
+    activePages = (client as any).activePages;
+    (client as any).messageBus.publish('url_change', {});
+    expect(activePages).toEqual({ 'test-2': new Set('B') });
+    expect(mockExposure).toHaveBeenCalledTimes(0);
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).length).toEqual(0);
+  });
+
   test('scoped mutations - experiment active, subset of mutations active', () => {
     const initialFlags = [
-      // remote flag
       createMutateFlag('test', 'treatment', [
         { metadata: { scope: ['B'] } },
         { metadata: { scope: ['A'] } },
@@ -729,7 +778,30 @@ describe('initializeExperiment', () => {
     expect(Object.keys(appliedMutations).length).toEqual(0);
   });
 
-  test('page object - activePages updated upon navigation', () => {
+  test('scoped mutations - experiment active, 1 active mutation with no scope, 1 mutation inactive', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [
+        { metadata: {} },
+        { metadata: { scope: ['B'] } },
+      ]),
+    ];
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test'));
+    expect(Object.keys(appliedMutations['test']).includes('mutate'));
+    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(1);
+    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['0']);
+  });
+
+  test('page object - update activePages and applyVariants upon navigation', () => {
     const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
     mockGetGlobalScope.mockReturnValue(
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -742,7 +814,10 @@ describe('initializeExperiment', () => {
     );
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      JSON.stringify([]),
+      JSON.stringify([
+        createMutateFlag('test-1', 'treatment', [{ metadata: {} }]),
+        createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
+      ]),
       JSON.stringify({
         'test-1': createPageObject(
           'A',
@@ -760,18 +835,27 @@ describe('initializeExperiment', () => {
       }),
     );
     client.start().then();
-    let activePages = (client as any).activePages;
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test-1');
+    let appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test-1'));
+    expect(Object.keys(appliedMutations['test-1']).includes('mutate'));
+    const activePages = (client as any).activePages;
     expect(activePages).toEqual({ 'test-1': new Set('A') });
+    expect(Object.keys(appliedMutations['test-1']['mutate']).length).toEqual(1);
     (client as any).subscriptionManager.globalScope = newMockGlobal({
       location: {
         href: 'http://B.com',
       },
     });
-    activePages = (client as any).activePages;
-    (client as any).messageBus.publish('url_change', {
-      updateActivePages: true,
-    });
+    (client as any).messageBus.publish('url_change', {});
     expect(activePages).toEqual({ 'test-2': new Set('B') });
+    expect(mockExposure).toHaveBeenCalledTimes(2);
+    expect(mockExposure).toHaveBeenCalledWith('test-2');
+    appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test-2'));
+    expect(Object.keys(appliedMutations['test-2']).includes('mutate'));
+    expect(Object.keys(appliedMutations['test-2']['mutate']).length).toEqual(1);
   });
 
   describe('remote evaluation - flag already stored in session storage', () => {

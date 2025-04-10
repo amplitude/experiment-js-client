@@ -178,28 +178,34 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     const urlParams = getUrlParams();
+    const isVisualEditorMode = urlParams['VISUAL_EDITOR'] === 'true';
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
       this.pageObjects,
       {
         ...this.config,
-        isVisualEditorMode: !!urlParams['VISUAL_EDITOR'],
+        isVisualEditorMode,
       },
       this.globalScope,
     );
     this.subscriptionManager.initSubscriptions();
 
     // if in visual edit mode, remove the query param
-    if (urlParams['VISUAL_EDITOR']) {
+    if (isVisualEditorMode) {
       WindowMessenger.setup();
       this.globalScope.history.replaceState(
         {},
         '',
         removeQueryParams(this.globalScope.location.href, ['VISUAL_EDITOR']),
       );
+      // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
+      this.messageBus.publish('url_change', { updateActivePages: true });
       return;
     }
+
+    // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
+    this.messageBus.publish('url_change', { updateActivePages: true });
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     let user;
@@ -229,9 +235,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         JSON.stringify(user),
       );
     }
-
-    // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
-    this.messageBus.publish('url_change', { updateActivePages: true });
 
     // evaluate variants for page targeting
     const variants: Variants = this.getVariants();

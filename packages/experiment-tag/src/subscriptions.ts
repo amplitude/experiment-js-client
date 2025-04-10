@@ -43,7 +43,7 @@ export class SubscriptionManager {
     if (!this.options.useDefaultNavigationHandler) {
       this.setupLocationChangePublisher();
     }
-    this.setupMutationObserverPublisher();
+    // this.setupMutationObserverPublisher();
     this.setupPageObjectSubscriptions();
   };
 
