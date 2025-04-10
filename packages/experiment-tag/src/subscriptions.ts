@@ -1,6 +1,6 @@
 import { EvaluationEngine } from '@amplitude/experiment-core';
 
-import { DefaultWebExperimentClient } from './experiment';
+import { activePagesMap, DefaultWebExperimentClient } from './experiment';
 import {
   MessageBus,
   MessagePayloads,
@@ -18,12 +18,19 @@ type initOptions = {
   isVisualEditorMode?: boolean;
 };
 
+export type PageChangeEvent = {
+  activePages: activePagesMap;
+};
+
 export class SubscriptionManager {
   private webExperimentClient: DefaultWebExperimentClient;
   private messageBus: MessageBus;
   private readonly pageObjects: PageObjects;
   private options: initOptions;
   private readonly globalScope: typeof globalThis;
+  private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
+    new Set();
+  private lastNotifiedActivePages: activePagesMap = {};
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -40,11 +47,25 @@ export class SubscriptionManager {
   }
 
   public initSubscriptions = () => {
-    if (!this.options.useDefaultNavigationHandler) {
+    if (this.options.useDefaultNavigationHandler) {
       this.setupLocationChangePublisher();
     }
     // this.setupMutationObserverPublisher();
     this.setupPageObjectSubscriptions();
+  };
+
+  /**
+   * Adds a subscriber to the page change event. Returns a function to unsubscribe.
+   * @param callback
+   */
+
+  public addPageChangeSubscriber = (
+    callback: (event: PageChangeEvent) => void,
+  ): (() => void) => {
+    this.pageChangeSubscribers.add(callback);
+    return () => {
+      this.pageChangeSubscribers.delete(callback);
+    };
   };
 
   private setupMutationObserverPublisher = () => {
@@ -99,13 +120,11 @@ export class SubscriptionManager {
   };
 
   private setupPageObjectSubscriptions = () => {
-    // iterate through pageObjects, each object should be subscribed to the relevant trigger
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
       for (const [pageName, page] of Object.entries(pages)) {
         this.messageBus.subscribe(
-          page.trigger.type,
+          page.trigger_type,
           (payload) => {
-            // get variant and apply variant actions
             if (this.isPageObjectActive(page, payload)) {
               this.webExperimentClient.updateActivePages(
                 experiment,
@@ -125,15 +144,55 @@ export class SubscriptionManager {
             if (
               (!('updateActivePages' in payload) ||
                 !payload.updateActivePages) &&
-              // do not apply variant actions when in visual editor mode
               !this.options.isVisualEditorMode
             ) {
               this.webExperimentClient.applyVariants();
+            }
+
+            const activePages = this.webExperimentClient.getActivePages();
+
+            if (
+              !this.areActivePagesEqual(
+                this.webExperimentClient.getActivePages(),
+                this.lastNotifiedActivePages,
+              )
+            ) {
+              this.lastNotifiedActivePages = JSON.parse(
+                JSON.stringify(activePages),
+              );
+              for (const subscriber of this.pageChangeSubscribers) {
+                subscriber({ activePages });
+              }
             }
           },
         );
       }
     }
+  };
+
+  private areActivePagesEqual = (
+    a: activePagesMap,
+    b: activePagesMap,
+  ): boolean => {
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) return false;
+    for (const key of aKeys) {
+      const aPageStates = a[key];
+      const bPageStates = b[key];
+      if (
+        !bPageStates ||
+        Object.keys(aPageStates).length !== Object.keys(bPageStates).length
+      ) {
+        return false;
+      }
+      for (const pageName of Object.keys(aPageStates)) {
+        if (aPageStates[pageName] !== bPageStates[pageName]) {
+          return false;
+        }
+      }
+    }
+    return true;
   };
 
   private isPageObjectActive = <T extends MessageType>(
@@ -155,21 +214,20 @@ export class SubscriptionManager {
     }
 
     // Check if page is active
-    switch (page.trigger.type) {
+    switch (page.trigger_type) {
       case 'url_change':
         return true;
 
       case 'manual':
         return (
-          (message as ManualTriggerPayload).name ===
-          page.trigger.properties.name
+          (message as ManualTriggerPayload).name === page.trigger_value.name
         );
 
       case 'analytics_event': {
         const eventMessage = message as AnalyticsEventPayload;
         return (
-          eventMessage.event_type === page.trigger.properties.event_type &&
-          Object.entries(page.trigger.properties.event_properties || {}).every(
+          eventMessage.event_type === page.trigger_value.event_type &&
+          Object.entries(page.trigger_value.event_properties || {}).every(
             ([key, value]) => eventMessage.event_properties[key] === value,
           )
         );
@@ -178,7 +236,7 @@ export class SubscriptionManager {
       case 'element_appeared': {
         // const mutationMessage = message as DomMutationPayload;
         const element = this.globalScope.document.querySelector(
-          page.trigger.properties.selector as string,
+          page.trigger_value.selector as string,
         );
         if (element) {
           const style = window.getComputedStyle(element);

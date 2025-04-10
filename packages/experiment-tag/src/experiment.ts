@@ -19,7 +19,7 @@ import { Defaults, WebExperimentConfig } from './config';
 import { getInjectUtils } from './inject-utils';
 import { MessageBus } from './message-bus';
 import { WindowMessenger } from './messenger';
-import { SubscriptionManager } from './subscriptions';
+import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   ApplyVariantsOptions,
   PageObjects,
@@ -42,6 +42,10 @@ const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
 
 safeGlobal.Experiment = FeatureExperiment;
+
+export type activePagesMap = {
+  [flagKey: string]: Set<string>;
+};
 
 export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;
@@ -76,9 +80,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private isRunning = false;
   private readonly messageBus: MessageBus;
   private readonly pageObjects: PageObjects;
-  private readonly activePages: {
-    [flagKey: string]: Set<string>;
-  } = {};
+  private readonly activePages: activePagesMap = {};
   private subscriptionManager: SubscriptionManager | undefined;
 
   constructor(
@@ -431,10 +433,27 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Get the list of active page view objects.
+   * Get the list of active experiments.
    */
   public getActiveExperiments(): string[] {
     return Object.keys(this.activePages);
+  }
+
+  /**
+   * Get a map of active page view objects.
+   */
+  public getActivePages(): activePagesMap {
+    return this.activePages;
+  }
+
+  /**
+   *
+   */
+
+  public addPageChangeSubscriber(callback: (event: PageChangeEvent) => void) {
+    if (this.subscriptionManager) {
+      this.subscriptionManager.addPageChangeSubscriber(callback);
+    }
   }
 
   /**

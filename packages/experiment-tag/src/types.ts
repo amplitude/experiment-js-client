@@ -25,12 +25,8 @@ export type PreviewVariantsOptions = {
 
 export type PageObject = {
   conditions?: EvaluationCondition[][];
-  trigger: {
-    type: MessageType;
-    properties: Record<string, unknown>;
-  };
-  triggerSource?: string;
-  experiments: Record<string, string[]>;
+  trigger_type: MessageType;
+  trigger_value: Record<string, unknown>;
 };
 
 export type PageObjects = Record<string, Record<string, PageObject>>;

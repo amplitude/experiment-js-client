@@ -28,7 +28,8 @@
   "dependencies": {
     "@amplitude/experiment-core": "^0.11.0",
     "@amplitude/experiment-js-client": "^1.15.5",
-    "dom-mutator": "git+ssh://git@github.com:amplitude/dom-mutator#main"
+    "dom-mutator": "git+ssh://git@github.com:amplitude/dom-mutator#main",
+    "rollup-plugin-license": "^3.6.0"
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",
