@@ -447,12 +447,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   *
+   * Add a subscriber to the page change event.
+   * @param callback
+   * @returns An unsubscribe function to remove the subscriber.
    */
 
-  public addPageChangeSubscriber(callback: (event: PageChangeEvent) => void) {
+  public addPageChangeSubscriber(
+    callback: (event: PageChangeEvent) => void,
+  ): (() => void) | undefined {
     if (this.subscriptionManager) {
-      this.subscriptionManager.addPageChangeSubscriber(callback);
+      return this.subscriptionManager.addPageChangeSubscriber(callback);
     }
   }
 

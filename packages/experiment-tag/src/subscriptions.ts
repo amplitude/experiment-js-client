@@ -153,13 +153,12 @@ export class SubscriptionManager {
 
             if (
               !this.areActivePagesEqual(
-                this.webExperimentClient.getActivePages(),
+                activePages,
                 this.lastNotifiedActivePages,
               )
             ) {
-              this.lastNotifiedActivePages = JSON.parse(
-                JSON.stringify(activePages),
-              );
+              this.lastNotifiedActivePages =
+                this.cloneActivePagesMap(activePages);
               for (const subscriber of this.pageChangeSubscribers) {
                 subscriber({ activePages });
               }
@@ -168,31 +167,6 @@ export class SubscriptionManager {
         );
       }
     }
-  };
-
-  private areActivePagesEqual = (
-    a: activePagesMap,
-    b: activePagesMap,
-  ): boolean => {
-    const aKeys = Object.keys(a);
-    const bKeys = Object.keys(b);
-    if (aKeys.length !== bKeys.length) return false;
-    for (const key of aKeys) {
-      const aPageStates = a[key];
-      const bPageStates = b[key];
-      if (
-        !bPageStates ||
-        Object.keys(aPageStates).length !== Object.keys(bPageStates).length
-      ) {
-        return false;
-      }
-      for (const pageName of Object.keys(aPageStates)) {
-        if (aPageStates[pageName] !== bPageStates[pageName]) {
-          return false;
-        }
-      }
-    }
-    return true;
   };
 
   private isPageObjectActive = <T extends MessageType>(
@@ -248,5 +222,33 @@ export class SubscriptionManager {
       default:
         return false;
     }
+  };
+
+  private cloneActivePagesMap = (map: activePagesMap): activePagesMap => {
+    const clone: activePagesMap = {};
+    for (const key in map) {
+      clone[key] = new Set(map[key]);
+    }
+    return clone;
+  };
+
+  private areActivePagesEqual = (
+    a: activePagesMap,
+    b: activePagesMap,
+  ): boolean => {
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) return false;
+
+    for (const key of aKeys) {
+      const aSet = a[key];
+      const bSet = b[key];
+      if (!bSet || aSet.size !== bSet.size) return false;
+
+      for (const value of aSet) {
+        if (!bSet.has(value)) return false;
+      }
+    }
+    return true;
   };
 }
