@@ -25,7 +25,7 @@ export type PageChangeEvent = {
 export class SubscriptionManager {
   private webExperimentClient: DefaultWebExperimentClient;
   private messageBus: MessageBus;
-  private readonly pageObjects: PageObjects;
+  private pageObjects: PageObjects;
   private options: initOptions;
   private readonly globalScope: typeof globalThis;
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
@@ -45,6 +45,10 @@ export class SubscriptionManager {
     this.options = options;
     this.globalScope = globalScope;
   }
+
+  public setPageObjects = (pageObjects: PageObjects) => {
+    this.pageObjects = pageObjects;
+  };
 
   public initSubscriptions = () => {
     if (this.options.useDefaultNavigationHandler) {
@@ -66,6 +70,56 @@ export class SubscriptionManager {
     return () => {
       this.pageChangeSubscribers.delete(callback);
     };
+  };
+
+  public setupPageObjectSubscriptions = () => {
+    for (const [experiment, pages] of Object.entries(this.pageObjects)) {
+      for (const [pageName, page] of Object.entries(pages)) {
+        this.messageBus.subscribe(
+          page.trigger_type,
+          (payload) => {
+            if (this.isPageObjectActive(page, payload)) {
+              this.webExperimentClient.updateActivePages(
+                experiment,
+                pageName,
+                true,
+              );
+            } else {
+              this.webExperimentClient.updateActivePages(
+                experiment,
+                pageName,
+                false,
+              );
+            }
+          },
+          undefined,
+          (payload) => {
+            if (
+              (!('updateActivePages' in payload) ||
+                !payload.updateActivePages) &&
+              !this.options.isVisualEditorMode
+            ) {
+              this.webExperimentClient.applyVariants();
+            }
+
+            const activePages = this.webExperimentClient.getActivePages();
+
+            if (
+              !this.areActivePagesEqual(
+                activePages,
+                this.lastNotifiedActivePages,
+              )
+            ) {
+              this.lastNotifiedActivePages =
+                this.cloneActivePagesMap(activePages);
+              for (const subscriber of this.pageChangeSubscribers) {
+                subscriber({ activePages });
+              }
+            }
+          },
+        );
+      }
+    }
   };
 
   private setupMutationObserverPublisher = () => {
@@ -117,56 +171,6 @@ export class SubscriptionManager {
 
     // Initialize the wrapper
     wrapHistoryMethods();
-  };
-
-  private setupPageObjectSubscriptions = () => {
-    for (const [experiment, pages] of Object.entries(this.pageObjects)) {
-      for (const [pageName, page] of Object.entries(pages)) {
-        this.messageBus.subscribe(
-          page.trigger_type,
-          (payload) => {
-            if (this.isPageObjectActive(page, payload)) {
-              this.webExperimentClient.updateActivePages(
-                experiment,
-                pageName,
-                true,
-              );
-            } else {
-              this.webExperimentClient.updateActivePages(
-                experiment,
-                pageName,
-                false,
-              );
-            }
-          },
-          undefined,
-          (payload) => {
-            if (
-              (!('updateActivePages' in payload) ||
-                !payload.updateActivePages) &&
-              !this.options.isVisualEditorMode
-            ) {
-              this.webExperimentClient.applyVariants();
-            }
-
-            const activePages = this.webExperimentClient.getActivePages();
-
-            if (
-              !this.areActivePagesEqual(
-                activePages,
-                this.lastNotifiedActivePages,
-              )
-            ) {
-              this.lastNotifiedActivePages =
-                this.cloneActivePagesMap(activePages);
-              for (const subscriber of this.pageChangeSubscribers) {
-                subscriber({ activePages });
-              }
-            }
-          },
-        );
-      }
-    }
   };
 
   private isPageObjectActive = <T extends MessageType>(

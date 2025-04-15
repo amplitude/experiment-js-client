@@ -79,9 +79,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private customRedirectHandler: ((url: string) => void) | undefined;
   private isRunning = false;
   private readonly messageBus: MessageBus;
-  private readonly pageObjects: PageObjects;
+  private pageObjects: PageObjects;
   private readonly activePages: activePagesMap = {};
   private subscriptionManager: SubscriptionManager | undefined;
+  private isVisualEditorMode = false;
 
   constructor(
     apiKey: string,
@@ -180,21 +181,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     const urlParams = getUrlParams();
-    const isVisualEditorMode = urlParams['VISUAL_EDITOR'] === 'true';
+    this.isVisualEditorMode = urlParams['VISUAL_EDITOR'] === 'true';
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
       this.pageObjects,
       {
         ...this.config,
-        isVisualEditorMode,
+        isVisualEditorMode: this.isVisualEditorMode,
       },
       this.globalScope,
     );
     this.subscriptionManager.initSubscriptions();
 
     // if in visual edit mode, remove the query param
-    if (isVisualEditorMode) {
+    if (this.isVisualEditorMode) {
       WindowMessenger.setup();
       this.globalScope.history.replaceState(
         {},
@@ -457,6 +458,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   ): (() => void) | undefined {
     if (this.subscriptionManager) {
       return this.subscriptionManager.addPageChangeSubscriber(callback);
+    }
+  }
+
+  public setPageObjects(pageObjects: PageObjects) {
+    if (this.isVisualEditorMode) {
+      this.pageObjects = pageObjects;
+      this.subscriptionManager?.setPageObjects(pageObjects);
+      this.messageBus.unsubscribeAll();
+      this.subscriptionManager?.initSubscriptions();
     }
   }
 

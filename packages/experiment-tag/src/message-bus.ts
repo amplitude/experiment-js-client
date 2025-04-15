@@ -79,4 +79,9 @@ export class MessageBus {
     });
     this.subscriberGroupCallback.get(messageType)?.(payload);
   }
+
+  unsubscribeAll(): void {
+    this.messageToSubscriberGroup = new Map();
+    this.subscriberGroupCallback = new Map();
+  }
 }
