@@ -80,7 +80,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private isRunning = false;
   private readonly messageBus: MessageBus;
   private pageObjects: PageObjects;
-  private readonly activePages: activePagesMap = {};
+  private activePages: activePagesMap = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
 
@@ -465,6 +465,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.isVisualEditorMode) {
       this.pageObjects = pageObjects;
       this.subscriptionManager?.setPageObjects(pageObjects);
+      this.activePages = {};
       this.messageBus.unsubscribeAll();
       this.subscriptionManager?.initSubscriptions();
       // update active pages
