@@ -17,6 +17,11 @@ export {
 } from './api/evaluation-api';
 export { FlagApi, SdkFlagApi, GetFlagsOptions } from './api/flag-api';
 export { HttpClient, HttpRequest, HttpResponse } from './transport/http';
+export {
+  StreamEvaluationApi,
+  SdkStreamEvaluationApi,
+} from './api/evaluation-stream-api';
+export { SSE, SSEStream, SSEProvider } from './transport/stream';
 export { Poller } from './util/poller';
 export {
   safeGlobal,

@@ -1,5 +1,10 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { FetchError, safeGlobal } from '@amplitude/experiment-core';
+import {
+  EvaluationVariant,
+  FetchError,
+  safeGlobal,
+  SdkEvaluationApi,
+} from '@amplitude/experiment-core';
 import { Defaults } from 'src/config';
 import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
@@ -20,6 +25,7 @@ import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
 
 import { mockClientStorage } from './util/mock';
+import { VariantsFetchUpdater } from '../src/util/variantsUpdater';
 
 const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 
@@ -1129,20 +1135,22 @@ describe('fetch retry with different response codes', () => {
       mockClientStorage(client);
 
       jest
-        .spyOn(ExperimentClient.prototype as any, 'doFetch')
+        .spyOn(SdkEvaluationApi.prototype as any, 'getVariants')
         .mockImplementation(
           async (user?: ExperimentUser, options?: FetchOptions) => {
-            return new Promise<ExperimentClient>((resolve, reject) => {
-              if (responseCode === 0) {
-                reject(new Error(errorMessage));
-              } else {
-                reject(new FetchError(responseCode, errorMessage));
-              }
-            });
+            return new Promise<Record<string, EvaluationVariant>>(
+              (resolve, reject) => {
+                if (responseCode === 0) {
+                  reject(new Error(errorMessage));
+                } else {
+                  reject(new FetchError(responseCode, errorMessage));
+                }
+              },
+            );
           },
         );
       const retryMock = jest.spyOn(
-        ExperimentClient.prototype as any,
+        VariantsFetchUpdater.prototype as any,
         'startRetries',
       );
       try {

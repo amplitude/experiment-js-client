@@ -38,6 +38,7 @@
     "@amplitude/experiment-core": "^0.11.0",
     "@amplitude/ua-parser-js": "^0.7.31",
     "base64-js": "1.5.1",
+    "eventsource": "^2",
     "unfetch": "4.1.0"
   },
   "devDependencies": {
