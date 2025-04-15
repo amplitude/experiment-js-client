@@ -467,6 +467,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.subscriptionManager?.setPageObjects(pageObjects);
       this.messageBus.unsubscribeAll();
       this.subscriptionManager?.initSubscriptions();
+      // update active pages
+      this.messageBus.publish('url_change', { updateActivePages: true });
     }
   }
 
