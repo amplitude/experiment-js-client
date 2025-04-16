@@ -47,7 +47,7 @@ export class SdkStreamEvaluationApi implements StreamEvaluationApi {
     onError?: (error: Error) => void,
   ): Promise<void> {
     if (this.stream) {
-      this.close();
+      await this.close();
     }
 
     const userJsonBase64 = Base64.encodeURL(JSON.stringify(user));

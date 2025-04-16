@@ -10,7 +10,6 @@ import {
 import { ExperimentConfig } from '../config';
 import { FetchOptions } from '../types/client';
 import { ExperimentUser } from '../types/user';
-import { Variant } from '../types/variant';
 
 import { Backoff } from './backoff';
 
@@ -23,7 +22,7 @@ export interface Updater {
   stop(): Promise<void>;
 }
 
-type VariantUpdateCallback = (data: Record<string, Variant>) => void;
+type VariantUpdateCallback = (data: Record<string, EvaluationVariant>) => void;
 type VariantErrorCallback = (err: Error) => void;
 type VariantUpdaterParams = {
   user: ExperimentUser;
@@ -39,8 +38,20 @@ export interface VariantUpdater extends Updater {
   stop(): Promise<void>;
 }
 
+function isErrorRetriable(e: Error | ErrorEvent): boolean {
+  if (e instanceof FetchError) {
+    const ferr = e as FetchError;
+    return (
+      ferr.statusCode < 400 || ferr.statusCode >= 500 || ferr.statusCode === 429
+    );
+  }
+
+  return true;
+}
+
 export class VariantsStreamUpdater implements VariantUpdater {
   private evaluationApi: StreamEvaluationApi;
+  private hasNonretriableError = false;
 
   constructor(evaluationApi: StreamEvaluationApi) {
     this.evaluationApi = evaluationApi;
@@ -51,16 +62,36 @@ export class VariantsStreamUpdater implements VariantUpdater {
     onError: VariantErrorCallback,
     params: VariantUpdaterParams,
   ): Promise<void> {
-    this.evaluationApi.streamVariants(
-      params.user,
-      params.options,
-      onUpdate,
-      onError,
-    );
+    if (this.hasNonretriableError) {
+      throw new Error('Stream updater has non-retriable error, not starting');
+    }
+    try {
+      await this.evaluationApi.streamVariants(
+        params.user,
+        params.options,
+        onUpdate,
+        (error) => {
+          this.handleError(error);
+          onError(error);
+        },
+      );
+    } catch (error) {
+      this.handleError(error);
+      throw error;
+    }
+  }
+
+  handleError(error: Error) {
+    if (!isErrorRetriable(error)) {
+      this.hasNonretriableError = true;
+      console.error(
+        '[Experiment] Stream updater has non-retriable error: ' + error,
+      );
+    }
   }
 
   async stop(): Promise<void> {
-    this.evaluationApi.close();
+    await this.evaluationApi.close();
   }
 }
 
@@ -97,7 +128,7 @@ export class VariantsFetchUpdater implements Updater {
           onUpdate,
         );
       } catch (e) {
-        if (config.retryFetchOnFailure && this.shouldRetryFetch(e)) {
+        if (config.retryFetchOnFailure && isErrorRetriable(e)) {
           void this.startRetries(user, options, onUpdate);
         }
         throw e;
@@ -124,18 +155,6 @@ export class VariantsFetchUpdater implements Updater {
       ...options,
     });
     onUpdate(results);
-  }
-
-  private shouldRetryFetch(e: Error): boolean {
-    if (e instanceof FetchError) {
-      const fetchErr = e as FetchError;
-      return (
-        fetchErr.statusCode < 400 ||
-        fetchErr.statusCode >= 500 ||
-        fetchErr.statusCode === 429
-      );
-    }
-    return true;
   }
 
   private async startRetries(
@@ -173,7 +192,8 @@ export class VariantsFetchUpdater implements Updater {
 export class RetryAndFallbackWrapperUpdater implements Updater {
   private readonly mainUpdater: Updater;
   private readonly fallbackUpdater: Updater;
-  private readonly retryIntervalMillis: number;
+  private readonly retryIntervalMillisMin: number;
+  private readonly retryIntervalMillisRange: number;
   private retryTimer: NodeJS.Timeout | null = null;
 
   constructor(
@@ -183,7 +203,9 @@ export class RetryAndFallbackWrapperUpdater implements Updater {
   ) {
     this.mainUpdater = mainUpdater;
     this.fallbackUpdater = fallbackUpdater;
-    this.retryIntervalMillis = retryIntervalMillis;
+    this.retryIntervalMillisMin = retryIntervalMillis * 0.8;
+    this.retryIntervalMillisRange =
+      retryIntervalMillis * 1.2 - this.retryIntervalMillisMin;
   }
 
   async start(
@@ -191,7 +213,7 @@ export class RetryAndFallbackWrapperUpdater implements Updater {
     onError: VariantErrorCallback,
     params: VariantUpdaterParams,
   ): Promise<void> {
-    this.stop();
+    await this.stop();
 
     try {
       await this.mainUpdater.start(
@@ -233,7 +255,7 @@ export class RetryAndFallbackWrapperUpdater implements Updater {
       } catch (error) {
         console.error('Retry failed', error);
       }
-    }, this.retryIntervalMillis);
+    }, Math.ceil(this.retryIntervalMillisMin + Math.random() * this.retryIntervalMillisRange));
     this.retryTimer = retryTimer;
   }
 
@@ -264,6 +286,6 @@ export class VariantsRetryAndFallbackWrapperUpdater
     onError: VariantErrorCallback,
     params: VariantUpdaterParams,
   ): Promise<void> {
-    super.start(onUpdate, onError, params);
+    return super.start(onUpdate, onError, params);
   }
 }

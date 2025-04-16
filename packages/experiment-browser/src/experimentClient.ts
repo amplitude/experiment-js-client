@@ -7,6 +7,7 @@ import {
   EvaluationApi,
   EvaluationEngine,
   EvaluationFlag,
+  EvaluationVariant,
   FetchError,
   FlagApi,
   Poller,
@@ -51,18 +52,19 @@ import {
   convertUserToContext,
   convertVariant,
 } from './util/convert';
+import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
+import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
 import {
   VariantsFetchUpdater,
   VariantsRetryAndFallbackWrapperUpdater,
   VariantsStreamUpdater,
   VariantUpdater,
 } from './util/variantsUpdater';
-import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
-import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
 const minFlagPollerIntervalMillis = 60000;
+const streamRetryIntervalMillis = 10 * 60 * 1000;
 
 const euServerUrl = 'https://api.lab.eu.amplitude.com';
 const euFlagsServerUrl = 'https://flag.lab.eu.amplitude.com';
@@ -189,7 +191,7 @@ export class ExperimentClient implements Client {
       this.variantUpdater = new VariantsRetryAndFallbackWrapperUpdater(
         streamUpdater,
         this.variantUpdater,
-        2 * 60 * 1000,
+        streamRetryIntervalMillis,
       );
     }
     // Storage & Caching
@@ -259,6 +261,7 @@ export class ExperimentClient implements Client {
    * Stop the local flag configuration poller.
    */
   public stop() {
+    this.variantUpdater.stop();
     if (!this.isRunning) {
       return;
     }
@@ -301,7 +304,7 @@ export class ExperimentClient implements Client {
     user = await this.addContextOrWait(user);
     user = this.cleanUserPropsForFetch(user);
     await this.variantUpdater.start(
-      async (results: Record<string, Variant>) => {
+      async (results: Record<string, EvaluationVariant>) => {
         const variants: Variants = {};
         for (const key of Object.keys(results)) {
           variants[key] = convertEvaluationVariantToVariant(results[key]);

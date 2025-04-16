@@ -1,11 +1,25 @@
+import { FetchError } from 'evaluation/error';
+
 const KEEP_ALIVE_DATA = ' ';
 const KEEP_ALIVE_INTERVAL_MILLIS = 33000; // 30 seconds with a 3 seconds buffer
 const RECONNECTION_INTERVAL_MILLIS = 30 * 60 * 1000;
 export const DEFAULT_EVENT_TYPE = 'message';
 
-export interface ErrorEvent {
-  code?: number;
-  message?: string;
+type ErrorEvent =
+  | {
+      status?: number;
+      message: string;
+    }
+  | Error;
+
+export class SSEError extends Error {
+  message: string;
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.message = message;
+    this.status = status;
+  }
 }
 
 export interface SSE {
@@ -97,18 +111,22 @@ export class SSEStream {
     for (const eventType in this.onEventTypeUpdate) {
       this.es.addEventListener(eventType, (event) => {
         this.resetKeepAlive();
-        event = event as MessageEvent;
-        if (event.data === KEEP_ALIVE_DATA) {
+        const msgEvent = event as MessageEvent;
+        if (msgEvent.data === KEEP_ALIVE_DATA) {
           // This is a keep-alive message, ignore it
           return;
         }
-        this.onEventTypeUpdate[eventType](event.data);
+        this.onEventTypeUpdate[eventType](msgEvent.data);
       });
     }
-    this.es.addEventListener('error', (error) => {
+    this.es.addEventListener('error', (err) => {
       this.close();
-      error = error as ErrorEvent;
-      this.onError?.(Error(`Error in stream: ${JSON.stringify(error)}`));
+      const error = err as { status?: number; message: string };
+      if (error.status) {
+        this.onError?.(new FetchError(error.status, error.message));
+      } else {
+        this.onError?.(new Error(`Error in stream: ${JSON.stringify(error)}`));
+      }
     });
     this.resetKeepAlive();
     this.setReconnectionTimeout();

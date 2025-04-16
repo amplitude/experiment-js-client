@@ -1375,3 +1375,16 @@ describe('flag config polling interval config', () => {
     expect(client['config'].flagConfigPollingIntervalMillis).toEqual(900000);
   });
 });
+
+describe('client stream variants', () => {
+  test('stream variants, success', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      streamVariants: true,
+    });
+    mockClientStorage(client);
+    await client.fetch(testUser);
+    const variant = client.variant(serverKey);
+    expect(variant).toEqual(serverVariant);
+    client.stop();
+  });
+});
