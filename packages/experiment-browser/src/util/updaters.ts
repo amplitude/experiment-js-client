@@ -65,23 +65,25 @@ export class VariantsStreamUpdater implements VariantUpdater {
     if (this.hasNonretriableError) {
       throw new Error('Stream updater has non-retriable error, not starting');
     }
+    await this.stop();
     try {
       await this.evaluationApi.streamVariants(
         params.user,
         params.options,
         onUpdate,
-        (error) => {
-          this.handleError(error);
+        async (error) => {
+          await this.handleError(error);
           onError(error);
         },
       );
     } catch (error) {
-      this.handleError(error);
+      await this.handleError(error);
       throw error;
     }
   }
 
-  handleError(error: Error) {
+  async handleError(error: Error): Promise<void> {
+    await this.stop();
     if (!isErrorRetriable(error)) {
       this.hasNonretriableError = true;
       console.error(
@@ -112,6 +114,7 @@ const fetchBackoffScalar = 1.5;
 export class VariantsFetchUpdater implements Updater {
   private evaluationApi: EvaluationApi;
   retriesBackoff: Backoff;
+
   constructor(evaluationApi: EvaluationApi) {
     this.evaluationApi = evaluationApi;
   }
@@ -170,7 +173,6 @@ export class VariantsFetchUpdater implements Updater {
     options: FetchOptions,
     onUpdate: (data: Record<string, EvaluationVariant>) => void,
   ): Promise<void> {
-    // this.debug('[Experiment] Retry fetch');
     this.retriesBackoff = new Backoff(
       fetchBackoffAttempts,
       fetchBackoffMinMillis,
@@ -195,14 +197,15 @@ export class VariantsFetchUpdater implements Updater {
 /**
  * This class retries the main updater and, if it fails, falls back to the fallback updater.
  * The main updater will keep retrying every set interval and, if succeeded, the fallback updater will be stopped.
+ * If it has falled back to fallback updater, if the fallback updated failed to start, it will retry starting the fallback updater.
  */
-
 export class RetryAndFallbackWrapperUpdater implements Updater {
   private readonly mainUpdater: Updater;
   private readonly fallbackUpdater: Updater;
   private readonly retryIntervalMillisMin: number;
   private readonly retryIntervalMillisRange: number;
-  private retryTimer: NodeJS.Timeout | null = null;
+  private mainRetryTimer: NodeJS.Timeout | null = null; // To retry main updater after initial start.
+  private fallbackRetryTimer: NodeJS.Timeout | null = null; // To make sure fallback start is retried if failed to start when main updater failed.
 
   constructor(
     mainUpdater: Updater,
@@ -216,61 +219,100 @@ export class RetryAndFallbackWrapperUpdater implements Updater {
       retryIntervalMillis * 1.2 - this.retryIntervalMillisMin;
   }
 
+  /**
+   * If main start succeeded, return.
+   * If main start failed, start fallback updater.
+   * If fallback start failed, throw exception.
+   */
   async start(
-    onUpdate: VariantUpdateCallback,
-    onError: VariantErrorCallback,
-    params: VariantUpdaterParams,
+    onUpdate: (data: unknown) => void,
+    onError: (err: Error) => void,
+    params: Record<string, unknown>,
   ): Promise<void> {
     await this.stop();
 
     try {
       await this.mainUpdater.start(
         onUpdate,
-        (err) => {
-          this.fallbackUpdater.start(onUpdate, onError, params);
-          this.startRetryTimer(onUpdate, onError, params);
+        async (err) => {
+          this.fallbackUpdater
+            .start(onUpdate, onError, params)
+            .catch((error) => {
+              this.startFallbackRetryTimer(onUpdate, onError, params);
+            });
+          this.startMainRetryTimer(onUpdate, onError, params);
         },
         params,
       );
     } catch (error) {
       await this.fallbackUpdater.start(onUpdate, onError, params);
-      this.startRetryTimer(onUpdate, onError, params);
+      this.startMainRetryTimer(onUpdate, onError, params);
     }
   }
 
-  async startRetryTimer(onUpdate, onError, params) {
-    if (this.retryTimer) {
-      clearInterval(this.retryTimer);
-      this.retryTimer = null;
+  startMainRetryTimer(onUpdate, onError, params) {
+    if (this.mainRetryTimer) {
+      clearTimeout(this.mainRetryTimer);
+      this.mainRetryTimer = null;
     }
 
-    const retryTimer = setInterval(async () => {
+    const retryTimer = setTimeout(async () => {
       try {
         await this.mainUpdater.start(
           onUpdate,
           (err) => {
-            this.fallbackUpdater.start(onUpdate, onError, params);
-            this.startRetryTimer(onUpdate, onError, params);
+            this.fallbackUpdater
+              .start(onUpdate, onError, params)
+              .catch((error) => {
+                this.startFallbackRetryTimer(onUpdate, onError, params);
+              });
+            this.startMainRetryTimer(onUpdate, onError, params);
           },
           params,
         );
-        this.fallbackUpdater.stop();
-        clearInterval(retryTimer);
-        if (this.retryTimer) {
-          clearInterval(this.retryTimer);
-          this.retryTimer = null;
-        }
-      } catch (error) {
-        console.error('Retry failed', error);
+      } catch {
+        this.startMainRetryTimer(onUpdate, onError, params);
+        return;
+      }
+      if (this.fallbackRetryTimer) {
+        clearTimeout(this.fallbackRetryTimer);
+        this.fallbackRetryTimer = null;
+      }
+      this.fallbackUpdater.stop();
+    }, Math.ceil(this.retryIntervalMillisMin + Math.random() * this.retryIntervalMillisRange));
+    this.mainRetryTimer = retryTimer;
+  }
+
+  startFallbackRetryTimer(onUpdate, onError, params) {
+    if (this.fallbackRetryTimer) {
+      clearTimeout(this.fallbackRetryTimer);
+      this.fallbackRetryTimer = null;
+    }
+    const retryTimer = setTimeout(async () => {
+      try {
+        await this.fallbackUpdater.start(onUpdate, onError, params);
+      } catch {
+        this.startFallbackRetryTimer(onUpdate, onError, params);
       }
     }, Math.ceil(this.retryIntervalMillisMin + Math.random() * this.retryIntervalMillisRange));
-    this.retryTimer = retryTimer;
+    this.fallbackRetryTimer = retryTimer;
   }
 
   async stop(): Promise<void> {
-    if (this.retryTimer) {
-      clearInterval(this.retryTimer);
-      this.retryTimer = null;
+    /*
+     * No locks needed for await and asyncs.
+     * If stop is called, the intervals are cancelled. Callbacks are not called.
+     * If the callback has already started, the updater.start in callback is scheduled before the updater.stop in this stop() func.
+     * So either no updater.start() is performed, or the updater.start() is scheduled before the updater.stop().
+     */
+    // Cancelling timers must be done before stopping the updaters.
+    if (this.mainRetryTimer) {
+      clearTimeout(this.mainRetryTimer);
+      this.mainRetryTimer = null;
+    }
+    if (this.fallbackRetryTimer) {
+      clearTimeout(this.fallbackRetryTimer);
+      this.fallbackRetryTimer = null;
     }
     await this.mainUpdater.stop();
     await this.fallbackUpdater.stop();
