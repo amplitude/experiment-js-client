@@ -11,24 +11,27 @@ import { ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
 import { initializeWithAmplitudeAnalytics } from './factory';
 
-// TODO(xinyi): it'll be great if we could do the following
+// TODO(xinyi): it'll be great if we can make sure the following work
 //  so that customers do need to add module augmentation on their side.
 // Module augmentation to add experiment variable at compile time
-// declare module '@amplitude/analytics-core' {
-//   interface CoreClient {
-//     experiment: ExperimentClient;
-//   }
-// }
+declare module '@amplitude/analytics-core' {
+  interface CoreClient {
+    experiment: ExperimentClient;
+  }
+}
 
-class ExperimentAnalyticsPlugin
+export class ExperimentAnalyticsPlugin
   implements EnrichmentPlugin<BrowserClient, BrowserConfig>
 {
-  name = 'experiment-analytics-plugin';
+  name = '@amplitude/experiment-analytics-plugin';
   experiment: ExperimentClient;
   config?: ExperimentConfig;
 
   constructor(config?: ExperimentConfig) {
     this.config = config;
+
+    // TODO(xinyi): it'll be great if we can make sure the following work
+    //  so that customers do need to add module augmentation on their side.
     // Add experiment property at run time
     Object.defineProperty(AmplitudeCore.prototype, 'experiment', {
       get: function () {
@@ -45,9 +48,3 @@ class ExperimentAnalyticsPlugin
     this.experiment = initializeWithAmplitudeAnalytics(config.apiKey, config);
   }
 }
-
-export const experimentAnalyticsPlugin = (
-  config?: ExperimentConfig,
-): EnrichmentPlugin<BrowserClient, BrowserConfig> => {
-  return new ExperimentAnalyticsPlugin(config);
-};
