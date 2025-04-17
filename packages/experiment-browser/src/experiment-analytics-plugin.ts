@@ -11,12 +11,14 @@ import { ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
 import { initializeWithAmplitudeAnalytics } from './factory';
 
+// TODO(xinyi): it'll be great if we could do the following
+//  so that customers do need to add module augmentation on their side.
 // Module augmentation to add experiment variable at compile time
-declare module '@amplitude/analytics-core' {
-  interface CoreClient {
-    experiment: ExperimentClient;
-  }
-}
+// declare module '@amplitude/analytics-core' {
+//   interface CoreClient {
+//     experiment: ExperimentClient;
+//   }
+// }
 
 class ExperimentAnalyticsPlugin
   implements EnrichmentPlugin<BrowserClient, BrowserConfig>
@@ -44,6 +46,8 @@ class ExperimentAnalyticsPlugin
   }
 }
 
-export const experimentAnalyticsPlugin = () => {
-  return new ExperimentAnalyticsPlugin();
+export const experimentAnalyticsPlugin = (
+  config?: ExperimentConfig,
+): EnrichmentPlugin<BrowserClient, BrowserConfig> => {
+  return new ExperimentAnalyticsPlugin(config);
 };

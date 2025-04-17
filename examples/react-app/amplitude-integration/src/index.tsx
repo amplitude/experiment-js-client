@@ -3,8 +3,15 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import * as amplitude from '@amplitude/analytics-browser';
-import { Experiment, ExperimentAnalyticsPlugin } from '@amplitude/experiment-js-client';
+import { Experiment, experimentAnalyticsPlugin, ExperimentClient } from "@amplitude/experiment-js-client";
 import { AmplitudeBrowser } from "@amplitude/analytics-browser";
+
+// Module augmentation to add experiment variable at compile time
+declare module '@amplitude/analytics-browser' {
+  interface AmplitudeBrowser {
+    experiment: ExperimentClient;
+  }
+}
 
 /**
  * Initialize the Amplitude Analytics SDK.
@@ -19,7 +26,7 @@ amplitude.identify(new amplitude.Identify().set('premium', true))
 // So has to create a real object.
 const client: AmplitudeBrowser = new amplitude.AmplitudeBrowser();
 client.init('API_KEY', 'user@company.com');
-client.add(new ExperimentAnalyticsPlugin());
+client.add(experimentAnalyticsPlugin());
 void client.experiment.fetch();
 const variant = client.experiment.variant('FLAG_KEY');
 
