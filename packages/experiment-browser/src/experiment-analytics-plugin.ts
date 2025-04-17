@@ -23,7 +23,8 @@ declare module '@amplitude/analytics-core' {
 export class ExperimentAnalyticsPlugin
   implements EnrichmentPlugin<BrowserClient, BrowserConfig>
 {
-  name = '@amplitude/experiment-analytics-plugin';
+  static pluginName = '@amplitude/experiment-analytics-plugin';
+  name = ExperimentAnalyticsPlugin.pluginName;
   experiment: ExperimentClient;
   config?: ExperimentConfig;
 
@@ -37,7 +38,7 @@ export class ExperimentAnalyticsPlugin
       get: function () {
         return (
           this.plugin(
-            ExperimentAnalyticsPlugin.name,
+            ExperimentAnalyticsPlugin.pluginName,
           ) as ExperimentAnalyticsPlugin
         ).experiment;
       },

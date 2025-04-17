@@ -28,7 +28,7 @@ Object.defineProperty(AmplitudeBrowser.prototype, 'experiment', {
   get: function() {
     return (
       this.plugin(
-        'experiment-analytics-plugin',
+        ExperimentAnalyticsPlugin.pluginName,
       ) as ExperimentAnalyticsPlugin
     ).experiment;
   },
