@@ -1,26 +1,14 @@
-import { FetchError } from 'evaluation/error';
+import { FetchError } from '../evaluation/error';
 
 const KEEP_ALIVE_DATA = ' ';
 const KEEP_ALIVE_INTERVAL_MILLIS = 33000; // 30 seconds with a 3 seconds buffer
 const RECONNECTION_INTERVAL_MILLIS = 30 * 60 * 1000;
 export const DEFAULT_EVENT_TYPE = 'message';
 
-type ErrorEvent =
-  | {
-      status?: number;
-      message: string;
-    }
-  | Error;
-
-export class SSEError extends Error {
-  message: string;
+type ErrorEvent = {
   status?: number;
-  constructor(message: string, status?: number) {
-    super(message);
-    this.message = message;
-    this.status = status;
-  }
-}
+  message: string;
+};
 
 export interface SSE {
   addEventListener(
@@ -116,16 +104,23 @@ export class SSEStream {
           // This is a keep-alive message, ignore it
           return;
         }
-        this.onEventTypeUpdate[eventType](msgEvent.data);
+        try {
+          this.onEventTypeUpdate[eventType](msgEvent.data);
+        } catch {
+          // Don't care about errors in the callback.
+        }
       });
     }
     this.es.addEventListener('error', (err) => {
       this.close();
-      const error = err as { status?: number; message: string };
-      if (error.status) {
-        this.onError?.(new FetchError(error.status, error.message));
-      } else {
-        this.onError?.(new Error(`Error in stream: ${JSON.stringify(error)}`));
+      const error = err as ErrorEvent;
+      const newError = error.status
+        ? new FetchError(error.status, error.message)
+        : new Error(`Error in stream: ${JSON.stringify(error)}`);
+      try {
+        this.onError?.(newError);
+      } catch {
+        // Don't care about errors in the callback.
       }
     });
     this.resetKeepAlive();
@@ -141,7 +136,7 @@ export class SSEStream {
       this.keepAliveTimer = setTimeout(() => {
         this.close();
         this.onError?.(Error('Keep-alive timeout'));
-      }, this.keepAliveInterval);
+      }, this.keepAliveInterval * 1.1);
     }
   }
 

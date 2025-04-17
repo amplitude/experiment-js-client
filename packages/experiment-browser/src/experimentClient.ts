@@ -59,7 +59,7 @@ import {
   VariantsRetryAndFallbackWrapperUpdater,
   VariantsStreamUpdater,
   VariantUpdater,
-} from './util/variantsUpdater';
+} from './util/updaters';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.

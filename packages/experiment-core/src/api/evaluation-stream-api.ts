@@ -1,7 +1,11 @@
 import { Base64 } from 'js-base64';
-import { DEFAULT_EVENT_TYPE, SSEProvider, SSEStream } from 'transport/stream';
 
 import { EvaluationVariant } from '../evaluation/flag';
+import {
+  DEFAULT_EVENT_TYPE,
+  SSEProvider,
+  SSEStream,
+} from '../transport/stream';
 
 import { EvaluationApi, GetVariantsOptions } from './evaluation-api';
 
@@ -95,15 +99,19 @@ export class SdkStreamEvaluationApi implements StreamEvaluationApi {
         }
       };
       const onDataUpdateSseCb = (data: string) => {
+        let variants;
+        try {
+          variants = JSON.parse(data);
+        } catch (error) {
+          onErrorSseCb(new Error('Error parsing variant data: ' + error));
+          return;
+        }
         if (isConnecting) {
           isConnecting = false;
-          const variants = JSON.parse(data);
           clearTimeout(connectionTimeout);
           resolve();
-          onUpdate?.(variants);
-        } else {
-          onUpdate?.(JSON.parse(data));
         }
+        onUpdate?.(variants);
       };
       const onSignalUpdateCb = async () => {
         // Signaled that there's a push.

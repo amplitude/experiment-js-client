@@ -101,6 +101,14 @@ const fetchBackoffMinMillis = 500;
 const fetchBackoffMaxMillis = 10000;
 const fetchBackoffScalar = 1.5;
 
+/**
+ * This updater fetches the variants from the server and calls the onUpdate callback with the results.
+ * This updater does not continuously poll the server, it only fetches the variants once.
+ * It will retry the fetch if it fails, with exponential backoff.
+ * The retry will stop if the fetch succeeds or if the max number of retries is reached.
+ * The retry will also stop if a non-retriable error is encountered.
+ * The retry will also stop if the user calls the stop method.
+ */
 export class VariantsFetchUpdater implements Updater {
   private evaluationApi: EvaluationApi;
   retriesBackoff: Backoff;
