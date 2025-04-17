@@ -16,7 +16,7 @@ export {
   initialize,
   initializeWithAmplitudeAnalytics,
 } from './factory';
-export { ExperimentAnalyticsPlugin } from './experiment-analytics-plugin';
+export { experimentAnalyticsPlugin } from './experiment-analytics-plugin';
 export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';
 export { Client, FetchOptions } from './types/client';

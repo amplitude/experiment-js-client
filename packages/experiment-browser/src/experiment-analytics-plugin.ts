@@ -3,8 +3,11 @@ import {
   EnrichmentPlugin,
   CoreClient,
   IConfig,
+  BrowserClient,
+  BrowserConfig,
 } from '@amplitude/analytics-core';
 
+import { ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
 import { initializeWithAmplitudeAnalytics } from './factory';
 
@@ -15,11 +18,16 @@ declare module '@amplitude/analytics-core' {
   }
 }
 
-export class ExperimentAnalyticsPlugin implements EnrichmentPlugin {
+class ExperimentAnalyticsPlugin
+  implements EnrichmentPlugin<BrowserClient, BrowserConfig>
+{
   name = 'experiment-analytics-plugin';
   experiment: ExperimentClient;
+  config?: ExperimentConfig;
 
-  constructor() {
+  constructor(config?: ExperimentConfig) {
+    this.config = config;
+    // Add experiment property at run time
     Object.defineProperty(AmplitudeCore.prototype, 'experiment', {
       get: function () {
         return (
@@ -31,7 +39,11 @@ export class ExperimentAnalyticsPlugin implements EnrichmentPlugin {
     });
   }
 
-  async setup(config: IConfig, client: CoreClient) {
-    this.experiment = initializeWithAmplitudeAnalytics(config.apiKey);
+  async setup(config: IConfig, _client: CoreClient) {
+    this.experiment = initializeWithAmplitudeAnalytics(config.apiKey, config);
   }
 }
+
+export const experimentAnalyticsPlugin = () => {
+  return new ExperimentAnalyticsPlugin();
+};
