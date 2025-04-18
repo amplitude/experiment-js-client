@@ -31,4 +31,4 @@ export type PageObject = {
   trigger_value: Record<string, unknown>;
 };
 
-export type PageObjects = Record<string, Record<string, PageObject>>;
+export type PageObjects = { [flagKey: string]: { [id: string]: PageObject } };
