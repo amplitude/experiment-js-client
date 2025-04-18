@@ -10,7 +10,7 @@ const DUMMY_TRUE_CONDITION = [
 ];
 
 export const createPageObject = (
-  name: string,
+  id: string,
   triggerType: MessageType,
   triggerProperties?: Record<string, unknown>,
   urlContains?: string,
@@ -28,7 +28,9 @@ export const createPageObject = (
     ];
   }
   return {
-    [name]: {
+    [id]: {
+      id,
+      name: id,
       conditions: conditions,
       trigger_type: triggerType,
       trigger_value: {

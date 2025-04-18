@@ -24,6 +24,8 @@ export type PreviewVariantsOptions = {
 };
 
 export type PageObject = {
+  id: string;
+  name: string;
   conditions?: EvaluationCondition[][];
   trigger_type: MessageType;
   trigger_value: Record<string, unknown>;

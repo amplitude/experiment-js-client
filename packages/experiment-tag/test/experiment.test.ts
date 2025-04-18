@@ -699,6 +699,18 @@ describe('initializeExperiment', () => {
         },
       }),
     );
+    const test1Page = createPageObject(
+      'A',
+      'url_change',
+      undefined,
+      'http://A.com',
+    );
+    const test2Page = createPageObject(
+      'B',
+      'url_change',
+      undefined,
+      'http://B.com',
+    );
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
@@ -706,24 +718,13 @@ describe('initializeExperiment', () => {
         createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
       ]),
       JSON.stringify({
-        'test-1': createPageObject(
-          'A',
-          'url_change',
-          undefined,
-          'http://A.com',
-        ),
-
-        'test-2': createPageObject(
-          'B',
-          'url_change',
-          undefined,
-          'http://B.com',
-        ),
+        'test-1': test1Page,
+        'test-2': test2Page,
       }),
     );
     client.start().then();
     let activePages = (client as any).activePages;
-    expect(activePages).toEqual({ 'test-1': new Set('A') });
+    expect(activePages).toEqual({ 'test-1': test1Page });
     (client as any).subscriptionManager.globalScope = newMockGlobal({
       location: {
         href: 'http://B.com',
@@ -731,7 +732,7 @@ describe('initializeExperiment', () => {
     });
     activePages = (client as any).activePages;
     (client as any).messageBus.publish('url_change', {});
-    expect(activePages).toEqual({ 'test-2': new Set('B') });
+    expect(activePages).toEqual({ 'test-2': test2Page });
     expect(mockExposure).toHaveBeenCalledTimes(0);
     const appliedMutations = (client as any).appliedMutations;
     expect(Object.keys(appliedMutations).length).toEqual(0);
@@ -812,6 +813,18 @@ describe('initializeExperiment', () => {
         },
       }),
     );
+    const test1Page = createPageObject(
+      'A',
+      'url_change',
+      undefined,
+      'http://A.com',
+    );
+    const test2Page = createPageObject(
+      'B',
+      'url_change',
+      undefined,
+      'http://B.com',
+    );
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
@@ -819,19 +832,8 @@ describe('initializeExperiment', () => {
         createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
       ]),
       JSON.stringify({
-        'test-1': createPageObject(
-          'A',
-          'url_change',
-          undefined,
-          'http://A.com',
-        ),
-
-        'test-2': createPageObject(
-          'B',
-          'url_change',
-          undefined,
-          'http://B.com',
-        ),
+        'test-1': test1Page,
+        'test-2': test2Page,
       }),
     );
     client.start().then();
@@ -841,7 +843,7 @@ describe('initializeExperiment', () => {
     expect(Object.keys(appliedMutations).includes('test-1'));
     expect(Object.keys(appliedMutations['test-1']).includes('mutate'));
     const activePages = (client as any).activePages;
-    expect(activePages).toEqual({ 'test-1': new Set('A') });
+    expect(activePages).toEqual({ 'test-1': test1Page });
     expect(Object.keys(appliedMutations['test-1']['mutate']).length).toEqual(1);
     (client as any).subscriptionManager.globalScope = newMockGlobal({
       location: {
@@ -849,7 +851,7 @@ describe('initializeExperiment', () => {
       },
     });
     (client as any).messageBus.publish('url_change', {});
-    expect(activePages).toEqual({ 'test-2': new Set('B') });
+    expect(activePages).toEqual({ 'test-2': test2Page });
     expect(mockExposure).toHaveBeenCalledTimes(2);
     expect(mockExposure).toHaveBeenCalledWith('test-2');
     appliedMutations = (client as any).appliedMutations;

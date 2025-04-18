@@ -55,9 +55,9 @@ export const createRedirectFlag = (
             action: 'redirect',
             data: {
               url: treatmentUrl,
-            },
-            metadata: {
-              scope: pageScope['treatment'],
+              metadata: {
+                scope: pageScope['treatment'],
+              },
             },
           },
         ],

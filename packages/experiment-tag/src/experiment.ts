@@ -22,6 +22,7 @@ import { WindowMessenger } from './messenger';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   ApplyVariantsOptions,
+  PageObject,
   PageObjects,
   PreviewVariantsOptions,
   RevertVariantsOptions,
@@ -42,10 +43,6 @@ const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
 
 safeGlobal.Experiment = FeatureExperiment;
-
-export type activePagesMap = {
-  [flagKey: string]: Set<string>;
-};
 
 export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;
@@ -80,7 +77,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private isRunning = false;
   private readonly messageBus: MessageBus;
   private pageObjects: PageObjects;
-  private activePages: activePagesMap = {};
+  private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
 
@@ -443,7 +440,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   /**
    * Get a map of active page view objects.
    */
-  public getActivePages(): activePagesMap {
+  public getActivePages(): PageObjects {
     return this.activePages;
   }
 
@@ -515,7 +512,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleRedirect(action, flagKey: string, variant: Variant) {
-    if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
+    if (!this.isActionActiveOnPage(flagKey, action?.data?.metadata?.scope)) {
       return;
     }
 
@@ -704,15 +701,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  updateActivePages(flagKey: string, pageName: string, isActive: boolean) {
+  updateActivePages(flagKey: string, page: PageObject, isActive: boolean) {
     if (!this.activePages[flagKey]) {
-      this.activePages[flagKey] = new Set();
+      this.activePages[flagKey] = {};
     }
     if (isActive) {
-      this.activePages[flagKey].add(pageName);
+      this.activePages[flagKey][page.id] = page;
     } else {
-      this.activePages[flagKey].delete(pageName);
-      if (this.activePages[flagKey].size === 0) {
+      delete this.activePages[flagKey][page.id];
+      if (Object.keys(this.activePages[flagKey]).length === 0) {
         delete this.activePages[flagKey];
       }
     }
@@ -726,6 +723,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (!scope) {
       return flagKey in this.activePages;
     }
-    return scope.some((page) => this.activePages[flagKey]?.has(page) ?? false);
+    return scope.some((pageId) => this.activePages[flagKey][pageId] ?? false);
   }
 }

@@ -1,6 +1,6 @@
 import { EvaluationEngine } from '@amplitude/experiment-core';
 
-import { activePagesMap, DefaultWebExperimentClient } from './experiment';
+import { DefaultWebExperimentClient } from './experiment';
 import {
   MessageBus,
   MessagePayloads,
@@ -19,7 +19,7 @@ type initOptions = {
 };
 
 export type PageChangeEvent = {
-  activePages: activePagesMap;
+  activePages: PageObjects;
 };
 
 export class SubscriptionManager {
@@ -30,7 +30,7 @@ export class SubscriptionManager {
   private readonly globalScope: typeof globalThis;
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
     new Set();
-  private lastNotifiedActivePages: activePagesMap = {};
+  private lastNotifiedActivePages: PageObjects = {};
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -74,20 +74,20 @@ export class SubscriptionManager {
 
   public setupPageObjectSubscriptions = () => {
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
-      for (const [pageName, page] of Object.entries(pages)) {
+      for (const [_, page] of Object.entries(pages)) {
         this.messageBus.subscribe(
           page.trigger_type,
           (payload) => {
             if (this.isPageObjectActive(page, payload)) {
               this.webExperimentClient.updateActivePages(
                 experiment,
-                pageName,
+                page,
                 true,
               );
             } else {
               this.webExperimentClient.updateActivePages(
                 experiment,
-                pageName,
+                page,
                 false,
               );
             }
@@ -228,31 +228,38 @@ export class SubscriptionManager {
     }
   };
 
-  private cloneActivePagesMap = (map: activePagesMap): activePagesMap => {
-    const clone: activePagesMap = {};
-    for (const key in map) {
-      clone[key] = new Set(map[key]);
+  private cloneActivePagesMap = (map: PageObjects): PageObjects => {
+    const clone: PageObjects = {};
+    for (const outerKey in map) {
+      clone[outerKey] = {};
+      for (const innerKey in map[outerKey]) {
+        clone[outerKey][innerKey] = { ...map[outerKey][innerKey] };
+      }
     }
     return clone;
   };
 
-  private areActivePagesEqual = (
-    a: activePagesMap,
-    b: activePagesMap,
-  ): boolean => {
-    const aKeys = Object.keys(a);
-    const bKeys = Object.keys(b);
-    if (aKeys.length !== bKeys.length) return false;
+  private areActivePagesEqual = (a: PageObjects, b: PageObjects): boolean => {
+    const aOuterKeys = Object.keys(a);
+    const bOuterKeys = Object.keys(b);
+    if (aOuterKeys.length !== bOuterKeys.length) return false;
 
-    for (const key of aKeys) {
-      const aSet = a[key];
-      const bSet = b[key];
-      if (!bSet || aSet.size !== bSet.size) return false;
+    for (const outerKey of aOuterKeys) {
+      const aInner = a[outerKey];
+      const bInner = b[outerKey];
+      if (!bInner) return false;
 
-      for (const value of aSet) {
-        if (!bSet.has(value)) return false;
+      const aInnerKeys = Object.keys(aInner);
+      const bInnerKeys = Object.keys(bInner);
+      if (aInnerKeys.length !== bInnerKeys.length) return false;
+
+      for (const innerKey of aInnerKeys) {
+        const aPage = aInner[innerKey];
+        const bPage = bInner[innerKey];
+        if (!bPage || aPage.id !== bPage.id) return false;
       }
     }
+
     return true;
   };
 }
