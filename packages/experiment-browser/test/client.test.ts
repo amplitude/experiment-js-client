@@ -23,9 +23,9 @@ import {
 } from '../src';
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
+import { VariantsFetchUpdater } from '../src/util/updaters';
 
 import { mockClientStorage } from './util/mock';
-import { VariantsFetchUpdater } from '../src/util/updaters';
 
 const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 

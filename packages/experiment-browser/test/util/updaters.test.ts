@@ -15,29 +15,24 @@ import { sleep } from './misc';
 
 describe('VariantsStreamUpdater tests', () => {
   test('connect success and receive data', async () => {
-    let registeredOnUpdate;
     const mockStreamApi = {
-      streamVariants: jest.fn(
-        async (_: unknown, __: unknown, onUpdate: (data) => void) => {
-          registeredOnUpdate = onUpdate;
-        },
-      ),
+      streamVariants: jest.fn(),
       close: jest.fn(),
-    } as unknown as SdkStreamEvaluationApi;
+    };
     const updater = new VariantsStreamUpdater(mockStreamApi);
     const onUpdate = jest.fn();
-    await updater.start(onUpdate, () => {}, {
+    await updater.start(onUpdate, jest.fn(), {
       user: {},
       config: {},
       options: {},
     });
 
     expect(onUpdate).toHaveBeenCalledTimes(0);
-    await registeredOnUpdate({
+    await mockStreamApi.streamVariants.mock.lastCall[2]({
       'test-flag': {},
     });
     expect(onUpdate).toHaveBeenCalledTimes(1);
-    await registeredOnUpdate({
+    await mockStreamApi.streamVariants.mock.lastCall[2]({
       'test-flag': {},
     });
     expect(onUpdate).toHaveBeenCalledTimes(2);
@@ -45,17 +40,15 @@ describe('VariantsStreamUpdater tests', () => {
 
   test('connect error throws', async () => {
     const mockStreamApi = {
-      streamVariants: jest.fn(
-        async (_: unknown, __: unknown, onUpdate: (data) => void) => {
-          throw new FetchError(413, 'Payload too large');
-        },
-      ),
+      streamVariants: jest
+        .fn()
+        .mockRejectedValue(new FetchError(413, 'Payload too large')),
       close: jest.fn(),
     } as unknown as SdkStreamEvaluationApi;
     const updater = new VariantsStreamUpdater(mockStreamApi);
     const onUpdate = jest.fn();
     await expect(
-      updater.start(onUpdate, () => {}, {
+      updater.start(onUpdate, jest.fn(), {
         user: {},
         config: {},
         options: {},
@@ -81,7 +74,7 @@ describe('VariantsStreamUpdater tests', () => {
         },
       ),
       close: jest.fn(),
-    } as unknown as SdkStreamEvaluationApi;
+    };
     const updater = new VariantsStreamUpdater(mockStreamApi);
     const onUpdate = jest.fn();
     const onError = jest.fn();
@@ -91,10 +84,12 @@ describe('VariantsStreamUpdater tests', () => {
       options: {},
     });
 
-    registeredOnUpdate({ 'test-flag': {} });
+    mockStreamApi.streamVariants.mock.lastCall[2]({ 'test-flag': {} });
     expect(onUpdate).toHaveBeenCalledTimes(1);
     expect(mockStreamApi.close).toHaveBeenCalledTimes(1); // Close called once on start.
-    await registeredOnError(new Error('Stream error'));
+    await mockStreamApi.streamVariants.mock.lastCall[3](
+      new Error('Stream error'),
+    );
     expect(onError).toHaveBeenCalledTimes(1);
     expect(mockStreamApi.close).toHaveBeenCalledTimes(2); // Close called again on error.
     expect(updater['hasNonretriableError']).toBe(false);
@@ -109,7 +104,7 @@ describe('VariantsFetchUpdater tests', () => {
           'test-flag': {},
         };
       }),
-    } as unknown as SdkEvaluationApi;
+    };
     const updater = new VariantsFetchUpdater(mockEvalApi);
     const onUpdate = jest.fn();
     const onError = jest.fn();
@@ -144,7 +139,7 @@ describe('VariantsFetchUpdater tests', () => {
         .mockResolvedValueOnce({
           'test-flag': {},
         }),
-    } as unknown as SdkEvaluationApi;
+    };
     const updater = new VariantsFetchUpdater(mockEvalApi);
     const onUpdate = jest.fn();
     const onError = jest.fn();
@@ -169,7 +164,7 @@ describe('VariantsFetchUpdater tests', () => {
       getVariants: jest
         .fn()
         .mockRejectedValue(new FetchError(413, 'Payload too large')),
-    } as unknown as SdkEvaluationApi;
+    };
     const updater = new VariantsFetchUpdater(mockEvalApi);
     const onUpdate = jest.fn();
     const onError = jest.fn();
@@ -191,7 +186,7 @@ describe('VariantsFetchUpdater tests', () => {
       getVariants: jest
         .fn()
         .mockRejectedValue(new FetchError(500, 'Internal Server Error')),
-    } as unknown as SdkEvaluationApi;
+    };
     const updater = new VariantsFetchUpdater(mockEvalApi);
     const onUpdate = jest.fn();
     const onError = jest.fn();

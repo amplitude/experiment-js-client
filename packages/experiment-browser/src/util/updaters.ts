@@ -49,6 +49,11 @@ function isErrorRetriable(e: Error | ErrorEvent): boolean {
   return true;
 }
 
+/**
+ * This updater streams the variants from the server and calls the onUpdate callback with the results.
+ * This updater does not retry the stream if it fails, it will call the onError callback with the error.
+ * If it encounters a non-retriable error, all future starts are errored.
+ */
 export class VariantsStreamUpdater implements VariantUpdater {
   private evaluationApi: StreamEvaluationApi;
   private hasNonretriableError = false;
@@ -119,6 +124,15 @@ export class VariantsFetchUpdater implements Updater {
     this.evaluationApi = evaluationApi;
   }
 
+  /**
+   * Perform a fetch to the server and call the onUpdate callback with the results.
+   * If the fetch fails, it will retry the fetch with exponential backoff.
+   * Always return success, even if the fetch fails.
+   * @param onUpdate This callback is called with the results of the fetch.
+   * @param onError This callback is ignored.
+   * @param params The params object contains the user, config, and options.
+   * @returns A promise that resolves when the first fetch finishes. Always resolves, even if the fetch fails.
+   */
   async start(
     onUpdate: VariantUpdateCallback,
     onError: VariantErrorCallback,

@@ -64,6 +64,7 @@ import {
 // Configs which have been removed from the public API.
 // May be added back in the future.
 const minFlagPollerIntervalMillis = 60000;
+const streamConnectionTimeoutMillis = 3000;
 const streamRetryIntervalMillis = 10 * 60 * 1000;
 
 const euServerUrl = 'https://api.lab.eu.amplitude.com';
@@ -183,8 +184,7 @@ export class ExperimentClient implements Client {
         this.apiKey,
         this.config.streamVariantsServerUrl,
         defaultSseProvider,
-        3000,
-        // config.streamVariantsConnTimeoutMillis,
+        streamConnectionTimeoutMillis,
         evaluationApi,
       );
       const streamUpdater = new VariantsStreamUpdater(streamEvaluationApi);
