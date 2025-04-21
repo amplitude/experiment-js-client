@@ -5,6 +5,7 @@ import type {
 } from '@amplitude/experiment-js-client';
 
 import { safeGlobal } from './global';
+import { PersistentTrackingQueue } from './queue';
 import { snippetInstance } from './snippet';
 import { Options, SegmentIntegrationPlugin } from './types/plugin';
 
@@ -16,6 +17,8 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
   };
   getInstance();
   let ready = false;
+  const queue = new PersistentTrackingQueue(options.instanceKey);
+
   const plugin: IntegrationPlugin = {
     name: '@amplitude/experiment-plugin-segment',
     type: 'integration',
@@ -24,6 +27,12 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
       return new Promise<void>((resolve) => {
         instance.ready(() => {
           ready = true;
+          // Set up the tracker once Segment is ready
+          queue.setTracker((event) => {
+            if (!ready) return false;
+            instance.track(event.eventType, event.eventProperties);
+            return true;
+          });
           resolve();
         });
         // If the segment SDK is installed via the @segment/analytics-next npm
@@ -34,6 +43,12 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
             if (instance.initialized) {
               ready = true;
               safeGlobal.clearInterval(interval);
+              // Set up the tracker once Segment is ready
+              queue.setTracker((event) => {
+                if (!ready) return false;
+                instance.track(event.eventType, event.eventProperties);
+                return true;
+              });
               resolve();
             }
           }, 50);
@@ -59,8 +74,12 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
       };
     },
     track(event: ExperimentEvent): boolean {
+      if (!ready) {
+        // Queue the event if Segment is not ready
+        queue.push(event);
+        return false;
+      }
       const instance = getInstance();
-      if (!ready) return false;
       instance.track(event.eventType, event.eventProperties);
       return true;
     },

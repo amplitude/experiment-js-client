@@ -10,7 +10,7 @@ export type ExperimentPluginType = PluginTypeIntegration;
 export interface ExperimentPlugin {
   name?: string;
   type?: ExperimentPluginType;
-  setup?(config: ExperimentConfig, client: Client): Promise<void>;
+  setup?(config?: ExperimentConfig, client?: Client): Promise<void>;
   teardown?(): Promise<void>;
 }
 

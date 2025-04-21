@@ -1,8 +1,10 @@
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentEvent } from '@amplitude/experiment-js-client';
 import { Analytics } from '@segment/analytics-next';
-import { segmentIntegrationPlugin } from 'src/plugin';
-import { snippetInstance } from 'src/snippet';
+
+import { segmentIntegrationPlugin } from '../src/plugin';
+import { PersistentTrackingQueue } from '../src/queue';
+import { snippetInstance } from '../src/snippet';
 
 export const sleep = (time: number): Promise<void> =>
   new Promise((resolve) => {
@@ -32,7 +34,7 @@ const mockAnalytics = (isReady = true): Analytics =>
       anonymousId: () => anonymousId,
       traits: () => traits,
     }),
-    track: () => Promise.resolve(),
+    track: jest.fn().mockImplementation(() => Promise.resolve()),
   } as unknown as Analytics);
 
 let instance: Analytics;
@@ -43,6 +45,7 @@ describe('SegmentIntegrationPlugin', () => {
     safeGlobal.asdf = undefined;
     safeGlobal.localStorage.clear();
     instance = mockAnalytics();
+    jest.clearAllMocks();
   });
 
   test('name', async () => {
@@ -196,6 +199,83 @@ describe('SegmentIntegrationPlugin', () => {
       instance.initialized = true;
       await sleep(100);
       expect(resolved).toEqual(true);
+    });
+  });
+  describe('PersistentTrackingQueue', () => {
+    let queueSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      // Spy on the class constructor
+      queueSpy = jest.spyOn(PersistentTrackingQueue.prototype, 'push');
+    });
+
+    afterEach(() => {
+      queueSpy.mockRestore();
+    });
+
+    test('should initialize queue with default instance name', () => {
+      const plugin = segmentIntegrationPlugin({ instance });
+      // Verify storage key by checking localStorage
+      plugin.track(impression);
+      const storedEvents = JSON.parse(
+        safeGlobal.localStorage.getItem('EXP_segment_unsent_analytics') || '[]',
+      );
+      expect(storedEvents).toEqual([impression]);
+    });
+
+    test('should queue events when Segment is not ready', () => {
+      const plugin = segmentIntegrationPlugin({ instance });
+      plugin.track(impression);
+      expect(queueSpy).toHaveBeenCalledWith(impression);
+    });
+
+    test('should set up tracker when Segment becomes ready', async () => {
+      const setTrackerSpy = jest
+        .spyOn(PersistentTrackingQueue.prototype, 'setTracker')
+        .mockImplementation((tracker) => {
+          // Simulate immediate flush when tracker is set
+          tracker(impression);
+        });
+
+      const plugin = segmentIntegrationPlugin({ instance });
+      await plugin.setup();
+      expect(setTrackerSpy).toHaveBeenCalled();
+
+      setTrackerSpy.mockRestore();
+    });
+
+    test('should track events directly when Segment is ready', async () => {
+      const plugin = segmentIntegrationPlugin({ instance });
+      await plugin.setup();
+      plugin.track(impression);
+      expect(instance.track).toHaveBeenCalledWith('$impression', {
+        flag_key: 'flag-key',
+        variant: 'on',
+      });
+    });
+
+    test('should store events in localStorage when Segment is not ready', () => {
+      const plugin = segmentIntegrationPlugin({ instance });
+      plugin.track(impression);
+      const storedEvents = JSON.parse(
+        safeGlobal.localStorage.getItem('EXP_segment_unsent_analytics') || '[]',
+      );
+      expect(storedEvents).toEqual([impression]);
+    });
+
+    test('should flush events when Segment becomes ready', async () => {
+      const plugin = segmentIntegrationPlugin({ instance });
+      plugin.track(impression);
+      await plugin.setup();
+      expect(instance.track).toHaveBeenCalledWith('$impression', {
+        flag_key: 'flag-key',
+        variant: 'on',
+      });
+      // Verify events are cleared from localStorage after flush
+      const storedEvents = JSON.parse(
+        safeGlobal.localStorage.getItem('EXP_segment_unsent_analytics') || '[]',
+      );
+      expect(storedEvents).toEqual([]);
     });
   });
 });
