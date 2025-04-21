@@ -1,8 +1,8 @@
-import { ExperimentEvent } from '@amplitude/experiment-js-client';
 import {
   isLocalStorageAvailable,
   safeGlobal,
 } from '@amplitude/experiment-core';
+import { ExperimentEvent } from '@amplitude/experiment-js-client';
 
 const MAX_QUEUE_SIZE = 512;
 
