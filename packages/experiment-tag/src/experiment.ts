@@ -596,6 +596,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private handleInject(action, flagKey: string, variant: Variant) {
     // TODO(tyiuhc): scope-checking will depend on multiple inject schema
     if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
+      // Revert inactive mutation if it exists
+      this.appliedMutations[flagKey]?.[INJECT_ACTION]?.[0]?.revert();
       return;
     }
     // Validate and transform ID
