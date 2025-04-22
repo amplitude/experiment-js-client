@@ -39,7 +39,7 @@ import { WebExperimentClient } from './web-experiment';
 
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 const MUTATE_ACTION = 'mutate';
-const INJECT_ACTION = 'inject';
+export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
 
 safeGlobal.Experiment = FeatureExperiment;
@@ -51,7 +51,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly globalScope: typeof globalThis;
   private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
-  private appliedMutations: {
+  appliedMutations: {
     [experiment: string]: {
       [actionType: string]: {
         [index: number]: MutationController;
@@ -352,13 +352,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (isWebExperimentation) {
         const shouldTrackExposure =
           (variant.metadata?.['trackExposure'] as boolean) ?? true;
-        // if payload is falsy or empty array, consider it as control variant
+        // if payload is falsy or empty array, consider it as control or off variant
         const payloadIsArray = Array.isArray(variant.payload);
         // TODO(bgiori) this will need to change when we introduce control variant mutations
-        const isControlPayload =
+        const isControlOrOffPayload =
           !variant.payload || (payloadIsArray && variant.payload.length === 0);
-        if (shouldTrackExposure && isControlPayload) {
+        if (shouldTrackExposure && isControlOrOffPayload) {
           this.exposureWithDedupe(key, variant);
+          // revert all applied mutations and injections
+          this.revertVariants({ flagKeys: [key] });
           continue;
         }
 
@@ -596,7 +598,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private handleInject(action, flagKey: string, variant: Variant) {
     // TODO(tyiuhc): scope-checking will depend on multiple inject schema
     if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
-      // Revert inactive mutation if it exists
       this.appliedMutations[flagKey]?.[INJECT_ACTION]?.[0]?.revert();
       return;
     }
@@ -721,10 +722,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     flagKey: string,
     scope: string[] | undefined,
   ): boolean {
-    // if no scope is provided, assume variant is active if at least ONE page in the experiment is active
+    const flagPages = this.activePages[flagKey];
+
+    // If no scope is provided, assume variant is active if the flag has any active pages
     if (!scope) {
-      return flagKey in this.activePages;
+      return !!flagPages && Object.values(flagPages).some(Boolean);
     }
-    return scope.some((pageId) => this.activePages[flagKey][pageId] ?? false);
+
+    // If scope is provided, check if any scoped page is active
+    return scope.some((pageId) => flagPages?.[pageId] ?? false);
   }
 }

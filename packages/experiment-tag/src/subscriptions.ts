@@ -1,6 +1,6 @@
 import { EvaluationEngine } from '@amplitude/experiment-core';
 
-import { DefaultWebExperimentClient } from './experiment';
+import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
 import {
   MessageBus,
   MessagePayloads,
@@ -99,6 +99,14 @@ export class SubscriptionManager {
                 !payload.updateActivePages) &&
               !this.options.isVisualEditorMode
             ) {
+              if (page.trigger_type === 'url_change') {
+                // Revert all injections
+                Object.values(
+                  this.webExperimentClient.appliedMutations,
+                ).forEach((mutation) => {
+                  mutation?.[INJECT_ACTION]?.[0]?.revert();
+                });
+              }
               this.webExperimentClient.applyVariants();
             }
 
