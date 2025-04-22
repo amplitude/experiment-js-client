@@ -376,17 +376,22 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param options
    */
   public revertVariants(options?: RevertVariantsOptions) {
+    if (!this.appliedMutations) return;
+
     let { flagKeys } = options || {};
     if (!flagKeys) {
       flagKeys = Object.keys(this.appliedMutations);
     }
 
     for (const key of flagKeys) {
-      Object.values(this.appliedMutations[key])?.forEach((type) => {
-        Object.values(type).forEach((mutation) => {
-          mutation.revert();
-        });
-      });
+      const typeMap = this.appliedMutations[key];
+      if (!typeMap) continue;
+
+      for (const type of Object.values(typeMap ?? {})) {
+        for (const mutation of Object.values(type ?? {})) {
+          mutation?.revert?.();
+        }
+      }
       delete this.appliedMutations[key];
     }
   }
