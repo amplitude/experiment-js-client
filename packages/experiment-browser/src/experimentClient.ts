@@ -261,7 +261,7 @@ export class ExperimentClient implements Client {
    * Stop the local flag configuration poller.
    */
   public stop() {
-    this.variantUpdater.stop();
+    this.variantUpdater.stop(); // Stop the variant updater, no waiting needed.
     if (!this.isRunning) {
       return;
     }
@@ -305,11 +305,8 @@ export class ExperimentClient implements Client {
     user = this.cleanUserPropsForFetch(user);
     await this.variantUpdater.start(
       async (results: Record<string, EvaluationVariant>) => {
-        const variants: Variants = {};
-        for (const key of Object.keys(results)) {
-          variants[key] = convertEvaluationVariantToVariant(results[key]);
-        }
-        await this.storeVariants(variants, options);
+        // On receiving variants update.
+        await this.processVariants(results, options);
       },
       (err) => {
         console.error(err);
@@ -317,6 +314,17 @@ export class ExperimentClient implements Client {
       { user, options, config: this.config },
     );
     return this;
+  }
+
+  private async processVariants(
+    flagKeyToVariant: Record<string, EvaluationVariant>,
+    options?: FetchOptions,
+  ): Promise<void> {
+    const variants: Variants = {};
+    Object.entries(flagKeyToVariant).forEach(([key, variant]) => {
+      variants[key] = convertEvaluationVariantToVariant(variant);
+    });
+    await this.storeVariants(variants, options);
   }
 
   /**
