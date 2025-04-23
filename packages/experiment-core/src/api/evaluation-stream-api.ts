@@ -113,37 +113,39 @@ export class SdkStreamEvaluationApi implements StreamEvaluationApi {
         }
         onUpdate?.(variants);
       };
-      const onSignalUpdateCb = async () => {
-        // Signaled that there's a push.
-        if (isConnecting) {
-          isConnecting = false;
-          clearTimeout(connectionTimeout);
-          resolve();
-        }
-        if (!this.fetchEvalApi) {
-          onErrorSseCb(
-            new Error(
-              'No fetchEvalApi provided for variant data that is too large to push.',
-            ),
-          );
-          return;
-        }
+      // The following is to support receiving a signal and fetching the variants.
+      // This would be helpful if the variant data is too large to be pushed.
+      // const onSignalUpdateCb = async () => {
+      //   // Signaled that there's a push.
+      //   if (isConnecting) {
+      //     isConnecting = false;
+      //     clearTimeout(connectionTimeout);
+      //     resolve();
+      //   }
+      //   if (!this.fetchEvalApi) {
+      //     onErrorSseCb(
+      //       new Error(
+      //         'No fetchEvalApi provided for variant data that is too large to push.',
+      //       ),
+      //     );
+      //     return;
+      //   }
 
-        let variants;
-        try {
-          variants = await this.fetchEvalApi.getVariants(user, options);
-        } catch (error) {
-          onErrorSseCb(
-            new Error('Error fetching variants on signal: ' + error),
-          );
-        }
-        onUpdate?.(variants || {});
-      };
+      //   let variants;
+      //   try {
+      //     variants = await this.fetchEvalApi.getVariants(user, options);
+      //   } catch (error) {
+      //     onErrorSseCb(
+      //       new Error('Error fetching variants on signal: ' + error),
+      //     );
+      //   }
+      //   onUpdate?.(variants || {});
+      // };
 
       this.stream.connect(
         {
           push_data: onDataUpdateSseCb,
-          push_signal: onSignalUpdateCb,
+          // push_signal: onSignalUpdateCb,
           [DEFAULT_EVENT_TYPE]: onDataUpdateSseCb,
         },
         onErrorSseCb,

@@ -21,7 +21,12 @@ export {
   StreamEvaluationApi,
   SdkStreamEvaluationApi,
 } from './api/evaluation-stream-api';
-export { SSE, SSEStream, SSEProvider } from './transport/stream';
+export {
+  SSE,
+  SSEStream,
+  SSEProvider,
+  SSEProviderParams,
+} from './transport/stream';
 export { Poller } from './util/poller';
 export {
   safeGlobal,

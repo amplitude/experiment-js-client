@@ -32,7 +32,9 @@ describe('SSEStream', () => {
     // Test new connection makes a call to the stream provider.
     stream.connect(mockOnDataUpdate, mockOnError);
     expect(mockStreamProvider).toHaveBeenCalledWith('http://localhost:7999', {
-      header1: 'value1',
+      headers: {
+        header1: 'value1',
+      },
     });
     expect(mockStreamProvider).toHaveBeenCalledTimes(1);
 
@@ -83,7 +85,7 @@ describe('SSEStream', () => {
       { channel1: mockOnData1Update, channel2: mockOnData2Update },
       mockOnError,
     );
-    expect(mockStreamProvider).toHaveBeenCalledWith('url', {});
+    expect(mockStreamProvider).toHaveBeenCalledWith('url', { headers: {} });
     expect(mockStreamProvider).toHaveBeenCalledTimes(1);
 
     // Test that the event listener is set up correctly.

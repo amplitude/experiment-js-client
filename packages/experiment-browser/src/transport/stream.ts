@@ -3,15 +3,13 @@
  * @internal
  */
 
-import { SSE } from '@amplitude/experiment-core';
+import { SSE, SSEProviderParams } from '@amplitude/experiment-core';
 import EventSource from 'eventsource';
 
 export const defaultSseProvider = (
   url: string,
-  headers: Record<string, string>,
+  params: SSEProviderParams,
 ): SSE => {
-  const es = new EventSource(url, {
-    headers,
-  });
+  const es = new EventSource(url, params);
   return es;
 };

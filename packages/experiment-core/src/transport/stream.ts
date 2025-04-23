@@ -17,7 +17,10 @@ export interface SSE {
   ): void;
   close(): void;
 }
-export type SSEProvider = (url: string, headers: Record<string, string>) => SSE;
+export type SSEProviderParams = {
+  headers: Record<string, string>;
+};
+export type SSEProvider = (url: string, params: SSEProviderParams) => SSE;
 
 export class SSEStream {
   streamProvider: SSEProvider;
@@ -95,7 +98,7 @@ export class SSEStream {
       this.close();
     }
 
-    this.es = this.streamProvider(this.url, this.headers);
+    this.es = this.streamProvider(this.url, { headers: this.headers });
     for (const eventType in this.onEventTypeUpdate) {
       this.es.addEventListener(eventType, (event) => {
         this.resetKeepAlive();

@@ -20,9 +20,9 @@ describe('EvaluationStreamApi tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     registeredListeners = {};
-    mockStreamProvider = jest.fn((url, header) => {
+    mockStreamProvider = jest.fn((url, param) => {
       expect(url).toBe('https://url/sdk/stream/v1/vardata');
-      expect(header['Authorization']).toBe('Api-Key apikey');
+      expect(param.headers['Authorization']).toBe('Api-Key apikey');
       return {
         addEventListener: jest.fn(
           (eventType: string, cb: (data: unknown) => void) => {
