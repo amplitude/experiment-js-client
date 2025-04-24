@@ -542,6 +542,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       redirectUrl,
     );
 
+    if (this.globalScope.location.href === targetUrl) {
+      return;
+    }
+
     this.exposureWithDedupe(flagKey, variant);
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
