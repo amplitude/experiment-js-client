@@ -82,6 +82,11 @@ export class VariantsStreamUpdater implements VariantUpdater {
         },
       );
     } catch (error) {
+      console.error(
+        '[Experiment] Stream updater failed to start: ' +
+          error +
+          error.statusCode,
+      );
       await this.handleError(error);
       throw error;
     }

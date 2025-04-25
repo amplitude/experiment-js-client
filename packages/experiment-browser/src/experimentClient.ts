@@ -306,6 +306,7 @@ export class ExperimentClient implements Client {
     await this.variantUpdater.start(
       async (results: Record<string, EvaluationVariant>) => {
         // On receiving variants update.
+        this.debug('[Experiment] Received variants update');
         await this.processVariants(results, options);
       },
       (err) => {
