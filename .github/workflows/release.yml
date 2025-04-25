@@ -48,6 +48,8 @@ jobs:
 
       - name: Test
         run: yarn test
+        env:
+          MANAGEMENT_API_KEY: ${{ secrets.MANAGEMENT_API_KEY }}
 
       - name: Configure Git User
         run: |

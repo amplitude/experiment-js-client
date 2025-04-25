@@ -7,7 +7,7 @@
   "useWorkspaces": true,
   "command": {
     "version": {
-      "allowBranch": "main",
+      "allowBranch": "stream-vardata",
       "conventionalCommits": true,
       "createRelease": "github",
       "message": "chore(release): publish",
