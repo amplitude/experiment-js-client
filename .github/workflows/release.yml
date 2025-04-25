@@ -60,7 +60,8 @@ jobs:
         if: ${{ github.event.inputs.dryRun == 'true'}}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn lerna version --no-push --no-git-tag-version --loglevel silly --yes
+        run: |
+          yarn lerna version --conventional-prerelease --no-private --no-push --no-git-tag-version --loglevel silly --yes
 
       - name: Setup NPM Token
         if: ${{ github.event.inputs.dryRun == 'false'}}
@@ -74,5 +75,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          yarn lerna version --yes
-          yarn lerna publish from-git --yes --loglevel silly
+          yarn lerna version --conventional-prerelease --no-private
+          yarn lerna publish from-git --loglevel silly
