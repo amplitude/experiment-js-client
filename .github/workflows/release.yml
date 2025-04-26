@@ -74,6 +74,7 @@ jobs:
         if: ${{ github.event.inputs.dryRun == 'false'}}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Adds all params to both version and publish just to be safe.
         run: |
-          yarn lerna version
-          yarn lerna publish from-git --loglevel silly
+          yarn lerna version --conventionalPrerelease --preid=beta --no-private
+          yarn lerna publish from-git --loglevel silly --dist-tag=beta --pre-dist-tag=beta --conventionalPrerelease --preid=beta --no-private

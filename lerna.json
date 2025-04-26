@@ -12,17 +12,7 @@
       "createRelease": "github",
       "message": "chore(release): publish",
       "preid": "beta",
-      "conventionalPrerelease": true,
-      "noPrivate": true,
-      "noGitTagVersion": true,
-      "noPush": true,
-      "noChangeLog": true,
-      "distTag": "beta",
-      "preDistTag": "beta"
-    },
-    "publishConfig": {
-      "distTag": "beta",
-      "preDistTag": "beta"
+      "conventionalPrerelease": true
     }
   }
 }
