@@ -95,6 +95,18 @@ export interface ExperimentConfig {
   flagConfigPollingIntervalMillis?: number;
 
   /**
+   * If true, the client will stream updates for remote evaluation from the server.
+   * fetch() will update variants and initiate a connection to the server.
+   */
+  streamVariants?: boolean;
+
+  /**
+   * The URL to stream remote evaluation updates from. This is only used if
+   * `streamVariants` is `true`.
+   */
+  streamVariantsServerUrl?: string;
+
+  /**
    * Explicitly enable or disable calling {@link fetch()} on {@link start()}:
    *
    *  - `true`:      fetch will always be called on start.
@@ -190,6 +202,8 @@ export const Defaults: ExperimentConfig = {
   automaticExposureTracking: true,
   pollOnStart: true,
   flagConfigPollingIntervalMillis: 300000,
+  streamVariants: false,
+  streamVariantsServerUrl: 'https://stream.lab.amplitude.com',
   fetchOnStart: true,
   automaticFetchOnAmplitudeIdentityChange: false,
   userProvider: null,

@@ -7,7 +7,7 @@ import {
   PAGE_NOT_TARGETED_SEGMENT_NAME,
   DefaultWebExperimentClient,
 } from 'src/experiment';
-import * as util from 'src/util';
+import * as utils from 'src/utils';
 import { stringify } from 'ts-jest';
 
 import {
@@ -65,7 +65,7 @@ describe('initializeExperiment', () => {
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
-  jest.spyOn(util, 'UUID').mockReturnValue('mock');
+  jest.spyOn(utils, 'UUID').mockReturnValue('mock');
   let mockGlobal;
   let antiFlickerSpy;
 
@@ -769,7 +769,7 @@ describe('helper methods', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     apiKey++;
-    jest.spyOn(util, 'UUID').mockReturnValue('mock');
+    jest.spyOn(utils, 'UUID').mockReturnValue('mock');
     jest.clearAllMocks();
   });
 

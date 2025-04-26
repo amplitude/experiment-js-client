@@ -6,3 +6,9 @@ export const clearAllCookies = () => {
     document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
   }
 };
+
+export const sleep = async (millis: number): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, millis);
+  });
+};

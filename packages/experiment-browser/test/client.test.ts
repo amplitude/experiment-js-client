@@ -1,5 +1,10 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { FetchError, safeGlobal } from '@amplitude/experiment-core';
+import {
+  EvaluationVariant,
+  FetchError,
+  safeGlobal,
+  SdkEvaluationApi,
+} from '@amplitude/experiment-core';
 import { Defaults } from 'src/config';
 import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
@@ -18,6 +23,7 @@ import {
 } from '../src';
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
+import { VariantsFetchUpdater } from '../src/util/updaters';
 
 import { mockClientStorage } from './util/mock';
 
@@ -1129,20 +1135,22 @@ describe('fetch retry with different response codes', () => {
       mockClientStorage(client);
 
       jest
-        .spyOn(ExperimentClient.prototype as any, 'doFetch')
+        .spyOn(SdkEvaluationApi.prototype as any, 'getVariants')
         .mockImplementation(
           async (user?: ExperimentUser, options?: FetchOptions) => {
-            return new Promise<ExperimentClient>((resolve, reject) => {
-              if (responseCode === 0) {
-                reject(new Error(errorMessage));
-              } else {
-                reject(new FetchError(responseCode, errorMessage));
-              }
-            });
+            return new Promise<Record<string, EvaluationVariant>>(
+              (resolve, reject) => {
+                if (responseCode === 0) {
+                  reject(new Error(errorMessage));
+                } else {
+                  reject(new FetchError(responseCode, errorMessage));
+                }
+              },
+            );
           },
         );
       const retryMock = jest.spyOn(
-        ExperimentClient.prototype as any,
+        VariantsFetchUpdater.prototype as any,
         'startRetries',
       );
       try {
@@ -1365,5 +1373,18 @@ describe('flag config polling interval config', () => {
       flagConfigPollingIntervalMillis: 900000,
     });
     expect(client['config'].flagConfigPollingIntervalMillis).toEqual(900000);
+  });
+});
+
+describe('client stream variants', () => {
+  test('stream variants, success', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      streamVariants: true,
+    });
+    mockClientStorage(client);
+    await client.fetch(testUser);
+    const variant = client.variant(serverKey);
+    expect(variant).toEqual(serverVariant);
+    client.stop();
   });
 });

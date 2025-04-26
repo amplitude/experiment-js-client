@@ -7,11 +7,13 @@ import {
   EvaluationApi,
   EvaluationEngine,
   EvaluationFlag,
+  EvaluationVariant,
   FetchError,
   FlagApi,
   Poller,
   SdkEvaluationApi,
   SdkFlagApi,
+  SdkStreamEvaluationApi,
   TimeoutError,
   topologicalSort,
 } from '@amplitude/experiment-core';
@@ -29,6 +31,7 @@ import {
 import { LocalStorage } from './storage/local-storage';
 import { SessionStorage } from './storage/session-storage';
 import { FetchHttpClient, WrapperClient } from './transport/http';
+import { defaultSseProvider } from './transport/stream';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
 import { Exposure, ExposureTrackingProvider } from './types/exposure';
@@ -51,18 +54,22 @@ import {
 } from './util/convert';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
 import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
+import {
+  VariantsFetchUpdater,
+  VariantsRetryAndFallbackWrapperUpdater,
+  VariantsStreamUpdater,
+  VariantUpdater,
+} from './util/updaters';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
-const fetchBackoffTimeout = 10000;
-const fetchBackoffAttempts = 8;
-const fetchBackoffMinMillis = 500;
-const fetchBackoffMaxMillis = 10000;
-const fetchBackoffScalar = 1.5;
 const minFlagPollerIntervalMillis = 60000;
+const streamConnectionTimeoutMillis = 3000;
+const streamRetryIntervalMillis = 10 * 60 * 1000;
 
 const euServerUrl = 'https://api.lab.eu.amplitude.com';
 const euFlagsServerUrl = 'https://flag.lab.eu.amplitude.com';
+const euStreamVariantsServerUrl = 'https://stream.lab.eu.amplitude.com';
 
 /**
  * The default {@link Client} used to fetch variations from Experiment's
@@ -76,7 +83,7 @@ export class ExperimentClient implements Client {
   private readonly variants: LoadStoreCache<Variant>;
   private readonly flags: LoadStoreCache<EvaluationFlag>;
   private readonly flagApi: FlagApi;
-  private readonly evaluationApi: EvaluationApi;
+  private readonly variantUpdater: VariantUpdater;
   private readonly engine: EvaluationEngine = new EvaluationEngine();
   private user: ExperimentUser | undefined;
   private userProvider: ExperimentUserProvider | undefined;
@@ -117,6 +124,11 @@ export class ExperimentClient implements Client {
         (config?.serverZone?.toLowerCase() === 'eu'
           ? euFlagsServerUrl
           : Defaults.flagsServerUrl),
+      streamVariantsServerUrl:
+        config?.streamVariantsServerUrl ||
+        (config?.serverZone?.toLowerCase() === 'eu'
+          ? euStreamVariantsServerUrl
+          : Defaults.streamVariantsServerUrl),
       // Force minimum flag config polling interval.
       flagConfigPollingIntervalMillis:
         config.flagConfigPollingIntervalMillis < minFlagPollerIntervalMillis
@@ -161,11 +173,27 @@ export class ExperimentClient implements Client {
       this.config.flagsServerUrl,
       httpClient,
     );
-    this.evaluationApi = new SdkEvaluationApi(
+    const evaluationApi = new SdkEvaluationApi(
       this.apiKey,
       this.config.serverUrl,
       httpClient,
     );
+    this.variantUpdater = new VariantsFetchUpdater(evaluationApi);
+    if (config.streamVariants) {
+      const streamEvaluationApi = new SdkStreamEvaluationApi(
+        this.apiKey,
+        this.config.streamVariantsServerUrl,
+        defaultSseProvider,
+        streamConnectionTimeoutMillis,
+        evaluationApi,
+      );
+      const streamUpdater = new VariantsStreamUpdater(streamEvaluationApi);
+      this.variantUpdater = new VariantsRetryAndFallbackWrapperUpdater(
+        streamUpdater,
+        this.variantUpdater,
+        streamRetryIntervalMillis,
+      );
+    }
     // Storage & Caching
     let storage: Storage;
     const storageInstanceName = internalInstanceName
@@ -233,6 +261,7 @@ export class ExperimentClient implements Client {
    * Stop the local flag configuration poller.
    */
   public stop() {
+    this.variantUpdater.stop(); // Stop the variant updater, no waiting needed.
     if (!this.isRunning) {
       return;
     }
@@ -267,24 +296,36 @@ export class ExperimentClient implements Client {
     user: ExperimentUser = this.user,
     options?: FetchOptions,
   ): Promise<ExperimentClient> {
-    this.setUser(user || {});
-    try {
-      await this.fetchInternal(
-        user,
-        this.config.fetchTimeoutMillis,
-        this.config.retryFetchOnFailure,
-        options,
-      );
-    } catch (e) {
-      if (this.config.debug) {
-        if (e instanceof TimeoutError) {
-          console.debug(e);
-        } else {
-          console.error(e);
-        }
-      }
+    // Don't even try to fetch variants if API key is not set
+    if (!this.apiKey) {
+      throw Error('Experiment API key is empty');
     }
+    this.setUser(user || {});
+    user = await this.addContextOrWait(user);
+    user = this.cleanUserPropsForFetch(user);
+    await this.variantUpdater.start(
+      async (results: Record<string, EvaluationVariant>) => {
+        // On receiving variants update.
+        this.debug('[Experiment] Received variants update');
+        await this.processVariants(results, options);
+      },
+      (err) => {
+        console.error(err);
+      },
+      { user, options, config: this.config },
+    );
     return this;
+  }
+
+  private async processVariants(
+    flagKeyToVariant: Record<string, EvaluationVariant>,
+    options?: FetchOptions,
+  ): Promise<void> {
+    const variants: Variants = {};
+    Object.entries(flagKeyToVariant).forEach(([key, variant]) => {
+      variants[key] = convertEvaluationVariantToVariant(variant);
+    });
+    await this.storeVariants(variants, options);
   }
 
   /**
@@ -665,61 +706,10 @@ export class ExperimentClient implements Client {
     return defaultSourceVariant;
   }
 
-  private async fetchInternal(
-    user: ExperimentUser,
-    timeoutMillis: number,
-    retry: boolean,
-    options?: FetchOptions,
-  ): Promise<Variants> {
-    // Don't even try to fetch variants if API key is not set
-    if (!this.apiKey) {
-      throw Error('Experiment API key is empty');
-    }
-
-    this.debug(`[Experiment] Fetch all: retry=${retry}`);
-
-    // Proactively cancel retries if active in order to avoid unnecessary API
-    // requests. A new failure will restart the retries.
-    if (retry) {
-      this.stopRetries();
-    }
-
-    try {
-      const variants = await this.doFetch(user, timeoutMillis, options);
-      await this.storeVariants(variants, options);
-      return variants;
-    } catch (e) {
-      if (retry && this.shouldRetryFetch(e)) {
-        void this.startRetries(user, options);
-      }
-      throw e;
-    }
-  }
-
   private cleanUserPropsForFetch(user: ExperimentUser): ExperimentUser {
     const cleanedUser = { ...user };
     delete cleanedUser.cookie;
     return cleanedUser;
-  }
-
-  private async doFetch(
-    user: ExperimentUser,
-    timeoutMillis: number,
-    options?: FetchOptions,
-  ): Promise<Variants> {
-    user = await this.addContextOrWait(user);
-    user = this.cleanUserPropsForFetch(user);
-    this.debug('[Experiment] Fetch variants for user: ', user);
-    const results = await this.evaluationApi.getVariants(user, {
-      timeoutMillis: timeoutMillis,
-      ...options,
-    });
-    const variants: Variants = {};
-    for (const key of Object.keys(results)) {
-      variants[key] = convertEvaluationVariantToVariant(results[key]);
-    }
-    this.debug('[Experiment] Received variants: ', variants);
-    return variants;
   }
 
   private async doFlags(): Promise<void> {
@@ -778,28 +768,6 @@ export class ExperimentClient implements Client {
       // catch localStorage undefined error
     }
     this.debug('[Experiment] Stored variants: ', variants);
-  }
-
-  private async startRetries(
-    user: ExperimentUser,
-    options: FetchOptions,
-  ): Promise<void> {
-    this.debug('[Experiment] Retry fetch');
-    this.retriesBackoff = new Backoff(
-      fetchBackoffAttempts,
-      fetchBackoffMinMillis,
-      fetchBackoffMaxMillis,
-      fetchBackoffScalar,
-    );
-    void this.retriesBackoff.start(async () => {
-      await this.fetchInternal(user, fetchBackoffTimeout, false, options);
-    });
-  }
-
-  private stopRetries(): void {
-    if (this.retriesBackoff) {
-      this.retriesBackoff.cancel();
-    }
   }
 
   private addContext(user: ExperimentUser): ExperimentUser {
