@@ -31,7 +31,7 @@ import {
   urlWithoutParamsAndAnchor,
   UUID,
   concatenateQueryParamsOf,
-} from './util';
+} from './utils';
 import { WebExperimentClient } from './web-experiment';
 
 export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
