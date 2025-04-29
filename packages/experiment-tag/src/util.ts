@@ -112,3 +112,16 @@ export const convertEvaluationVariantToVariant = (
   if (evaluationVariant.metadata) variant.metadata = evaluationVariant.metadata;
   return variant;
 };
+
+export const runAfterHydration = (callback) => {
+  if (typeof window === 'undefined') return; // SSR safety
+
+  if (document.readyState === 'complete') {
+    // Already loaded
+    requestAnimationFrame(callback);
+  } else {
+    window.addEventListener('load', () => {
+      requestAnimationFrame(callback);
+    });
+  }
+};
