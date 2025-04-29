@@ -174,7 +174,9 @@ export class PersistentTrackingQueue {
   private readonly isLocalStorageAvailable = isLocalStorageAvailable();
   private inMemoryQueue: ExperimentEvent[] = [];
   private poller: any | undefined;
+  private readyCheckInterval: any | undefined;
   private tracker: ((event: ExperimentEvent) => boolean) | undefined;
+  private isReady = false;
 
   constructor(instanceName: string, maxQueueSize: number = MAX_QUEUE_SIZE) {
     this.storageKey = `EXP_unsent_${instanceName}`;
@@ -184,20 +186,42 @@ export class PersistentTrackingQueue {
   push(event: ExperimentEvent): void {
     this.loadQueue();
     this.inMemoryQueue.push(event);
-    this.flush();
+    if (this.isReady) {
+      this.flush();
+    }
     this.storeQueue();
+    this.startReadyCheck();
   }
 
   setTracker(tracker: (event: ExperimentEvent) => boolean): void {
     this.tracker = tracker;
-    this.poller = safeGlobal.setInterval(() => {
-      this.loadFlushStore();
-    }, 1000);
+    this.startPolling();
     this.loadFlushStore();
   }
 
+  private startReadyCheck(): void {
+    if (this.readyCheckInterval || !this.tracker) return;
+
+    this.readyCheckInterval = safeGlobal.setInterval(() => {
+      if (this.tracker!(this.inMemoryQueue[0])) {
+        this.isReady = true;
+        safeGlobal.clearInterval(this.readyCheckInterval);
+        this.readyCheckInterval = undefined;
+        this.flush();
+      }
+    }, 50);
+  }
+
+  private startPolling(): void {
+    if (this.poller) return;
+
+    this.poller = safeGlobal.setInterval(() => {
+      this.loadFlushStore();
+    }, 1000);
+  }
+
   private flush(): void {
-    if (!this.tracker) return;
+    if (!this.tracker || !this.isReady) return;
     if (this.inMemoryQueue.length === 0) return;
     for (const event of this.inMemoryQueue) {
       if (!this.tracker(event)) return;
@@ -218,7 +242,6 @@ export class PersistentTrackingQueue {
 
   private storeQueue(): void {
     if (this.isLocalStorageAvailable) {
-      // Trim the queue if it is too large.
       if (this.inMemoryQueue.length > this.maxQueueSize) {
         this.inMemoryQueue = this.inMemoryQueue.slice(
           this.inMemoryQueue.length - this.maxQueueSize,
