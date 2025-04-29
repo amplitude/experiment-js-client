@@ -113,7 +113,7 @@ export const convertEvaluationVariantToVariant = (
   return variant;
 };
 
-export const runAfterHydration = (callback) => {
+export const runAfterHydration = (callback: () => void) => {
   if (typeof window === 'undefined') return; // SSR safety
 
   if (document.readyState === 'complete') {
@@ -124,4 +124,10 @@ export const runAfterHydration = (callback) => {
       requestAnimationFrame(callback);
     });
   }
+};
+
+export const removeAntiFlickerCss = () => {
+  runAfterHydration(() => {
+    document.getElementById?.('amp-exp-css')?.remove();
+  });
 };

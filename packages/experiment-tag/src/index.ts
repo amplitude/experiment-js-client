@@ -1,4 +1,5 @@
 import { DefaultWebExperimentClient } from './experiment';
+import { removeAntiFlickerCss } from './util';
 
 const API_KEY = '{{DEPLOYMENT_KEY}}';
 const initialFlags = '{{INITIAL_FLAGS}}';
@@ -10,7 +11,7 @@ DefaultWebExperimentClient.getInstance(API_KEY, initialFlags, {
   .start()
   .then(() => {
     // Remove anti-flicker css if it exists
-    document.getElementById('amp-exp-css')?.remove();
+    removeAntiFlickerCss();
   });
 
 export { WebExperimentClient } from 'web-experiment';
