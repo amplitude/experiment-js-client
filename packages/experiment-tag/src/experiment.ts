@@ -507,7 +507,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       });
       (this.appliedMutations[key] ??= {})[MUTATE_ACTION] = mutationControllers;
       this.exposureWithDedupe(key, variant);
-    });
+    }, 100);
   }
 
   private handleInject(action, key: string, variant: Variant) {
