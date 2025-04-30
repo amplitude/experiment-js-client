@@ -31,6 +31,8 @@ import {
   urlWithoutParamsAndAnchor,
   UUID,
   concatenateQueryParamsOf,
+  runAfterHydration,
+  removeAntiFlickerCss,
 } from './util';
 import { WebExperimentClient } from './web-experiment';
 
@@ -249,7 +251,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     if (!this.isRemoteBlocking) {
       // Remove anti-flicker css if remote flags are not blocking
-      this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
+      removeAntiFlickerCss();
     }
 
     if (this.remoteFlagKeys.length === 0) {
@@ -490,20 +492,22 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleMutate(action, key: string, variant: Variant) {
-    // Check for repeat invocations
-    if (this.appliedMutations[key]?.[MUTATE_ACTION]) {
-      return;
-    }
-    const mutations = action.data?.mutations;
-    if (mutations.length === 0) {
-      return;
-    }
-    const mutationControllers: MutationController[] = [];
-    mutations.forEach((m) => {
-      mutationControllers.push(mutate.declarative(m));
-    });
-    (this.appliedMutations[key] ??= {})[MUTATE_ACTION] = mutationControllers;
-    this.exposureWithDedupe(key, variant);
+    runAfterHydration(() => {
+      // Check for repeat invocations
+      if (this.appliedMutations[key]?.[MUTATE_ACTION]) {
+        return;
+      }
+      const mutations = action.data?.mutations;
+      if (mutations.length === 0) {
+        return;
+      }
+      const mutationControllers: MutationController[] = [];
+      mutations.forEach((m) => {
+        mutationControllers.push(mutate.declarative(m));
+      });
+      (this.appliedMutations[key] ??= {})[MUTATE_ACTION] = mutationControllers;
+      this.exposureWithDedupe(key, variant);
+    }, 100);
   }
 
   private handleInject(action, key: string, variant: Variant) {

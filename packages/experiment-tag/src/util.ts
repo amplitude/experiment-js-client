@@ -112,3 +112,39 @@ export const convertEvaluationVariantToVariant = (
   if (evaluationVariant.metadata) variant.metadata = evaluationVariant.metadata;
   return variant;
 };
+
+export const runAfterHydration = (callback: () => void, timeout = 1000) => {
+  if (typeof window === 'undefined') return; // SSR safety
+  const timeoutId = setTimeout(() => {
+    cleanup();
+    callback();
+  }, timeout);
+
+  const cleanup = () => {
+    clearTimeout(timeoutId);
+    window.removeEventListener('load', handleLoad);
+  };
+
+  const handleLoad = () => {
+    cleanup();
+    requestAnimationFrame(() => {
+      try {
+        callback();
+      } catch (e) {
+        callback();
+      }
+    });
+  };
+
+  if (document.readyState === 'complete') {
+    handleLoad();
+  } else {
+    window.addEventListener('load', handleLoad);
+  }
+};
+
+export const removeAntiFlickerCss = () => {
+  runAfterHydration(() => {
+    document.getElementById?.('amp-exp-css')?.remove();
+  }, 100);
+};

@@ -80,6 +80,10 @@ describe('initializeExperiment', () => {
     antiFlickerSpy = jest
       .spyOn(DefaultWebExperimentClient.prototype as any, 'applyAntiFlickerCss')
       .mockImplementation(jest.fn());
+    // Mock runAfterHydration to execute callbacks immediately
+    jest.spyOn(util, 'runAfterHydration').mockImplementation((callback) => {
+      callback();
+    });
   });
 
   test('should initialize experiment with empty user', () => {
