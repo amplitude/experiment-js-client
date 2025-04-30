@@ -54,24 +54,22 @@ export class IntegrationManager {
    * @param integration the integration to manage.
    */
   setIntegration(integration: IntegrationPlugin): void {
-    if (this.integration && this.integration.teardown) {
+    if (this.integration?.teardown) {
       void this.integration.teardown();
     }
     this.integration = integration;
-    if (integration.setup) {
-      this.integration.setup(this.config, this.client).then(
-        () => {
-          this.queue.setTracker(this.integration.track.bind(integration));
-          this.resolve();
-        },
-        () => {
-          this.queue.setTracker(this.integration.track.bind(integration));
-          this.resolve();
-        },
-      );
-    } else {
+
+    const finalizeSetup = () => {
       this.queue.setTracker(this.integration.track.bind(integration));
       this.resolve();
+    };
+
+    if (integration.setup) {
+      void this.integration
+        .setup(this.config, this.client)
+        .finally(finalizeSetup);
+    } else {
+      finalizeSetup();
     }
   }
 
@@ -186,11 +184,13 @@ export class PersistentTrackingQueue {
   push(event: ExperimentEvent): void {
     this.loadQueue();
     this.inMemoryQueue.push(event);
-    if (this.isReady) {
+    if (this.tracker) {
+      this.isReady = true;
       this.flush();
+    } else {
+      this.startReadyCheck();
     }
     this.storeQueue();
-    this.startReadyCheck();
   }
 
   setTracker(tracker: (event: ExperimentEvent) => boolean): void {
@@ -203,13 +203,13 @@ export class PersistentTrackingQueue {
     if (this.readyCheckInterval || !this.tracker) return;
 
     this.readyCheckInterval = safeGlobal.setInterval(() => {
-      if (this.tracker!(this.inMemoryQueue[0])) {
+      if (this.tracker) {
         this.isReady = true;
         safeGlobal.clearInterval(this.readyCheckInterval);
         this.readyCheckInterval = undefined;
         this.flush();
       }
-    }, 50);
+    }, 25);
   }
 
   private startPolling(): void {

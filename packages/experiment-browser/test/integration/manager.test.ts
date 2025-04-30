@@ -18,6 +18,7 @@ describe('IntegrationManager', () => {
     // @ts-ignore
     const client = { test: 'client' } as ExperimentClient;
     manager = new IntegrationManager(config, client);
+    (manager as any).isReady = true;
   });
 
   describe('ready', () => {
