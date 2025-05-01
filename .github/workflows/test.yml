@@ -40,7 +40,7 @@ jobs:
       shell: bash
 
     - name: Install
-      run: yarn install --frozen-lockfile
+      run: yarn install --frozen-lockfile --force
 
     - name: Build
       run: npx lerna exec yarn --stream
