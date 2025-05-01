@@ -466,7 +466,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * When in visual editor mode,  update the current page objects and reinitializes subscriptions and active pages.
+   * When in visual editor mode, update the current page objects and reinitialize subscriptions and active pages.
    *
    * @param {PageObjects} pageObjects - The new set of page objects to be set.
    */
