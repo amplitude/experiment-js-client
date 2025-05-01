@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.6.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.5...@amplitude/experiment-tag@0.6.0) (2025-05-01)
+
+
+### Features
+
+* Support web experiment page view objects ([#165](https://github.com/amplitude/experiment-js-client/issues/165)) ([2da40e2](https://github.com/amplitude/experiment-js-client/commit/2da40e2ab7395abc92e6644c8ac99a27ba3f007b))
+
+
+
+
+
 ## [0.5.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.5.4...@amplitude/experiment-tag@0.5.5) (2025-04-02)
 
 
