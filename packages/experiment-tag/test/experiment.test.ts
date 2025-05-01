@@ -1093,17 +1093,12 @@ describe('helper methods', () => {
     const webExperiment = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag(
+        createMutateFlag(
           'targeted',
           'treatment',
-          'http://test.com/2',
-          undefined,
-        ),
-        createRedirectFlag(
-          'non-targeted',
-          'treatment',
-          'http://test.com/3',
-          undefined,
+          [DEFAULT_MUTATE_SCOPE],
+          [],
+          'local',
         ),
       ]),
       JSON.stringify({

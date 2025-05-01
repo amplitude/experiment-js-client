@@ -29,6 +29,4 @@ export interface WebExperimentClient {
   getActivePages(): PageObjects;
 
   setRedirectHandler(handler: (url: string) => void): void;
-
-  triggerView(name: string): void;
 }

@@ -54,7 +54,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   appliedMutations: {
     [experiment: string]: {
       [actionType: string]: {
-        [index: number]: MutationController;
+        [id: string]: MutationController;
       };
     };
   } = {};
@@ -427,7 +427,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Get all variants for the current web experiment context.
+   * Get all variants for the current web experiment user context.
    */
   public getVariants(): Variants {
     const variants: Variants = {};
@@ -438,10 +438,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Get the list of active experiments.
+   * Get the list of experiments with active mutations or injects on the current page.
    */
   public getActiveExperiments(): string[] {
-    return Object.keys(this.activePages);
+    return Object.keys(this.appliedMutations);
   }
 
   /**
@@ -465,6 +465,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
+  /**
+   * When in visual editor mode,  update the current page objects and reinitializes subscriptions and active pages.
+   *
+   * @param {PageObjects} pageObjects - The new set of page objects to be set.
+   */
+
   public setPageObjects(pageObjects: PageObjects) {
     if (this.isVisualEditorMode) {
       this.pageObjects = pageObjects;
@@ -482,18 +488,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public setRedirectHandler(handler: (url: string) => void) {
     this.customRedirectHandler = handler;
-  }
-
-  /**
-   * Manual trigger for a page view.
-   * @param name
-   */
-  public triggerView(name: string) {
-    // TODO: should wait for remote flags to be fetched
-    // send message to MessageBus for view trigger
-    this.messageBus.publish('manual', {
-      name,
-    });
   }
 
   private async fetchRemoteFlags() {
@@ -605,7 +599,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleInject(action, flagKey: string, variant: Variant) {
-    // TODO(tyiuhc): scope-checking will depend on multiple inject schema
     if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
       this.appliedMutations[flagKey]?.[INJECT_ACTION]?.[0]?.revert();
       return;
@@ -668,10 +661,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     // Push mutation to remove CSS and any custom state cleanup set in utils.
     this.appliedMutations[flagKey] ??= {};
-    this.appliedMutations[flagKey][INJECT_ACTION] ??= [];
+    this.appliedMutations[flagKey][INJECT_ACTION] ??= {};
 
     // Push the mutation
-    this.appliedMutations[flagKey][INJECT_ACTION][0] = {
+    this.appliedMutations[flagKey][INJECT_ACTION][id] = {
       revert: () => {
         utils.remove?.();
         style?.remove();

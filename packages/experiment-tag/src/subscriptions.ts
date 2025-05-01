@@ -74,7 +74,7 @@ export class SubscriptionManager {
 
   public setupPageObjectSubscriptions = () => {
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
-      for (const [_, page] of Object.entries(pages)) {
+      for (const page of Object.values(pages)) {
         this.messageBus.subscribe(
           page.trigger_type,
           (payload) => {
@@ -101,10 +101,25 @@ export class SubscriptionManager {
             ) {
               if (page.trigger_type === 'url_change') {
                 // Revert all injections
-                Object.values(
+                Object.entries(
                   this.webExperimentClient.appliedMutations,
-                ).forEach((mutation) => {
-                  mutation?.[INJECT_ACTION]?.[0]?.revert();
+                ).forEach(([flagKey, flag]) => {
+                  if (flag[INJECT_ACTION]) {
+                    Object.values(flag[INJECT_ACTION]).forEach((action) => {
+                      action.revert?.();
+                    });
+                    // clean up mutations and injections map
+                    delete this.webExperimentClient.appliedMutations[flagKey][
+                      INJECT_ACTION
+                    ];
+                    if (
+                      Object.keys(
+                        this.webExperimentClient.appliedMutations[flagKey],
+                      ).length === 0
+                    ) {
+                      delete this.webExperimentClient.appliedMutations[flagKey];
+                    }
+                  }
                 });
               }
               this.webExperimentClient.applyVariants();
