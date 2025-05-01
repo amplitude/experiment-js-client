@@ -2,6 +2,7 @@ import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
 import {
   ApplyVariantsOptions,
+  PageObjects,
   PreviewVariantsOptions,
   RevertVariantsOptions,
 } from './types';
@@ -24,6 +25,8 @@ export interface WebExperimentClient {
   getVariants(): Variants;
 
   getActiveExperiments(): string[];
+
+  getActivePages(): PageObjects;
 
   setRedirectHandler(handler: (url: string) => void): void;
 }

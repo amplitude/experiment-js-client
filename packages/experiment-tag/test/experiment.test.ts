@@ -2,22 +2,20 @@ import * as experimentCore from '@amplitude/experiment-core';
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
-import {
-  PAGE_IS_EXCLUDED_SEGMENT_NAME,
-  PAGE_NOT_TARGETED_SEGMENT_NAME,
-  DefaultWebExperimentClient,
-} from 'src/experiment';
+import { DefaultWebExperimentClient } from 'src/experiment';
 import * as util from 'src/util';
 import { stringify } from 'ts-jest';
 
-import {
-  createFlag,
-  createMutateFlag,
-  createRedirectFlag,
-} from './util/create-flag';
+import { createMutateFlag, createRedirectFlag } from './util/create-flag';
+import { createPageObject } from './util/create-page-object';
 import { MockHttpClient } from './util/mock-http-client';
 
 let apiKey = 0;
+const DEFAULT_PAGE_OBJECTS = {
+  test: createPageObject('A', 'url_change', undefined, 'http://test.com'),
+};
+const DEFAULT_REDIRECT_SCOPE = { treatment: ['A'], control: ['A'] };
+const DEFAULT_MUTATE_SCOPE = { metadata: { scope: ['A'] } };
 
 jest.mock('src/messenger', () => {
   return {
@@ -60,6 +58,21 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
   };
 };
 
+// disable mutation observer for tests
+global.MutationObserver = class {
+  observe() {
+    // do nothing
+  }
+
+  disconnect() {
+    // do nothing
+  }
+
+  takeRecords() {
+    return [];
+  }
+};
+
 describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
   jest.spyOn(ExperimentClient.prototype, 'setUser');
@@ -86,6 +99,7 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([]),
+      JSON.stringify({}),
     ).start();
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       web_exp_id: 'mock',
@@ -110,10 +124,6 @@ describe('initializeExperiment', () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
-    const setDefaultSpy = jest.spyOn(
-      DefaultWebExperimentClient.prototype as any,
-      'setDefaultNavigationHandler',
-    );
     const initialFlags = [
       // remote flag
       createMutateFlag('test-2', 'treatment', [], [], 'remote'),
@@ -124,16 +134,15 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
 
-    DefaultWebExperimentClient.getInstance(
+    const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify({}),
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then();
-    expect(setDefaultSpy).not.toHaveBeenCalled();
+    );
+    expect((client as any).config.useDefaultNavigationHandler).toBe(false);
   });
 
   test('experiment should not run without localStorage', async () => {
@@ -144,6 +153,7 @@ describe('initializeExperiment', () => {
       await DefaultWebExperimentClient.getInstance(
         stringify(apiKey),
         JSON.stringify([]),
+        JSON.stringify({}),
       ).start();
     } catch (error: any) {
       expect(error.message).toBe(
@@ -157,8 +167,15 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag('test', 'treatment', 'http://test.com/2'),
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
@@ -172,6 +189,7 @@ describe('initializeExperiment', () => {
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
       ]),
+      JSON.stringify({}),
     ).start();
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -195,6 +213,7 @@ describe('initializeExperiment', () => {
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
@@ -220,8 +239,15 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag('test', 'treatment', 'http://test.com/2'),
+        createRedirectFlag(
+          'test',
+          'control',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
@@ -242,36 +268,12 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const pageTargetingSegments = [
-      {
-        conditions: [
-          [
-            {
-              op: 'regex does not match',
-              selector: ['context', 'page', 'url'],
-              values: ['^http:\\/\\/test.com/$'],
-            },
-          ],
-        ],
-        metadata: {
-          segmentName: PAGE_NOT_TARGETED_SEGMENT_NAME,
-          trackExposure: false,
-        },
-        variant: 'off',
-      },
-    ];
-
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag(
-          'test',
-          'treatment',
-          'http://test.com/2',
-          undefined,
-          pageTargetingSegments,
-        ),
+        createRedirectFlag('test', 'treatment', 'http://test.com/2', undefined),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     );
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
@@ -303,8 +305,10 @@ describe('initializeExperiment', () => {
           'treatment',
           'http://test.com/2?param3=c',
           'http://test.com/',
+          DEFAULT_REDIRECT_SCOPE,
         ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
@@ -317,8 +321,15 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag('test', 'control', 'http://test.com/2?param3=c'),
+        createRedirectFlag(
+          'test',
+          'control',
+          'http://test.com/2?param3=c',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
 
     expect(mockGlobal.location.replace).not.toHaveBeenCalled();
@@ -333,24 +344,6 @@ describe('initializeExperiment', () => {
       writable: true,
     });
     jest.spyOn(experimentCore, 'getGlobalScope');
-    const pageTargetingSegments = [
-      {
-        conditions: [
-          [
-            {
-              op: 'regex does not match',
-              selector: ['context', 'page', 'url'],
-              values: ['^http:\\/\\/test.*'],
-            },
-          ],
-        ],
-        metadata: {
-          segmentName: PAGE_NOT_TARGETED_SEGMENT_NAME,
-          trackExposure: false,
-        },
-        variant: 'off',
-      },
-    ];
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
@@ -359,9 +352,10 @@ describe('initializeExperiment', () => {
           'treatment',
           'http://test.com/2',
           undefined,
-          pageTargetingSegments,
+          DEFAULT_REDIRECT_SCOPE,
         ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
@@ -369,28 +363,10 @@ describe('initializeExperiment', () => {
   test('on non-targeted page, should not call exposure', () => {
     Object.defineProperty(global, 'location', {
       value: {
-        href: 'http://test.com',
+        href: 'http://non-targeted.com',
       },
       writable: true,
     });
-    const pageTargetingSegments = [
-      {
-        conditions: [
-          [
-            {
-              op: 'regex match',
-              selector: ['context', 'page', 'url'],
-              values: ['.*test\\.com$'],
-            },
-          ],
-        ],
-        metadata: {
-          segmentName: PAGE_IS_EXCLUDED_SEGMENT_NAME,
-          trackExposure: false,
-        },
-        variant: 'off',
-      },
-    ];
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
@@ -399,9 +375,10 @@ describe('initializeExperiment', () => {
           'treatment',
           'http://test.com/2',
           undefined,
-          pageTargetingSegments,
+          DEFAULT_REDIRECT_SCOPE,
         ),
       ]),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     );
     expect(mockExposure).not.toHaveBeenCalled();
   });
@@ -412,7 +389,7 @@ describe('initializeExperiment', () => {
 
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [], [], 'remote'),
+      createMutateFlag('test', 'treatment', [], [], 'remote'),
     ];
 
     const mockHttpClient = new MockHttpClient(JSON.stringify([]));
@@ -420,6 +397,7 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
       {
         httpClient: mockHttpClient,
       },
@@ -439,15 +417,37 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch successful, antiflicker applied', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [{}], [], 'remote'),
+      createMutateFlag(
+        'test-2',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE],
+        [],
+        'remote',
+      ),
       // local flag
-      createMutateFlag('test-1', 'treatment', [{}]),
+      createMutateFlag('test-1', 'treatment', [DEFAULT_MUTATE_SCOPE]),
     ];
-    const remoteFlags = [createMutateFlag('test-2', 'treatment', [{}])];
+    const remoteFlags = [
+      createMutateFlag('test-2', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+    ];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify({
+        'test-1': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+        'test-2': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+      }),
       {
         httpClient: mockHttpClient,
       },
@@ -467,9 +467,25 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch fail, locally evaluate remote and local flags success', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test-2', 'treatment', [{}], [], 'remote'),
+      createMutateFlag(
+        'test-2',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE],
+        [],
+        'remote',
+        true,
+        {},
+      ),
       // local flag
-      createMutateFlag('test-1', 'treatment', [{}]),
+      createMutateFlag(
+        'test-1',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE],
+        [],
+        'local',
+        true,
+        {},
+      ),
     ];
     const remoteFlags = [createMutateFlag('test-2', 'treatment')];
 
@@ -478,6 +494,20 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify({
+        'test-1': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+        'test-2': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+      }),
       {
         httpClient: mockHttpClient,
       },
@@ -496,7 +526,13 @@ describe('initializeExperiment', () => {
   test('remote evaluation - fetch fail, test initialFlags variant actions called', () => {
     const initialFlags = [
       // remote flag
-      createMutateFlag('test', 'treatment', [{}], [], 'remote'),
+      createMutateFlag(
+        'test',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE],
+        [],
+        'remote',
+      ),
     ];
 
     const mockHttpClient = new MockHttpClient('', 404);
@@ -504,6 +540,7 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
       {
         httpClient: mockHttpClient,
       },
@@ -543,6 +580,7 @@ describe('initializeExperiment', () => {
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
       {
         httpClient: mockHttpClient,
       },
@@ -563,28 +601,263 @@ describe('initializeExperiment', () => {
         'control',
         'http://test.com/2',
         undefined,
-        [],
+        DEFAULT_REDIRECT_SCOPE,
+        undefined,
         'remote',
       ),
     ];
     const remoteFlags = [
-      createRedirectFlag('test', 'treatment', 'http://test.com/2'),
+      createRedirectFlag(
+        'test',
+        'treatment',
+        'http://test.com/2',
+        undefined,
+        DEFAULT_REDIRECT_SCOPE,
+      ),
     ];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
 
     await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
       {
         httpClient: mockHttpClient,
       },
-    ).start();
+    )
+      .start()
+      .then();
     // check treatment variant called
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
     );
+  });
+
+  test('scoped mutations - experiment active, both mutations active on same page', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag(
+        'test',
+        'treatment',
+        [DEFAULT_MUTATE_SCOPE, DEFAULT_MUTATE_SCOPE],
+        [],
+      ),
+    ];
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test'));
+    expect(Object.keys(appliedMutations['test']).includes('mutate'));
+    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(2);
+  });
+
+  test('scoped mutations - experiment active, both mutations active on different pages', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [
+        { metadata: { scope: ['A'] } },
+        { metadata: { scope: ['B'] } },
+      ]),
+    ];
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      JSON.stringify({
+        test: {
+          ...createPageObject('A', 'url_change', undefined, 'http://test.com'),
+          ...createPageObject('B', 'url_change', undefined, 'http://test.com'),
+        },
+      }),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test'));
+    expect(Object.keys(appliedMutations['test']).includes('mutate'));
+    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(2);
+    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['0', '1']);
+  });
+
+  test('Visual editor mode - active pages updated but variant actions not applied', () => {
+    const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
+    mockGetGlobalScope.mockReturnValue(
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      newMockGlobal({
+        location: {
+          href: 'http://A.com',
+          search: '?VISUAL_EDITOR=true',
+        },
+      }),
+    );
+    const test1Page = createPageObject(
+      'A',
+      'url_change',
+      undefined,
+      'http://A.com',
+    );
+    const test2Page = createPageObject(
+      'B',
+      'url_change',
+      undefined,
+      'http://B.com',
+    );
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify([
+        createMutateFlag('test-1', 'treatment', [{ metadata: {} }]),
+        createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
+      ]),
+      JSON.stringify({
+        'test-1': test1Page,
+        'test-2': test2Page,
+      }),
+    );
+    client.start().then();
+    let activePages = (client as any).activePages;
+    expect(activePages).toEqual({ 'test-1': test1Page });
+    (client as any).subscriptionManager.globalScope = newMockGlobal({
+      location: {
+        href: 'http://B.com',
+      },
+    });
+    activePages = (client as any).activePages;
+    (client as any).messageBus.publish('url_change', {});
+    expect(activePages).toEqual({ 'test-2': test2Page });
+    expect(mockExposure).toHaveBeenCalledTimes(0);
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).length).toEqual(0);
+  });
+
+  test('scoped mutations - experiment active, subset of mutations active', () => {
+    const initialFlags = [
+      createMutateFlag('test', 'treatment', [
+        { metadata: { scope: ['B'] } },
+        { metadata: { scope: ['A'] } },
+      ]),
+    ];
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test'));
+    expect(Object.keys(appliedMutations['test']).includes('mutate'));
+    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(1);
+    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['1']);
+  });
+
+  test('scoped mutations - experiment active, neither mutation active', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [
+        { metadata: { scope: ['B'] } },
+        { metadata: { scope: ['C'] } },
+      ]),
+    ];
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(0);
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).length).toEqual(0);
+  });
+
+  test('scoped mutations - experiment active, 1 active mutation with no scope, 1 mutation inactive', () => {
+    const initialFlags = [
+      // remote flag
+      createMutateFlag('test', 'treatment', [
+        { metadata: {} },
+        { metadata: { scope: ['B'] } },
+      ]),
+    ];
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify(initialFlags),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
+    const appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test'));
+    expect(Object.keys(appliedMutations['test']).includes('mutate'));
+    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(1);
+    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['0']);
+  });
+
+  test('page object - update activePages and applyVariants upon navigation', () => {
+    const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
+    mockGetGlobalScope.mockReturnValue(
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      newMockGlobal({
+        location: {
+          href: 'http://A.com',
+        },
+      }),
+    );
+    const test1Page = createPageObject(
+      'A',
+      'url_change',
+      undefined,
+      'http://A.com',
+    );
+    const test2Page = createPageObject(
+      'B',
+      'url_change',
+      undefined,
+      'http://B.com',
+    );
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify([
+        createMutateFlag('test-1', 'treatment', [{ metadata: {} }]),
+        createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
+      ]),
+      JSON.stringify({
+        'test-1': test1Page,
+        'test-2': test2Page,
+      }),
+    );
+    client.start().then();
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test-1');
+    let appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test-1'));
+    expect(Object.keys(appliedMutations['test-1']).includes('mutate'));
+    const activePages = (client as any).activePages;
+    expect(activePages).toEqual({ 'test-1': test1Page });
+    expect(Object.keys(appliedMutations['test-1']['mutate']).length).toEqual(1);
+    (client as any).subscriptionManager.globalScope = newMockGlobal({
+      location: {
+        href: 'http://B.com',
+      },
+    });
+    (client as any).messageBus.publish('url_change', {});
+    expect(activePages).toEqual({ 'test-2': test2Page });
+    expect(mockExposure).toHaveBeenCalledTimes(2);
+    expect(mockExposure).toHaveBeenCalledWith('test-2');
+    appliedMutations = (client as any).appliedMutations;
+    expect(Object.keys(appliedMutations).includes('test-2'));
+    expect(Object.keys(appliedMutations['test-2']).includes('mutate'));
+    expect(Object.keys(appliedMutations['test-2']['mutate']).length).toEqual(1);
   });
 
   describe('remote evaluation - flag already stored in session storage', () => {
@@ -618,7 +891,7 @@ describe('initializeExperiment', () => {
       const storedFlag = createMutateFlag(
         'test',
         'treatment',
-        [{}],
+        [DEFAULT_MUTATE_SCOPE],
         [],
         'local',
         false,
@@ -631,18 +904,27 @@ describe('initializeExperiment', () => {
         JSON.stringify({ test: storedFlag }),
       );
       const initialFlags = [
-        createMutateFlag('test', 'treatment', [{}], [], 'remote', false, {
+        createMutateFlag('test', 'treatment', [], [], 'remote', false, {
           flagVersion: 3,
         }),
       ];
       const remoteFlags = [
-        createMutateFlag('test', 'treatment', [{}], [], 'local', false, {
-          flagVersion: 4,
-        }),
+        createMutateFlag(
+          'test',
+          'treatment',
+          [DEFAULT_MUTATE_SCOPE],
+          [],
+          'local',
+          false,
+          {
+            flagVersion: 4,
+          },
+        ),
       ];
       const client = DefaultWebExperimentClient.getInstance(
         apiKey,
         JSON.stringify(initialFlags),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
         {
           httpClient: new MockHttpClient(JSON.stringify(remoteFlags), 200),
         },
@@ -683,7 +965,7 @@ describe('initializeExperiment', () => {
       const storedFlag = createMutateFlag(
         'test',
         'treatment',
-        [{}],
+        [DEFAULT_MUTATE_SCOPE],
         [],
         'local',
         false,
@@ -699,18 +981,35 @@ describe('initializeExperiment', () => {
         value: sessionStorageMock,
       });
       const initialFlags = [
-        createMutateFlag('test', 'treatment', [{}], [], 'remote', false, {
-          flagVersion: 3,
-        }),
+        createMutateFlag(
+          'test',
+          'treatment',
+          [DEFAULT_MUTATE_SCOPE],
+          [],
+          'remote',
+          false,
+          {
+            flagVersion: 3,
+          },
+        ),
       ];
       const remoteFlags = [
-        createMutateFlag('test', 'control', [{}], [], 'local', false, {
-          flagVersion: 4,
-        }),
+        createMutateFlag(
+          'test',
+          'control',
+          [DEFAULT_MUTATE_SCOPE],
+          [],
+          'local',
+          false,
+          {
+            flagVersion: 4,
+          },
+        ),
       ];
       const client = DefaultWebExperimentClient.getInstance(
         apiKey,
         JSON.stringify(initialFlags),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
         {
           httpClient: new MockHttpClient(JSON.stringify(remoteFlags), 200),
         },
@@ -791,61 +1090,33 @@ describe('helper methods', () => {
       writable: true,
     });
     jest.spyOn(experimentCore, 'getGlobalScope');
-    const targetedSegment = [
-      {
-        conditions: [
-          [
-            {
-              op: 'regex does not match',
-              selector: ['context', 'page', 'url'],
-              values: ['^http:\\/\\/test.*'],
-            },
-          ],
-        ],
-        metadata: {
-          segmentName: PAGE_NOT_TARGETED_SEGMENT_NAME,
-          trackExposure: false,
-        },
-        variant: 'off',
-      },
-    ];
-    const nonTargetedSegment = [
-      {
-        conditions: [
-          [
-            {
-              op: 'regex match',
-              selector: ['context', 'page', 'url'],
-              values: ['.*test\\.com$'],
-            },
-          ],
-        ],
-        metadata: {
-          segmentName: PAGE_IS_EXCLUDED_SEGMENT_NAME,
-          trackExposure: false,
-        },
-        variant: 'off',
-      },
-    ];
-    const webExperiment = new DefaultWebExperimentClient(
+    const webExperiment = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag(
+        createMutateFlag(
           'targeted',
           'treatment',
-          '',
-          undefined,
-          targetedSegment,
-        ),
-        createRedirectFlag(
-          'non-targeted',
-          'treatment',
-          '',
-          undefined,
-          nonTargetedSegment,
+          [DEFAULT_MUTATE_SCOPE],
+          [],
+          'local',
         ),
       ]),
+      JSON.stringify({
+        targeted: createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+        'non-targeted': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://not-targeted.com',
+        ),
+      }),
     );
+    webExperiment.start();
     const activeExperiments = webExperiment.getActiveExperiments();
     expect(activeExperiments).toEqual(['targeted']);
   });
@@ -862,9 +1133,17 @@ describe('helper methods', () => {
     const webExperiment = new DefaultWebExperimentClient(
       stringify(apiKey),
       JSON.stringify([
-        createRedirectFlag('flag-1', 'control', '', undefined, targetedSegment),
+        createRedirectFlag(
+          'flag-1',
+          'control',
+          '',
+          undefined,
+          {},
+          targetedSegment,
+        ),
         createRedirectFlag('flag-2', 'control', '', undefined),
       ]),
+      JSON.stringify({}),
     );
     const variants = webExperiment.getVariants();
     expect(variants['flag-1'].key).toEqual('treatment');

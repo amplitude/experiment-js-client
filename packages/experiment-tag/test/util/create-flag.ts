@@ -1,11 +1,12 @@
-import { EvaluationFlag } from '@amplitude/experiment-core';
+import { EvaluationFlag, EvaluationSegment } from '@amplitude/experiment-core';
 
 export const createRedirectFlag = (
   flagKey = 'test',
   variant: 'treatment' | 'control' | 'off',
   treatmentUrl: string,
   controlUrl: string | undefined = undefined,
-  segments: any[] = [],
+  pageScope: Record<string, string[]> = {},
+  segments: EvaluationSegment[] = [],
   evaluationMode: 'local' | 'remote' = 'local',
 ): EvaluationFlag => {
   const controlPayload = controlUrl
@@ -54,6 +55,9 @@ export const createRedirectFlag = (
             action: 'redirect',
             data: {
               url: treatmentUrl,
+              metadata: {
+                scope: pageScope['treatment'],
+              },
             },
           },
         ],

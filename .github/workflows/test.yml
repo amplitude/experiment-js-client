@@ -26,7 +26,7 @@ jobs:
         key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
     - name: Setup Node
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
 
@@ -40,7 +40,7 @@ jobs:
       shell: bash
 
     - name: Install
-      run: yarn install --frozen-lockfile
+      run: yarn install --frozen-lockfile --force
 
     - name: Build
       run: npx lerna exec yarn --stream

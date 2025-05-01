@@ -1,7 +1,6 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import {
   EvaluationFlag,
-  EvaluationSegment,
   getGlobalScope,
   isLocalStorageAvailable,
   safeGlobal,
@@ -18,9 +17,13 @@ import mutate, { MutationController } from 'dom-mutator';
 
 import { Defaults, WebExperimentConfig } from './config';
 import { getInjectUtils } from './inject-utils';
+import { MessageBus } from './message-bus';
 import { WindowMessenger } from './messenger';
+import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   ApplyVariantsOptions,
+  PageObject,
+  PageObjects,
   PreviewVariantsOptions,
   RevertVariantsOptions,
 } from './types';
@@ -34,11 +37,9 @@ import {
 } from './util';
 import { WebExperimentClient } from './web-experiment';
 
-export const PAGE_NOT_TARGETED_SEGMENT_NAME = 'Page not targeted';
-export const PAGE_IS_EXCLUDED_SEGMENT_NAME = 'Page is excluded';
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 const MUTATE_ACTION = 'mutate';
-const INJECT_ACTION = 'inject';
+export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
 
 safeGlobal.Experiment = FeatureExperiment;
@@ -50,25 +51,40 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly globalScope: typeof globalThis;
   private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
-  private appliedMutations: {
+  appliedMutations: {
     [experiment: string]: {
-      [actionType: string]: MutationController[];
+      [actionType: string]: {
+        [id: string]: MutationController;
+      };
     };
   } = {};
   private previousUrl: string | undefined = undefined;
   // Cache to track exposure for the current URL, should be cleared on URL change
-  private urlExposureCache: Record<string, Record<string, string | undefined>> =
-    {};
-  private flagVariantMap: Record<string, Record<string, Variant>> = {};
-  private localFlagKeys: string[] = [];
+  private urlExposureCache: {
+    [url: string]: {
+      [flagKey: string]: string | undefined; // variant
+    };
+  } = {};
+  private flagVariantMap: {
+    [flagKey: string]: {
+      [variantKey: string]: Variant;
+    };
+  } = {};
+  private readonly localFlagKeys: string[] = [];
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
   private isRunning = false;
+  private readonly messageBus: MessageBus;
+  private pageObjects: PageObjects;
+  private activePages: PageObjects = {};
+  private subscriptionManager: SubscriptionManager | undefined;
+  private isVisualEditorMode = false;
 
   constructor(
     apiKey: string,
     initialFlags: string,
+    pageObjects: string,
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
@@ -80,6 +96,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.globalScope = globalScope;
     this.apiKey = apiKey;
     this.initialFlags = JSON.parse(initialFlags);
+    this.pageObjects = JSON.parse(pageObjects);
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
@@ -90,7 +107,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const urlParams = getUrlParams();
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
-      const { key, variants, segments, metadata = {} } = flag;
+      const { key, variants, metadata = {} } = flag;
 
       this.flagVariantMap[key] = {};
       Object.keys(variants).forEach((variantKey) => {
@@ -110,12 +127,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           '',
           removeQueryParams(this.globalScope.location.href, ['PREVIEW', key]),
         );
-
-        // Retain only page-targeting segments
-        const pageTargetingSegments = segments.filter(
-          this.isPageTargetingSegment,
-        );
-
         // Add or update the preview segment
         const previewSegment = {
           metadata: { segmentName: PREVIEW_SEGMENT_NAME },
@@ -123,7 +134,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         };
 
         // Update the flag's segments to include the preview segment
-        flag.segments = [...pageTargetingSegments, previewSegment];
+        flag.segments = [previewSegment];
 
         // make all preview flags local
         metadata.evaluationMode = 'local';
@@ -156,6 +167,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.localFlagKeys = Object.keys(variants).filter(
       (key) => variants[key]?.metadata?.evaluationMode === 'local',
     );
+    this.messageBus = new MessageBus();
   }
 
   /**
@@ -166,17 +178,34 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     const urlParams = getUrlParams();
+    this.isVisualEditorMode = urlParams['VISUAL_EDITOR'] === 'true';
+    this.subscriptionManager = new SubscriptionManager(
+      this,
+      this.messageBus,
+      this.pageObjects,
+      {
+        ...this.config,
+        isVisualEditorMode: this.isVisualEditorMode,
+      },
+      this.globalScope,
+    );
+    this.subscriptionManager.initSubscriptions();
 
     // if in visual edit mode, remove the query param
-    if (urlParams['VISUAL_EDITOR']) {
+    if (this.isVisualEditorMode) {
       WindowMessenger.setup();
       this.globalScope.history.replaceState(
         {},
         '',
         removeQueryParams(this.globalScope.location.href, ['VISUAL_EDITOR']),
       );
+      // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
+      this.messageBus.publish('url_change', { updateActivePages: true });
       return;
     }
+
+    // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
+    this.messageBus.publish('url_change', { updateActivePages: true });
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     let user;
@@ -210,13 +239,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // evaluate variants for page targeting
     const variants: Variants = this.getVariants();
 
-    for (const [key, variant] of Object.entries(variants)) {
+    for (const [flagKey, variant] of Object.entries(variants)) {
       // only apply anti-flicker for remote flags active on the page
       if (
-        this.remoteFlagKeys.includes(key) &&
+        this.remoteFlagKeys.includes(flagKey) &&
         variant.metadata?.blockingEvaluation &&
-        variant.metadata?.segmentName !== PAGE_NOT_TARGETED_SEGMENT_NAME &&
-        variant.metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
+        Object.keys(this.activePages).includes(flagKey)
       ) {
         this.isRemoteBlocking = true;
         // Apply anti-flicker CSS to prevent UI flicker
@@ -237,20 +265,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(user);
 
-    if (this.config.useDefaultNavigationHandler) {
-      this.setDefaultNavigationHandler([
-        ...this.localFlagKeys,
-        ...this.remoteFlagKeys,
-      ]);
-    }
-
-    // apply local variants
-    this.applyVariants({ flagKeys: this.localFlagKeys });
-
     if (!this.isRemoteBlocking) {
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
+
+    // apply local variants
+    this.applyVariants({ flagKeys: this.localFlagKeys });
 
     if (this.remoteFlagKeys.length === 0) {
       this.isRunning = true;
@@ -268,11 +289,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * If not, initialize the client and return the instance.
    * @param apiKey
    * @param initialFlags
+   * @param pageObjects
    * @param config
    */
   static getInstance(
     apiKey: string,
     initialFlags: string,
+    pageObjects: string,
     config: WebExperimentConfig = {},
   ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
@@ -288,6 +311,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const webExperiment = new DefaultWebExperimentClient(
       apiKey,
       initialFlags,
+      pageObjects,
       config,
     );
     globalScope.webExperiment = webExperiment;
@@ -328,13 +352,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (isWebExperimentation) {
         const shouldTrackExposure =
           (variant.metadata?.['trackExposure'] as boolean) ?? true;
-        // if payload is falsy or empty array, consider it as control variant
+        // if payload is falsy or empty array, consider it as control or off variant
         const payloadIsArray = Array.isArray(variant.payload);
         // TODO(bgiori) this will need to change when we introduce control variant mutations
-        const isControlPayload =
+        const isControlOrOffPayload =
           !variant.payload || (payloadIsArray && variant.payload.length === 0);
-        if (shouldTrackExposure && isControlPayload) {
+        if (shouldTrackExposure && isControlOrOffPayload) {
           this.exposureWithDedupe(key, variant);
+          // revert all applied mutations and injections
+          this.revertVariants({ flagKeys: [key] });
           continue;
         }
 
@@ -350,25 +376,23 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param options
    */
   public revertVariants(options?: RevertVariantsOptions) {
+    if (!this.appliedMutations) return;
+
     let { flagKeys } = options || {};
     if (!flagKeys) {
       flagKeys = Object.keys(this.appliedMutations);
     }
 
-    for (const experiment of flagKeys) {
-      const actionTypes = this.appliedMutations[experiment];
-      if (!actionTypes) continue;
+    for (const key of flagKeys) {
+      const typeMap = this.appliedMutations[key];
+      if (!typeMap) continue;
 
-      for (const actionType in actionTypes) {
-        actionTypes[actionType].forEach((mutationController) => {
-          mutationController.revert();
-        });
-        delete actionTypes[actionType];
+      for (const type of Object.values(typeMap ?? {})) {
+        for (const mutation of Object.values(type ?? {})) {
+          mutation?.revert?.();
+        }
       }
-      // Delete the experiment key if it has no action types left
-      if (Object.keys(this.appliedMutations[experiment]).length === 0) {
-        delete this.appliedMutations[experiment];
-      }
+      delete this.appliedMutations[key];
     }
   }
 
@@ -403,7 +427,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Get all variants for the current web experiment context.
+   * Get all variants for the current web experiment user context.
    */
   public getVariants(): Variants {
     const variants: Variants = {};
@@ -414,17 +438,49 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Get the list of experiments that are active on the current page.
+   * Get the list of experiments with active mutations or injects on the current page.
    */
   public getActiveExperiments(): string[] {
-    const variants = this.getVariants();
-    return Object.keys(variants).filter((key) => {
-      return (
-        variants[key].metadata?.segmentName !==
-          PAGE_NOT_TARGETED_SEGMENT_NAME &&
-        variants[key].metadata?.segmentName !== PAGE_IS_EXCLUDED_SEGMENT_NAME
-      );
-    });
+    return Object.keys(this.appliedMutations);
+  }
+
+  /**
+   * Get a map of active page view objects.
+   */
+  public getActivePages(): PageObjects {
+    return this.activePages;
+  }
+
+  /**
+   * Add a subscriber to the page change event.
+   * @param callback
+   * @returns An unsubscribe function to remove the subscriber.
+   */
+
+  public addPageChangeSubscriber(
+    callback: (event: PageChangeEvent) => void,
+  ): (() => void) | undefined {
+    if (this.subscriptionManager) {
+      return this.subscriptionManager.addPageChangeSubscriber(callback);
+    }
+  }
+
+  /**
+   * When in visual editor mode, update the current page objects and reinitialize subscriptions and active pages.
+   *
+   * @param {PageObjects} pageObjects - The new set of page objects to be set.
+   */
+
+  public setPageObjects(pageObjects: PageObjects) {
+    if (this.isVisualEditorMode) {
+      this.pageObjects = pageObjects;
+      this.subscriptionManager?.setPageObjects(pageObjects);
+      this.activePages = {};
+      this.messageBus.unsubscribeAll();
+      this.subscriptionManager?.initSubscriptions();
+      // update active pages
+      this.messageBus.publish('url_change', { updateActivePages: true });
+    }
   }
 
   /**
@@ -456,7 +512,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private handleRedirect(action, key: string, variant: Variant) {
+  private handleRedirect(action, flagKey: string, variant: Variant) {
+    if (!this.isActionActiveOnPage(flagKey, action?.data?.metadata?.scope)) {
+      return;
+    }
+
     const referrerUrl = urlWithoutParamsAndAnchor(
       this.previousUrl || this.globalScope.document.referrer,
     );
@@ -476,7 +536,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       redirectUrl,
     );
 
-    this.exposureWithDedupe(key, variant);
+    if (this.globalScope.location.href === targetUrl) {
+      return;
+    }
+
+    this.exposureWithDedupe(flagKey, variant);
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
@@ -489,24 +553,56 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.globalScope.location.replace(targetUrl);
   }
 
-  private handleMutate(action, key: string, variant: Variant) {
-    // Check for repeat invocations
-    if (this.appliedMutations[key]?.[MUTATE_ACTION]) {
-      return;
-    }
-    const mutations = action.data?.mutations;
+  private handleMutate(action, flagKey: string, variant: Variant) {
+    const mutations = action.data?.mutations || [];
+
     if (mutations.length === 0) {
       return;
     }
-    const mutationControllers: MutationController[] = [];
-    mutations.forEach((m) => {
-      mutationControllers.push(mutate.declarative(m));
+
+    const mutationControllers: Record<number, MutationController> = {};
+
+    mutations.forEach((m, index) => {
+      // Check if mutation is scoped to page
+      if (!this.isActionActiveOnPage(flagKey, m?.metadata?.scope)) {
+        // Revert inactive mutation if it exists
+        this.appliedMutations[flagKey]?.[MUTATE_ACTION]?.[index]?.revert();
+
+        // Delete the mutation only if it exists
+        if (this.appliedMutations[flagKey]?.[MUTATE_ACTION]?.[index]) {
+          delete this.appliedMutations[flagKey][MUTATE_ACTION][index];
+        }
+      } else if (!this.appliedMutations[flagKey]?.[MUTATE_ACTION]?.[index]) {
+        this.exposureWithDedupe(flagKey, variant);
+        // Apply mutation
+        mutationControllers[index] = mutate.declarative(m);
+      }
     });
-    (this.appliedMutations[key] ??= {})[MUTATE_ACTION] = mutationControllers;
-    this.exposureWithDedupe(key, variant);
+
+    this.appliedMutations[flagKey] ??= {};
+    // Merge instead of overwriting if there are existing mutations
+    this.appliedMutations[flagKey][MUTATE_ACTION] = {
+      ...this.appliedMutations[flagKey][MUTATE_ACTION],
+      ...mutationControllers,
+    };
+
+    // Delete empty objects safely
+    if (
+      Object.keys(this.appliedMutations[flagKey][MUTATE_ACTION] || {})
+        .length === 0
+    ) {
+      delete this.appliedMutations[flagKey][MUTATE_ACTION];
+    }
+    if (Object.keys(this.appliedMutations[flagKey] || {}).length === 0) {
+      delete this.appliedMutations[flagKey];
+    }
   }
 
-  private handleInject(action, key: string, variant: Variant) {
+  private handleInject(action, flagKey: string, variant: Variant) {
+    if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
+      this.appliedMutations[flagKey]?.[INJECT_ACTION]?.[0]?.revert();
+      return;
+    }
     // Validate and transform ID
     let id = action.data.id;
     if (!id || typeof id !== 'string' || id.length === 0) {
@@ -559,28 +655,24 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     } catch (e) {
       script?.remove();
       console.error(
-        `Experiment inject failed for ${key} variant ${variant.key}. Reason:`,
+        `Experiment inject failed for ${flagKey} variant ${variant.key}. Reason:`,
         e,
       );
     }
-    (this.appliedMutations[key] ??= {})[INJECT_ACTION] ??= [];
-    this.appliedMutations[key][INJECT_ACTION].push({
+    // Push mutation to remove CSS and any custom state cleanup set in utils.
+    this.appliedMutations[flagKey] ??= {};
+    this.appliedMutations[flagKey][INJECT_ACTION] ??= {};
+
+    // Push the mutation
+    this.appliedMutations[flagKey][INJECT_ACTION][id] = {
       revert: () => {
         utils.remove?.();
         style?.remove();
         script?.remove();
         this.appliedInjections.delete(id);
       },
-    });
-    this.exposureWithDedupe(key, variant);
-  }
-
-  private isPageTargetingSegment(segment: EvaluationSegment) {
-    return (
-      segment.metadata?.trackExposure === false &&
-      (segment.metadata?.segmentName === PAGE_NOT_TARGETED_SEGMENT_NAME ||
-        segment.metadata?.segmentName === PAGE_IS_EXCLUDED_SEGMENT_NAME)
-    );
+    };
+    this.exposureWithDedupe(flagKey, variant);
   }
 
   private exposureWithDedupe(key: string, variant: Variant) {
@@ -614,44 +706,32 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private setDefaultNavigationHandler(flagKeys: string[]) {
-    // Add URL change listener for back/forward navigation
-    this.globalScope.addEventListener('popstate', () => {
-      this.revertVariants();
-      this.applyVariants({ flagKeys: flagKeys });
-    });
+  updateActivePages(flagKey: string, page: PageObject, isActive: boolean) {
+    if (!this.activePages[flagKey]) {
+      this.activePages[flagKey] = {};
+    }
+    if (isActive) {
+      this.activePages[flagKey][page.id] = page;
+    } else {
+      delete this.activePages[flagKey][page.id];
+      if (Object.keys(this.activePages[flagKey]).length === 0) {
+        delete this.activePages[flagKey];
+      }
+    }
+  }
 
-    const handleUrlChange = () => {
-      this.revertVariants();
-      this.applyVariants({ flagKeys: flagKeys });
-      this.previousUrl = this.globalScope.location.href;
-    };
+  private isActionActiveOnPage(
+    flagKey: string,
+    scope: string[] | undefined,
+  ): boolean {
+    const flagPages = this.activePages[flagKey];
 
-    // Create wrapper functions for pushState and replaceState
-    const wrapHistoryMethods = () => {
-      const originalPushState = history.pushState;
-      const originalReplaceState = history.replaceState;
+    // If no scope is provided, assume variant is active if the flag has any active pages
+    if (!scope) {
+      return !!flagPages && Object.values(flagPages).some(Boolean);
+    }
 
-      // Wrapper for pushState
-      history.pushState = function (...args) {
-        // Call the original pushState
-        const result = originalPushState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
-        return result;
-      };
-
-      // Wrapper for replaceState
-      history.replaceState = function (...args) {
-        // Call the original replaceState
-        const result = originalReplaceState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
-        return result;
-      };
-    };
-
-    // Initialize the wrapper
-    wrapHistoryMethods();
+    // If scope is provided, check if any scoped page is active
+    return scope.some((pageId) => flagPages?.[pageId] ?? false);
   }
 }
