@@ -200,7 +200,13 @@ export class PersistentTrackingQueue {
     if (!this.tracker) return;
     if (this.inMemoryQueue.length === 0) return;
     for (const event of this.inMemoryQueue) {
-      if (!this.tracker(event)) return;
+      try {
+        if (!this.tracker(event)) {
+          return;
+        }
+      } catch (e) {
+        return;
+      }
     }
     this.inMemoryQueue = [];
     if (this.poller) {
