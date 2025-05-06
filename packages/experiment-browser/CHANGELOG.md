@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.15.6](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.5...@amplitude/experiment-js-client@1.15.6) (2025-05-06)
+
+
+### Bug Fixes
+
+* catch integration tracker error in PersistentTrackingQueue ([#180](https://github.com/amplitude/experiment-js-client/issues/180)) ([401fd1a](https://github.com/amplitude/experiment-js-client/commit/401fd1aebf177a003345824c7b11549347722079))
+
+
+
+
+
 ## [1.15.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.15.4...@amplitude/experiment-js-client@1.15.5) (2025-04-01)
 
 
