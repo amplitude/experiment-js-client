@@ -189,7 +189,7 @@ describe('initializeExperiment', () => {
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
       ]),
-      JSON.stringify({}),
+      JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledWith('test');
