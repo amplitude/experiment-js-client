@@ -358,7 +358,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         const isControlOrOffPayload =
           !variant.payload || (payloadIsArray && variant.payload.length === 0);
         if (shouldTrackExposure && isControlOrOffPayload) {
-          this.exposureWithDedupe(key, variant);
+          if (this.isActionActiveOnPage(key, undefined)) {
+            this.exposureWithDedupe(key, variant);
+          }
           // revert all applied mutations and injections
           this.revertVariants({ flagKeys: [key] });
           continue;
