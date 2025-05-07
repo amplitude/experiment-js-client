@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.6.1...@amplitude/experiment-tag@0.6.2) (2025-05-07)
+
+
+### Bug Fixes
+
+* track control impressions on targeted pages ([#181](https://github.com/amplitude/experiment-js-client/issues/181)) ([0910310](https://github.com/amplitude/experiment-js-client/commit/0910310f3d74a72e471a443982e7184e54301fa2))
+
+
+
+
+
 ## [0.6.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.6.0...@amplitude/experiment-tag@0.6.1) (2025-05-06)
 
 **Note:** Version bump only for package @amplitude/experiment-tag
