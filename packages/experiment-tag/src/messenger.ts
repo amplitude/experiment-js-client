@@ -49,6 +49,18 @@ export const asyncLoadScript = (url: string) => {
       scriptElement.type = 'text/javascript';
       scriptElement.async = true;
       scriptElement.src = url;
+      // Set the script nonce if it exists
+      // This is useful for CSP (Content Security Policy) to allow the script to be loaded
+      const nonceElem = document.querySelector('[nonce]');
+      if (nonceElem) {
+        scriptElement.setAttribute(
+          'nonce',
+          nonceElem['nonce'] ||
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (nonceElem as any).nonce ||
+            nonceElem.getAttribute('nonce'),
+        );
+      }
       scriptElement.addEventListener(
         'load',
         () => {
