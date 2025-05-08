@@ -16,7 +16,7 @@ describe('SSEStream', () => {
     }));
   });
 
-  test('should connect and receive data', async () => {
+  test('should connect and receive data, keeps alive, reconnects', async () => {
     const stream = new SSEStream(
       mockStreamProvider,
       'http://localhost:7999',
