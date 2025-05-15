@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.6.2...@amplitude/experiment-tag@0.6.3) (2025-05-15)
+
+
+### Bug Fixes
+
+* add nonce ([#183](https://github.com/amplitude/experiment-js-client/issues/183)) ([53cd69e](https://github.com/amplitude/experiment-js-client/commit/53cd69e5101458aadecc75048f8dbafdcd5ba20f))
+
+
+
+
+
 ## [0.6.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.6.1...@amplitude/experiment-tag@0.6.2) (2025-05-07)
 
 
