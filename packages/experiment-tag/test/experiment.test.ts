@@ -3,7 +3,7 @@ import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
 import { DefaultWebExperimentClient } from 'src/experiment';
-import * as util from 'src/util';
+import * as uuidUtil from 'src/util/uuid';
 import { stringify } from 'ts-jest';
 
 import { createMutateFlag, createRedirectFlag } from './util/create-flag';
@@ -17,7 +17,7 @@ const DEFAULT_PAGE_OBJECTS = {
 const DEFAULT_REDIRECT_SCOPE = { treatment: ['A'], control: ['A'] };
 const DEFAULT_MUTATE_SCOPE = { metadata: { scope: ['A'] } };
 
-jest.mock('src/messenger', () => {
+jest.mock('src/util/messenger', () => {
   return {
     WindowMessenger: {
       setup: jest.fn(),
@@ -58,27 +58,12 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
   };
 };
 
-// disable mutation observer for tests
-global.MutationObserver = class {
-  observe() {
-    // do nothing
-  }
-
-  disconnect() {
-    // do nothing
-  }
-
-  takeRecords() {
-    return [];
-  }
-};
-
 describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
-  jest.spyOn(util, 'UUID').mockReturnValue('mock');
+  jest.spyOn(uuidUtil, 'UUID').mockReturnValue('mock');
   let mockGlobal;
   let antiFlickerSpy;
 
@@ -1068,7 +1053,7 @@ describe('helper methods', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     apiKey++;
-    jest.spyOn(util, 'UUID').mockReturnValue('mock');
+    jest.spyOn(uuidUtil, 'UUID').mockReturnValue('mock');
     jest.clearAllMocks();
   });
 

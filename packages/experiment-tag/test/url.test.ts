@@ -4,7 +4,7 @@ import {
   getUrlParams,
   matchesUrl,
   urlWithoutParamsAndAnchor,
-} from 'src/util';
+} from 'src/util/url';
 
 // Mock the getGlobalScope function
 const spyGetGlobalScope = jest.spyOn(coreUtil, 'getGlobalScope');
