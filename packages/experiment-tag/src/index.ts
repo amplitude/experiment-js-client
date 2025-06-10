@@ -4,8 +4,8 @@ import { WebExperimentConfig } from './types';
 export const initialize = (
   apiKey: string,
   initialFlags: string,
-  pageObjects: string,
   config: WebExperimentConfig,
+  pageObjects: string,
 ): void => {
   DefaultWebExperimentClient.getInstance(
     apiKey,
