@@ -258,10 +258,12 @@ export class ExperimentClient implements Client {
    * from the server, you generally do not need to call `fetch`.
    *
    * @param user The user to fetch variants for.
-   * @param options Options for this specific fetch call.
+   * @param options Options for this specific fetch call. Set `throwOnError: true`
+   *   to throw errors instead of handling them silently.
    * @returns Promise that resolves when the request for variants completes.
    * @see ExperimentUser
    * @see ExperimentUserProvider
+   * @see FetchOptions
    */
   public async fetch(
     user: ExperimentUser = this.user,
@@ -276,6 +278,12 @@ export class ExperimentClient implements Client {
         options,
       );
     } catch (e) {
+      // If throwOnError is explicitly set to true, rethrow the error
+      if (options?.throwOnError === true) {
+        throw e;
+      }
+
+      // Otherwise, handle errors silently as before
       if (this.config.debug) {
         if (e instanceof TimeoutError) {
           console.debug(e);
@@ -689,9 +697,17 @@ export class ExperimentClient implements Client {
       await this.storeVariants(variants, options);
       return variants;
     } catch (e) {
+      // Start retries in background if configured, regardless of throwOnError setting
       if (retry && this.shouldRetryFetch(e)) {
         void this.startRetries(user, options);
       }
+
+      // If throwOnError is true, always throw the error after starting retries
+      if (options?.throwOnError === true) {
+        throw e;
+      }
+
+      // Otherwise, throw the error (existing behavior)
       throw e;
     }
   }
