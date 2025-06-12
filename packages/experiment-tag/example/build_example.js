@@ -164,7 +164,7 @@ const initialFlags = [
   },
 ];
 
-fs.readFile('dist/experiment-tag.umd.js', 'utf8', (err, data) => {
+fs.readFile('dist/experiment-tag-min.js', 'utf8', (err, data) => {
   if (err) {
     console.error('Error reading file:', err);
     return;
