@@ -109,4 +109,4 @@ jobs:
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
           BRANCH_NAME: ${{ steps.branch-name.outputs.branch_name_safe }}
           PACKAGES: ${{ steps.packages-to-upload.outputs.packages }}
-        run: node scripts/upload-experiment-packages-to-s3.js
+        run: node scripts/upload-to-s3.js
