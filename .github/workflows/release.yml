@@ -12,6 +12,9 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -74,3 +77,30 @@ jobs:
         run: |
           yarn lerna version --yes
           yarn lerna publish from-git --yes --loglevel silly
+
+      # Check if experiment-tag was updated and upload to S3 if not a dry run
+      - name: Check if experiment-tag was updated
+        id: check-experiment-tag
+        if: ${{ github.event.inputs.dryRun == 'false'}}
+        run: |
+          UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/experiment-tag/")
+          if [ -n "$UPDATED_PACKAGES" ]; then
+            echo "experiment_tag_updated=true" >> $GITHUB_OUTPUT
+          else
+            echo "experiment_tag_updated=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Configure AWS credentials for S3 upload
+      - name: Configure AWS Credentials
+        if: ${{ github.event.inputs.dryRun == 'false' && steps.check-experiment-tag.outputs.experiment_tag_updated == 'true' }}
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-west-2
+
+      # Upload experiment-tag to S3 after version and docs are updated
+      - name: Upload experiment-tag to S3
+        if: ${{ github.event.inputs.dryRun == 'false' && steps.check-experiment-tag.outputs.experiment_tag_updated == 'true' }}
+        env:
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+        run: node scripts/upload-experiment-tag-to-s3.js
