@@ -217,13 +217,23 @@ export class ExperimentClient implements Client {
       this.isRunning = true;
     }
     this.setUser(user);
-    const flagsReadyPromise = this.doFlags();
-    const fetchOnStart = this.config.fetchOnStart ?? true;
-    if (fetchOnStart) {
-      await Promise.all([this.fetch(user), flagsReadyPromise]);
-    } else {
-      await flagsReadyPromise;
+
+    try {
+      const flagsReadyPromise = this.doFlags();
+      const fetchOnStart = this.config.fetchOnStart ?? true;
+      if (fetchOnStart) {
+        await Promise.all([this.fetch(user), flagsReadyPromise]);
+      } else {
+        await flagsReadyPromise;
+      }
+    } catch (e) {
+      // If throwOnError is true, rethrow the error
+      if (this.config.throwOnError) {
+        throw e;
+      }
+      // Otherwise, silently handle the error (existing behavior)
     }
+
     if (this.config.pollOnStart) {
       this.poller.start();
     }
@@ -258,8 +268,7 @@ export class ExperimentClient implements Client {
    * from the server, you generally do not need to call `fetch`.
    *
    * @param user The user to fetch variants for.
-   * @param options Options for this specific fetch call. Set `throwOnError: true`
-   *   to throw errors instead of handling them silently.
+   * @param options Options for this specific fetch call.
    * @returns Promise that resolves when the request for variants completes.
    * @see ExperimentUser
    * @see ExperimentUserProvider
@@ -278,8 +287,8 @@ export class ExperimentClient implements Client {
         options,
       );
     } catch (e) {
-      // If throwOnError is explicitly set to true, rethrow the error
-      if (options?.throwOnError === true) {
+      // If throwOnError is configured to true, rethrow the error
+      if (this.config.throwOnError) {
         throw e;
       }
 
@@ -702,8 +711,8 @@ export class ExperimentClient implements Client {
         void this.startRetries(user, options);
       }
 
-      // If throwOnError is true, always throw the error after starting retries
-      if (options?.throwOnError === true) {
+      // If throwOnError is configured to true, always throw the error after starting retries
+      if (this.config.throwOnError) {
         throw e;
       }
 
@@ -759,6 +768,10 @@ export class ExperimentClient implements Client {
     } catch (e) {
       if (e instanceof TimeoutError) {
         this.config.debug && console.debug(e);
+        // If throwOnError is configured to true, rethrow timeout errors
+        if (this.config.throwOnError) {
+          throw e;
+        }
       } else {
         throw e;
       }

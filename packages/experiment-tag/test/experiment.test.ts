@@ -977,9 +977,6 @@ describe('initializeExperiment', () => {
         storageKey,
         JSON.stringify({ test: storedFlag }),
       );
-      Object.defineProperty(safeGlobal, 'sessionStorage', {
-        value: sessionStorageMock,
-      });
       const initialFlags = [
         createMutateFlag(
           'test',
