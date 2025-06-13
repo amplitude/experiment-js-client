@@ -74,9 +74,14 @@ jobs:
         id: branch-name
         run: |
           BRANCH_NAME="${{ github.event.inputs.branch }}"
-          # Replace slashes with dashes for S3 key compatibility
-          BRANCH_NAME_SAFE=$(echo $BRANCH_NAME | sed 's/\//-/g')
-          echo "branch_name_safe=$BRANCH_NAME_SAFE" >> $GITHUB_OUTPUT
+          # If branch is main, set branch name to empty string to strip it from the filename
+          if [[ "$BRANCH_NAME" == "main" ]]; then
+            echo "branch_name_safe=" >> $GITHUB_OUTPUT
+          else
+            # Replace slashes with dashes for S3 key compatibility
+            BRANCH_NAME_SAFE=$(echo $BRANCH_NAME | sed 's/\//-/g')
+            echo "branch_name_safe=$BRANCH_NAME_SAFE" >> $GITHUB_OUTPUT
+          fi
 
       - name: Determine packages to upload
         id: packages-to-upload
