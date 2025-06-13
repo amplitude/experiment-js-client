@@ -1,6 +1,9 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { FetchError, safeGlobal, TimeoutError } from '@amplitude/experiment-core';
-import { Defaults } from 'src/config';
+import {
+  FetchError,
+  safeGlobal,
+  TimeoutError,
+} from '@amplitude/experiment-core';
 import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
 import { version as PACKAGE_VERSION } from '../package.json';
@@ -1171,9 +1174,7 @@ describe('throwOnError option', () => {
     });
     mockClientStorage(client);
 
-    await expect(
-      client.fetch(testUser)
-    ).rejects.toThrow(TimeoutError);
+    await expect(client.fetch(testUser)).rejects.toThrow(TimeoutError);
   });
 
   test('throwOnError: true, should throw fetch error', async () => {
@@ -1189,9 +1190,7 @@ describe('throwOnError option', () => {
         throw new FetchError(500, 'Server Error');
       });
 
-    await expect(
-      client.fetch(testUser)
-    ).rejects.toThrow('Server Error');
+    await expect(client.fetch(testUser)).rejects.toThrow('Server Error');
   });
 
   test('throwOnError: true, should start retries in background but still throw error', async () => {
@@ -1212,9 +1211,7 @@ describe('throwOnError option', () => {
       'startRetries',
     );
 
-    await expect(
-      client.fetch(testUser)
-    ).rejects.toThrow('Server Error');
+    await expect(client.fetch(testUser)).rejects.toThrow('Server Error');
 
     // Retries should still be started in the background
     expect(retryMock).toHaveBeenCalledTimes(1);
@@ -1287,9 +1284,7 @@ describe('throwOnError option', () => {
       'startRetries',
     );
 
-    await expect(
-      client.fetch(testUser)
-    ).rejects.toThrow('Server Error');
+    await expect(client.fetch(testUser)).rejects.toThrow('Server Error');
 
     // Retries should not be started when retryFetchOnFailure is false
     expect(retryMock).toHaveBeenCalledTimes(0);
