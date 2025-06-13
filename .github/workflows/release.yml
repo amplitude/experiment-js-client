@@ -44,7 +44,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v2
         with:
-          node-version: '16'
+          node-version: '18'
 
       - name: Set up SSH for deploy key
         run: |
@@ -121,6 +121,11 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-west-2
+
+      # Install AWS SDK dependencies
+      - name: Install AWS SDK dependencies
+        if: ${{ github.event.inputs.dryRun == 'false' && (steps.check-experiment-tag.outputs.experiment_tag_updated == 'true' || steps.check-experiment-plugin.outputs.experiment_plugin_updated == 'true') }}
+        run: cd scripts && yarn install
 
       # Upload experiment packages to S3 after version and docs are updated
       - name: Upload experiment packages to S3

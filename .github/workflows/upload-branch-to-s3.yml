@@ -46,7 +46,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '18'
           cache: 'yarn'
 
       - name: Set up SSH for deploy key
@@ -58,6 +58,9 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+
+      - name: Install AWS SDK dependencies
+        run: cd scripts && yarn install
 
       - name: Build experiment-tag
         if: ${{ github.event.inputs.includeTag == 'true' }}
