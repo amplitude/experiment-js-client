@@ -706,17 +706,9 @@ export class ExperimentClient implements Client {
       await this.storeVariants(variants, options);
       return variants;
     } catch (e) {
-      // Start retries in background if configured, regardless of throwOnError setting
       if (retry && this.shouldRetryFetch(e)) {
         void this.startRetries(user, options);
       }
-
-      // If throwOnError is configured to true, always throw the error after starting retries
-      if (this.config.throwOnError) {
-        throw e;
-      }
-
-      // Otherwise, throw the error (existing behavior)
       throw e;
     }
   }
