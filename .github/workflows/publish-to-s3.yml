@@ -3,11 +3,6 @@ name: Publish Experiment Packages Branch to S3
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: 'Branch to deploy from'
-        required: true
-        type: string
-        default: 'main'
       includeTag:
         description: 'Include experiment-tag package'
         type: boolean
@@ -41,7 +36,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.branch }}
+          ref: ${{ github.ref_name }}
 
       - name: Setup Node
         uses: actions/setup-node@v3
@@ -56,30 +51,23 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-      - name: Install dependencies
+      - name: Install root dependencies
         run: yarn install --frozen-lockfile
 
       - name: Install AWS SDK dependencies
         run: cd scripts && yarn install
 
-      - name: Build experiment-tag
-        if: ${{ github.event.inputs.includeTag == 'true' }}
-        run: cd packages/experiment-tag && yarn build
-
-      - name: Build experiment-plugin-segment
-        if: ${{ github.event.inputs.includeSegmentPlugin == 'true' }}
-        run: cd packages/plugin-segment && yarn build
+      - name: Build all packages
+        run: cd packages && yarn build
 
       - name: Get branch name
         id: branch-name
         run: |
-          BRANCH_NAME="${{ github.event.inputs.branch }}"
-          # If branch is main, set branch name to empty string to strip it from the filename
+          BRANCH_NAME="${{ github.ref_name }}"
           if [[ "$BRANCH_NAME" == "main" ]]; then
             echo "branch_name_safe=" >> $GITHUB_OUTPUT
           else
-            # Replace slashes with dashes for S3 key compatibility
-            BRANCH_NAME_SAFE=$(echo $BRANCH_NAME | sed 's/\//-/g')
+            BRANCH_NAME_SAFE=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
             echo "branch_name_safe=$BRANCH_NAME_SAFE" >> $GITHUB_OUTPUT
           fi
 
