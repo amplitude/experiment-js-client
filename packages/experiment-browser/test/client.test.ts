@@ -1,6 +1,9 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { FetchError, safeGlobal } from '@amplitude/experiment-core';
-import { Defaults } from 'src/config';
+import {
+  FetchError,
+  safeGlobal,
+  TimeoutError,
+} from '@amplitude/experiment-core';
 import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
 import { version as PACKAGE_VERSION } from '../package.json';
@@ -1153,6 +1156,209 @@ describe('fetch retry with different response codes', () => {
       expect(retryMock).toHaveBeenCalledTimes(retryCalled);
     },
   );
+});
+
+describe('throwOnError option', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('throwOnError: true, should throw timeout error', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      retryFetchOnFailure: false,
+      fetchTimeoutMillis: 1,
+      throwOnError: true,
+    });
+    mockClientStorage(client);
+
+    await expect(client.fetch(testUser)).rejects.toThrow(TimeoutError);
+  });
+
+  test('throwOnError: true, should throw fetch error', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      retryFetchOnFailure: false,
+      throwOnError: true,
+    });
+    mockClientStorage(client);
+
+    jest
+      .spyOn(ExperimentClient.prototype as any, 'doFetch')
+      .mockImplementation(async () => {
+        throw new FetchError(500, 'Server Error');
+      });
+
+    await expect(client.fetch(testUser)).rejects.toThrow('Server Error');
+  });
+
+  test('throwOnError: true, should start retries in background but still throw error', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      retryFetchOnFailure: true,
+      throwOnError: true,
+    });
+    mockClientStorage(client);
+
+    jest
+      .spyOn(ExperimentClient.prototype as any, 'doFetch')
+      .mockImplementation(async () => {
+        throw new FetchError(500, 'Server Error');
+      });
+
+    const retryMock = jest.spyOn(
+      ExperimentClient.prototype as any,
+      'startRetries',
+    );
+
+    await expect(client.fetch(testUser)).rejects.toThrow('Server Error');
+
+    // Retries should still be started in the background
+    expect(retryMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('throwOnError: false, should not throw error', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      retryFetchOnFailure: false,
+      fetchTimeoutMillis: 1,
+      throwOnError: false,
+    });
+    mockClientStorage(client);
+
+    // Should not throw
+    await client.fetch(testUser);
+    const variants = client.all();
+    expect(variants).toEqual({});
+  });
+
+  test('throwOnError: undefined (default), should not throw error', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      retryFetchOnFailure: false,
+      fetchTimeoutMillis: 1,
+    });
+    mockClientStorage(client);
+
+    // Should not throw (default behavior)
+    await client.fetch(testUser);
+    const variants = client.all();
+    expect(variants).toEqual({});
+  });
+
+  test('throwOnError: undefined, should start retries when configured', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      retryFetchOnFailure: true,
+    });
+    mockClientStorage(client);
+
+    jest
+      .spyOn(ExperimentClient.prototype as any, 'doFetch')
+      .mockImplementation(async () => {
+        throw new FetchError(500, 'Server Error');
+      });
+
+    const retryMock = jest.spyOn(
+      ExperimentClient.prototype as any,
+      'startRetries',
+    );
+
+    // Should not throw and should start retries
+    await client.fetch(testUser);
+    expect(retryMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('throwOnError: true with retryFetchOnFailure: false, should not start retries', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      retryFetchOnFailure: false,
+      throwOnError: true,
+    });
+    mockClientStorage(client);
+
+    jest
+      .spyOn(ExperimentClient.prototype as any, 'doFetch')
+      .mockImplementation(async () => {
+        throw new FetchError(500, 'Server Error');
+      });
+
+    const retryMock = jest.spyOn(
+      ExperimentClient.prototype as any,
+      'startRetries',
+    );
+
+    await expect(client.fetch(testUser)).rejects.toThrow('Server Error');
+
+    // Retries should not be started when retryFetchOnFailure is false
+    expect(retryMock).toHaveBeenCalledTimes(0);
+  });
+
+  test('throwOnError: true in start(), should throw when flags API fails', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      throwOnError: true,
+      fetchOnStart: false, // Disable fetch to isolate flags API error
+      pollOnStart: false, // Disable polling to avoid interference
+    });
+    mockClientStorage(client);
+
+    jest
+      .spyOn(ExperimentClient.prototype as any, 'doFlags')
+      .mockImplementation(async () => {
+        throw new FetchError(500, 'Flags API Error');
+      });
+
+    await expect(client.start(testUser)).rejects.toThrow('Flags API Error');
+  });
+
+  test('throwOnError: true in start(), should throw when initial fetch fails', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      throwOnError: true,
+      fetchOnStart: true,
+      pollOnStart: false, // Disable polling to avoid interference
+    });
+    mockClientStorage(client);
+
+    jest
+      .spyOn(ExperimentClient.prototype as any, 'doFetch')
+      .mockImplementation(async () => {
+        throw new FetchError(500, 'Initial Fetch Error');
+      });
+
+    await expect(client.start(testUser)).rejects.toThrow('Initial Fetch Error');
+  });
+
+  test('throwOnError: false in start(), should not throw when flags API fails', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      throwOnError: false,
+      fetchOnStart: false,
+      pollOnStart: false, // Disable polling to avoid interference
+    });
+    mockClientStorage(client);
+
+    jest
+      .spyOn(ExperimentClient.prototype as any, 'doFlags')
+      .mockImplementation(async () => {
+        throw new FetchError(500, 'Flags API Error');
+      });
+
+    // Should not throw
+    await client.start(testUser);
+  });
+
+  test('throwOnError: false in start(), should not throw when initial fetch fails', async () => {
+    const client = new ExperimentClient(API_KEY, {
+      throwOnError: false,
+      fetchOnStart: true,
+      pollOnStart: false, // Disable polling to avoid interference
+    });
+    mockClientStorage(client);
+
+    jest
+      .spyOn(ExperimentClient.prototype as any, 'doFetch')
+      .mockImplementation(async () => {
+        throw new FetchError(500, 'Initial Fetch Error');
+      });
+
+    // Should not throw
+    await client.start(testUser);
+  });
 });
 
 test('test bootstrapping with v2 variants', async () => {
