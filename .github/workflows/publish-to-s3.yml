@@ -1,0 +1,108 @@
+name: Publish Experiment Packages Branch to S3
+
+on:
+  workflow_dispatch:
+    inputs:
+      includeTag:
+        description: 'Include experiment-tag package'
+        type: boolean
+        required: true
+        default: true
+      includeSegmentPlugin:
+        description: 'Include experiment-plugin-segment package'
+        type: boolean
+        required: true
+        default: true
+
+jobs:
+  authorize:
+    name: Authorize
+    runs-on: ubuntu-latest
+    steps:
+      - name: ${{ github.actor }} permission check
+        uses: 'lannonbr/repo-permission-check-action@2.0.2'
+        with:
+          permission: 'write'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    needs: [authorize]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+
+      - name: Set up SSH for deploy key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DOM_MUTATOR_ACCESS_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Install root dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Install AWS SDK dependencies
+        run: cd scripts && yarn install
+
+      - name: Build all packages
+        run: cd packages && yarn build
+
+      - name: Get branch name
+        id: branch-name
+        run: |
+          BRANCH_NAME="${{ github.ref_name }}"
+          if [[ "$BRANCH_NAME" == "main" ]]; then
+            echo "branch_name_safe=" >> $GITHUB_OUTPUT
+          else
+            BRANCH_NAME_SAFE=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+            echo "branch_name_safe=$BRANCH_NAME_SAFE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine packages to upload
+        id: packages-to-upload
+        run: |
+          PACKAGES=""
+          if [[ "${{ github.event.inputs.includeTag }}" == "true" ]]; then
+            PACKAGES="tag"
+          fi
+          
+          if [[ "${{ github.event.inputs.includeSegmentPlugin }}" == "true" ]]; then
+            if [[ -n "$PACKAGES" ]]; then
+              PACKAGES="$PACKAGES,segment-plugin"
+            else
+              PACKAGES="segment-plugin"
+            fi
+          fi
+          
+          if [[ -z "$PACKAGES" ]]; then
+            echo "No packages selected for upload"
+            exit 1
+          fi
+          
+          echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Upload to S3 with branch name
+        env:
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+          BRANCH_NAME: ${{ steps.branch-name.outputs.branch_name_safe }}
+          PACKAGES: ${{ steps.packages-to-upload.outputs.packages }}
+        run: node scripts/upload-to-s3.js
