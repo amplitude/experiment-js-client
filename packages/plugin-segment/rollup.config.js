@@ -1,4 +1,5 @@
 import { resolve as pathResolve } from 'path';
+import { join } from 'path';
 
 import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
@@ -10,7 +11,6 @@ import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
 import gzip from 'rollup-plugin-gzip';
 import license from 'rollup-plugin-license';
-import { join } from 'path';
 
 import * as packageJson from './package.json';
 import tsConfig from './tsconfig.json';
