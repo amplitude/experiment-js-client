@@ -1,4 +1,5 @@
 import { resolve as pathResolve } from 'path';
+import { join } from 'path';
 
 import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
@@ -8,6 +9,8 @@ import replace from '@rollup/plugin-replace';
 import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
+import gzip from 'rollup-plugin-gzip';
+import license from 'rollup-plugin-license';
 
 import * as packageJson from './package.json';
 import tsConfig from './tsconfig.json';
@@ -43,6 +46,11 @@ const getCommonBrowserConfig = (target) => ({
     analyze({
       summaryOnly: true,
     }),
+    license({
+      thirdParty: {
+        output: join(__dirname, 'dist', 'LICENSES'),
+      },
+    }),
   ],
 });
 
@@ -50,22 +58,22 @@ const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
     name: 'Experiment',
+    banner: `/* ${packageJson.name} v${packageJson.version} - For license info see https://unpkg.com/@amplitude/experiment-plugin-segment@${packageJson.version}/files/LICENSE */`,
     ...outputOptions,
   },
 });
 
+const config = getCommonBrowserConfig('es5');
 const configs = [
-  // minified build
   {
-    ...getCommonBrowserConfig('es5'),
+    ...config,
     ...getOutputConfig({
-      entryFileNames: 'experiment-plugin-segment.min.js',
+      entryFileNames: 'experiment-plugin-segment-min.js',
       exports: 'named',
       format: 'umd',
-      banner: `/* ${packageJson.name} v${packageJson.version} */`,
     }),
     plugins: [
-      ...getCommonBrowserConfig('es5').plugins,
+      ...config.plugins,
       terser({
         format: {
           // Don't remove semver comment
@@ -73,38 +81,8 @@ const configs = [
             /@amplitude\/.* v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/,
         },
       }), // Apply terser plugin for minification
+      gzip(), // Add gzip plugin to create .gz files
     ],
-    external: [],
-  },
-
-  // legacy build for field "main" - ie8, umd, es5 syntax
-  {
-    ...getCommonBrowserConfig('es5'),
-    ...getOutputConfig({
-      entryFileNames: 'experiment-plugin-segment.umd.js',
-      exports: 'named',
-      format: 'umd',
-    }),
-    external: [],
-  },
-
-  // tree shakable build for field "module" - ie8, esm, es5 syntax
-  {
-    ...getCommonBrowserConfig('es5'),
-    ...getOutputConfig({
-      entryFileNames: 'experiment-plugin-segment.esm.js',
-      format: 'esm',
-    }),
-    external: [],
-  },
-
-  // modern build for field "es2015" - not ie, esm, es2015 syntax
-  {
-    ...getCommonBrowserConfig('es2015'),
-    ...getOutputConfig({
-      entryFileNames: 'experiment-plugin-segment.es2015.js',
-      format: 'esm',
-    }),
     external: [],
   },
 ];
