@@ -20,7 +20,8 @@
     "build-dev": "NODE_ENV=development rm -rf dist && rollup -c && node example/build_example.js",
     "clean": "rimraf node_modules dist",
     "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
-    "test": "jest"
+    "test": "jest",
+    "prepublish": "yarn build"
   },
   "bugs": {
     "url": "https://github.com/amplitude/experiment-js-client/issues"
@@ -30,10 +31,10 @@
     "@amplitude/experiment-js-client": "^1.16.0",
     "dom-mutator": "git+ssh://git@github.com:amplitude/dom-mutator#main",
     "rollup-plugin-license": "^3.6.0",
-    "rollup-plugin-gzip": "^4.0.1"
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",
+    "rollup-plugin-gzip": "^3.1.0",
     "rollup-plugin-license": "^3.6.0"
   },
   "files": [
