@@ -53,8 +53,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private appliedInjections: Set<string> = new Set();
   appliedMutations: {
     [experiment: string]: {
-      [actionType: string]: {
-        [id: string]: MutationController;
+      [variantKey: string]: {
+        [actionType: string]: {
+          [id: string]: MutationController;
+        };
       };
     };
   } = {};
@@ -348,6 +350,35 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         continue;
       }
       const variant = variants[key];
+      const variantKey = variant.key || '';
+
+      // Check if the variant key has changed for this experiment
+      // If so, revert all mutations for this experiment
+      if (this.appliedMutations[key]) {
+        const appliedVariantKeys = Object.keys(this.appliedMutations[key]);
+        if (
+          appliedVariantKeys.length > 0 &&
+          !appliedVariantKeys.includes(variantKey)
+        ) {
+          // Variant key has changed, revert all mutations for this experiment
+          for (const oldVariantKey of appliedVariantKeys) {
+            for (const actionType in this.appliedMutations[key][
+              oldVariantKey
+            ]) {
+              for (const id in this.appliedMutations[key][oldVariantKey][
+                actionType
+              ]) {
+                this.appliedMutations[key][oldVariantKey][actionType][
+                  id
+                ]?.revert?.();
+              }
+            }
+          }
+          // Clean up the applied mutations for this experiment
+          delete this.appliedMutations[key];
+        }
+      }
+
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
       if (isWebExperimentation) {
         const shouldTrackExposure =
@@ -386,12 +417,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     for (const key of flagKeys) {
-      const typeMap = this.appliedMutations[key];
-      if (!typeMap) continue;
+      const variantMap = this.appliedMutations[key];
+      if (!variantMap) continue;
 
-      for (const type of Object.values(typeMap ?? {})) {
-        for (const mutation of Object.values(type ?? {})) {
-          mutation?.revert?.();
+      for (const variantKey in variantMap) {
+        const typeMap = variantMap[variantKey];
+        if (!typeMap) continue;
+
+        for (const actionType in typeMap) {
+          for (const id in typeMap[actionType]) {
+            typeMap[actionType][id]?.revert?.();
+          }
         }
       }
       delete this.appliedMutations[key];
@@ -557,6 +593,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   private handleMutate(action, flagKey: string, variant: Variant) {
     const mutations = action.data?.mutations || [];
+    const variantKey = variant.key || '';
 
     if (mutations.length === 0) {
       return;
@@ -568,13 +605,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // Check if mutation is scoped to page
       if (!this.isActionActiveOnPage(flagKey, m?.metadata?.scope)) {
         // Revert inactive mutation if it exists
-        this.appliedMutations[flagKey]?.[MUTATE_ACTION]?.[index]?.revert();
+        this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[index]?.revert();
 
         // Delete the mutation only if it exists
-        if (this.appliedMutations[flagKey]?.[MUTATE_ACTION]?.[index]) {
-          delete this.appliedMutations[flagKey][MUTATE_ACTION][index];
+        if (this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[index]) {
+          delete this.appliedMutations[flagKey][variantKey][MUTATE_ACTION][index];
         }
-      } else if (!this.appliedMutations[flagKey]?.[MUTATE_ACTION]?.[index]) {
+      } else if (!this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[index]) {
         this.exposureWithDedupe(flagKey, variant);
         // Apply mutation
         mutationControllers[index] = mutate.declarative(m);
@@ -582,18 +619,22 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
 
     this.appliedMutations[flagKey] ??= {};
+    this.appliedMutations[flagKey][variantKey] ??= {};
     // Merge instead of overwriting if there are existing mutations
-    this.appliedMutations[flagKey][MUTATE_ACTION] = {
-      ...this.appliedMutations[flagKey][MUTATE_ACTION],
+    this.appliedMutations[flagKey][variantKey][MUTATE_ACTION] = {
+      ...this.appliedMutations[flagKey][variantKey][MUTATE_ACTION],
       ...mutationControllers,
     };
 
     // Delete empty objects safely
     if (
-      Object.keys(this.appliedMutations[flagKey][MUTATE_ACTION] || {})
+      Object.keys(this.appliedMutations[flagKey][variantKey][MUTATE_ACTION] || {})
         .length === 0
     ) {
-      delete this.appliedMutations[flagKey][MUTATE_ACTION];
+      delete this.appliedMutations[flagKey][variantKey][MUTATE_ACTION];
+    }
+    if (Object.keys(this.appliedMutations[flagKey][variantKey] || {}).length === 0) {
+      delete this.appliedMutations[flagKey][variantKey];
     }
     if (Object.keys(this.appliedMutations[flagKey] || {}).length === 0) {
       delete this.appliedMutations[flagKey];
@@ -601,8 +642,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleInject(action, flagKey: string, variant: Variant) {
+    const variantKey = variant.key || '';
+
     if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
-      this.appliedMutations[flagKey]?.[INJECT_ACTION]?.[0]?.revert();
+      this.appliedMutations[flagKey]?.[variantKey]?.[
+        INJECT_ACTION
+      ]?.[0]?.revert();
       return;
     }
     // Validate and transform ID
@@ -663,10 +708,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     // Push mutation to remove CSS and any custom state cleanup set in utils.
     this.appliedMutations[flagKey] ??= {};
-    this.appliedMutations[flagKey][INJECT_ACTION] ??= {};
+    this.appliedMutations[flagKey][variantKey] ??= {};
+    this.appliedMutations[flagKey][variantKey][INJECT_ACTION] ??= {};
 
     // Push the mutation
-    this.appliedMutations[flagKey][INJECT_ACTION][id] = {
+    this.appliedMutations[flagKey][variantKey][INJECT_ACTION][id] = {
       revert: () => {
         utils.remove?.();
         style?.remove();

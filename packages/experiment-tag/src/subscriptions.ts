@@ -103,23 +103,42 @@ export class SubscriptionManager {
                 // Revert all injections
                 Object.entries(
                   this.webExperimentClient.appliedMutations,
-                ).forEach(([flagKey, flag]) => {
-                  if (flag[INJECT_ACTION]) {
-                    Object.values(flag[INJECT_ACTION]).forEach((action) => {
-                      action.revert?.();
-                    });
-                    // clean up mutations and injections map
-                    delete this.webExperimentClient.appliedMutations[flagKey][
-                      INJECT_ACTION
-                    ];
-                    if (
-                      Object.keys(
-                        this.webExperimentClient.appliedMutations[flagKey],
-                      ).length === 0
-                    ) {
-                      delete this.webExperimentClient.appliedMutations[flagKey];
-                    }
-                  }
+                ).forEach(([flagKey, variantMap]) => {
+                  Object.entries(variantMap).forEach(
+                    ([variantKey, actionMap]) => {
+                      if (actionMap[INJECT_ACTION]) {
+                        Object.values(actionMap[INJECT_ACTION]).forEach(
+                          (action) => {
+                            action.revert?.();
+                          },
+                        );
+                        // clean up mutations and injections map
+                        delete this.webExperimentClient.appliedMutations[
+                          flagKey
+                        ][variantKey][INJECT_ACTION];
+                        if (
+                          Object.keys(
+                            this.webExperimentClient.appliedMutations[flagKey][
+                              variantKey
+                            ],
+                          ).length === 0
+                        ) {
+                          delete this.webExperimentClient.appliedMutations[
+                            flagKey
+                          ][variantKey];
+                        }
+                        if (
+                          Object.keys(
+                            this.webExperimentClient.appliedMutations[flagKey],
+                          ).length === 0
+                        ) {
+                          delete this.webExperimentClient.appliedMutations[
+                            flagKey
+                          ];
+                        }
+                      }
+                    },
+                  );
                 });
               }
               this.webExperimentClient.applyVariants();
