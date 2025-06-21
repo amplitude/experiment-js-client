@@ -593,13 +593,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // Check if mutation is scoped to page
       if (!this.isActionActiveOnPage(flagKey, m?.metadata?.scope)) {
         // Revert inactive mutation if it exists
-        this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[index]?.revert();
+        this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[
+          index
+        ]?.revert();
 
         // Delete the mutation only if it exists
-        if (this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[index]) {
-          delete this.appliedMutations[flagKey][variantKey][MUTATE_ACTION][index];
+        if (
+          this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[index]
+        ) {
+          delete this.appliedMutations[flagKey][variantKey][MUTATE_ACTION][
+            index
+          ];
         }
-      } else if (!this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[index]) {
+      } else if (
+        !this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[index]
+      ) {
         this.exposureWithDedupe(flagKey, variant);
         // Apply mutation
         mutationControllers[index] = mutate.declarative(m);
@@ -616,12 +624,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // Delete empty objects safely
     if (
-      Object.keys(this.appliedMutations[flagKey][variantKey][MUTATE_ACTION] || {})
-        .length === 0
+      Object.keys(
+        this.appliedMutations[flagKey][variantKey][MUTATE_ACTION] || {},
+      ).length === 0
     ) {
       delete this.appliedMutations[flagKey][variantKey][MUTATE_ACTION];
     }
-    if (Object.keys(this.appliedMutations[flagKey][variantKey] || {}).length === 0) {
+    if (
+      Object.keys(this.appliedMutations[flagKey][variantKey] || {}).length === 0
+    ) {
       delete this.appliedMutations[flagKey][variantKey];
     }
     if (Object.keys(this.appliedMutations[flagKey] || {}).length === 0) {
