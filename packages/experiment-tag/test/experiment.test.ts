@@ -654,9 +654,16 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test'));
-    expect(Object.keys(appliedMutations['test']).includes('mutate'));
-    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(2);
+    expect(Object.keys(appliedMutations).includes('test')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']).includes('mutate'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']).length,
+    ).toEqual(2);
   });
 
   test('scoped mutations - experiment active, both mutations active on different pages', () => {
@@ -681,10 +688,19 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test'));
-    expect(Object.keys(appliedMutations['test']).includes('mutate'));
-    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(2);
-    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['0', '1']);
+    expect(Object.keys(appliedMutations).includes('test')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']).includes('mutate'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']).length,
+    ).toEqual(2);
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']),
+    ).toEqual(['0', '1']);
   });
 
   test('Visual editor mode - active pages updated but variant actions not applied', () => {
@@ -754,10 +770,19 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test'));
-    expect(Object.keys(appliedMutations['test']).includes('mutate'));
-    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(1);
-    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['1']);
+    expect(Object.keys(appliedMutations).includes('test')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']).includes('mutate'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']).length,
+    ).toEqual(1);
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']),
+    ).toEqual(['1']);
   });
 
   test('scoped mutations - experiment active, neither mutation active', () => {
@@ -796,10 +821,19 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test'));
-    expect(Object.keys(appliedMutations['test']).includes('mutate'));
-    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(1);
-    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['0']);
+    expect(Object.keys(appliedMutations).includes('test')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']).includes('mutate'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']).length,
+    ).toEqual(1);
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']),
+    ).toEqual(['0']);
   });
 
   test('page object - update activePages and applyVariants upon navigation', () => {
@@ -840,11 +874,18 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test-1');
     let appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test-1'));
-    expect(Object.keys(appliedMutations['test-1']).includes('mutate'));
+    expect(Object.keys(appliedMutations).includes('test-1')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test-1']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test-1']['treatment']).includes('mutate'),
+    ).toBeTruthy();
     const activePages = (client as any).activePages;
     expect(activePages).toEqual({ 'test-1': test1Page });
-    expect(Object.keys(appliedMutations['test-1']['mutate']).length).toEqual(1);
+    expect(
+      Object.keys(appliedMutations['test-1']['treatment']['mutate']).length,
+    ).toEqual(1);
     (client as any).subscriptionManager.globalScope = newMockGlobal({
       location: {
         href: 'http://B.com',
@@ -855,9 +896,16 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(2);
     expect(mockExposure).toHaveBeenCalledWith('test-2');
     appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test-2'));
-    expect(Object.keys(appliedMutations['test-2']).includes('mutate'));
-    expect(Object.keys(appliedMutations['test-2']['mutate']).length).toEqual(1);
+    expect(Object.keys(appliedMutations).includes('test-2')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test-2']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test-2']['treatment']).includes('mutate'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test-2']['treatment']['mutate']).length,
+    ).toEqual(1);
   });
 
   describe('remote evaluation - flag already stored in session storage', () => {
