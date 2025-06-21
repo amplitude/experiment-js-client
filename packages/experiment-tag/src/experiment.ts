@@ -361,19 +361,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           !appliedVariantKeys.includes(variantKey)
         ) {
           // Variant key has changed, revert all mutations for this experiment
-          for (const oldVariantKey of appliedVariantKeys) {
-            for (const actionType in this.appliedMutations[key][
-              oldVariantKey
-            ]) {
-              for (const id in this.appliedMutations[key][oldVariantKey][
-                actionType
-              ]) {
-                this.appliedMutations[key][oldVariantKey][actionType][
-                  id
-                ]?.revert?.();
-              }
-            }
-          }
+          this.revertVariants({ flagKeys: [key] });
           // Clean up the applied mutations for this experiment
           delete this.appliedMutations[key];
         }
