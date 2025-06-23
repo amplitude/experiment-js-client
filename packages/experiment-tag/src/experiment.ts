@@ -359,8 +359,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           if (this.isActionActiveOnPage(key, undefined)) {
             this.exposureWithDedupe(key, variant);
           }
-          // revert all applied mutations and injections
-          this.revertVariants({ flagKeys: [key] });
+          if (variant.key === 'off') {
+            // revert all applied mutations and injections
+            this.revertVariants({ flagKeys: [key] });
+          }
         }
 
         if (payloadIsArray) {
