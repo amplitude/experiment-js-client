@@ -39,7 +39,7 @@
     "rollup-plugin-analyzer": "^4.0.0",
     "ts-jest": "^29.1.0",
     "tslib": "^2.5.0",
-    "typedoc": "^0.24.1",
+    "typedoc": "^0.28.5",
     "typescript": "^5.0.4"
   },
   "resolutions": {
