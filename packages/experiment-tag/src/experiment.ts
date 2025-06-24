@@ -591,15 +591,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     mutations.forEach((m, index) => {
       // Check if mutation is scoped to page
       if (!this.isActionActiveOnPage(flagKey, m?.metadata?.scope)) {
-        // Revert inactive mutation if it exists
-        this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[
-          index
-        ]?.revert();
-
-        // Delete the mutation only if it exists
+        // Revert and delete the mutation if it exists
         if (
           this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[index]
         ) {
+          this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[
+            index
+          ]?.revert();
           delete this.appliedMutations[flagKey][variantKey][MUTATE_ACTION][
             index
           ];
@@ -607,6 +605,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       } else {
         // always track exposure if mutation is active
         this.exposureWithDedupe(flagKey, variant);
+        // Check if mutation has already been applied
         if (
           !this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[
             index
@@ -637,9 +636,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (
       Object.keys(this.appliedMutations[flagKey][variantKey] || {}).length === 0
     ) {
-      delete this.appliedMutations[flagKey][variantKey];
-    }
-    if (Object.keys(this.appliedMutations[flagKey] || {}).length === 0) {
       delete this.appliedMutations[flagKey];
     }
   }
