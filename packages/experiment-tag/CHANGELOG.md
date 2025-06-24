@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.0...@amplitude/experiment-tag@0.7.1) (2025-06-24)
+
+
+### Bug Fixes
+
+* scoping for control impression event actions ([#190](https://github.com/amplitude/experiment-js-client/issues/190)) ([9024e90](https://github.com/amplitude/experiment-js-client/commit/9024e905c20f20c1aa669eefb091c13d455e5870))
+* Web Experiment - Control variant condition ([#188](https://github.com/amplitude/experiment-js-client/issues/188)) ([3b32839](https://github.com/amplitude/experiment-js-client/commit/3b3283943448da3e58c03fa4ebc32aa77ad38b47))
+
+
+
+
+
 # [0.7.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.6.3...@amplitude/experiment-tag@0.7.0) (2025-06-23)
 
 
