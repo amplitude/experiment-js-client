@@ -372,10 +372,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         const payloadIsArray = Array.isArray(variant.payload);
         const payloadArrayIsEmpty =
           payloadIsArray && variant.payload.length === 0;
-        const payloadIsNotArrayOrEmpty = !payloadIsArray || payloadArrayIsEmpty;
+        const payloadIsNotArrayOrIsEmpty =
+          !payloadIsArray || payloadArrayIsEmpty;
         if (
           variant.key === 'off' ||
-          (variant.key === 'control' && payloadIsNotArrayOrEmpty)
+          (variant.key === 'control' && payloadIsNotArrayOrIsEmpty)
         ) {
           if (this.isActionActiveOnPage(key, undefined)) {
             this.exposureWithDedupe(key, variant);
