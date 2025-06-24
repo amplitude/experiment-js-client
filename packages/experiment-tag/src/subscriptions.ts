@@ -100,45 +100,38 @@ export class SubscriptionManager {
               !this.options.isVisualEditorMode
             ) {
               if (page.trigger_type === 'url_change') {
-                // Revert all injections
-                Object.entries(
+                // First revert all inject actions
+                Object.values(
                   this.webExperimentClient.appliedMutations,
-                ).forEach(([flagKey, variantMap]) => {
-                  Object.entries(variantMap).forEach(
-                    ([variantKey, actionMap]) => {
-                      if (actionMap[INJECT_ACTION]) {
-                        Object.values(actionMap[INJECT_ACTION]).forEach(
-                          (action) => {
-                            action.revert?.();
-                          },
-                        );
-                        // clean up mutations and injections map
-                        delete this.webExperimentClient.appliedMutations[
-                          flagKey
-                        ][variantKey][INJECT_ACTION];
-                        if (
-                          Object.keys(
-                            this.webExperimentClient.appliedMutations[flagKey][
-                              variantKey
-                            ],
-                          ).length === 0
-                        ) {
-                          delete this.webExperimentClient.appliedMutations[
-                            flagKey
-                          ][variantKey];
-                        }
-                        if (
-                          Object.keys(
-                            this.webExperimentClient.appliedMutations[flagKey],
-                          ).length === 0
-                        ) {
-                          delete this.webExperimentClient.appliedMutations[
-                            flagKey
-                          ];
-                        }
+                ).forEach((variantMap) => {
+                  Object.values(variantMap).forEach((actionMap) => {
+                    if (actionMap[INJECT_ACTION]) {
+                      Object.values(actionMap[INJECT_ACTION]).forEach(
+                        (action) => {
+                          action.revert?.();
+                        },
+                      );
+                    }
+                  });
+                });
+
+                // Then clean up the appliedMutations structure
+                const mutations = this.webExperimentClient.appliedMutations;
+                Object.keys(mutations).forEach((flagKey) => {
+                  const variantMap = mutations[flagKey];
+                  Object.keys(variantMap).forEach((variantKey) => {
+                    if (variantMap[variantKey][INJECT_ACTION]) {
+                      delete variantMap[variantKey][INJECT_ACTION];
+
+                      if (Object.keys(variantMap[variantKey]).length === 0) {
+                        delete variantMap[variantKey];
                       }
-                    },
-                  );
+                    }
+                  });
+
+                  if (Object.keys(variantMap).length === 0) {
+                    delete mutations[flagKey];
+                  }
                 });
               }
               this.webExperimentClient.applyVariants();

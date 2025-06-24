@@ -369,19 +369,19 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
       if (isWebExperimentation) {
-        const shouldTrackExposure =
-          (variant.metadata?.['trackExposure'] as boolean) ?? true;
         const payloadIsArray = Array.isArray(variant.payload);
-        const isControlOrOffPayload =
-          variant.key === 'control' || variant.key === 'off';
-        if (shouldTrackExposure && isControlOrOffPayload) {
+        const payloadArrayIsEmpty =
+          payloadIsArray && variant.payload.length === 0;
+        const payloadIsNotArrayOrEmpty = !payloadIsArray || payloadArrayIsEmpty;
+        if (
+          variant.key === 'off' ||
+          (variant.key === 'control' && payloadIsNotArrayOrEmpty)
+        ) {
           if (this.isActionActiveOnPage(key, undefined)) {
             this.exposureWithDedupe(key, variant);
           }
-          if (variant.key === 'off') {
-            // revert all applied mutations and injections
-            this.revertVariants({ flagKeys: [key] });
-          }
+          // revert all applied mutations and injections
+          this.revertVariants({ flagKeys: [key] });
         }
 
         if (payloadIsArray) {
@@ -604,12 +604,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
             index
           ];
         }
-      } else if (
-        !this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[index]
-      ) {
+      } else {
+        // always track exposure if mutation is active
         this.exposureWithDedupe(flagKey, variant);
-        // Apply mutation
-        mutationControllers[index] = mutate.declarative(m);
+        if (
+          !this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[
+            index
+          ]
+        ) {
+          // Apply mutation
+          mutationControllers[index] = mutate.declarative(m);
+        }
       }
     });
 
@@ -722,7 +727,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private exposureWithDedupe(key: string, variant: Variant) {
-    const shouldTrackVariant = variant.metadata?.['trackExposure'] ?? true;
     const currentUrl = urlWithoutParamsAndAnchor(
       this.globalScope.location.href,
     );
@@ -730,9 +734,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // if on the same base URL, only track exposure if variant has changed or has not been tracked
     const hasTrackedVariant =
       this.urlExposureCache?.[currentUrl]?.[key] === variant.key;
-    const shouldTrackExposure = shouldTrackVariant && !hasTrackedVariant;
 
-    if (shouldTrackExposure) {
+    if (!hasTrackedVariant) {
       this.experimentClient.exposure(key);
       this.urlExposureCache[currentUrl][key] = variant.key;
     }
