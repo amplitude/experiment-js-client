@@ -350,19 +350,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       const variant = variants[key];
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
       if (isWebExperimentation) {
-        const shouldTrackExposure =
-          (variant.metadata?.['trackExposure'] as boolean) ?? true;
         const payloadIsArray = Array.isArray(variant.payload);
-        const isControlOrOffPayload =
-          variant.key === 'control' || variant.key === 'off';
-        if (shouldTrackExposure && isControlOrOffPayload) {
+        const payloadArrayIsEmpty =
+          payloadIsArray && variant.payload.length === 0;
+        const payloadIsNotArrayOrIsEmpty =
+          !payloadIsArray || payloadArrayIsEmpty;
+        if (
+          variant.key === 'off' ||
+          (variant.key === 'control' && payloadIsNotArrayOrIsEmpty)
+        ) {
           if (this.isActionActiveOnPage(key, undefined)) {
             this.exposureWithDedupe(key, variant);
           }
-          if (variant.key === 'off') {
-            // revert all applied mutations and injections
-            this.revertVariants({ flagKeys: [key] });
-          }
+          // revert all applied mutations and injections
+          this.revertVariants({ flagKeys: [key] });
+          continue;
         }
 
         if (payloadIsArray) {
@@ -677,7 +679,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private exposureWithDedupe(key: string, variant: Variant) {
-    const shouldTrackVariant = variant.metadata?.['trackExposure'] ?? true;
     const currentUrl = urlWithoutParamsAndAnchor(
       this.globalScope.location.href,
     );
@@ -685,9 +686,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // if on the same base URL, only track exposure if variant has changed or has not been tracked
     const hasTrackedVariant =
       this.urlExposureCache?.[currentUrl]?.[key] === variant.key;
-    const shouldTrackExposure = shouldTrackVariant && !hasTrackedVariant;
 
-    if (shouldTrackExposure) {
+    if (!hasTrackedVariant) {
       this.experimentClient.exposure(key);
       this.urlExposureCache[currentUrl][key] = variant.key;
     }
