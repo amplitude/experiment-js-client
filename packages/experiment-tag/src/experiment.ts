@@ -371,18 +371,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (isWebExperimentation) {
         const shouldTrackExposure =
           (variant.metadata?.['trackExposure'] as boolean) ?? true;
-        // if payload is falsy or empty array, consider it as control or off variant
         const payloadIsArray = Array.isArray(variant.payload);
-        // TODO(bgiori) this will need to change when we introduce control variant mutations
         const isControlOrOffPayload =
-          !variant.payload || (payloadIsArray && variant.payload.length === 0);
+          variant.key === 'control' || variant.key === 'off';
         if (shouldTrackExposure && isControlOrOffPayload) {
           if (this.isActionActiveOnPage(key, undefined)) {
             this.exposureWithDedupe(key, variant);
           }
-          // revert all applied mutations and injections
-          this.revertVariants({ flagKeys: [key] });
-          continue;
+          if (variant.key === 'off') {
+            // revert all applied mutations and injections
+            this.revertVariants({ flagKeys: [key] });
+          }
         }
 
         if (payloadIsArray) {

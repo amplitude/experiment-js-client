@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.7.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.6.3...@amplitude/experiment-tag@0.7.0) (2025-06-23)
+
+
+### Features
+
+* add throwOnError configuration option ([#187](https://github.com/amplitude/experiment-js-client/issues/187)) ([00761aa](https://github.com/amplitude/experiment-js-client/commit/00761aa122c4f5da30af914a82543635bfd25208))
+
+
+
+
+
 ## [0.6.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.6.2...@amplitude/experiment-tag@0.6.3) (2025-05-15)
 
 
