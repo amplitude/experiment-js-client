@@ -18,7 +18,7 @@ export const createRedirectFlag = (
           },
         },
       ]
-    : [];
+    : undefined;
   return {
     key: flagKey,
     metadata: {
@@ -116,7 +116,7 @@ export const createMutateFlag = (
     variants: {
       control: {
         key: 'control',
-        payload: [],
+        payload: undefined,
         value: 'control',
       },
       off: {
