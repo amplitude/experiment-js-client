@@ -351,20 +351,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
       if (isWebExperimentation) {
         const payloadIsArray = Array.isArray(variant.payload);
-        const payloadArrayIsEmpty =
-          payloadIsArray && variant.payload.length === 0;
-        const payloadIsNotArrayOrIsEmpty =
-          !payloadIsArray || payloadArrayIsEmpty;
-        if (
-          variant.key === 'off' ||
-          (variant.key === 'control' && payloadIsNotArrayOrIsEmpty)
-        ) {
+        if (variant.key === 'off' || variant.key === 'control') {
           if (this.isActionActiveOnPage(key, undefined)) {
             this.exposureWithDedupe(key, variant);
           }
-          // revert all applied mutations and injections
-          this.revertVariants({ flagKeys: [key] });
-          continue;
+          if (variant.key === 'off') {
+            // revert all applied mutations and injections
+            this.revertVariants({ flagKeys: [key] });
+            continue;
+          }
         }
 
         if (payloadIsArray) {
