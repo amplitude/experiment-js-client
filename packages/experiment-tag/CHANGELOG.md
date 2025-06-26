@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.2...@amplitude/experiment-tag@0.7.3) (2025-06-26)
+
+
+### Bug Fixes
+
+* always track impression if there is active variant action on page, revert stale variant actions ([#189](https://github.com/amplitude/experiment-js-client/issues/189)) ([0e91294](https://github.com/amplitude/experiment-js-client/commit/0e91294328909f693dc61ded479414ba0a25fcd1))
+
+
+
+
+
 ## [0.7.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.1...@amplitude/experiment-tag@0.7.2) (2025-06-26)
 
 
