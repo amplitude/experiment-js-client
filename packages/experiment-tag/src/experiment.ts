@@ -203,6 +203,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
       // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
       this.messageBus.publish('url_change', { updateActivePages: true });
+      this.isRunning = true;
       return;
     }
 
