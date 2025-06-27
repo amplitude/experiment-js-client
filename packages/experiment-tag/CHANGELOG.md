@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.3...@amplitude/experiment-tag@0.7.4) (2025-06-27)
+
+
+### Bug Fixes
+
+* set isRunning after Visual Editor initializes ([#192](https://github.com/amplitude/experiment-js-client/issues/192)) ([54bdf79](https://github.com/amplitude/experiment-js-client/commit/54bdf79d89d06189add106a3e4e36bd214bd5932))
+
+
+
+
+
 ## [0.7.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.2...@amplitude/experiment-tag@0.7.3) (2025-06-26)
 
 
