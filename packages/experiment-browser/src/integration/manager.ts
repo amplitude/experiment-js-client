@@ -112,6 +112,17 @@ export class IntegrationManager {
         eventProperties: exposure,
       };
     } else if (exposure.metadata?.deliveryMethod === 'web') {
+      // Add current URL without query parameters to event properties
+      const globalScope = getGlobalScope();
+      if (globalScope) {
+        try {
+          const url = globalScope.location.href;
+          const urlWithoutParams = url.split('?')[0] || '';
+          event.eventProperties.url = urlWithoutParams;
+        } catch (e) {
+          // If there's any error getting the URL, continue without it
+        }
+      }
       // Web experiments track impression events by default
       event = {
         eventType: '$impression',

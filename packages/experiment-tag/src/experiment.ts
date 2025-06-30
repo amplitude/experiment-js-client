@@ -346,6 +346,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache = {};
       this.urlExposureCache[currentUrl] = {};
     }
+
+    this.fireStoredRedirectImpressions();
+
     for (const key in variants) {
       if (flagKeys && !flagKeys.includes(key)) {
         continue;
@@ -536,6 +539,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleRedirect(action, flagKey: string, variant: Variant) {
+    // Now check if the current action is active on the page
     if (!this.isActionActiveOnPage(flagKey, action?.data?.metadata?.scope)) {
       return;
     }
@@ -563,12 +567,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    this.exposureWithDedupe(flagKey, variant);
+    this.storeRedirectImpressions(flagKey, variant);
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    // perform redirection
 
+    // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
       return;
@@ -776,5 +780,47 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // If scope is provided, check if any scoped page is active
     return scope.some((pageId) => flagPages?.[pageId] ?? false);
+  }
+
+  private storeRedirectImpressions(flagKey: string, variant: Variant) {
+    const redirectStorageKey = `AMP_EXP_REDIRECT_${this.apiKey.slice(0, 10)}`;
+    // Store the current flag and variant for exposure tracking after redirect
+    try {
+      const storedRedirects = JSON.parse(
+        this.globalScope.sessionStorage.getItem(redirectStorageKey) || '{}',
+      );
+
+      storedRedirects[flagKey] = variant;
+
+      this.globalScope.sessionStorage.setItem(
+        redirectStorageKey,
+        JSON.stringify(storedRedirects),
+      );
+    } catch (error) {
+      console.warn('Error storing redirect information:', error);
+    }
+  }
+
+  private fireStoredRedirectImpressions() {
+    // Check for stored redirects and process them
+    const redirectStorageKey = `AMP_EXP_REDIRECT_${this.apiKey.slice(0, 10)}`;
+    try {
+      const storedRedirects = JSON.parse(
+        this.globalScope.sessionStorage.getItem(redirectStorageKey) || '{}',
+      );
+
+      // If we have stored redirects, track exposures for them
+      if (Object.keys(storedRedirects).length > 0) {
+        for (const storedFlagKey in storedRedirects) {
+          const storedVariant = storedRedirects[storedFlagKey];
+          this.exposureWithDedupe(storedFlagKey, storedVariant);
+        }
+
+        // Clear the storage after tracking exposures
+        this.globalScope.sessionStorage.removeItem(redirectStorageKey);
+      }
+    } catch (error) {
+      console.warn('Error processing stored redirects:', error);
+    }
   }
 }
