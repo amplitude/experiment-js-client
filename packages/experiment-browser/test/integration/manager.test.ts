@@ -197,7 +197,6 @@ describe('IntegrationManager', () => {
           metadata: {
             deliveryMethod: 'web',
           },
-          url: 'http://localhost/',
         },
       });
     });
