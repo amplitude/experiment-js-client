@@ -44,14 +44,24 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
     };
   };
 
-  return {
+  const mockLocation = {
+    href: 'http://test.com',
+    search: '',
+    replace: jest.fn((url) => {
+      // Update href when replace is called to simulate navigation
+      mockLocation.href = url;
+    }),
+    // Add other location properties that might be accessed
+    hostname: 'test.com',
+    pathname: '/',
+    protocol: 'http:',
+    port: '',
+    host: 'test.com',
+  };
+
+  const baseGlobal = {
     localStorage: createStorageMock(),
     sessionStorage: createStorageMock(),
-    location: {
-      href: 'http://test.com',
-      replace: jest.fn(),
-      search: '',
-    },
     document: { referrer: '' },
     history: { replaceState: jest.fn() },
     addEventListener: jest.fn(),
@@ -66,8 +76,23 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
         };
       },
     },
-    ...overrides,
+    location: mockLocation,
   };
+  if (overrides) {
+    Object.keys(overrides).forEach((key) => {
+      if (key === 'location' && typeof overrides[key] === 'object') {
+        // Merge location properties instead of replacing the entire object
+        baseGlobal.location = {
+          ...baseGlobal.location,
+          ...(overrides[key] as any),
+        };
+      } else {
+        baseGlobal[key] = overrides[key];
+      }
+    });
+  }
+
+  return baseGlobal;
 };
 
 describe('initializeExperiment', () => {
@@ -88,9 +113,11 @@ describe('initializeExperiment', () => {
     apiKey++;
     jest.clearAllMocks();
     jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
+
+    // Create fresh mock global for each test
     mockGlobal = newMockGlobal();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
+
+    // Ensure the mock is properly set
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     antiFlickerSpy = jest
       .spyOn(DefaultWebExperimentClient.prototype as any, 'applyAntiFlickerCss')
@@ -213,7 +240,6 @@ describe('initializeExperiment', () => {
 
     // Clear exposure tracking before simulating URL change
     mockExposureInternal.mockClear();
-    mockExposure.mockClear();
 
     // Ensure messageBus exists before publishing
     if ((client as any).messageBus) {
