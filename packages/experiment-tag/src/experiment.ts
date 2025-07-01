@@ -812,7 +812,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         JSON.stringify(storedRedirects),
       );
     } catch (error) {
-      console.warn('Error storing redirect information:', error);
+      console.warn('Error storing redirect events:', error);
     }
   }
 
@@ -836,7 +836,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         this.globalScope.sessionStorage.removeItem(redirectStorageKey);
       }
     } catch (error) {
-      console.warn('Error processing stored redirects:', error);
+      console.warn('Error processing stored redirects events:', error);
     }
   }
 }
