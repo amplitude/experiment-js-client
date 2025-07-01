@@ -346,6 +346,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache = {};
       this.urlExposureCache[currentUrl] = {};
     }
+
+    this.fireStoredRedirectImpressions();
+
     for (const key in variants) {
       if (flagKeys && !flagKeys.includes(key)) {
         continue;
@@ -371,6 +374,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
       if (isWebExperimentation) {
         const payloadIsArray = Array.isArray(variant.payload);
+        // TODO: update to handle impression tracking when control variant redirect is supported
         if (variant.key === 'off' || variant.key === 'control') {
           if (this.isActionActiveOnPage(key, undefined)) {
             this.exposureWithDedupe(key, variant);
@@ -563,12 +567,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    this.exposureWithDedupe(flagKey, variant);
+    this.storeRedirectImpressions(flagKey, variant);
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    // perform redirection
 
+    // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
       return;
@@ -720,7 +724,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.exposureWithDedupe(flagKey, variant);
   }
 
-  private exposureWithDedupe(key: string, variant: Variant) {
+  private exposureWithDedupe(
+    key: string,
+    variant: Variant,
+    forceVariant?: boolean,
+  ) {
     const currentUrl = urlWithoutParamsAndAnchor(
       this.globalScope.location.href,
     );
@@ -730,7 +738,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache?.[currentUrl]?.[key] === variant.key;
 
     if (!hasTrackedVariant) {
-      this.experimentClient.exposure(key);
+      if (forceVariant) {
+        const variantAndSource = {
+          variant: variant,
+          source: 'local-evaluation',
+          hasDefaultVariant: false,
+        };
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        this.experimentClient.exposureInternal(key, variantAndSource);
+      } else {
+        this.experimentClient.exposure(key);
+      }
       this.urlExposureCache[currentUrl][key] = variant.key;
     }
   }
@@ -776,5 +795,48 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // If scope is provided, check if any scoped page is active
     return scope.some((pageId) => flagPages?.[pageId] ?? false);
+  }
+
+  private storeRedirectImpressions(flagKey: string, variant: Variant) {
+    const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+    // Store the current flag and variant for exposure tracking after redirect
+    try {
+      const storedRedirects = JSON.parse(
+        this.globalScope.sessionStorage.getItem(redirectStorageKey) || '{}',
+      );
+
+      storedRedirects[flagKey] = variant;
+
+      this.globalScope.sessionStorage.setItem(
+        redirectStorageKey,
+        JSON.stringify(storedRedirects),
+      );
+    } catch (error) {
+      console.warn('Error storing redirect information:', error);
+    }
+  }
+
+  private fireStoredRedirectImpressions() {
+    // Check for stored redirects and process them
+    const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+    try {
+      const storedRedirects = JSON.parse(
+        this.globalScope.sessionStorage.getItem(redirectStorageKey) || '{}',
+      );
+
+      // If we have stored redirects, track exposures for them
+      if (Object.keys(storedRedirects).length > 0) {
+        for (const storedFlagKey in storedRedirects) {
+          const storedVariant = storedRedirects[storedFlagKey];
+          // Force variant to ensure original evaluation result is tracked
+          this.exposureWithDedupe(storedFlagKey, storedVariant, true);
+        }
+
+        // Clear the storage after tracking exposures
+        this.globalScope.sessionStorage.removeItem(redirectStorageKey);
+      }
+    } catch (error) {
+      console.warn('Error processing stored redirects events:', error);
+    }
   }
 }

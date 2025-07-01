@@ -14,6 +14,7 @@ import {
   SdkFlagApi,
   TimeoutError,
   topologicalSort,
+  getGlobalScope,
 } from '@amplitude/experiment-core';
 
 import { version as PACKAGE_VERSION } from '../package.json';
@@ -893,7 +894,22 @@ export class ExperimentClient implements Client {
         exposure.variant = sourceVariant.variant.value;
       }
     }
+
     if (metadata) exposure.metadata = metadata;
+
+    // Add current URL for web experiments
+    if (this.isWebExperiment) {
+      const globalScope = getGlobalScope();
+      if (globalScope?.location) {
+        try {
+          const url = globalScope.location.href;
+          // Add URL without query parameters
+          exposure.metadata.url = url.split('?')[0] || '';
+        } catch (e) {
+          // If there's any error getting the URL, continue without it
+        }
+      }
+    }
     this.exposureTrackingProvider?.track(exposure);
     this.integrationManager.track(exposure);
   }
