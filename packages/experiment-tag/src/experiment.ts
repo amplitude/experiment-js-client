@@ -539,7 +539,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private handleRedirect(action, flagKey: string, variant: Variant) {
-    // Now check if the current action is active on the page
     if (!this.isActionActiveOnPage(flagKey, action?.data?.metadata?.scope)) {
       return;
     }
