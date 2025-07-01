@@ -75,6 +75,11 @@ describe('initializeExperiment', () => {
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
+  // Add a spy for the exposureInternal method
+  const mockExposureInternal = jest.spyOn(
+    ExperimentClient.prototype as any,
+    'exposureInternal',
+  );
   jest.spyOn(util, 'UUID').mockReturnValue('mock');
   let mockGlobal;
   let antiFlickerSpy;
@@ -207,6 +212,7 @@ describe('initializeExperiment', () => {
     }
 
     // Clear exposure tracking before simulating URL change
+    mockExposureInternal.mockClear();
     mockExposure.mockClear();
 
     // Ensure messageBus exists before publishing
@@ -214,8 +220,15 @@ describe('initializeExperiment', () => {
       // Simulate URL change event after redirect
       (client as any).messageBus.publish('url_change', {});
 
-      // Verify exposure was tracked for the stored redirect
-      expect(mockExposure).toHaveBeenCalledWith('test');
+      // Verify exposureInternal was called with the correct flag key
+      expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+      expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+
+      // Check that the sourceVariant parameter contains the expected properties
+      const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+      expect(sourceVariant).toBeDefined();
+      expect(sourceVariant.variant).toBeDefined();
+      expect(sourceVariant.variant.key).toBe('treatment');
 
       // Verify sessionStorage was cleared after tracking
       expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
@@ -325,13 +338,21 @@ describe('initializeExperiment', () => {
     }
 
     // Clear exposure tracking before simulating URL change
+    mockExposureInternal.mockClear();
     mockExposure.mockClear();
 
     // Simulate URL change event after redirect
     (client as any).messageBus.publish('url_change', {});
 
-    // Verify exposure was tracked for the stored redirect
-    expect(mockExposure).toHaveBeenCalledWith('test');
+    // Verify exposureInternal was called with the correct flag key
+    expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+    expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+
+    // Check that the sourceVariant parameter contains the expected properties
+    const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+    expect(sourceVariant).toBeDefined();
+    expect(sourceVariant.variant).toBeDefined();
+    expect(sourceVariant.variant.key).toBe('treatment'); // Preview forces treatment
 
     // Verify sessionStorage was cleared after tracking
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
@@ -412,13 +433,21 @@ describe('initializeExperiment', () => {
     }
 
     // Clear exposure tracking before simulating URL change
+    mockExposureInternal.mockClear();
     mockExposure.mockClear();
 
     // Simulate URL change event after redirect
     (client as any).messageBus.publish('url_change', {});
 
-    // Verify exposure was tracked for the stored redirect
-    expect(mockExposure).toHaveBeenCalledWith('test');
+    // Verify exposureInternal was called with the correct flag key
+    expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+    expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+
+    // Check that the sourceVariant parameter contains the expected properties
+    const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+    expect(sourceVariant).toBeDefined();
+    expect(sourceVariant.variant).toBeDefined();
+    expect(sourceVariant.variant.key).toBe('treatment');
 
     // Verify sessionStorage was cleared after tracking
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
@@ -494,6 +523,7 @@ describe('initializeExperiment', () => {
     }
 
     // Clear exposure tracking before simulating URL change
+    mockExposureInternal.mockClear();
     mockExposure.mockClear();
 
     // Ensure messageBus exists before publishing
@@ -501,8 +531,15 @@ describe('initializeExperiment', () => {
       // Simulate URL change event after redirect
       (client as any).messageBus.publish('url_change', {});
 
-      // Verify exposure was tracked for the stored redirect
-      expect(mockExposure).toHaveBeenCalledWith('test');
+      // Verify exposureInternal was called with the correct flag key
+      expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+      expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+
+      // Check that the sourceVariant parameter contains the expected properties
+      const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+      expect(sourceVariant).toBeDefined();
+      expect(sourceVariant.variant).toBeDefined();
+      expect(sourceVariant.variant.key).toBe('treatment');
 
       // Verify sessionStorage was cleared after tracking
       expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
@@ -800,13 +837,21 @@ describe('initializeExperiment', () => {
     }
 
     // Clear exposure tracking before simulating URL change
+    mockExposureInternal.mockClear();
     mockExposure.mockClear();
 
     // Simulate URL change event after redirect
     (client as any).messageBus.publish('url_change', {});
 
-    // Verify exposure was tracked for the stored redirect
-    expect(mockExposure).toHaveBeenCalledWith('test');
+    // Verify exposureInternal was called with the correct flag key
+    expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+    expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+
+    // Check that the sourceVariant parameter contains the expected properties
+    const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+    expect(sourceVariant).toBeDefined();
+    expect(sourceVariant.variant).toBeDefined();
+    expect(sourceVariant.variant.key).toBe('treatment');
 
     // Verify sessionStorage was cleared after tracking
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
@@ -1122,12 +1167,20 @@ describe('initializeExperiment', () => {
     );
 
     // Clear exposure tracking before test
+    mockExposureInternal.mockClear();
     mockExposure.mockClear();
 
     client.applyVariants();
 
-    // Verify exposure was tracked for the stored redirect
-    expect(mockExposure).toHaveBeenCalledWith('test-redirect');
+    // Verify exposureInternal was called with the correct flag key
+    expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+    expect(mockExposureInternal.mock.calls[0][0]).toBe('test-redirect');
+
+    // Check that the sourceVariant parameter contains the expected properties
+    const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+    expect(sourceVariant).toBeDefined();
+    expect(sourceVariant.variant).toBeDefined();
+    expect(sourceVariant.variant.key).toBe('treatment');
 
     // Verify sessionStorage was cleared
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();

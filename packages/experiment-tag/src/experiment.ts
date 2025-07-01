@@ -723,7 +723,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.exposureWithDedupe(flagKey, variant);
   }
 
-  private exposureWithDedupe(key: string, variant: Variant) {
+  private exposureWithDedupe(
+    key: string,
+    variant: Variant,
+    forceVariant?: boolean,
+  ) {
     const currentUrl = urlWithoutParamsAndAnchor(
       this.globalScope.location.href,
     );
@@ -733,7 +737,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache?.[currentUrl]?.[key] === variant.key;
 
     if (!hasTrackedVariant) {
-      this.experimentClient.exposure(key);
+      if (forceVariant) {
+        const variantAndSource = {
+          variant: variant,
+          source: 'local-evaluation',
+          hasDefaultVariant: false,
+        };
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        this.experimentClient.exposureInternal(key, variantAndSource);
+      } else {
+        this.experimentClient.exposure(key);
+      }
       this.urlExposureCache[currentUrl][key] = variant.key;
     }
   }
@@ -812,7 +827,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (Object.keys(storedRedirects).length > 0) {
         for (const storedFlagKey in storedRedirects) {
           const storedVariant = storedRedirects[storedFlagKey];
-          this.exposureWithDedupe(storedFlagKey, storedVariant);
+          // Force variant to ensure original evaluation result is tracked
+          this.exposureWithDedupe(storedFlagKey, storedVariant, true);
         }
 
         // Clear the storage after tracking exposures
