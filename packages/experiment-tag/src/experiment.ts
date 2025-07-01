@@ -798,7 +798,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private storeRedirectImpressions(flagKey: string, variant: Variant) {
-    const redirectStorageKey = `AMP_EXP_REDIRECT_${this.apiKey.slice(0, 10)}`;
+    const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
     // Store the current flag and variant for exposure tracking after redirect
     try {
       const storedRedirects = JSON.parse(
@@ -812,13 +812,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         JSON.stringify(storedRedirects),
       );
     } catch (error) {
-      console.warn('Error storing redirect events:', error);
+      console.warn('Error storing redirect information:', error);
     }
   }
 
   private fireStoredRedirectImpressions() {
     // Check for stored redirects and process them
-    const redirectStorageKey = `AMP_EXP_REDIRECT_${this.apiKey.slice(0, 10)}`;
+    const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
     try {
       const storedRedirects = JSON.parse(
         this.globalScope.sessionStorage.getItem(redirectStorageKey) || '{}',

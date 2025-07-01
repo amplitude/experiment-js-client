@@ -199,9 +199,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const redirectStorageKey = `AMP_EXP_REDIRECT_${apiKey
-      .toString()
-      .slice(0, 10)}`;
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
     // Verify sessionStorage is empty before test
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
@@ -280,9 +278,7 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.history.replaceState).toBeCalledTimes(0);
 
     // No redirect info should be stored
-    const redirectStorageKey = `AMP_EXP_REDIRECT_${apiKey
-      .toString()
-      .slice(0, 10)}`;
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
     const storedRedirectsCall =
       mockGlobal.sessionStorage.setItem.mock.calls.find(
         (call) => call[0] === redirectStorageKey,
@@ -330,9 +326,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const redirectStorageKey = `AMP_EXP_REDIRECT_${apiKey
-      .toString()
-      .slice(0, 10)}`;
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
@@ -425,9 +419,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const redirectStorageKey = `AMP_EXP_REDIRECT_${apiKey
-      .toString()
-      .slice(0, 10)}`;
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
@@ -510,9 +502,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const redirectStorageKey = `AMP_EXP_REDIRECT_${apiKey
-      .toString()
-      .slice(0, 10)}`;
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
     // Verify sessionStorage is empty before test
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
@@ -833,9 +823,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const redirectStorageKey = `AMP_EXP_REDIRECT_${apiKey
-      .toString()
-      .slice(0, 10)}`;
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
@@ -1163,9 +1151,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const redirectStorageKey = `AMP_EXP_REDIRECT_${apiKey
-      .toString()
-      .slice(0, 10)}`;
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
     // Set up stored redirect data in sessionStorage
     const storedRedirects = {
