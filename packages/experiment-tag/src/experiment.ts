@@ -851,14 +851,22 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (Object.keys(storedRedirects).length > 0) {
         // track exposure with timeout of 1s
         this.globalScope.setTimeout(() => {
-          for (const storedFlagKey in storedRedirects) {
-            this.exposureWithDedupe(
-              storedFlagKey,
-              storedRedirects[storedFlagKey].variant,
-              true,
+          try {
+            const redirects = JSON.parse(
+              this.globalScope.sessionStorage.getItem(redirectStorageKey) ||
+                '{}',
             );
+            for (const storedFlagKey in redirects) {
+              this.exposureWithDedupe(
+                storedFlagKey,
+                redirects[storedFlagKey].variant,
+                true,
+              );
+            }
+            this.globalScope.sessionStorage.removeItem(redirectStorageKey);
+          } catch (error) {
+            console.warn('Error processing stored redirects events:', error);
           }
-          this.globalScope.sessionStorage.removeItem(redirectStorageKey);
         }, 1000);
       } else {
         this.globalScope.sessionStorage.removeItem(redirectStorageKey);
