@@ -845,16 +845,23 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
             delete storedRedirects[storedFlagKey];
           }
         }
+      }
 
-        // Update or clear the storage
-        if (Object.keys(storedRedirects).length > 0) {
-          this.globalScope.sessionStorage.setItem(
-            redirectStorageKey,
-            JSON.stringify(storedRedirects),
-          );
-        } else {
+      // Update or clear the storage
+      if (Object.keys(storedRedirects).length > 0) {
+        // track exposure with timeout of 1s
+        this.globalScope.setTimeout(() => {
+          for (const storedFlagKey in storedRedirects) {
+            this.exposureWithDedupe(
+              storedFlagKey,
+              storedRedirects[storedFlagKey].variant,
+              true,
+            );
+          }
           this.globalScope.sessionStorage.removeItem(redirectStorageKey);
-        }
+        }, 1000);
+      } else {
+        this.globalScope.sessionStorage.removeItem(redirectStorageKey);
       }
     } catch (error) {
       console.warn('Error processing stored redirects events:', error);
