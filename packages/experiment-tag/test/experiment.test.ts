@@ -44,7 +44,7 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
     };
   };
 
-  // Create base global object first
+  // Base global object first
   const baseGlobal = {
     localStorage: createStorageMock(),
     sessionStorage: createStorageMock(),
@@ -78,7 +78,6 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
     baseGlobal.location.href = url;
   });
 
-  // Apply overrides carefully
   if (overrides) {
     Object.keys(overrides).forEach((key) => {
       if (key === 'location' && typeof overrides[key] === 'object') {
@@ -94,7 +93,6 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
           ...locationOverrides,
         };
 
-        // If no replace override provided, keep our smart replace function
         if (!locationOverrides.replace) {
           baseGlobal.location.replace = originalReplace;
         } else if (typeof locationOverrides.replace === 'function') {
