@@ -3,6 +3,73 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.4...@amplitude/experiment-tag@0.7.5) (2025-07-01)
+
+
+### Bug Fixes
+
+* url-redirect impression events fired on redirected page ([#193](https://github.com/amplitude/experiment-js-client/issues/193)) ([a80ac61](https://github.com/amplitude/experiment-js-client/commit/a80ac612290c065f0a4ab877c2f02c2ba0c227c6))
+
+
+
+
+
+## [0.7.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.3...@amplitude/experiment-tag@0.7.4) (2025-06-27)
+
+
+### Bug Fixes
+
+* set isRunning after Visual Editor initializes ([#192](https://github.com/amplitude/experiment-js-client/issues/192)) ([54bdf79](https://github.com/amplitude/experiment-js-client/commit/54bdf79d89d06189add106a3e4e36bd214bd5932))
+
+
+
+
+
+## [0.7.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.2...@amplitude/experiment-tag@0.7.3) (2025-06-26)
+
+
+### Bug Fixes
+
+* always track impression if there is active variant action on page, revert stale variant actions ([#189](https://github.com/amplitude/experiment-js-client/issues/189)) ([0e91294](https://github.com/amplitude/experiment-js-client/commit/0e91294328909f693dc61ded479414ba0a25fcd1))
+
+
+
+
+
+## [0.7.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.1...@amplitude/experiment-tag@0.7.2) (2025-06-26)
+
+
+### Bug Fixes
+
+* always track control impression when on active page ([#191](https://github.com/amplitude/experiment-js-client/issues/191)) ([f22267c](https://github.com/amplitude/experiment-js-client/commit/f22267cde1c04cd50b19a24f2224750045c87c5f))
+
+
+
+
+
+## [0.7.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.0...@amplitude/experiment-tag@0.7.1) (2025-06-24)
+
+
+### Bug Fixes
+
+* scoping for control impression event actions ([#190](https://github.com/amplitude/experiment-js-client/issues/190)) ([9024e90](https://github.com/amplitude/experiment-js-client/commit/9024e905c20f20c1aa669eefb091c13d455e5870))
+* Web Experiment - Control variant condition ([#188](https://github.com/amplitude/experiment-js-client/issues/188)) ([3b32839](https://github.com/amplitude/experiment-js-client/commit/3b3283943448da3e58c03fa4ebc32aa77ad38b47))
+
+
+
+
+
+# [0.7.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.6.3...@amplitude/experiment-tag@0.7.0) (2025-06-23)
+
+
+### Features
+
+* add throwOnError configuration option ([#187](https://github.com/amplitude/experiment-js-client/issues/187)) ([00761aa](https://github.com/amplitude/experiment-js-client/commit/00761aa122c4f5da30af914a82543635bfd25208))
+
+
+
+
+
 ## [0.6.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.6.2...@amplitude/experiment-tag@0.6.3) (2025-05-15)
 
 

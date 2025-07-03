@@ -3,7 +3,7 @@ import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
 import { DefaultWebExperimentClient } from 'src/experiment';
-import * as uuidUtil from 'src/util/uuid';
+import * as util from 'src/util';
 import { stringify } from 'ts-jest';
 
 import { createMutateFlag, createRedirectFlag } from './util/create-flag';
@@ -17,7 +17,7 @@ const DEFAULT_PAGE_OBJECTS = {
 const DEFAULT_REDIRECT_SCOPE = { treatment: ['A'], control: ['A'] };
 const DEFAULT_MUTATE_SCOPE = { metadata: { scope: ['A'] } };
 
-jest.mock('src/util/messenger', () => {
+jest.mock('src/messenger', () => {
   return {
     WindowMessenger: {
       setup: jest.fn(),
@@ -26,20 +26,42 @@ jest.mock('src/util/messenger', () => {
 });
 
 const newMockGlobal = (overrides?: Record<string, unknown>) => {
-  return {
-    localStorage: {
-      getItem: jest.fn().mockReturnValue(undefined),
-      setItem: jest.fn(),
-    },
-    sessionStorage: {
-      getItem: jest.fn().mockReturnValue(undefined),
-      setItem: jest.fn(),
-    },
-    location: {
-      href: 'http://test.com',
-      replace: jest.fn(),
-      search: '',
-    },
+  const createStorageMock = () => {
+    let store: Record<string, string> = {};
+    return {
+      getItem: jest.fn((key: string) => store[key] || null),
+      setItem: jest.fn((key: string, value: string) => {
+        store[key] = value;
+      }),
+      removeItem: jest.fn((key: string) => {
+        delete store[key];
+      }),
+      clear: jest.fn(() => {
+        store = {};
+      }),
+      length: jest.fn(() => Object.keys(store).length),
+      key: jest.fn((index: number) => Object.keys(store)[index] || null),
+    };
+  };
+
+  const mockLocation = {
+    href: 'http://test.com',
+    search: '',
+    replace: jest.fn((url) => {
+      // Update href when replace is called to simulate navigation
+      mockLocation.href = url;
+    }),
+    // Add other location properties that might be accessed
+    hostname: 'test.com',
+    pathname: '/',
+    protocol: 'http:',
+    port: '',
+    host: 'test.com',
+  };
+
+  const baseGlobal = {
+    localStorage: createStorageMock(),
+    sessionStorage: createStorageMock(),
     document: { referrer: '' },
     history: { replaceState: jest.fn() },
     addEventListener: jest.fn(),
@@ -54,8 +76,23 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
         };
       },
     },
-    ...overrides,
+    location: mockLocation,
   };
+  if (overrides) {
+    Object.keys(overrides).forEach((key) => {
+      if (key === 'location' && typeof overrides[key] === 'object') {
+        // Merge location properties instead of replacing the entire object
+        baseGlobal.location = {
+          ...baseGlobal.location,
+          ...(overrides[key] as any),
+        };
+      } else {
+        baseGlobal[key] = overrides[key];
+      }
+    });
+  }
+
+  return baseGlobal;
 };
 
 describe('initializeExperiment', () => {
@@ -63,7 +100,12 @@ describe('initializeExperiment', () => {
   jest.spyOn(ExperimentClient.prototype, 'setUser');
   jest.spyOn(ExperimentClient.prototype, 'all');
   const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
-  jest.spyOn(uuidUtil, 'UUID').mockReturnValue('mock');
+  // Add a spy for the exposureInternal method
+  const mockExposureInternal = jest.spyOn(
+    ExperimentClient.prototype as any,
+    'exposureInternal',
+  );
+  jest.spyOn(util, 'UUID').mockReturnValue('mock');
   let mockGlobal;
   let antiFlickerSpy;
 
@@ -71,9 +113,11 @@ describe('initializeExperiment', () => {
     apiKey++;
     jest.clearAllMocks();
     jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
+
+    // Create fresh mock global for each test
     mockGlobal = newMockGlobal();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
+
+    // Ensure the mock is properly set
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     antiFlickerSpy = jest
       .spyOn(DefaultWebExperimentClient.prototype as any, 'applyAntiFlickerCss')
@@ -148,8 +192,19 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 
-  test('treatment variant on control page - should redirect and call exposure', () => {
-    DefaultWebExperimentClient.getInstance(
+  test('treatment variant on control page - should redirect and store in sessionStorage', () => {
+    // Create a fresh mock global for this test
+    mockGlobal = newMockGlobal();
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
+
+    // Verify sessionStorage is empty before test
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
+
+    const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -161,11 +216,47 @@ describe('initializeExperiment', () => {
         ),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
-    ).start();
+    );
+
+    // Initialize the client to ensure messageBus is created
+    client.start();
+
+    // Check redirect was called
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
     );
-    expect(mockExposure).toHaveBeenCalledWith('test');
+
+    // Directly check if the value was stored in sessionStorage
+    // This bypasses the mock function call history and checks the actual storage
+    const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
+    expect(storedValue).not.toBeNull();
+
+    if (storedValue) {
+      const storedRedirects = JSON.parse(storedValue);
+      expect(storedRedirects).toHaveProperty('test');
+    }
+
+    // Clear exposure tracking before simulating URL change
+    mockExposureInternal.mockClear();
+
+    // Ensure messageBus exists before publishing
+    if ((client as any).messageBus) {
+      // Simulate URL change event after redirect
+      (client as any).messageBus.publish('url_change', {});
+
+      // Verify exposureInternal was called with the correct flag key
+      expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+      expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+
+      // Check that the sourceVariant parameter contains the expected properties
+      const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+      expect(sourceVariant).toBeDefined();
+      expect(sourceVariant.variant).toBeDefined();
+      expect(sourceVariant.variant.key).toBe('treatment');
+
+      // Verify sessionStorage was cleared after tracking
+      expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
+    }
   });
 
   test('control variant on control page - should not redirect but call exposure', () => {
@@ -176,9 +267,23 @@ describe('initializeExperiment', () => {
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
     ).start();
+
+    // No redirect should happen
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
+
+    // Exposure should be tracked
     expect(mockExposure).toHaveBeenCalledWith('test');
+
+    // No history manipulation
     expect(mockGlobal.history.replaceState).toBeCalledTimes(0);
+
+    // No redirect info should be stored
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
+    const storedRedirectsCall =
+      mockGlobal.sessionStorage.setItem.mock.calls.find(
+        (call) => call[0] === redirectStorageKey,
+      );
+    expect(storedRedirectsCall).toBeFalsy();
   });
 
   test('preview - force control variant', () => {
@@ -209,7 +314,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
-  test('preview - force treatment variant when on control page', () => {
+  test('preview - force treatment variant when on control page', async () => {
     const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/',
@@ -221,7 +326,9 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    DefaultWebExperimentClient.getInstance(
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
+
+    const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -233,12 +340,42 @@ describe('initializeExperiment', () => {
         ),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
-    ).start();
+    );
+
+    await client.start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
     );
-    expect(mockExposure).toHaveBeenCalledWith('test');
+
+    // Check if redirect info was stored in sessionStorage
+    const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
+    expect(storedValue).not.toBeNull();
+
+    if (storedValue) {
+      const storedRedirects = JSON.parse(storedValue);
+      expect(storedRedirects).toHaveProperty('test');
+    }
+
+    // Clear exposure tracking before simulating URL change
+    mockExposureInternal.mockClear();
+    mockExposure.mockClear();
+
+    // Simulate URL change event after redirect
+    (client as any).messageBus.publish('url_change', {});
+
+    // Verify exposureInternal was called with the correct flag key
+    expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+    expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+
+    // Check that the sourceVariant parameter contains the expected properties
+    const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+    expect(sourceVariant).toBeDefined();
+    expect(sourceVariant.variant).toBeDefined();
+    expect(sourceVariant.variant.key).toBe('treatment'); // Preview forces treatment
+
+    // Verify sessionStorage was cleared after tracking
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
   test('preview - force treatment variant when on treatment page', () => {
@@ -282,7 +419,9 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    DefaultWebExperimentClient.getInstance(
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
+
+    const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -294,12 +433,42 @@ describe('initializeExperiment', () => {
         ),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
-    ).start();
+    );
+
+    client.start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2?param3=c&param1=a&param2=b',
     );
-    expect(mockExposure).toHaveBeenCalledWith('test');
+
+    // Check if redirect info was stored in sessionStorage
+    const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
+    expect(storedValue).not.toBeNull();
+
+    if (storedValue) {
+      const storedRedirects = JSON.parse(storedValue);
+      expect(storedRedirects).toHaveProperty('test');
+    }
+
+    // Clear exposure tracking before simulating URL change
+    mockExposureInternal.mockClear();
+    mockExposure.mockClear();
+
+    // Simulate URL change event after redirect
+    (client as any).messageBus.publish('url_change', {});
+
+    // Verify exposureInternal was called with the correct flag key
+    expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+    expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+
+    // Check that the sourceVariant parameter contains the expected properties
+    const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+    expect(sourceVariant).toBeDefined();
+    expect(sourceVariant.variant).toBeDefined();
+    expect(sourceVariant.variant.key).toBe('treatment');
+
+    // Verify sessionStorage was cleared after tracking
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
   test('should behave as control variant when payload is empty', () => {
@@ -321,15 +490,24 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
-  test('on targeted page, should call exposure', () => {
-    Object.defineProperty(global, 'location', {
-      value: {
+  test('on targeted page, should call exposure and store in sessionStorage', () => {
+    // Create a fresh mock global
+    const mockGlobal = newMockGlobal({
+      location: {
         href: 'http://test.com',
+        replace: jest.fn(),
       },
-      writable: true,
     });
-    jest.spyOn(experimentCore, 'getGlobalScope');
-    DefaultWebExperimentClient.getInstance(
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
+
+    // Verify sessionStorage is empty before test
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
+
+    const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -341,8 +519,47 @@ describe('initializeExperiment', () => {
         ),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
-    ).start();
-    expect(mockExposure).toHaveBeenCalledWith('test');
+    );
+
+    // Initialize the client to ensure messageBus is created
+    client.start();
+
+    // Check redirect was called
+    expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+      'http://test.com/2',
+    );
+
+    // Check if redirect info was stored in sessionStorage
+    const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
+    expect(storedValue).not.toBeNull();
+
+    if (storedValue) {
+      const storedRedirects = JSON.parse(storedValue);
+      expect(storedRedirects).toHaveProperty('test');
+    }
+
+    // Clear exposure tracking before simulating URL change
+    mockExposureInternal.mockClear();
+    mockExposure.mockClear();
+
+    // Ensure messageBus exists before publishing
+    if ((client as any).messageBus) {
+      // Simulate URL change event after redirect
+      (client as any).messageBus.publish('url_change', {});
+
+      // Verify exposureInternal was called with the correct flag key
+      expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+      expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+
+      // Check that the sourceVariant parameter contains the expected properties
+      const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+      expect(sourceVariant).toBeDefined();
+      expect(sourceVariant.variant).toBeDefined();
+      expect(sourceVariant.variant.key).toBe('treatment');
+
+      // Verify sessionStorage was cleared after tracking
+      expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
+    }
   });
 
   test('on non-targeted page, should not call exposure', () => {
@@ -601,23 +818,57 @@ describe('initializeExperiment', () => {
       ),
     ];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 200);
+    const mockGlobal = newMockGlobal();
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    await DefaultWebExperimentClient.getInstance(
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
+
+    const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then();
+    );
+
+    await client.start();
+
     // check treatment variant called
-    expect(mockExposure).toHaveBeenCalledTimes(1);
-    expect(mockExposure).toHaveBeenCalledWith('test');
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2',
     );
+
+    // Check if redirect info was stored in sessionStorage
+    const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
+    expect(storedValue).not.toBeNull();
+
+    if (storedValue) {
+      const storedRedirects = JSON.parse(storedValue);
+      expect(storedRedirects).toHaveProperty('test');
+    }
+
+    // Clear exposure tracking before simulating URL change
+    mockExposureInternal.mockClear();
+    mockExposure.mockClear();
+
+    // Simulate URL change event after redirect
+    (client as any).messageBus.publish('url_change', {});
+
+    // Verify exposureInternal was called with the correct flag key
+    expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+    expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+
+    // Check that the sourceVariant parameter contains the expected properties
+    const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+    expect(sourceVariant).toBeDefined();
+    expect(sourceVariant.variant).toBeDefined();
+    expect(sourceVariant.variant.key).toBe('treatment');
+
+    // Verify sessionStorage was cleared after tracking
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
   test('scoped mutations - experiment active, both mutations active on same page', () => {
@@ -639,9 +890,16 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test'));
-    expect(Object.keys(appliedMutations['test']).includes('mutate'));
-    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(2);
+    expect(Object.keys(appliedMutations).includes('test')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']).includes('mutate'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']).length,
+    ).toEqual(2);
   });
 
   test('scoped mutations - experiment active, both mutations active on different pages', () => {
@@ -666,10 +924,19 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test'));
-    expect(Object.keys(appliedMutations['test']).includes('mutate'));
-    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(2);
-    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['0', '1']);
+    expect(Object.keys(appliedMutations).includes('test')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']).includes('mutate'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']).length,
+    ).toEqual(2);
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']),
+    ).toEqual(['0', '1']);
   });
 
   test('Visual editor mode - active pages updated but variant actions not applied', () => {
@@ -739,10 +1006,19 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test'));
-    expect(Object.keys(appliedMutations['test']).includes('mutate'));
-    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(1);
-    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['1']);
+    expect(Object.keys(appliedMutations).includes('test')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']).includes('mutate'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']).length,
+    ).toEqual(1);
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']),
+    ).toEqual(['1']);
   });
 
   test('scoped mutations - experiment active, neither mutation active', () => {
@@ -781,10 +1057,19 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test'));
-    expect(Object.keys(appliedMutations['test']).includes('mutate'));
-    expect(Object.keys(appliedMutations['test']['mutate']).length).toEqual(1);
-    expect(Object.keys(appliedMutations['test']['mutate'])).toEqual(['0']);
+    expect(Object.keys(appliedMutations).includes('test')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']).includes('mutate'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']).length,
+    ).toEqual(1);
+    expect(
+      Object.keys(appliedMutations['test']['treatment']['mutate']),
+    ).toEqual(['0']);
   });
 
   test('page object - update activePages and applyVariants upon navigation', () => {
@@ -825,11 +1110,18 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test-1');
     let appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test-1'));
-    expect(Object.keys(appliedMutations['test-1']).includes('mutate'));
+    expect(Object.keys(appliedMutations).includes('test-1')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test-1']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test-1']['treatment']).includes('mutate'),
+    ).toBeTruthy();
     const activePages = (client as any).activePages;
     expect(activePages).toEqual({ 'test-1': test1Page });
-    expect(Object.keys(appliedMutations['test-1']['mutate']).length).toEqual(1);
+    expect(Object.keys(appliedMutations['test-1']['treatment']).length).toEqual(
+      1,
+    );
     (client as any).subscriptionManager.globalScope = newMockGlobal({
       location: {
         href: 'http://B.com',
@@ -840,9 +1132,70 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledTimes(2);
     expect(mockExposure).toHaveBeenCalledWith('test-2');
     appliedMutations = (client as any).appliedMutations;
-    expect(Object.keys(appliedMutations).includes('test-2'));
-    expect(Object.keys(appliedMutations['test-2']).includes('mutate'));
-    expect(Object.keys(appliedMutations['test-2']['mutate']).length).toEqual(1);
+    expect(Object.keys(appliedMutations).includes('test-2')).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test-2']).includes('treatment'),
+    ).toBeTruthy();
+    expect(
+      Object.keys(appliedMutations['test-2']['treatment']).includes('mutate'),
+    ).toBeTruthy();
+    expect(Object.keys(appliedMutations['test-2']['treatment']).length).toEqual(
+      1,
+    );
+  });
+
+  test('applyVariants should fire stored redirect impressions', () => {
+    // Create a fresh mock global
+    const mockGlobal = newMockGlobal();
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
+
+    // Set up stored redirect data in sessionStorage
+    const storedRedirects = {
+      'test-redirect': { key: 'treatment' },
+    };
+    mockGlobal.sessionStorage.setItem(
+      redirectStorageKey,
+      JSON.stringify(storedRedirects),
+    );
+
+    // Create client with some flags (not the stored redirect flag)
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      JSON.stringify([
+        createMutateFlag('other-flag', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+      ]),
+      JSON.stringify({
+        'other-flag': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+      }),
+    );
+
+    // Clear exposure tracking before test
+    mockExposureInternal.mockClear();
+    mockExposure.mockClear();
+
+    client.applyVariants();
+
+    // Verify exposureInternal was called with the correct flag key
+    expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+    expect(mockExposureInternal.mock.calls[0][0]).toBe('test-redirect');
+
+    // Check that the sourceVariant parameter contains the expected properties
+    const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+    expect(sourceVariant).toBeDefined();
+    expect(sourceVariant.variant).toBeDefined();
+    expect(sourceVariant.variant.key).toBe('treatment');
+
+    // Verify sessionStorage was cleared
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
   describe('remote evaluation - flag already stored in session storage', () => {
@@ -962,9 +1315,6 @@ describe('initializeExperiment', () => {
         storageKey,
         JSON.stringify({ test: storedFlag }),
       );
-      Object.defineProperty(safeGlobal, 'sessionStorage', {
-        value: sessionStorageMock,
-      });
       const initialFlags = [
         createMutateFlag(
           'test',
@@ -1053,7 +1403,7 @@ describe('helper methods', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     apiKey++;
-    jest.spyOn(uuidUtil, 'UUID').mockReturnValue('mock');
+    jest.spyOn(util, 'UUID').mockReturnValue('mock');
     jest.clearAllMocks();
   });
 

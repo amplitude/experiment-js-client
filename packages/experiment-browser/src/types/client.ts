@@ -3,6 +3,9 @@ import { ExperimentUser } from './user';
 import { Variant, Variants } from './variant';
 
 export type FetchOptions = {
+  /**
+   * When set, fetch will only request variants for the given flag keys.
+   */
   flagKeys?: string[];
 };
 

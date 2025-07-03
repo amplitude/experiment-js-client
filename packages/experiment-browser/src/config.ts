@@ -77,6 +77,18 @@ export interface ExperimentConfig {
   retryFetchOnFailure?: boolean;
 
   /**
+   * When set to true, the client will throw errors if requests fail for any
+   * reason (including timeouts, network errors, or server errors), rather than
+   * silently handling the error. This applies to both the initial fetch during
+   * start() and subsequent fetch() calls. Background retries will still be
+   * started if configured via retryFetchOnFailure.
+   *
+   * When false (default), errors are handled silently and retries may occur
+   * in the background based on the retryFetchOnFailure configuration.
+   */
+  throwOnError?: boolean;
+
+  /**
    * If true, automatically tracks exposure events though the
    * `ExperimentAnalyticsProvider`. If no analytics provider is set, this
    * option does nothing.
@@ -187,6 +199,7 @@ export const Defaults: ExperimentConfig = {
   serverZone: 'US',
   fetchTimeoutMillis: 10000,
   retryFetchOnFailure: true,
+  throwOnError: false,
   automaticExposureTracking: true,
   pollOnStart: true,
   flagConfigPollingIntervalMillis: 300000,

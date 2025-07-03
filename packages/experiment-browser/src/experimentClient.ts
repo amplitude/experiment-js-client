@@ -14,6 +14,7 @@ import {
   SdkFlagApi,
   TimeoutError,
   topologicalSort,
+  getGlobalScope,
 } from '@amplitude/experiment-core';
 
 import { version as PACKAGE_VERSION } from '../package.json';
@@ -217,13 +218,23 @@ export class ExperimentClient implements Client {
       this.isRunning = true;
     }
     this.setUser(user);
-    const flagsReadyPromise = this.doFlags();
-    const fetchOnStart = this.config.fetchOnStart ?? true;
-    if (fetchOnStart) {
-      await Promise.all([this.fetch(user), flagsReadyPromise]);
-    } else {
-      await flagsReadyPromise;
+
+    try {
+      const flagsReadyPromise = this.doFlags();
+      const fetchOnStart = this.config.fetchOnStart ?? true;
+      if (fetchOnStart) {
+        await Promise.all([this.fetch(user), flagsReadyPromise]);
+      } else {
+        await flagsReadyPromise;
+      }
+    } catch (e) {
+      // If throwOnError is true, rethrow the error
+      if (this.config.throwOnError) {
+        throw e;
+      }
+      // Otherwise, silently handle the error (existing behavior)
     }
+
     if (this.config.pollOnStart) {
       this.poller.start();
     }
@@ -262,6 +273,7 @@ export class ExperimentClient implements Client {
    * @returns Promise that resolves when the request for variants completes.
    * @see ExperimentUser
    * @see ExperimentUserProvider
+   * @see FetchOptions
    */
   public async fetch(
     user: ExperimentUser = this.user,
@@ -276,6 +288,12 @@ export class ExperimentClient implements Client {
         options,
       );
     } catch (e) {
+      // If throwOnError is configured to true, rethrow the error
+      if (this.config.throwOnError) {
+        throw e;
+      }
+
+      // Otherwise, handle errors silently as before
       if (this.config.debug) {
         if (e instanceof TimeoutError) {
           console.debug(e);
@@ -743,6 +761,10 @@ export class ExperimentClient implements Client {
     } catch (e) {
       if (e instanceof TimeoutError) {
         this.config.debug && console.debug(e);
+        // If throwOnError is configured to true, rethrow timeout errors
+        if (this.config.throwOnError) {
+          throw e;
+        }
       } else {
         throw e;
       }
@@ -872,7 +894,22 @@ export class ExperimentClient implements Client {
         exposure.variant = sourceVariant.variant.value;
       }
     }
+
     if (metadata) exposure.metadata = metadata;
+
+    // Add current URL for web experiments
+    if (this.isWebExperiment) {
+      const globalScope = getGlobalScope();
+      if (globalScope?.location) {
+        try {
+          const url = globalScope.location.href;
+          // Add URL without query parameters
+          exposure.metadata.url = url.split('?')[0] || '';
+        } catch (e) {
+          // If there's any error getting the URL, continue without it
+        }
+      }
+    }
     this.exposureTrackingProvider?.track(exposure);
     this.integrationManager.track(exposure);
   }
