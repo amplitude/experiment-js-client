@@ -8,6 +8,7 @@ import resolve from '@rollup/plugin-node-resolve';
 import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
+import gzip from 'rollup-plugin-gzip'; // Add this line at the top
 import license from 'rollup-plugin-license';
 
 import * as packageJson from './package.json';
@@ -52,7 +53,7 @@ const getCommonBrowserConfig = (target) => ({
 const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
-    name: 'Experiment-Tag',
+    name: 'WebExperiment',
     banner: `/* ${packageJson.name} v${packageJson.version} - For license info see https://unpkg.com/@amplitude/experiment-tag@${packageJson.version}/LICENSES */`,
     ...outputOptions,
   },
@@ -76,7 +77,8 @@ const configs = [
           comments:
             /@amplitude\/.* v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/,
         },
-      }), // Apply terser plugin for minification
+      }),
+      gzip(),
     ],
     external: [],
   },

@@ -56,9 +56,9 @@ export const asyncLoadScript = (url: string) => {
         scriptElement.setAttribute(
           'nonce',
           nonceElem['nonce'] ||
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (nonceElem as any).nonce ||
-            nonceElem.getAttribute('nonce'),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (nonceElem as any).nonce ||
+          nonceElem.getAttribute('nonce'),
         );
       }
       scriptElement.addEventListener(
