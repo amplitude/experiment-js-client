@@ -1,0 +1,7 @@
+{
+  "name": "experiment-scripts",
+  "private": true,
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.229.0"
+  }
+}

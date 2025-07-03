@@ -15,11 +15,9 @@ import {
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
-import { Defaults, WebExperimentConfig } from './config';
-import { getInjectUtils } from './inject-utils';
 import { MessageBus } from './message-bus';
-import { WindowMessenger } from './messenger';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
+import { Defaults, WebExperimentClient, WebExperimentConfig } from './types';
 import {
   ApplyVariantsOptions,
   PageObject,
@@ -27,15 +25,16 @@ import {
   PreviewVariantsOptions,
   RevertVariantsOptions,
 } from './types';
+import { getInjectUtils } from './util/inject-utils';
+import { WindowMessenger } from './util/messenger';
 import {
-  convertEvaluationVariantToVariant,
   getUrlParams,
   removeQueryParams,
   urlWithoutParamsAndAnchor,
-  UUID,
   concatenateQueryParamsOf,
-} from './util';
-import { WebExperimentClient } from './web-experiment';
+} from './util/url';
+import { UUID } from './util/uuid';
+import { convertEvaluationVariantToVariant } from './util/variant';
 
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 const MUTATE_ACTION = 'mutate';

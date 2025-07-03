@@ -3,7 +3,7 @@ import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
 import { DefaultWebExperimentClient } from 'src/experiment';
-import * as util from 'src/util';
+import * as uuid from 'src/util/uuid';
 import { stringify } from 'ts-jest';
 
 import { createMutateFlag, createRedirectFlag } from './util/create-flag';
@@ -17,7 +17,7 @@ const DEFAULT_PAGE_OBJECTS = {
 const DEFAULT_REDIRECT_SCOPE = { treatment: ['A'], control: ['A'] };
 const DEFAULT_MUTATE_SCOPE = { metadata: { scope: ['A'] } };
 
-jest.mock('src/messenger', () => {
+jest.mock('src/util/messenger', () => {
   return {
     WindowMessenger: {
       setup: jest.fn(),
@@ -105,7 +105,7 @@ describe('initializeExperiment', () => {
     ExperimentClient.prototype as any,
     'exposureInternal',
   );
-  jest.spyOn(util, 'UUID').mockReturnValue('mock');
+  jest.spyOn(uuid, 'UUID').mockReturnValue('mock');
   let mockGlobal;
   let antiFlickerSpy;
 
@@ -1403,7 +1403,7 @@ describe('helper methods', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     apiKey++;
-    jest.spyOn(util, 'UUID').mockReturnValue('mock');
+    jest.spyOn(uuid, 'UUID').mockReturnValue('mock');
     jest.clearAllMocks();
   });
 
