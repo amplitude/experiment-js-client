@@ -4,9 +4,15 @@ import { DefaultWebExperimentClient } from './experiment';
 export const initialize = (
   apiKey: string,
   initialFlags: string,
+  pageObjects: string,
   config: WebExperimentConfig,
 ): void => {
-  DefaultWebExperimentClient.getInstance(apiKey, initialFlags, config)
+  DefaultWebExperimentClient.getInstance(
+    apiKey,
+    initialFlags,
+    pageObjects,
+    config,
+  )
     .start()
     .finally(() => {
       // Remove anti-flicker css if it exists
