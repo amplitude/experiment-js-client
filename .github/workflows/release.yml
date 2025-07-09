@@ -114,6 +114,9 @@ jobs:
             echo "experiment_plugin_updated=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Install AWS SDK dependencies
+        run: cd scripts && yarn install
+
       # Configure AWS credentials for S3 upload
       - name: Configure AWS Credentials
         if: ${{ github.event.inputs.dryRun == 'false' && (steps.check-experiment-tag.outputs.experiment_tag_updated == 'true' || steps.check-experiment-plugin.outputs.experiment_plugin_updated == 'true') }}
