@@ -34,6 +34,7 @@ import {
   urlWithoutParamsAndAnchor,
   UUID,
   concatenateQueryParamsOf,
+  matchesUrl,
 } from './util';
 import { WebExperimentClient } from './web-experiment';
 
@@ -567,7 +568,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    this.storeRedirectImpressions(flagKey, variant);
+    this.storeRedirectImpressions(flagKey, variant, redirectUrl);
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
@@ -797,7 +798,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     return scope.some((pageId) => flagPages?.[pageId] ?? false);
   }
 
-  private storeRedirectImpressions(flagKey: string, variant: Variant) {
+  private storeRedirectImpressions(
+    flagKey: string,
+    variant: Variant,
+    redirectUrl: string,
+  ) {
     const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
     // Store the current flag and variant for exposure tracking after redirect
     try {
@@ -805,7 +810,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         this.globalScope.sessionStorage.getItem(redirectStorageKey) || '{}',
       );
 
-      storedRedirects[flagKey] = variant;
+      storedRedirects[flagKey] = { redirectUrl, variant };
 
       this.globalScope.sessionStorage.setItem(
         redirectStorageKey,
@@ -827,12 +832,43 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // If we have stored redirects, track exposures for them
       if (Object.keys(storedRedirects).length > 0) {
         for (const storedFlagKey in storedRedirects) {
-          const storedVariant = storedRedirects[storedFlagKey];
-          // Force variant to ensure original evaluation result is tracked
-          this.exposureWithDedupe(storedFlagKey, storedVariant, true);
-        }
+          const { redirectUrl, variant } = storedRedirects[storedFlagKey];
+          const currentUrl = urlWithoutParamsAndAnchor(
+            this.globalScope.location.href,
+          );
+          const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
+          if (matchesUrl([currentUrl], strippedRedirectUrl)) {
+            // Force variant to ensure original evaluation result is tracked
+            this.exposureWithDedupe(storedFlagKey, variant, true);
 
-        // Clear the storage after tracking exposures
+            // Remove this flag from stored redirects
+            delete storedRedirects[storedFlagKey];
+          }
+        }
+      }
+
+      // Update or clear the storage
+      if (Object.keys(storedRedirects).length > 0) {
+        // track exposure with timeout of 1s
+        this.globalScope.setTimeout(() => {
+          try {
+            const redirects = JSON.parse(
+              this.globalScope.sessionStorage.getItem(redirectStorageKey) ||
+                '{}',
+            );
+            for (const storedFlagKey in redirects) {
+              this.exposureWithDedupe(
+                storedFlagKey,
+                redirects[storedFlagKey].variant,
+                true,
+              );
+            }
+            this.globalScope.sessionStorage.removeItem(redirectStorageKey);
+          } catch (error) {
+            console.warn('Error processing stored redirects events:', error);
+          }
+        }, 500);
+      } else {
         this.globalScope.sessionStorage.removeItem(redirectStorageKey);
       }
     } catch (error) {
