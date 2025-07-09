@@ -44,21 +44,7 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
     };
   };
 
-  const mockLocation = {
-    href: 'http://test.com',
-    search: '',
-    replace: jest.fn((url) => {
-      // Update href when replace is called to simulate navigation
-      mockLocation.href = url;
-    }),
-    // Add other location properties that might be accessed
-    hostname: 'test.com',
-    pathname: '/',
-    protocol: 'http:',
-    port: '',
-    host: 'test.com',
-  };
-
+  // Base global object first
   const baseGlobal = {
     localStorage: createStorageMock(),
     sessionStorage: createStorageMock(),
@@ -76,16 +62,47 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
         };
       },
     },
-    location: mockLocation,
+    location: {
+      href: 'http://test.com',
+      search: '',
+      hostname: 'test.com',
+      pathname: '/',
+      protocol: 'http:',
+      port: '',
+      host: 'test.com',
+      replace: jest.fn(),
+    },
   };
+
+  baseGlobal.location.replace = jest.fn((url) => {
+    baseGlobal.location.href = url;
+  });
+
   if (overrides) {
     Object.keys(overrides).forEach((key) => {
       if (key === 'location' && typeof overrides[key] === 'object') {
-        // Merge location properties instead of replacing the entire object
+        // Merge location properties but preserve the replace function reference
+        const locationOverrides = overrides[key] as any;
+
+        // Store the original replace function
+        const originalReplace = baseGlobal.location.replace;
+
+        // Merge properties
         baseGlobal.location = {
           ...baseGlobal.location,
-          ...(overrides[key] as any),
+          ...locationOverrides,
         };
+
+        if (!locationOverrides.replace) {
+          baseGlobal.location.replace = originalReplace;
+        } else if (typeof locationOverrides.replace === 'function') {
+          // If override provided a replace function, enhance it to update href
+          const customReplace = locationOverrides.replace;
+          baseGlobal.location.replace = jest.fn((url) => {
+            baseGlobal.location.href = url;
+            return customReplace(url);
+          });
+        }
       } else {
         baseGlobal[key] = overrides[key];
       }
@@ -318,7 +335,6 @@ describe('initializeExperiment', () => {
     const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/',
-        replace: jest.fn(),
         search: '?test=treatment&PREVIEW=true',
       },
     });
@@ -1146,7 +1162,11 @@ describe('initializeExperiment', () => {
 
   test('applyVariants should fire stored redirect impressions', () => {
     // Create a fresh mock global
-    const mockGlobal = newMockGlobal();
+    const mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com/2',
+      },
+    });
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
@@ -1155,7 +1175,10 @@ describe('initializeExperiment', () => {
 
     // Set up stored redirect data in sessionStorage
     const storedRedirects = {
-      'test-redirect': { key: 'treatment' },
+      'test-redirect': {
+        variant: { key: 'treatment' },
+        redirectUrl: 'http://test.com/2',
+      },
     };
     mockGlobal.sessionStorage.setItem(
       redirectStorageKey,
