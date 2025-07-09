@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.6](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.5...@amplitude/experiment-tag@0.7.6) (2025-07-09)
+
+
+### Bug Fixes
+
+* check current url equal to redirection url before tracking redirect impression ([#194](https://github.com/amplitude/experiment-js-client/issues/194)) ([b76957e](https://github.com/amplitude/experiment-js-client/commit/b76957e06c00c9c271ecd174f66ca8a4d2fe7a4b))
+
+
+
+
+
 ## [0.7.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.7.4...@amplitude/experiment-tag@0.7.5) (2025-07-01)
 
 
