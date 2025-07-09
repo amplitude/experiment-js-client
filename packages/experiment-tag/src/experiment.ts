@@ -867,7 +867,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           } catch (error) {
             console.warn('Error processing stored redirects events:', error);
           }
-        }, 1000);
+        }, 500);
       } else {
         this.globalScope.sessionStorage.removeItem(redirectStorageKey);
       }
