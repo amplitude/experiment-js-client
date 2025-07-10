@@ -139,7 +139,7 @@ const allPromises = packagesToUpload.flatMap((packageConfig) => {
               ACL: 'public-read',
               Body: body,
               Bucket: bucket,
-              CacheControl: 'max-age=31536000',
+              CacheControl: branchName ? 'max-age=60' : 'max-age=31536000', // 1 minute for branch deployments, 1 year for regular
               ContentType: 'application/javascript',
               ContentEncoding: gzipped ? 'gzip' : undefined,
               Key: key,
@@ -166,7 +166,7 @@ const allPromises = packagesToUpload.flatMap((packageConfig) => {
             ACL: 'public-read',
             Body: body,
             Bucket: bucket,
-            CacheControl: 'max-age=31536000',
+            CacheControl: branchName ? 'max-age=60' : 'max-age=31536000', // 1 minute for branch deployments, 1 year for regular
             ContentType: 'application/javascript',
             ContentEncoding: gzipped ? 'gzip' : undefined,
             Key: key,
