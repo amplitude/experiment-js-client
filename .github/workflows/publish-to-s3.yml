@@ -67,7 +67,10 @@ jobs:
           if [[ "$BRANCH_NAME" == "main" ]]; then
             echo "branch_name_safe=" >> $GITHUB_OUTPUT
           else
-            BRANCH_NAME_SAFE=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+            # Strip "web/" prefix if present
+            BRANCH_NAME_WITHOUT_PREFIX=${BRANCH_NAME#web/}
+            # Replace remaining slashes with hyphens
+            BRANCH_NAME_SAFE=$(echo "$BRANCH_NAME_WITHOUT_PREFIX" | sed 's/\//-/g')
             echo "branch_name_safe=$BRANCH_NAME_SAFE" >> $GITHUB_OUTPUT
           fi
 

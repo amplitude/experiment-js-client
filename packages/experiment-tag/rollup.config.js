@@ -8,6 +8,7 @@ import resolve from '@rollup/plugin-node-resolve';
 import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
+import gzip from 'rollup-plugin-gzip';
 import license from 'rollup-plugin-license';
 
 import * as packageJson from './package.json';
@@ -52,19 +53,18 @@ const getCommonBrowserConfig = (target) => ({
 const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
-    name: 'Experiment-Tag',
-    banner: `/* ${packageJson.name} v${packageJson.version} - For license info see https://unpkg.com/@amplitude/experiment-tag@${packageJson.version}/LICENSES */`,
+    name: 'WebExperiment',
+    banner: `/* ${packageJson.name} v${packageJson.version} - For license info see https://unpkg.com/@amplitude/experiment-tag@${packageJson.version}/files/LICENSE */`,
     ...outputOptions,
   },
 });
 
 const config = getCommonBrowserConfig('es5');
 const configs = [
-  // legacy build for field "main" - ie8, umd, es5 syntax
   {
     ...config,
     ...getOutputConfig({
-      entryFileNames: 'experiment-tag.umd.js',
+      entryFileNames: 'experiment-tag-min.js',
       exports: 'named',
       format: 'umd',
     }),
@@ -77,6 +77,7 @@ const configs = [
             /@amplitude\/.* v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/,
         },
       }), // Apply terser plugin for minification
+      gzip(), // Add gzip plugin to create .gz files
     ],
     external: [],
   },
