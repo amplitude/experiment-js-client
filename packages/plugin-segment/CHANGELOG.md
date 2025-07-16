@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.3.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-plugin-segment@0.2.19...@amplitude/experiment-plugin-segment@0.3.0) (2025-07-16)
+
+
+### Features
+
+* Web Experiment - refactor script for package ([#195](https://github.com/amplitude/experiment-js-client/issues/195)) ([c3fbf68](https://github.com/amplitude/experiment-js-client/commit/c3fbf68425d8710099a561d3ccdadb846089ab1f))
+
+
+
+
+
 ## [0.2.19](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-plugin-segment@0.2.18...@amplitude/experiment-plugin-segment@0.2.19) (2025-07-01)
 
 **Note:** Version bump only for package @amplitude/experiment-plugin-segment
