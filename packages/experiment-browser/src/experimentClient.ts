@@ -40,6 +40,7 @@ import { Storage } from './types/storage';
 import { ExperimentUser } from './types/user';
 import { Variant, Variants } from './types/variant';
 import {
+  filterNullUndefined,
   isLocalEvaluationMode,
   isNullOrUndefined,
   isNullUndefinedOrEmpty,
@@ -103,6 +104,8 @@ export class ExperimentClient implements Client {
    */
   public constructor(apiKey: string, config: ExperimentConfig) {
     this.apiKey = apiKey;
+    // Filter out null/undefined values from config to ensure defaults take precedence
+    config = filterNullUndefined(config);
     // Merge configs with defaults and wrap providers
     this.config = {
       ...Defaults,
