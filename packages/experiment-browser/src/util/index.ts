@@ -14,17 +14,17 @@ export const isNullUndefinedOrEmpty = (value: unknown): boolean => {
  * with only defined values. This is useful for config merging where you want
  * defaults to take precedence over explicit null/undefined values.
  */
-export const filterNullUndefined = <T extends Record<string, any>>(
+export const filterNullUndefined = <T extends Record<string, unknown>>(
   obj: T,
 ): Partial<T> => {
   if (!obj || typeof obj !== 'object') {
     return {};
   }
-  
+
   const filtered: Partial<T> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (!isNullOrUndefined(value)) {
-      filtered[key as keyof T] = value;
+      filtered[key as keyof T] = value as T[keyof T];
     }
   }
   return filtered;
