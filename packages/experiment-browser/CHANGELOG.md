@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.16.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.16.1...@amplitude/experiment-js-client@1.16.2) (2025-07-28)
+
+
+### Bug Fixes
+
+* remove null and undefined config to ensure defaults ([#196](https://github.com/amplitude/experiment-js-client/issues/196)) ([78f56ac](https://github.com/amplitude/experiment-js-client/commit/78f56acf92054b3129e6ae80be36c2be43fc2f78))
+
+
+
+
+
 ## [1.16.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.16.0...@amplitude/experiment-js-client@1.16.1) (2025-07-01)
 
 
