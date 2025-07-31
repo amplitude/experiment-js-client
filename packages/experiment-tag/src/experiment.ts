@@ -180,7 +180,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     const urlParams = getUrlParams();
-    this.isVisualEditorMode = urlParams['VISUAL_EDITOR'] === 'true';
+    this.isVisualEditorMode =
+      urlParams['VISUAL_EDITOR'] === 'true' ||
+      sessionStorage.getItem('visual-editor-src') !== null;
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
