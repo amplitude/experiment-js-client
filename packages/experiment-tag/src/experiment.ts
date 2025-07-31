@@ -67,7 +67,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       [flagKey: string]: string | undefined; // variant
     };
   } = {};
-  private flagVariantMap: {
+  private flagVariantMap: { // Also used by chrome extension
     [flagKey: string]: {
       [variantKey: string]: Variant;
     };
@@ -750,7 +750,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       } else {
         this.experimentClient.exposure(key);
       }
-      this.urlExposureCache[currentUrl][key] = variant.key;
+      (this.urlExposureCache[currentUrl] ??= {})[key] = variant.key;
     }
   }
 
@@ -768,6 +768,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
+  // Also used by chrome extension
   updateActivePages(flagKey: string, page: PageObject, isActive: boolean) {
     if (!this.activePages[flagKey]) {
       this.activePages[flagKey] = {};
