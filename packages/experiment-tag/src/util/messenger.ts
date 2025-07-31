@@ -46,16 +46,24 @@ export class WindowMessenger {
               state = 'closed';
             });
         } else if (e.data.type === 'ForceVariant') {
-          const variantsToFlags = e.data.context.variants.reduce((acc, variant) => {
-            if (variant.key) {
-              acc[variant.key] = variant;
-            }
-            return acc;
-          }, {} as Record<string, Variant>);
+          const variantsToFlags = e.data.context.variants.reduce(
+            (acc, variant) => {
+              if (variant.key) {
+                acc[variant.key] = variant;
+              }
+              return acc;
+            },
+            {} as Record<string, Variant>,
+          );
           const flagKey = e.data.context.flagKey;
           const pageViewObject = e.data.context.pageViewObject;
           const variantKey = e.data.context.variantKey;
-          webExperimentClient.previewNewFlagAndVariant(flagKey, pageViewObject, variantsToFlags, variantKey);
+          webExperimentClient.previewNewFlagAndVariant(
+            flagKey,
+            pageViewObject,
+            variantsToFlags,
+            variantKey,
+          );
         }
       },
     );

@@ -67,7 +67,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       [flagKey: string]: string | undefined; // variant
     };
   } = {};
-  private flagVariantMap: { // Also used by chrome extension
+  // Also used by chrome extension
+  private flagVariantMap: {
     [flagKey: string]: {
       [variantKey: string]: Variant;
     };
