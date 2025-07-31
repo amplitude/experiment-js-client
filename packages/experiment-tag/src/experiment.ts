@@ -525,7 +525,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   previewNewFlagAndVariant(
     flagKey: string,
     pageViewObject: PageObject,
-    variantsToFlags: Record<string, Variant>,
+    variants: Record<string, Variant>,
     variantKey: string,
   ) {
     const urlParams = getUrlParams();
@@ -537,7 +537,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     this.updateActivePages(flagKey, pageViewObject, true);
-    this.flagVariantMap[flagKey] = variantsToFlags;
+    this.flagVariantMap[flagKey] = variants;
     this.previewVariants({ keyToVariant: { [flagKey]: variantKey } });
   }
 
