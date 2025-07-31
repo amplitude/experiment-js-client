@@ -521,7 +521,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.customRedirectHandler = handler;
   }
 
-  public previewNewFlagAndVariant(
+  previewNewFlagAndVariant(
     flagKey: string,
     pageViewObject: PageObject,
     variantsToFlags: Record<string, Variant>,
