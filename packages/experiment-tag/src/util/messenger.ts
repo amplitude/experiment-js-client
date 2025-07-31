@@ -1,14 +1,23 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
+import { Variant } from '@amplitude/experiment-js-client';
+import { DefaultWebExperimentClient } from 'experiment';
+import { PageObject } from 'types';
 
 export class WindowMessenger {
-  static setup() {
+  static setup(webExperimentClient: DefaultWebExperimentClient) {
     let state: 'closed' | 'opening' | 'open' = 'closed';
     getGlobalScope()?.addEventListener(
       'message',
       (
         e: MessageEvent<{
           type: string;
-          context: { injectSrc: string };
+          context: {
+            flagKey: string;
+            pageViewObject: PageObject;
+            variantKey: string;
+            variants: Variant[];
+            injectSrc: string;
+          };
         }>,
       ) => {
         const match = /^.*\.amplitude\.com$/;
@@ -36,6 +45,17 @@ export class WindowMessenger {
             .catch(() => {
               state = 'closed';
             });
+        } else if (e.data.type === 'ForceVariant') {
+          const variantsToFlags = e.data.context.variants.reduce((acc, variant) => {
+            if (variant.key) {
+              acc[variant.key] = variant;
+            }
+            return acc;
+          }, {} as Record<string, Variant>);
+          const flagKey = e.data.context.flagKey;
+          const pageViewObject = e.data.context.pageViewObject;
+          const variantKey = e.data.context.variantKey;
+          webExperimentClient.previewNewFlagAndVariant(flagKey, pageViewObject, variantsToFlags, variantKey);
         }
       },
     );

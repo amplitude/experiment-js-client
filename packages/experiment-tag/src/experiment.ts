@@ -193,9 +193,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     );
     this.subscriptionManager.initSubscriptions();
 
+    // if in preview mode, listen for ForceVariant messages
+    if (urlParams['PREVIEW']) {
+      WindowMessenger.setup(this);
+    }
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
-      WindowMessenger.setup();
+      WindowMessenger.setup(this);
       this.globalScope.history.replaceState(
         {},
         '',
@@ -515,6 +519,25 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public setRedirectHandler(handler: (url: string) => void) {
     this.customRedirectHandler = handler;
+  }
+
+  public previewNewFlagAndVariant(
+    flagKey: string,
+    pageViewObject: PageObject,
+    variantsToFlags: Record<string, Variant>,
+    variantKey: string,
+  ) {
+    const urlParams = getUrlParams();
+    if (urlParams['PREVIEW']) {
+      this.globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(this.globalScope.location.href, ['PREVIEW', flagKey]),
+      );
+    }
+    this.updateActivePages(flagKey, pageViewObject, true);
+    this.flagVariantMap[flagKey] = variantsToFlags;
+    this.previewVariants({ keyToVariant: { [flagKey]: variantKey } });
   }
 
   private async fetchRemoteFlags() {
