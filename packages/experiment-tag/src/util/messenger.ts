@@ -64,6 +64,10 @@ export class WindowMessenger {
             variants,
             variantKey,
           );
+          e.source?.postMessage(
+            { type: 'DoneForceVariant' },
+            { targetOrigin: e.origin },
+          );
         }
       },
     );
