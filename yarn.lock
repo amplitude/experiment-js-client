@@ -3636,7 +3636,7 @@ dom-accessibility-api@^0.5.1:
 
 "dom-mutator@git+ssh://git@github.com:amplitude/dom-mutator#main":
   version "0.7.1"
-  resolved "git+ssh://git@github.com:amplitude/dom-mutator#20ef4fa76e5e35107efd74cac93baf659cd4cabb"
+  resolved "git+ssh://git@github.com:amplitude/dom-mutator#ef95c531a822bce55c197a6bf5e1d86d03bc086c"
 
 domexception@^4.0.0:
   version "4.0.0"
