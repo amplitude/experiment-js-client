@@ -5,7 +5,7 @@ interface VisualEditorSession {
   amplitudeWindowUrl: string;
 }
 
-const VISUAL_EDITOR_SESSION_KEY = 'visual-editor-state';
+export const VISUAL_EDITOR_SESSION_KEY = 'visual-editor-state';
 
 export class WindowMessenger {
   static setup() {
