@@ -1,7 +1,8 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 import { Variant } from '@amplitude/experiment-js-client';
-import { PageObject } from '../types';
+
 import { DefaultWebExperimentClient } from '../experiment';
+import { PageObject } from '../types';
 
 export class WindowMessenger {
   static setup(webExperimentClient: DefaultWebExperimentClient) {
@@ -46,15 +47,12 @@ export class WindowMessenger {
               state = 'closed';
             });
         } else if (e.data.type === 'ForceVariant') {
-          const variants = e.data.context.variants.reduce(
-            (acc, variant) => {
-              if (variant.key) {
-                acc[variant.key] = variant;
-              }
-              return acc;
-            },
-            {} as Record<string, Variant>,
-          );
+          const variants = e.data.context.variants.reduce((acc, variant) => {
+            if (variant.key) {
+              acc[variant.key] = variant;
+            }
+            return acc;
+          }, {} as Record<string, Variant>);
           const flagKey = e.data.context.flagKey;
           const pageViewObject = e.data.context.pageViewObject;
           const variantKey = e.data.context.variantKey;
