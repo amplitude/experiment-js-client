@@ -13,6 +13,11 @@ on:
         type: boolean
         required: true
         default: true
+      includeChromeExtension:
+        description: 'Release experiment-tag package for chrome extension'
+        type: boolean
+        required: true
+        default: true
 
 jobs:
   authorize:
@@ -87,6 +92,14 @@ jobs:
               PACKAGES="$PACKAGES,segment-plugin"
             else
               PACKAGES="segment-plugin"
+            fi
+          fi
+
+          if [[ "${{ github.event.inputs.includeChromeExtension }}" == "true" ]]; then
+            if [[ -n "$PACKAGES" ]]; then
+              PACKAGES="$PACKAGES,chrome-extension"
+            else
+              PACKAGES="chrome-extension"
             fi
           fi
           
