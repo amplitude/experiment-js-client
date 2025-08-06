@@ -95,7 +95,7 @@ jobs:
         id: check-experiment-tag
         if: ${{ github.event.inputs.dryRun == 'false'}}
         run: |
-          UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/experiment-tag/")
+          UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/experiment-tag/" || true)
           if [ -n "$UPDATED_PACKAGES" ]; then
             echo "experiment_tag_updated=true" >> $GITHUB_OUTPUT
           else
@@ -107,7 +107,7 @@ jobs:
         id: check-experiment-plugin
         if: ${{ github.event.inputs.dryRun == 'false'}}
         run: |
-          UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/plugin-segment/")
+          UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/plugin-segment/" || true)
           if [ -n "$UPDATED_PACKAGES" ]; then
             echo "experiment_plugin_updated=true" >> $GITHUB_OUTPUT
           else
