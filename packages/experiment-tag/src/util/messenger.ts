@@ -21,8 +21,6 @@ export class WindowMessenger {
         })
         .catch((error) => {
           console.warn('Failed to load overlay from stored session:', error);
-          // Clear invalid session
-          WindowMessenger.clearStoredSession();
           state = 'closed';
         });
       return;
@@ -54,23 +52,12 @@ export class WindowMessenger {
           ) {
             return;
           }
-
-          // Store session before loading
-          const sessionData: VisualEditorSession = {
-            injectSrc: e.data.context.injectSrc,
-            amplitudeWindowUrl: e.data.context.amplitudeWindowUrl,
-          };
-
-          WindowMessenger.storeSession(sessionData);
-
           state = 'opening';
           asyncLoadScript(e.data.context.injectSrc)
             .then(() => {
               state = 'open';
             })
             .catch(() => {
-              // Clear session if loading failed
-              WindowMessenger.clearStoredSession();
               state = 'closed';
             });
         }
@@ -79,21 +66,7 @@ export class WindowMessenger {
   }
 
   /**
-   * Store session data in sessionStorage
-   */
-  private static storeSession(sessionData: VisualEditorSession): void {
-    try {
-      sessionStorage.setItem(
-        VISUAL_EDITOR_SESSION_KEY,
-        JSON.stringify(sessionData),
-      );
-    } catch (error) {
-      console.warn('Failed to store visual editor session:', error);
-    }
-  }
-
-  /**
-   * Retrieve and validate stored session data
+   * Retrieve stored session data (read-only)
    */
   private static getStoredSession(): VisualEditorSession | null {
     try {
@@ -108,29 +81,15 @@ export class WindowMessenger {
       const match = /^.*\.amplitude\.com$/;
       try {
         if (!match.test(new URL(sessionData.injectSrc).hostname)) {
-          WindowMessenger.clearStoredSession();
           return null;
         }
       } catch {
-        WindowMessenger.clearStoredSession();
         return null;
       }
 
       return sessionData;
     } catch (error) {
-      WindowMessenger.clearStoredSession();
       return null;
-    }
-  }
-
-  /**
-   * Clear stored session data
-   */
-  private static clearStoredSession(): void {
-    try {
-      sessionStorage.removeItem(VISUAL_EDITOR_SESSION_KEY);
-    } catch (error) {
-      console.warn('Failed to clear stored session:', error);
     }
   }
 }
