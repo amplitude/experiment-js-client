@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.9.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.8.2...@amplitude/experiment-tag@0.9.0) (2025-08-11)
+
+
+### Features
+
+* Support visual editor mode for multi-page apps ([#198](https://github.com/amplitude/experiment-js-client/issues/198)) ([fb4310b](https://github.com/amplitude/experiment-js-client/commit/fb4310bd862fd9aadc917b84d390cb4bba9a39ca))
+
+
+
+
+
 ## [0.8.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.8.1...@amplitude/experiment-tag@0.8.2) (2025-08-06)
 
 **Note:** Version bump only for package @amplitude/experiment-tag
