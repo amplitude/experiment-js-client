@@ -70,7 +70,9 @@ export class WindowMessenger {
    */
   private static getStoredSession(): VisualEditorSession | null {
     try {
-      const stored = sessionStorage.getItem(VISUAL_EDITOR_SESSION_KEY);
+      const stored = getGlobalScope()?.sessionStorage.getItem(
+        VISUAL_EDITOR_SESSION_KEY,
+      );
       if (!stored) {
         return null;
       }
