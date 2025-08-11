@@ -1,14 +1,37 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+interface VisualEditorSession {
+  injectSrc: string;
+  amplitudeWindowUrl: string;
+}
+
+export const VISUAL_EDITOR_SESSION_KEY = 'visual-editor-state';
+
 export class WindowMessenger {
   static setup() {
     let state: 'closed' | 'opening' | 'open' = 'closed';
+
+    // Check for existing session on setup
+    const existingSession = WindowMessenger.getStoredSession();
+    if (existingSession) {
+      state = 'opening';
+      asyncLoadScript(existingSession.injectSrc)
+        .then(() => {
+          state = 'open';
+        })
+        .catch((error) => {
+          console.warn('Failed to load overlay from stored session:', error);
+          state = 'closed';
+        });
+      return;
+    }
+
     getGlobalScope()?.addEventListener(
       'message',
       (
         e: MessageEvent<{
           type: string;
-          context: { injectSrc: string };
+          context: { injectSrc: string; amplitudeWindowUrl: string };
         }>,
       ) => {
         const match = /^.*\.amplitude\.com$/;
@@ -21,6 +44,7 @@ export class WindowMessenger {
           // new URL(e.origin) can throw.
           return;
         }
+
         if (e.data.type === 'OpenOverlay') {
           if (
             state !== 'closed' ||
@@ -40,43 +64,84 @@ export class WindowMessenger {
       },
     );
   }
+
+  /**
+   * Retrieve stored session data (read-only)
+   */
+  private static getStoredSession(): VisualEditorSession | null {
+    try {
+      const stored = getGlobalScope()?.sessionStorage.getItem(
+        VISUAL_EDITOR_SESSION_KEY,
+      );
+      if (!stored) {
+        return null;
+      }
+
+      const sessionData: VisualEditorSession = JSON.parse(stored);
+
+      // Validate injectSrc is still from amplitude.com
+      const match = /^.*\.amplitude\.com$/;
+      try {
+        if (!match.test(new URL(sessionData.injectSrc).hostname)) {
+          return null;
+        }
+      } catch {
+        return null;
+      }
+
+      return sessionData;
+    } catch (error) {
+      return null;
+    }
+  }
 }
 
 export const asyncLoadScript = (url: string) => {
   return new Promise((resolve, reject) => {
-    try {
-      const scriptElement = document.createElement('script');
-      scriptElement.type = 'text/javascript';
-      scriptElement.async = true;
-      scriptElement.src = url;
-      // Set the script nonce if it exists
-      // This is useful for CSP (Content Security Policy) to allow the script to be loaded
-      const nonceElem = document.querySelector('[nonce]');
-      if (nonceElem) {
-        scriptElement.setAttribute(
-          'nonce',
-          nonceElem['nonce'] ||
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (nonceElem as any).nonce ||
-            nonceElem.getAttribute('nonce'),
+    const loadScript = () => {
+      try {
+        const scriptElement = document.createElement('script');
+        scriptElement.type = 'text/javascript';
+        scriptElement.async = true;
+        scriptElement.src = url;
+
+        // Set the script nonce if it exists
+        const nonceElem = document.querySelector('[nonce]');
+        if (nonceElem) {
+          scriptElement.setAttribute(
+            'nonce',
+            nonceElem['nonce'] ||
+              (nonceElem as any).nonce ||
+              nonceElem.getAttribute('nonce'),
+          );
+        }
+
+        scriptElement.addEventListener(
+          'load',
+          () => {
+            resolve({ status: true });
+          },
+          { once: true },
         );
-      }
-      scriptElement.addEventListener(
-        'load',
-        () => {
-          resolve({ status: true });
-        },
-        { once: true },
-      );
-      scriptElement.addEventListener('error', () => {
-        reject({
-          status: false,
-          message: `Failed to load the script ${url}`,
+
+        scriptElement.addEventListener('error', () => {
+          reject({
+            status: false,
+            message: `Failed to load the script ${url}`,
+          });
         });
-      });
-      document.head?.appendChild(scriptElement);
-    } catch (error) {
-      reject(error);
+
+        document.head?.appendChild(scriptElement);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    // Only start loading the script after document is completely loaded
+    if (document.readyState === 'complete') {
+      loadScript();
+    } else {
+      window.addEventListener('load', loadScript, { once: true });
     }
   });
 };

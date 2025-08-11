@@ -26,7 +26,7 @@ import {
   RevertVariantsOptions,
 } from './types';
 import { getInjectUtils } from './util/inject-utils';
-import { WindowMessenger } from './util/messenger';
+import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import {
   getUrlParams,
   removeQueryParams,
@@ -180,7 +180,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     const urlParams = getUrlParams();
-    this.isVisualEditorMode = urlParams['VISUAL_EDITOR'] === 'true';
+    this.isVisualEditorMode =
+      urlParams['VISUAL_EDITOR'] === 'true' ||
+      this.globalScope.sessionStorage.getItem(VISUAL_EDITOR_SESSION_KEY) !==
+        null;
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
