@@ -16,8 +16,6 @@ import { FetchHttpClient, WrapperClient } from '../src/transport/http';
 
 import { sleep } from './util/misc';
 
-console.log('ENVIRONMENT', process.env['ENVIRONMENT']);
-
 dotenv.config({
   path: path.join(
     __dirname,
@@ -42,6 +40,8 @@ const DEPLOYMENT_KEY =
   process.env['DEPLOYMENT_KEY'] || 'client-DvWljIjiiuqLbyjqdvBaLFfEBrAvGuA3';
 const MANAGEMENT_API_KEY = process.env['MANAGEMENT_API_KEY'];
 const FLAG_KEY = 'sdk-ci-stream-vardata-test';
+
+console.log('Testing stream server:', STREAM_SERVER_URL);
 
 const USER = {};
 const OPTIONS: GetVariantsOptions = {};
