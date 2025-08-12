@@ -16,6 +16,8 @@ import { FetchHttpClient, WrapperClient } from '../src/transport/http';
 
 import { sleep } from './util/misc';
 
+console.log('ENVIRONMENT', process.env['ENVIRONMENT']);
+
 dotenv.config({
   path: path.join(
     __dirname,
@@ -128,6 +130,7 @@ describe('SDK stream', () => {
       '',
     );
     expect(getFlagIdRequest.status).toBe(200);
+    console.log('managed');
     const flagId = JSON.parse(getFlagIdRequest.body)['flags'][0]['id'];
 
     // Call management api to edit deployment. Then wait for stream to update.
