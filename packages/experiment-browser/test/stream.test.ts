@@ -130,7 +130,6 @@ describe('SDK stream', () => {
       '',
     );
     expect(getFlagIdRequest.status).toBe(200);
-    console.log('managed');
     const flagId = JSON.parse(getFlagIdRequest.body)['flags'][0]['id'];
 
     // Call management api to edit deployment. Then wait for stream to update.
