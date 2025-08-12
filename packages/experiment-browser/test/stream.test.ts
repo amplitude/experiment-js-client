@@ -50,96 +50,106 @@ const OPTIONS: GetVariantsOptions = {};
 // i.e. multiple invocation of this test is run at the same time.
 // If two edits are made in a very very very short period (few seconds), the first edit may not be streamed.
 jest.retryTimes(2);
-test('SDK stream is compatible with stream server (flaky possible, see comments)', async () => {
-  const api: StreamEvaluationApi = new SdkStreamEvaluationApi(
-    DEPLOYMENT_KEY,
-    STREAM_SERVER_URL,
-    (url, params) => {
-      return new EventSource(url, params);
-    },
-    5000, // A bit more generous timeout than the default.
-  );
 
-  const streamVariants: Record<string, EvaluationVariant>[] = [];
-  let streamError = undefined;
-  const connectedPromise = new Promise<void>((resolve, reject) => {
-    api
-      .streamVariants(
-        USER,
-        OPTIONS,
-        (variants: Record<string, EvaluationVariant>) => {
-          streamVariants.push(variants);
-          resolve();
-        },
-        (err) => {
-          streamError = err;
-          reject(err);
-        },
-      )
-      .catch((err) => {
-        reject(err);
-      });
+describe('SDK stream', () => {
+
+  let api: StreamEvaluationApi;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    api = new SdkStreamEvaluationApi(
+      DEPLOYMENT_KEY,
+      STREAM_SERVER_URL,
+      (url, params) => {
+        return new EventSource(url, params);
+      },
+      5000, // A bit more generous timeout than the default.
+    );
   });
-  await connectedPromise;
 
-  // Get variant from the fetch api to compare.
-  const httpClient = FetchHttpClient;
-  const fetchApi = new SdkEvaluationApi(
-    DEPLOYMENT_KEY,
-    SERVER_URL,
-    new WrapperClient(httpClient),
-  );
-  const fetchVariants = await fetchApi.getVariants(USER, OPTIONS);
+  afterEach(() => {
+    api.close();
+  });
 
-  // At least one vardata streamed should be the same as the one fetched.
-  // There can be other updates after stream establishment and before fetch.
-  await sleep(5000); // Assume there's an update right before fetch but after stream, wait for stream to receive that data.
-  expect(
-    // Find the one that match using payload of our test flag.
-    streamVariants.filter(
-      (f) => f[FLAG_KEY]['payload'] === fetchVariants[FLAG_KEY]['payload'],
-    )[0],
-  ).toStrictEqual(fetchVariants);
+  test('SDK stream is compatible with stream server (flaky possible, see comments)', async () => {
+    const streamVariants: Record<string, EvaluationVariant>[] = [];
+    let streamError = undefined;
+    const connectedPromise = new Promise<void>((resolve, reject) => {
+      api
+        .streamVariants(
+          USER,
+          OPTIONS,
+          (variants: Record<string, EvaluationVariant>) => {
+            streamVariants.push(variants);
+            resolve();
+          },
+          (err) => {
+            streamError = err;
+            reject(err);
+          },
+        )
+        .catch((err) => {
+          reject(err);
+        });
+    });
+    await connectedPromise;
 
-  // Test that stream is kept alive.
-  await sleep(40000);
-  expect(streamError).toBeUndefined();
+    // Get variant from the fetch api to compare.
+    const httpClient = FetchHttpClient;
+    const fetchApi = new SdkEvaluationApi(
+      DEPLOYMENT_KEY,
+      SERVER_URL,
+      new WrapperClient(httpClient),
+    );
+    const fetchVariants = await fetchApi.getVariants(USER, OPTIONS);
 
-  // Get flag id using management-api.
-  const getFlagIdRequest = await httpClient.request(
-    `${MANAGEMENT_API_SERVER_URL}/api/1/flags?key=${FLAG_KEY}`,
-    'GET',
-    {
-      Authorization: 'Bearer ' + MANAGEMENT_API_KEY,
-      'Content-Type': 'application/json',
-      Accept: '*/*',
-    },
-    '',
-  );
-  expect(getFlagIdRequest.status).toBe(200);
-  const flagId = JSON.parse(getFlagIdRequest.body)['flags'][0]['id'];
+    // At least one vardata streamed should be the same as the one fetched.
+    // There can be other updates after stream establishment and before fetch.
+    await sleep(5000); // Assume there's an update right before fetch but after stream, wait for stream to receive that data.
+    expect(
+      // Find the one that match using payload of our test flag.
+      streamVariants.filter(
+        (f) => f[FLAG_KEY]['payload'] === fetchVariants[FLAG_KEY]['payload'],
+      )[0],
+    ).toStrictEqual(fetchVariants);
 
-  // Call management api to edit deployment. Then wait for stream to update.
-  const randNumber = Math.random();
-  const modifyFlagReq = await httpClient.request(
-    `${MANAGEMENT_API_SERVER_URL}/api/1/flags/${flagId}/variants/on`,
-    'PATCH',
-    {
-      Authorization: 'Bearer ' + MANAGEMENT_API_KEY,
-      'Content-Type': 'application/json',
-      Accept: '*/*',
-    },
-    `{"payload": ${randNumber}}`,
-    10000,
-  );
-  expect(modifyFlagReq.status).toBe(200);
-  await sleep(5000); // 5s is generous enough for update to stream.
+    // Test that stream is kept alive.
+    await sleep(40000);
+    expect(streamError).toBeUndefined();
 
-  // Check that at least one of the updates happened during this time have the random number we generated.
-  // This means that the stream is working and we are getting updates.
-  expect(
-    streamVariants.filter((f) => f[FLAG_KEY]['payload'] === randNumber).length,
-  ).toBeGreaterThanOrEqual(1);
+    // Get flag id using management-api.
+    const getFlagIdRequest = await httpClient.request(
+      `${MANAGEMENT_API_SERVER_URL}/api/1/flags?key=${FLAG_KEY}`,
+      'GET',
+      {
+        Authorization: 'Bearer ' + MANAGEMENT_API_KEY,
+        'Content-Type': 'application/json',
+        Accept: '*/*',
+      },
+      '',
+    );
+    expect(getFlagIdRequest.status).toBe(200);
+    const flagId = JSON.parse(getFlagIdRequest.body)['flags'][0]['id'];
 
-  api.close();
-}, 60000);
+    // Call management api to edit deployment. Then wait for stream to update.
+    const randNumber = Math.random();
+    const modifyFlagReq = await httpClient.request(
+      `${MANAGEMENT_API_SERVER_URL}/api/1/flags/${flagId}/variants/on`,
+      'PATCH',
+      {
+        Authorization: 'Bearer ' + MANAGEMENT_API_KEY,
+        'Content-Type': 'application/json',
+        Accept: '*/*',
+      },
+      `{"payload": ${randNumber}}`,
+      10000,
+    );
+    expect(modifyFlagReq.status).toBe(200);
+    await sleep(5000); // 5s is generous enough for update to stream.
+
+    // Check that at least one of the updates happened during this time have the random number we generated.
+    // This means that the stream is working and we are getting updates.
+    expect(
+      streamVariants.filter((f) => f[FLAG_KEY]['payload'] === randNumber).length,
+    ).toBeGreaterThanOrEqual(1);
+  }, 60000);
+});
