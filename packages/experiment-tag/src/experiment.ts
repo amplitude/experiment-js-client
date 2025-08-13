@@ -17,6 +17,7 @@ import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
+import { showPreviewModeModal } from './preview/preview';
 import { Defaults, WebExperimentClient, WebExperimentConfig } from './types';
 import {
   ApplyVariantsOptions,
@@ -83,6 +84,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
+  private previewFlags: Record<string, string> = {};
 
   constructor(
     apiKey: string,
@@ -124,12 +126,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         key in urlParams &&
         urlParams[key] in variants
       ) {
-        // Remove preview-related query parameters from the URL
-        this.globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(this.globalScope.location.href, ['PREVIEW', key]),
-        );
+        // Track this flag as being in preview mode
+        this.previewFlags[key] = urlParams[key];
+
         // Add or update the preview segment
         const previewSegment = {
           metadata: { segmentName: PREVIEW_SEGMENT_NAME },
@@ -149,6 +148,27 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       flag.metadata = metadata;
     });
+
+    // Remove preview-related query parameters from the URL and show modal if in preview mode
+    if (Object.keys(this.previewFlags).length > 0) {
+      const previewParamsToRemove = [...Object.keys(this.previewFlags), 'PREVIEW'];
+      this.globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(this.globalScope.location.href, previewParamsToRemove),
+      );
+
+      // Show preview modal for the first flag (or combine multiple flags)
+      const firstFlagKey = Object.keys(this.previewFlags)[0];
+      const firstVariant = this.previewFlags[firstFlagKey];
+
+      // If multiple flags are in preview, show info for the first one
+      // TODO: Consider showing all preview flags in the modal
+      showPreviewModeModal({
+        flagKey: firstFlagKey,
+        variant: firstVariant,
+      });
+    }
 
     const initialFlagsString = JSON.stringify(this.initialFlags);
 
