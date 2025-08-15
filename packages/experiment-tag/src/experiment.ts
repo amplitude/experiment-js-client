@@ -689,11 +689,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     // Create HTML
     const rawHtml = action.data.html;
-    let html: Element | undefined;
+    let html: DocumentFragment | undefined;
     if (rawHtml) {
-      html =
-        new DOMParser().parseFromString(rawHtml, 'text/html').body
-          .firstElementChild ?? undefined;
+      const parsed = new DOMParser().parseFromString(rawHtml, 'text/html');
+      const fragment = this.globalScope.document.createDocumentFragment();
+      Array.from(parsed.body.childNodes).forEach((node) =>
+        fragment.appendChild(node),
+      );
+      html = fragment;
     }
     // Inject
     const utils = getInjectUtils();
