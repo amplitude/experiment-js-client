@@ -44,6 +44,7 @@ export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
+const PREVIEW_MODE_PARAM = 'PREVIEW';
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -116,9 +117,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const storedPreviewFlags =
       getStorage('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
 
-    // Merge URL params with stored preview flags (URL params take precedence)
     const allPreviewFlags = { ...storedPreviewFlags };
-    if (urlParams['PREVIEW']) {
+    if (urlParams[PREVIEW_MODE_PARAM]) {
       // If PREVIEW param is in URL, use URL params for preview flags
       Object.keys(urlParams).forEach((key) => {
         if (key !== 'PREVIEW' && urlParams[key]) {
@@ -137,11 +137,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       });
 
       // Update initialFlags to force variant if in preview mode
-      if (
-        (urlParams['PREVIEW'] || Object.keys(storedPreviewFlags).length > 0) &&
-        key in allPreviewFlags &&
-        allPreviewFlags[key] in variants
-      ) {
+      if (key in allPreviewFlags && allPreviewFlags[key] in variants) {
         // Track this flag as being in preview mode
         this.previewFlags[key] = allPreviewFlags[key];
 
@@ -170,11 +166,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // Store preview flags in sessionStorage for persistence
       setStorage('sessionStorage', PREVIEW_MODE_SESSION_KEY, this.previewFlags);
 
-      // Remove preview-related query parameters from the URL only if they came from URL
-      if (urlParams['PREVIEW']) {
+      if (urlParams[PREVIEW_MODE_PARAM]) {
         const previewParamsToRemove = [
           ...Object.keys(this.previewFlags),
-          'PREVIEW',
+          PREVIEW_MODE_PARAM,
         ];
         this.globalScope.history.replaceState(
           {},
