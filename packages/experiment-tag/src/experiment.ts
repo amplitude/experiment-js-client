@@ -16,8 +16,8 @@ import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
-import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import { showPreviewModeModal } from './preview/preview';
+import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import { Defaults, WebExperimentClient, WebExperimentConfig } from './types';
 import {
   ApplyVariantsOptions,
@@ -29,7 +29,6 @@ import {
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { getStorage, setStorage, removeStorage } from './util/storage';
-import { getStoredPreviewFlags, storePreviewFlags } from './util/preview';
 import {
   getUrlParams,
   removeQueryParams,
@@ -114,7 +113,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const urlParams = getUrlParams();
 
     // Check for existing preview flags in sessionStorage
-    const storedPreviewFlags = getStoredPreviewFlags();
+    const storedPreviewFlags =
+      getStorage('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
 
     // Merge URL params with stored preview flags (URL params take precedence)
     const allPreviewFlags = { ...storedPreviewFlags };
@@ -168,7 +168,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Store preview flags in sessionStorage and remove URL params if in preview mode
     if (Object.keys(this.previewFlags).length > 0) {
       // Store preview flags in sessionStorage for persistence
-      storePreviewFlags(this.previewFlags);
+      setStorage('sessionStorage', PREVIEW_MODE_SESSION_KEY, this.previewFlags);
 
       // Remove preview-related query parameters from the URL only if they came from URL
       if (urlParams['PREVIEW']) {
