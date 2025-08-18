@@ -4,6 +4,12 @@
  */
 
 interface PreviewModeModalOptions {
+  flags: Record<string, string>; // Map of flagKey to variant
+  onDismiss?: () => void;
+}
+
+// Legacy interface for backwards compatibility
+interface LegacyPreviewModeModalOptions {
   flagKey: string;
   variant: string;
   onDismiss?: () => void;
@@ -76,21 +82,29 @@ export class PreviewModeModal {
     title.className = 'amp-preview-modal-title';
     title.textContent = 'Web Experiment Preview Mode';
 
-    // Create details
-    const details = document.createElement('p');
+    // Create details container
+    const details = document.createElement('div');
     details.className = 'amp-preview-modal-details';
 
-    const flagKeySpan = document.createElement('span');
-    flagKeySpan.className = 'amp-preview-modal-flag-key';
-    flagKeySpan.textContent = this.options.flagKey;
+    // Create flag entries
+    Object.entries(this.options.flags).forEach(([flagKey, variant]) => {
+      const flagEntry = document.createElement('p');
+      flagEntry.className = 'amp-preview-modal-flag-entry';
 
-    const variantSpan = document.createElement('span');
-    variantSpan.className = 'amp-preview-modal-variant';
-    variantSpan.textContent = this.options.variant;
+      const flagKeySpan = document.createElement('span');
+      flagKeySpan.className = 'amp-preview-modal-flag-key';
+      flagKeySpan.textContent = flagKey;
 
-    details.appendChild(flagKeySpan);
-    details.appendChild(document.createTextNode(': '));
-    details.appendChild(variantSpan);
+      const variantSpan = document.createElement('span');
+      variantSpan.className = 'amp-preview-modal-variant';
+      variantSpan.textContent = variant;
+
+      flagEntry.appendChild(flagKeySpan);
+      flagEntry.appendChild(document.createTextNode(': '));
+      flagEntry.appendChild(variantSpan);
+
+      details.appendChild(flagEntry);
+    });
 
     // Create close button
     const closeButton = document.createElement('button');
@@ -189,6 +203,14 @@ export class PreviewModeModal {
         word-break: break-word;
       }
 
+      .amp-preview-modal-flag-entry {
+        margin: 0 0 4px 0;
+      }
+
+      .amp-preview-modal-flag-entry:last-child {
+        margin-bottom: 0;
+      }
+
       .amp-preview-modal-flag-key {
         font-weight: 500;
         color: #3182ce;
@@ -263,11 +285,25 @@ export class PreviewModeModal {
 
 /**
  * Convenience function to create and show a preview mode modal
+ * Supports both new multi-flag format and legacy single-flag format for backwards compatibility
  */
 export function showPreviewModeModal(
-  options: PreviewModeModalOptions,
+  options: PreviewModeModalOptions | LegacyPreviewModeModalOptions,
 ): PreviewModeModal {
-  const modal = new PreviewModeModal(options);
+  // Convert legacy format to new format if needed
+  let modalOptions: PreviewModeModalOptions;
+  if ('flagKey' in options && 'variant' in options) {
+    // Legacy format - convert to new format
+    modalOptions = {
+      flags: { [options.flagKey]: options.variant },
+      onDismiss: options.onDismiss,
+    };
+  } else {
+    // New format
+    modalOptions = options as PreviewModeModalOptions;
+  }
+
+  const modal = new PreviewModeModal(modalOptions);
 
   // Delay showing the modal if DOM is not ready
   if (document.readyState === 'loading') {
@@ -287,7 +323,7 @@ export function showPreviewModeModal(
 declare global {
   interface Window {
     AmplitudePreviewModal?: {
-      show: (options: PreviewModeModalOptions) => PreviewModeModal;
+      show: (options: PreviewModeModalOptions | LegacyPreviewModeModalOptions) => PreviewModeModal;
       PreviewModeModal: typeof PreviewModeModal;
     };
   }

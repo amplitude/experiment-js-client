@@ -29,6 +29,7 @@ import {
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { getStorage, setStorage, removeStorage } from './util/storage';
+import { getStoredPreviewFlags, storePreviewFlags } from './util/preview';
 import {
   getUrlParams,
   removeQueryParams,
@@ -40,6 +41,7 @@ import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
 
 export const PREVIEW_SEGMENT_NAME = 'Preview';
+export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
@@ -111,6 +113,20 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     const urlParams = getUrlParams();
 
+    // Check for existing preview flags in sessionStorage
+    const storedPreviewFlags = getStoredPreviewFlags();
+
+    // Merge URL params with stored preview flags (URL params take precedence)
+    const allPreviewFlags = { ...storedPreviewFlags };
+    if (urlParams['PREVIEW']) {
+      // If PREVIEW param is in URL, use URL params for preview flags
+      Object.keys(urlParams).forEach((key) => {
+        if (key !== 'PREVIEW' && urlParams[key]) {
+          allPreviewFlags[key] = urlParams[key];
+        }
+      });
+    }
+
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
 
@@ -122,17 +138,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       // Update initialFlags to force variant if in preview mode
       if (
-        urlParams['PREVIEW'] &&
-        key in urlParams &&
-        urlParams[key] in variants
+        (urlParams['PREVIEW'] || Object.keys(storedPreviewFlags).length > 0) &&
+        key in allPreviewFlags &&
+        allPreviewFlags[key] in variants
       ) {
         // Track this flag as being in preview mode
-        this.previewFlags[key] = urlParams[key];
+        this.previewFlags[key] = allPreviewFlags[key];
 
         // Add or update the preview segment
         const previewSegment = {
           metadata: { segmentName: PREVIEW_SEGMENT_NAME },
-          variant: urlParams[key],
+          variant: allPreviewFlags[key],
         };
 
         // Update the flag's segments to include the preview segment
@@ -149,24 +165,30 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       flag.metadata = metadata;
     });
 
-    // Remove preview-related query parameters from the URL and show modal if in preview mode
+    // Store preview flags in sessionStorage and remove URL params if in preview mode
     if (Object.keys(this.previewFlags).length > 0) {
-      const previewParamsToRemove = [...Object.keys(this.previewFlags), 'PREVIEW'];
-      this.globalScope.history.replaceState(
-        {},
-        '',
-        removeQueryParams(this.globalScope.location.href, previewParamsToRemove),
-      );
+      // Store preview flags in sessionStorage for persistence
+      storePreviewFlags(this.previewFlags);
 
-      // Show preview modal for the first flag (or combine multiple flags)
-      const firstFlagKey = Object.keys(this.previewFlags)[0];
-      const firstVariant = this.previewFlags[firstFlagKey];
+      // Remove preview-related query parameters from the URL only if they came from URL
+      if (urlParams['PREVIEW']) {
+        const previewParamsToRemove = [
+          ...Object.keys(this.previewFlags),
+          'PREVIEW',
+        ];
+        this.globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(
+            this.globalScope.location.href,
+            previewParamsToRemove,
+          ),
+        );
+      }
 
-      // If multiple flags are in preview, show info for the first one
-      // TODO: Consider showing all preview flags in the modal
+      // Show preview modal for all preview flags
       showPreviewModeModal({
-        flagKey: firstFlagKey,
-        variant: firstVariant,
+        flags: this.previewFlags,
       });
     }
 
