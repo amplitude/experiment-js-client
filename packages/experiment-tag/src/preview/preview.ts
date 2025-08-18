@@ -59,13 +59,17 @@ export class PreviewModeModal {
    * Check if modal is currently visible
    */
   isVisible(): boolean {
-    return this.modal !== null && document.body && document.body.contains(this.modal);
+    return (
+      this.modal !== null && document.body && document.body.contains(this.modal)
+    );
   }
 
   private createModal(): void {
     // Ensure document.body exists
     if (!document.body) {
-      console.warn('Cannot create preview modal: document.body is not available');
+      console.warn(
+        'Cannot create preview modal: document.body is not available',
+      );
       return;
     }
 
@@ -142,8 +146,6 @@ export class PreviewModeModal {
     };
     document.addEventListener('keydown', handleKeydown);
   }
-
-
 
   private injectStyles(): void {
     // Check if styles are already injected
@@ -323,7 +325,9 @@ export function showPreviewModeModal(
 declare global {
   interface Window {
     AmplitudePreviewModal?: {
-      show: (options: PreviewModeModalOptions | LegacyPreviewModeModalOptions) => PreviewModeModal;
+      show: (
+        options: PreviewModeModalOptions | LegacyPreviewModeModalOptions,
+      ) => PreviewModeModal;
       PreviewModeModal: typeof PreviewModeModal;
     };
   }
