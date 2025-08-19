@@ -8,26 +8,15 @@ export type StorageType = 'localStorage' | 'sessionStorage';
  * @param key - The key to retrieve
  * @returns The parsed JSON value or null if not found or invalid JSON
  */
-export const getStorage = <T = any>(
+export const getStorageItem = <T>(
   storageType: StorageType,
   key: string,
 ): T | null => {
   try {
-    const globalScope = getGlobalScope();
-    if (!globalScope) {
-      return null;
-    }
-
-    const storage = globalScope[storageType];
-    if (!storage) {
-      return null;
-    }
-
-    const value = storage.getItem(key);
+    const value = getStorage(storageType)?.getItem(key);
     if (!value) {
       return null;
     }
-
     return JSON.parse(value) as T;
   } catch (error) {
     console.warn(`Failed to get and parse JSON from ${storageType}:`, error);
@@ -41,24 +30,14 @@ export const getStorage = <T = any>(
  * @param key - The key to store the value under
  * @param value - The value to stringify and store
  */
-export const setStorage = (
+export const setStorageItem = (
   storageType: StorageType,
   key: string,
-  value: any,
+  value: unknown,
 ): void => {
   try {
-    const globalScope = getGlobalScope();
-    if (!globalScope) {
-      return;
-    }
-
-    const storage = globalScope[storageType];
-    if (!storage) {
-      return;
-    }
-
     const jsonString = JSON.stringify(value);
-    storage.setItem(key, jsonString);
+    getStorage(storageType)?.setItem(key, jsonString);
   } catch (error) {
     console.warn(`Failed to stringify and set JSON in ${storageType}:`, error);
   }
@@ -69,20 +48,21 @@ export const setStorage = (
  * @param storageType - The type of storage to use ('localStorage' or 'sessionStorage')
  * @param key - The key to remove
  */
-export const removeStorage = (storageType: StorageType, key: string): void => {
+export const removeStorageItem = (
+  storageType: StorageType,
+  key: string,
+): void => {
   try {
-    const globalScope = getGlobalScope();
-    if (!globalScope) {
-      return;
-    }
-
-    const storage = globalScope[storageType];
-    if (!storage) {
-      return;
-    }
-
-    storage.removeItem(key);
+    getStorage(storageType)?.removeItem(key);
   } catch (error) {
     console.warn(`Failed to remove item from ${storageType}:`, error);
   }
+};
+
+const getStorage = (storageType: StorageType): Storage | null => {
+  const globalScope = getGlobalScope();
+  if (!globalScope) {
+    return null;
+  }
+  return globalScope[storageType];
 };
