@@ -1,17 +1,9 @@
 /**
  * Lightweight floating dismissable modal for experiment preview mode
- * Can be used as a standalone script without React dependencies
  */
 
 interface PreviewModeModalOptions {
-  flags: Record<string, string>; // Map of flagKey to variant
-  onDismiss?: () => void;
-}
-
-// Legacy interface for backwards compatibility
-interface LegacyPreviewModeModalOptions {
-  flagKey: string;
-  variant: string;
+  flags: Record<string, string>;
   onDismiss?: () => void;
 }
 
@@ -23,9 +15,6 @@ export class PreviewModeModal {
     this.options = options;
   }
 
-  /**
-   * Create and show the modal
-   */
   show(): void {
     if (this.modal) {
       return; // Already showing
@@ -43,9 +32,6 @@ export class PreviewModeModal {
     }
   }
 
-  /**
-   * Hide and remove the modal
-   */
   hide(): void {
     if (this.modal) {
       this.modal.remove();
@@ -55,9 +41,6 @@ export class PreviewModeModal {
     this.options.onDismiss?.();
   }
 
-  /**
-   * Check if modal is currently visible
-   */
   isVisible(): boolean {
     return (
       this.modal !== null && document.body && document.body.contains(this.modal)
@@ -73,24 +56,19 @@ export class PreviewModeModal {
       return;
     }
 
-    // Create modal container
     this.modal = document.createElement('div');
     this.modal.className = 'amp-preview-modal';
 
-    // Create content container
     const content = document.createElement('div');
     content.className = 'amp-preview-modal-content';
 
-    // Create title
     const title = document.createElement('h3');
     title.className = 'amp-preview-modal-title';
     title.textContent = 'Web Experiment Preview Mode';
 
-    // Create details container
     const details = document.createElement('div');
     details.className = 'amp-preview-modal-details';
 
-    // Create flag entries
     Object.entries(this.options.flags).forEach(([flagKey, variant]) => {
       const flagEntry = document.createElement('p');
       flagEntry.className = 'amp-preview-modal-flag-entry';
@@ -110,22 +88,18 @@ export class PreviewModeModal {
       details.appendChild(flagEntry);
     });
 
-    // Create close button
     const closeButton = document.createElement('button');
     closeButton.className = 'amp-preview-modal-close';
     closeButton.setAttribute('aria-label', 'Dismiss preview mode notification');
     closeButton.innerHTML = '×';
 
-    // Assemble modal
     content.appendChild(title);
     content.appendChild(details);
     this.modal.appendChild(content);
     this.modal.appendChild(closeButton);
 
-    // Add styles
     this.injectStyles();
 
-    // Add to DOM
     document.body.appendChild(this.modal);
   }
 
@@ -136,19 +110,9 @@ export class PreviewModeModal {
     if (closeButton) {
       closeButton.addEventListener('click', () => this.hide());
     }
-
-    // Close on Escape key
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        this.hide();
-        document.removeEventListener('keydown', handleKeydown);
-      }
-    };
-    document.addEventListener('keydown', handleKeydown);
   }
 
   private injectStyles(): void {
-    // Check if styles are already injected
     if (document.getElementById('amp-preview-modal-styles')) {
       return;
     }
@@ -287,25 +251,11 @@ export class PreviewModeModal {
 
 /**
  * Convenience function to create and show a preview mode modal
- * Supports both new multi-flag format and legacy single-flag format for backwards compatibility
  */
 export function showPreviewModeModal(
-  options: PreviewModeModalOptions | LegacyPreviewModeModalOptions,
+  options: PreviewModeModalOptions,
 ): PreviewModeModal {
-  // Convert legacy format to new format if needed
-  let modalOptions: PreviewModeModalOptions;
-  if ('flagKey' in options && 'variant' in options) {
-    // Legacy format - convert to new format
-    modalOptions = {
-      flags: { [options.flagKey]: options.variant },
-      onDismiss: options.onDismiss,
-    };
-  } else {
-    // New format
-    modalOptions = options as PreviewModeModalOptions;
-  }
-
-  const modal = new PreviewModeModal(modalOptions);
+  const modal = new PreviewModeModal(options);
 
   // Delay showing the modal if DOM is not ready
   if (document.readyState === 'loading') {
@@ -317,26 +267,4 @@ export function showPreviewModeModal(
   }
 
   return modal;
-}
-
-/**
- * Global function for script tag usage
- */
-declare global {
-  interface Window {
-    AmplitudePreviewModal?: {
-      show: (
-        options: PreviewModeModalOptions | LegacyPreviewModeModalOptions,
-      ) => PreviewModeModal;
-      PreviewModeModal: typeof PreviewModeModal;
-    };
-  }
-}
-
-// Make available globally for script tag usage
-if (typeof window !== 'undefined') {
-  window.AmplitudePreviewModal = {
-    show: showPreviewModeModal,
-    PreviewModeModal,
-  };
 }

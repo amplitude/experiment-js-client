@@ -113,7 +113,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     const urlParams = getUrlParams();
 
-    // Check for existing preview flags in sessionStorage
     const storedPreviewFlags =
       getStorage('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
 
@@ -161,9 +160,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       flag.metadata = metadata;
     });
 
-    // Store preview flags in sessionStorage and remove URL params if in preview mode
     if (Object.keys(this.previewFlags).length > 0) {
-      // Store preview flags in sessionStorage for persistence
       setStorage('sessionStorage', PREVIEW_MODE_SESSION_KEY, this.previewFlags);
 
       if (urlParams[PREVIEW_MODE_PARAM]) {
@@ -181,7 +178,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         );
       }
 
-      // Show preview modal for all preview flags
       showPreviewModeModal({
         flags: this.previewFlags,
       });
