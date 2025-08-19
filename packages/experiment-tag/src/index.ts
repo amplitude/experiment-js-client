@@ -27,5 +27,3 @@ export {
   WebExperimentClient,
   WebExperimentConfig,
 } from 'types';
-
-export { PreviewModeModal, showPreviewModeModal } from './preview/preview';
