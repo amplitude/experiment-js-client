@@ -39,12 +39,13 @@ import {
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
 
-export const PREVIEW_SEGMENT_NAME = 'Preview';
-export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
 const PREVIEW_MODE_PARAM = 'PREVIEW';
+export const PREVIEW_SEGMENT_NAME = 'Preview';
+export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
+const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -113,17 +114,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     const urlParams = getUrlParams();
 
-    const storedPreviewFlags =
-      getStorage('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
-
-    const allPreviewFlags = { ...storedPreviewFlags };
+    let previewFlags: Record<string, string> = {};
     if (urlParams[PREVIEW_MODE_PARAM]) {
-      // If PREVIEW param is in URL, use URL params for preview flags
       Object.keys(urlParams).forEach((key) => {
         if (key !== 'PREVIEW' && urlParams[key]) {
-          allPreviewFlags[key] = urlParams[key];
+          previewFlags[key] = urlParams[key];
         }
       });
+    } else {
+      previewFlags =
+        getStorage('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
     }
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
@@ -136,20 +136,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       });
 
       // Update initialFlags to force variant if in preview mode
-      if (key in allPreviewFlags && allPreviewFlags[key] in variants) {
-        // Track this flag as being in preview mode
-        this.previewFlags[key] = allPreviewFlags[key];
+      if (key in previewFlags && previewFlags[key] in variants) {
+        this.previewFlags[key] = previewFlags[key];
 
-        // Add or update the preview segment
         const previewSegment = {
           metadata: { segmentName: PREVIEW_SEGMENT_NAME },
-          variant: allPreviewFlags[key],
+          variant: previewFlags[key],
         };
 
-        // Update the flag's segments to include the preview segment
         flag.segments = [previewSegment];
-
-        // make all preview flags local
         metadata.evaluationMode = 'local';
       }
 
@@ -215,7 +210,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     const urlParams = getUrlParams();
     this.isVisualEditorMode =
-      urlParams['VISUAL_EDITOR'] === 'true' ||
+      urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
       getStorage('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
     this.subscriptionManager = new SubscriptionManager(
       this,
@@ -235,7 +230,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.globalScope.history.replaceState(
         {},
         '',
-        removeQueryParams(this.globalScope.location.href, ['VISUAL_EDITOR']),
+        removeQueryParams(this.globalScope.location.href, [
+          VISUAL_EDITOR_PARAM,
+        ]),
       );
       // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
       this.messageBus.publish('url_change', { updateActivePages: true });

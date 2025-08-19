@@ -17,10 +17,9 @@ export class PreviewModeModal {
 
   show(): void {
     if (this.modal) {
-      return; // Already showing
+      return;
     }
 
-    // Wait for DOM to be ready before creating modal
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
         this.createModal();
@@ -41,18 +40,8 @@ export class PreviewModeModal {
     this.options.onDismiss?.();
   }
 
-  isVisible(): boolean {
-    return (
-      this.modal !== null && document.body && document.body.contains(this.modal)
-    );
-  }
-
   private createModal(): void {
-    // Ensure document.body exists
     if (!document.body) {
-      console.warn(
-        'Cannot create preview modal: document.body is not available',
-      );
       return;
     }
 
@@ -257,7 +246,6 @@ export function showPreviewModeModal(
 ): PreviewModeModal {
   const modal = new PreviewModeModal(options);
 
-  // Delay showing the modal if DOM is not ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       modal.show();
