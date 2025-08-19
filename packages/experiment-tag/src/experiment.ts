@@ -114,6 +114,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const urlParams = getUrlParams();
 
     let previewFlags: Record<string, string> = {};
+    // explicit URL params takes precedence over session storage
     if (urlParams[PREVIEW_MODE_PARAM]) {
       Object.keys(urlParams).forEach((key) => {
         if (key !== 'PREVIEW' && urlParams[key]) {
