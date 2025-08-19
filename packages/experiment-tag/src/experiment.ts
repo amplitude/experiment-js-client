@@ -17,7 +17,12 @@ import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
-import { Defaults, WebExperimentClient, WebExperimentConfig } from './types';
+import {
+  Defaults,
+  WebExperimentClient,
+  WebExperimentConfig,
+  WebExperimentUser,
+} from './types';
 import {
   ApplyVariantsOptions,
   PageObject,
@@ -27,7 +32,11 @@ import {
 } from './types';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
-import { getStorage, setStorage, removeStorage } from './util/storage';
+import {
+  getStorageItem,
+  setStorageItem,
+  removeStorageItem,
+} from './util/storage';
 import {
   getUrlParams,
   removeQueryParams,
@@ -240,7 +249,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.messageBus.publish('url_change', { updateActivePages: true });
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
-    const user = getStorage('localStorage', experimentStorageName) || {};
+    const user =
+      getStorageItem<WebExperimentUser>(
+        'localStorage',
+        experimentStorageName,
+      ) || {};
 
     // if web_exp_id does not exist:
     // 1. if device_id exists, migrate device_id to web_exp_id and remove device_id
@@ -249,10 +262,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (!user.web_exp_id) {
       user.web_exp_id = user.device_id || UUID();
       delete user.device_id;
-      setStorage('localStorage', experimentStorageName, user);
+      setStorageItem('localStorage', experimentStorageName, user);
     } else if (user.web_exp_id && user.device_id) {
       delete user.device_id;
-      setStorage('localStorage', experimentStorageName, user);
+      setStorageItem('localStorage', experimentStorageName, user);
     }
 
     // evaluate variants for page targeting
@@ -821,16 +834,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
     // Store the current flag and variant for exposure tracking after redirect
     const storedRedirects =
-      getStorage('sessionStorage', redirectStorageKey) || {};
+      getStorageItem('sessionStorage', redirectStorageKey) || {};
     storedRedirects[flagKey] = { redirectUrl, variant };
-    setStorage('sessionStorage', redirectStorageKey, storedRedirects);
+    setStorageItem('sessionStorage', redirectStorageKey, storedRedirects);
   }
 
   private fireStoredRedirectImpressions() {
     // Check for stored redirects and process them
     const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
     const storedRedirects =
-      getStorage('sessionStorage', redirectStorageKey) || {};
+      getStorageItem('sessionStorage', redirectStorageKey) || {};
 
     // If we have stored redirects, track exposures for them
     if (Object.keys(storedRedirects).length > 0) {
@@ -852,10 +865,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // Update or clear the storage
     if (Object.keys(storedRedirects).length > 0) {
-      // track exposure with timeout of 1s
+      // track exposure with timeout of 500ms
       this.globalScope.setTimeout(() => {
         const redirects =
-          getStorage('sessionStorage', redirectStorageKey) || {};
+          getStorageItem('sessionStorage', redirectStorageKey) || {};
         for (const storedFlagKey in redirects) {
           this.exposureWithDedupe(
             storedFlagKey,
@@ -863,10 +876,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
             true,
           );
         }
-        removeStorage('sessionStorage', redirectStorageKey);
+        removeStorageItem('sessionStorage', redirectStorageKey);
       }, 500);
     } else {
-      removeStorage('sessionStorage', redirectStorageKey);
+      removeStorageItem('sessionStorage', redirectStorageKey);
     }
   }
 }
