@@ -132,7 +132,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       });
     } else {
       previewFlags =
-        getStorage('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
+        getStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
     }
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
@@ -165,7 +165,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
 
     if (Object.keys(this.previewFlags).length > 0) {
-      setStorage('sessionStorage', PREVIEW_MODE_SESSION_KEY, this.previewFlags);
+      setStorageItem(
+        'sessionStorage',
+        PREVIEW_MODE_SESSION_KEY,
+        this.previewFlags,
+      );
 
       if (urlParams[PREVIEW_MODE_PARAM]) {
         const previewParamsToRemove = [
@@ -216,7 +220,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const urlParams = getUrlParams();
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
-      getStorage('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
+      getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
