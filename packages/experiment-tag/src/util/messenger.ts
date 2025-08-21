@@ -1,5 +1,7 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+import { getStorageItem } from './storage';
+
 interface VisualEditorSession {
   injectSrc: string;
   amplitudeWindowUrl: string;
@@ -69,30 +71,25 @@ export class WindowMessenger {
    * Retrieve stored session data (read-only)
    */
   private static getStoredSession(): VisualEditorSession | null {
-    try {
-      const stored = getGlobalScope()?.sessionStorage.getItem(
-        VISUAL_EDITOR_SESSION_KEY,
-      );
-      if (!stored) {
-        return null;
-      }
-
-      const sessionData: VisualEditorSession = JSON.parse(stored);
-
-      // Validate injectSrc is still from amplitude.com
-      const match = /^.*\.amplitude\.com$/;
-      try {
-        if (!match.test(new URL(sessionData.injectSrc).hostname)) {
-          return null;
-        }
-      } catch {
-        return null;
-      }
-
-      return sessionData;
-    } catch (error) {
+    const sessionData = getStorageItem<VisualEditorSession>(
+      'sessionStorage',
+      VISUAL_EDITOR_SESSION_KEY,
+    );
+    if (!sessionData) {
       return null;
     }
+
+    // Validate injectSrc is still from amplitude.com
+    const match = /^.*\.amplitude\.com$/;
+    try {
+      if (!match.test(new URL(sessionData.injectSrc).hostname)) {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+
+    return sessionData;
   }
 }
 

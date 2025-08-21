@@ -17,7 +17,12 @@ import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
-import { Defaults, WebExperimentClient, WebExperimentConfig } from './types';
+import {
+  Defaults,
+  WebExperimentClient,
+  WebExperimentConfig,
+  WebExperimentUser,
+} from './types';
 import {
   ApplyVariantsOptions,
   PageObject,
@@ -27,6 +32,11 @@ import {
 } from './types';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
+import {
+  getStorageItem,
+  setStorageItem,
+  removeStorageItem,
+} from './util/storage';
 import {
   getUrlParams,
   removeQueryParams,
@@ -182,8 +192,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const urlParams = getUrlParams();
     this.isVisualEditorMode =
       urlParams['VISUAL_EDITOR'] === 'true' ||
-      this.globalScope.sessionStorage.getItem(VISUAL_EDITOR_SESSION_KEY) !==
-        null;
+      getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
@@ -214,14 +223,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.messageBus.publish('url_change', { updateActivePages: true });
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
-    let user;
-    try {
-      user = JSON.parse(
-        this.globalScope.localStorage.getItem(experimentStorageName) || '{}',
-      );
-    } catch (error) {
-      user = {};
-    }
+    const user =
+      getStorageItem<WebExperimentUser>(
+        'localStorage',
+        experimentStorageName,
+      ) || {};
 
     // if web_exp_id does not exist:
     // 1. if device_id exists, migrate device_id to web_exp_id and remove device_id
@@ -230,16 +236,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (!user.web_exp_id) {
       user.web_exp_id = user.device_id || UUID();
       delete user.device_id;
-      this.globalScope.localStorage.setItem(
-        experimentStorageName,
-        JSON.stringify(user),
-      );
+      setStorageItem('localStorage', experimentStorageName, user);
     } else if (user.web_exp_id && user.device_id) {
       delete user.device_id;
-      this.globalScope.localStorage.setItem(
-        experimentStorageName,
-        JSON.stringify(user),
-      );
+      setStorageItem('localStorage', experimentStorageName, user);
     }
 
     // evaluate variants for page targeting
@@ -807,74 +807,53 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   ) {
     const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
     // Store the current flag and variant for exposure tracking after redirect
-    try {
-      const storedRedirects = JSON.parse(
-        this.globalScope.sessionStorage.getItem(redirectStorageKey) || '{}',
-      );
-
-      storedRedirects[flagKey] = { redirectUrl, variant };
-
-      this.globalScope.sessionStorage.setItem(
-        redirectStorageKey,
-        JSON.stringify(storedRedirects),
-      );
-    } catch (error) {
-      console.warn('Error storing redirect information:', error);
-    }
+    const storedRedirects =
+      getStorageItem('sessionStorage', redirectStorageKey) || {};
+    storedRedirects[flagKey] = { redirectUrl, variant };
+    setStorageItem('sessionStorage', redirectStorageKey, storedRedirects);
   }
 
   private fireStoredRedirectImpressions() {
     // Check for stored redirects and process them
     const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
-    try {
-      const storedRedirects = JSON.parse(
-        this.globalScope.sessionStorage.getItem(redirectStorageKey) || '{}',
-      );
+    const storedRedirects =
+      getStorageItem('sessionStorage', redirectStorageKey) || {};
 
-      // If we have stored redirects, track exposures for them
-      if (Object.keys(storedRedirects).length > 0) {
-        for (const storedFlagKey in storedRedirects) {
-          const { redirectUrl, variant } = storedRedirects[storedFlagKey];
-          const currentUrl = urlWithoutParamsAndAnchor(
-            this.globalScope.location.href,
-          );
-          const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
-          if (matchesUrl([currentUrl], strippedRedirectUrl)) {
-            // Force variant to ensure original evaluation result is tracked
-            this.exposureWithDedupe(storedFlagKey, variant, true);
+    // If we have stored redirects, track exposures for them
+    if (Object.keys(storedRedirects).length > 0) {
+      for (const storedFlagKey in storedRedirects) {
+        const { redirectUrl, variant } = storedRedirects[storedFlagKey];
+        const currentUrl = urlWithoutParamsAndAnchor(
+          this.globalScope.location.href,
+        );
+        const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
+        if (matchesUrl([currentUrl], strippedRedirectUrl)) {
+          // Force variant to ensure original evaluation result is tracked
+          this.exposureWithDedupe(storedFlagKey, variant, true);
 
-            // Remove this flag from stored redirects
-            delete storedRedirects[storedFlagKey];
-          }
+          // Remove this flag from stored redirects
+          delete storedRedirects[storedFlagKey];
         }
       }
+    }
 
-      // Update or clear the storage
-      if (Object.keys(storedRedirects).length > 0) {
-        // track exposure with timeout of 1s
-        this.globalScope.setTimeout(() => {
-          try {
-            const redirects = JSON.parse(
-              this.globalScope.sessionStorage.getItem(redirectStorageKey) ||
-                '{}',
-            );
-            for (const storedFlagKey in redirects) {
-              this.exposureWithDedupe(
-                storedFlagKey,
-                redirects[storedFlagKey].variant,
-                true,
-              );
-            }
-            this.globalScope.sessionStorage.removeItem(redirectStorageKey);
-          } catch (error) {
-            console.warn('Error processing stored redirects events:', error);
-          }
-        }, 500);
-      } else {
-        this.globalScope.sessionStorage.removeItem(redirectStorageKey);
-      }
-    } catch (error) {
-      console.warn('Error processing stored redirects events:', error);
+    // Update or clear the storage
+    if (Object.keys(storedRedirects).length > 0) {
+      // track exposure with timeout of 500ms
+      this.globalScope.setTimeout(() => {
+        const redirects =
+          getStorageItem('sessionStorage', redirectStorageKey) || {};
+        for (const storedFlagKey in redirects) {
+          this.exposureWithDedupe(
+            storedFlagKey,
+            redirects[storedFlagKey].variant,
+            true,
+          );
+        }
+        removeStorageItem('sessionStorage', redirectStorageKey);
+      }, 500);
+    } else {
+      removeStorageItem('sessionStorage', redirectStorageKey);
     }
   }
 }
