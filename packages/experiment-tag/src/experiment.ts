@@ -46,6 +46,7 @@ import {
 } from './util/url';
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
+import { showPreviewModeModal } from './preview/preview';
 
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
@@ -185,6 +186,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           ),
         );
       }
+      showPreviewModeModal({
+        flags: this.previewFlags,
+      });
     }
 
     const initialFlagsString = JSON.stringify(this.initialFlags);
