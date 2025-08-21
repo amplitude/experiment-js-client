@@ -166,13 +166,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
 
     if (Object.keys(this.previewFlags).length > 0) {
-      setStorageItem(
-        'sessionStorage',
-        PREVIEW_MODE_SESSION_KEY,
-        this.previewFlags,
-      );
-
       if (urlParams[PREVIEW_MODE_PARAM]) {
+        setStorageItem(
+          'sessionStorage',
+          PREVIEW_MODE_SESSION_KEY,
+          this.previewFlags,
+        );
         const previewParamsToRemove = [
           ...Object.keys(this.previewFlags),
           PREVIEW_MODE_PARAM,
