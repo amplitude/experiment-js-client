@@ -27,6 +27,7 @@
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
   "dependencies": {
+    "@amplitude/analytics-core": "^2.21.0",
     "@amplitude/experiment-core": "^0.11.0",
     "@amplitude/experiment-js-client": "^1.16.2",
     "dom-mutator": "git+ssh://git@github.com:amplitude/dom-mutator#ef95c531a822bce55c197a6bf5e1d86d03bc086c",
