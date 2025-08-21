@@ -21,6 +21,5 @@ export async function setMarketingCookie(apiKey: string) {
 
   // Parse campaign data and store it
   const campaign = await parser.parse();
-  console.log(campaign);
   await storage.set(storageKey, campaign);
 }

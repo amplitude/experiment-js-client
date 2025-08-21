@@ -30,6 +30,7 @@ import {
   PreviewVariantsOptions,
   RevertVariantsOptions,
 } from './types';
+import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import {
@@ -46,7 +47,6 @@ import {
 } from './util/url';
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
-import { setMarketingCookie } from './util/cookie';
 
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 const MUTATE_ACTION = 'mutate';
@@ -603,10 +603,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         ) {
           this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[
             index
-            ]?.revert();
+          ]?.revert();
           delete this.appliedMutations[flagKey][variantKey][MUTATE_ACTION][
             index
-            ];
+          ];
         }
       } else {
         // always track exposure if mutation is active
@@ -615,7 +615,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         if (
           !this.appliedMutations[flagKey]?.[variantKey]?.[MUTATE_ACTION]?.[
             index
-            ]
+          ]
         ) {
           // Apply mutation
           mutationControllers[index] = mutate.declarative(m);
@@ -652,7 +652,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
       this.appliedMutations[flagKey]?.[variantKey]?.[
         INJECT_ACTION
-        ]?.[0]?.revert();
+      ]?.[0]?.revert();
       return;
     }
     // Validate and transform ID
@@ -766,7 +766,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       s.innerText =
         '* { visibility: hidden !important; background-image: none !important; }';
       document.head.appendChild(s);
-      this.globalScope.window.setTimeout(function() {
+      this.globalScope.window.setTimeout(function () {
         s.remove();
       }, 1000);
     }
