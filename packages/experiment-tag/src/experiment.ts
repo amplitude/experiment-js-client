@@ -32,6 +32,7 @@ import {
 } from './types';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
+import { patchRemoveChild } from './util/patch';
 import {
   getStorageItem,
   setStorageItem,
@@ -189,6 +190,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.isRunning) {
       return;
     }
+    patchRemoveChild();
     const urlParams = getUrlParams();
     this.isVisualEditorMode =
       urlParams['VISUAL_EDITOR'] === 'true' ||
