@@ -51,12 +51,10 @@ export class PreviewModeModal {
     const container = document.createElement('div');
     container.className = 'amp-preview-modal-container';
 
-    // Create a row for each flag
     Object.entries(this.options.flags).forEach(([flagKey, variant]) => {
       const flagRow = document.createElement('div');
       flagRow.className = 'amp-preview-modal-row';
 
-      // Flask icon
       const iconContainer = document.createElement('div');
       iconContainer.className = 'amp-preview-modal-icon';
       iconContainer.innerHTML = `
@@ -65,12 +63,10 @@ export class PreviewModeModal {
         </svg>
       `;
 
-      // Flag title
       const titleElement = document.createElement('span');
       titleElement.className = 'amp-preview-modal-title';
       titleElement.textContent = flagKey;
 
-      // Preview Mode badge with eye icon
       const previewBadge = document.createElement('div');
       previewBadge.className =
         'amp-preview-modal-badge amp-preview-modal-preview-badge';
@@ -81,11 +77,9 @@ export class PreviewModeModal {
         Preview Mode
       `;
 
-      // Variant badge with green dot
       const variantBadge = document.createElement('span');
       variantBadge.className = `amp-preview-modal-badge amp-preview-modal-variant-badge amp-preview-modal-variant-${variant.toLowerCase()}`;
 
-      // Create green dot element
       const greenDot = document.createElement('span');
       greenDot.className = 'amp-preview-modal-variant-dot';
 
@@ -100,7 +94,6 @@ export class PreviewModeModal {
       container.appendChild(flagRow);
     });
 
-    // Close button
     const closeButton = document.createElement('button');
     closeButton.className = 'amp-preview-modal-close';
     closeButton.setAttribute('aria-label', 'Dismiss preview mode notification');
