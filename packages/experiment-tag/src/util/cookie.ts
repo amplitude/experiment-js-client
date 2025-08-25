@@ -14,7 +14,7 @@ export async function setMarketingCookie(apiKey: string) {
   });
 
   const parser = new CampaignParser();
-  const storageKey = `AMP_${apiKey.substring(0, 10)}_ORIGINAL_${MKTG}`;
+  const storageKey = `AMP_${MKTG}_ORIGINAL_${apiKey.substring(0, 10)}`;
   const campaign = await parser.parse();
   await storage.set(storageKey, campaign);
 }
