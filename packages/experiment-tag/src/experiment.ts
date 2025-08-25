@@ -30,6 +30,7 @@ import {
   PreviewVariantsOptions,
   RevertVariantsOptions,
 } from './types';
+import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import {
@@ -574,7 +575,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-
+    setMarketingCookie(this.apiKey).then();
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
