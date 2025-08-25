@@ -16,6 +16,7 @@ import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
+import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   Defaults,
@@ -46,7 +47,6 @@ import {
 } from './util/url';
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
-import { showPreviewModeModal } from './preview/preview';
 
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
