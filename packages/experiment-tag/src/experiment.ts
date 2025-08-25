@@ -16,6 +16,7 @@ import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
+import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   Defaults,
@@ -184,6 +185,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           ),
         );
       }
+      showPreviewModeModal({
+        flags: this.previewFlags,
+      });
     }
 
     const initialFlagsString = JSON.stringify(this.initialFlags);
