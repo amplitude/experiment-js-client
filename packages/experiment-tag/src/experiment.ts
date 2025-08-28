@@ -49,10 +49,13 @@ import {
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
 
-export const PREVIEW_SEGMENT_NAME = 'Preview';
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
+const PREVIEW_MODE_PARAM = 'PREVIEW';
+export const PREVIEW_SEGMENT_NAME = 'Preview';
+export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
+const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -94,6 +97,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
+  private previewFlags: Record<string, string> = {};
 
   constructor(
     apiKey: string,
@@ -120,6 +124,19 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     const urlParams = getUrlParams();
 
+    let previewFlags: Record<string, string> = {};
+    // explicit URL params takes precedence over session storage
+    if (urlParams[PREVIEW_MODE_PARAM]) {
+      Object.keys(urlParams).forEach((key) => {
+        if (key !== 'PREVIEW' && urlParams[key]) {
+          previewFlags[key] = urlParams[key];
+        }
+      });
+    } else {
+      previewFlags =
+        getStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
+    }
+
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
 
@@ -130,27 +147,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       });
 
       // Update initialFlags to force variant if in preview mode
-      if (
-        urlParams['PREVIEW'] &&
-        key in urlParams &&
-        urlParams[key] in variants
-      ) {
-        // Remove preview-related query parameters from the URL
-        this.globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(this.globalScope.location.href, ['PREVIEW', key]),
-        );
-        // Add or update the preview segment
+      if (key in previewFlags && previewFlags[key] in variants) {
+        this.previewFlags[key] = previewFlags[key];
+
         const previewSegment = {
           metadata: { segmentName: PREVIEW_SEGMENT_NAME },
-          variant: urlParams[key],
+          variant: previewFlags[key],
         };
 
-        // Update the flag's segments to include the preview segment
         flag.segments = [previewSegment];
-
-        // make all preview flags local
         metadata.evaluationMode = 'local';
       }
 
@@ -160,6 +165,28 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       flag.metadata = metadata;
     });
+
+    if (Object.keys(this.previewFlags).length > 0) {
+      if (urlParams[PREVIEW_MODE_PARAM]) {
+        setStorageItem(
+          'sessionStorage',
+          PREVIEW_MODE_SESSION_KEY,
+          this.previewFlags,
+        );
+        const previewParamsToRemove = [
+          ...Object.keys(this.previewFlags),
+          PREVIEW_MODE_PARAM,
+        ];
+        this.globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(
+            this.globalScope.location.href,
+            previewParamsToRemove,
+          ),
+        );
+      }
+    }
 
     const initialFlagsString = JSON.stringify(this.initialFlags);
 
@@ -194,7 +221,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     patchRemoveChild();
     const urlParams = getUrlParams();
     this.isVisualEditorMode =
-      urlParams['VISUAL_EDITOR'] === 'true' ||
+      urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
       getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
     this.subscriptionManager = new SubscriptionManager(
       this,
@@ -214,7 +241,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.globalScope.history.replaceState(
         {},
         '',
-        removeQueryParams(this.globalScope.location.href, ['VISUAL_EDITOR']),
+        removeQueryParams(this.globalScope.location.href, [
+          VISUAL_EDITOR_PARAM,
+        ]),
       );
       // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
       this.messageBus.publish('url_change', { updateActivePages: true });
