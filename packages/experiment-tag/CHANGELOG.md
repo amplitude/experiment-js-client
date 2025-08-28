@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.9.1...@amplitude/experiment-tag@0.9.2) (2025-08-28)
+
+
+### Bug Fixes
+
+* expire marketing cookie after session ([#208](https://github.com/amplitude/experiment-js-client/issues/208)) ([6bb8558](https://github.com/amplitude/experiment-js-client/commit/6bb85581030bb1130e83ca15e62d068bece9be43))
+
+
+
+
+
 ## [0.9.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.9.0...@amplitude/experiment-tag@0.9.1) (2025-08-28)
 
 
