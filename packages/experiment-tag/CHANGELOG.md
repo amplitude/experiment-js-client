@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.9.0...@amplitude/experiment-tag@0.9.1) (2025-08-28)
+
+
+### Bug Fixes
+
+* add patch to removeChild to address hydration errors ([#207](https://github.com/amplitude/experiment-js-client/issues/207)) ([531d2f3](https://github.com/amplitude/experiment-js-client/commit/531d2f380e85849de498b016182ba11ff53bd249))
+* display modal during experiment preview mode ([6576834](https://github.com/amplitude/experiment-js-client/commit/657683437357cf32df24f509b947bc9c84034f12))
+* set marketing cookie on landing page before redirect ([#206](https://github.com/amplitude/experiment-js-client/issues/206)) ([cd2190a](https://github.com/amplitude/experiment-js-client/commit/cd2190ac34913ee411d5a2df6d553248158c214d))
+* Support preview mode persistence for MPAs ([#204](https://github.com/amplitude/experiment-js-client/issues/204)) ([14c35ee](https://github.com/amplitude/experiment-js-client/commit/14c35ee612c45f66b46bf0e1b0ff518ca4cdfa27))
+
+
+
+
+
 # [0.9.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.8.2...@amplitude/experiment-tag@0.9.0) (2025-08-11)
 
 
