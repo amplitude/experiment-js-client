@@ -9,7 +9,6 @@ import type { Campaign } from '@amplitude/analytics-core';
  */
 export async function setMarketingCookie(apiKey: string) {
   const storage = new CookieStorage<Campaign>({
-    expirationDays: 365,
     sameSite: 'Lax',
   });
 
