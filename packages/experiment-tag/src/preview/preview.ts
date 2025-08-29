@@ -16,7 +16,7 @@ export class PreviewModeModal {
   }
 
   show(): void {
-    if (this.modal) {
+    if (this.modal || document.getElementById('amp-preview-modal')) {
       return;
     }
 
@@ -46,6 +46,7 @@ export class PreviewModeModal {
     }
 
     this.modal = document.createElement('div');
+    this.modal.id = 'amp-preview-modal';
     this.modal.className = 'amp-preview-modal';
 
     const container = document.createElement('div');
@@ -144,7 +145,7 @@ export class PreviewModeModal {
         padding: 12px 16px;
         max-width: 600px;
       }
-      
+
       @keyframes amp-preview-modal-slide-in {
         from {
           transform: translateX(100%);
@@ -155,40 +156,40 @@ export class PreviewModeModal {
           opacity: 1;
         }
       }
-      
+
       .amp-preview-modal-container {
         flex: 1;
         display: flex;
         flex-direction: column;
         gap: 8px;
       }
-      
+
       .amp-preview-modal-row {
         display: flex;
         align-items: center;
         gap: 8px;
       }
-      
+
       .amp-preview-modal-icon {
         flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      
+
       .amp-preview-modal-icon-img {
         width: 16px;
         height: 16px;
         color: #718096;
       }
-      
+
       .amp-preview-modal-title {
         font-weight: 600;
         color: #1a202c;
         font-size: 14px;
         white-space: nowrap;
       }
-      
+
       /* Base badge styles */
       .amp-preview-modal-badge {
         background-color: #ffffff;
@@ -203,17 +204,17 @@ export class PreviewModeModal {
         gap: 6px;
         border: 1px solid #e2e8f0;
       }
-      
+
       .amp-preview-modal-preview-badge {
         color: #718096;
       }
-      
+
       .amp-preview-modal-preview-icon {
         width: 14px;
         height: 14px;
         color: currentColor;
       }
-      
+
       .amp-preview-modal-variant-dot {
         width: 8px;
         height: 8px;
@@ -221,19 +222,19 @@ export class PreviewModeModal {
         background-color: #68d391;
         flex-shrink: 0;
       }
-      
+
       .amp-preview-modal-variant-badge.amp-preview-modal-variant-a .amp-preview-modal-variant-dot {
         background-color: #68d391;
       }
-      
+
       .amp-preview-modal-variant-badge.amp-preview-modal-variant-b .amp-preview-modal-variant-dot {
         background-color: #fc8181;
       }
-      
+
       .amp-preview-modal-variant-badge.amp-preview-modal-variant-testing .amp-preview-modal-variant-dot {
         background-color: #63b3ed;
       }
-      
+
       .amp-preview-modal-close {
         background: none;
         border: none;
@@ -252,17 +253,17 @@ export class PreviewModeModal {
         transition: all 0.2s ease;
         align-self: flex-start;
       }
-      
+
       .amp-preview-modal-close:hover {
         background-color: #f7fafc;
         color: #718096;
       }
-      
+
       .amp-preview-modal-close:focus {
         outline: 2px solid #3182ce;
         outline-offset: 1px;
       }
-      
+
       /* Dark mode support */
       @media (prefers-color-scheme: dark) {
         .amp-preview-modal {
@@ -270,41 +271,41 @@ export class PreviewModeModal {
           border-color: #4a5568;
           color: #e2e8f0;
         }
-        
+
         .amp-preview-modal-title {
           color: #f7fafc;
         }
-        
+
         .amp-preview-modal-badge {
           background-color: #2d3748;
           color: #e2e8f0;
           border-color: #4a5568;
         }
-        
+
         .amp-preview-modal-preview-badge {
           color: #a0aec0;
         }
-        
+
         .amp-preview-modal-variant-dot {
           background-color: #68d391;
         }
-        
+
         .amp-preview-modal-variant-badge.amp-preview-modal-variant-a .amp-preview-modal-variant-dot {
           background-color: #68d391;
         }
-        
+
         .amp-preview-modal-variant-badge.amp-preview-modal-variant-b .amp-preview-modal-variant-dot {
           background-color: #fc8181;
         }
-        
+
         .amp-preview-modal-variant-badge.amp-preview-modal-variant-testing .amp-preview-modal-variant-dot {
           background-color: #63b3ed;
         }
-        
+
         .amp-preview-modal-close {
           color: #718096;
         }
-        
+
         .amp-preview-modal-close:hover {
           background-color: #4a5568;
           color: #e2e8f0;
