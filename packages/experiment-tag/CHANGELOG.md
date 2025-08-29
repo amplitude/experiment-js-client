@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.9.2...@amplitude/experiment-tag@0.9.3) (2025-08-29)
+
+
+### Bug Fixes
+
+* inject preview modal on applyVariants ([#209](https://github.com/amplitude/experiment-js-client/issues/209)) ([8348f68](https://github.com/amplitude/experiment-js-client/commit/8348f6874c61470d4f2f8270541c94c197a594dd))
+
+
+
+
+
 ## [0.9.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.9.1...@amplitude/experiment-tag@0.9.2) (2025-08-28)
 
 
