@@ -187,9 +187,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           ),
         );
       }
-      showPreviewModeModal({
-        flags: this.previewFlags,
-      });
     }
 
     const initialFlagsString = JSON.stringify(this.initialFlags);
@@ -372,6 +369,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param options
    */
   public applyVariants(options?: ApplyVariantsOptions) {
+    if (Object.keys(this.previewFlags).length > 0) {
+      showPreviewModeModal({
+        flags: this.previewFlags,
+      });
+    }
     const { flagKeys } = options || {};
     const variants = this.getVariants();
     if (Object.keys(variants).length === 0) {
