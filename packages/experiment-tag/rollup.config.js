@@ -65,8 +65,12 @@ const configs = [
     ...config,
     ...getOutputConfig({
       entryFileNames: 'experiment-tag-min.js',
-      exports: 'named',
+      exports: 'auto',  // Changed from 'named' to 'auto'
       format: 'umd',
+      // Force global mode by providing empty globals object
+      globals: {},
+      // Ensure global assignment takes precedence
+      extend: true,
     }),
     plugins: [
       ...config.plugins,
@@ -76,8 +80,8 @@ const configs = [
           comments:
             /@amplitude\/.* v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/,
         },
-      }), // Apply terser plugin for minification
-      gzip(), // Add gzip plugin to create .gz files
+      }),
+      gzip(),
     ],
     external: [],
   },
