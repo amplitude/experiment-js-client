@@ -65,11 +65,9 @@ const configs = [
     ...config,
     ...getOutputConfig({
       entryFileNames: 'experiment-tag-min.js',
-      exports: 'auto',  // Changed from 'named' to 'auto'
+      exports: 'auto',
       format: 'umd',
-      // Force global mode by providing empty globals object
       globals: {},
-      // Ensure global assignment takes precedence
       extend: true,
     }),
     plugins: [
