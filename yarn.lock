@@ -2,6 +2,14 @@
 # yarn lockfile v1
 
 
+"@amplitude/analytics-core@^2.21.0":
+  version "2.21.0"
+  resolved "https://registry.yarnpkg.com/@amplitude/analytics-core/-/analytics-core-2.21.0.tgz#fb897006ef39215a858485ad1faaf1f0cfa6592a"
+  integrity sha512-Q3UaU8UwPCLIShc7q4L8BZna2Eo7CX3SnrTWu0Nf223Jh94BHLJbgsZhOHkxUQHPLLT3hEIBkXzwvNSjLlpB7Q==
+  dependencies:
+    "@amplitude/analytics-connector" "^1.6.4"
+    tslib "^2.4.1"
+
 "@amplitude/types@^1.10.2":
   version "1.10.2"
   resolved "https://registry.yarnpkg.com/@amplitude/types/-/types-1.10.2.tgz#8f3c6c3c9ee24f401ee037b351c3c67eb945eefc"
@@ -3634,9 +3642,9 @@ dom-accessibility-api@^0.5.1:
   resolved "https://registry.yarnpkg.com/dom-accessibility-api/-/dom-accessibility-api-0.5.16.tgz#5a7429e6066eb3664d911e33fb0e45de8eb08453"
   integrity sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==
 
-"dom-mutator@git+ssh://git@github.com:amplitude/dom-mutator#main":
+"dom-mutator@git+ssh://git@github.com:amplitude/dom-mutator#ef95c531a822bce55c197a6bf5e1d86d03bc086c":
   version "0.7.1"
-  resolved "git+ssh://git@github.com:amplitude/dom-mutator#20ef4fa76e5e35107efd74cac93baf659cd4cabb"
+  resolved "git+ssh://git@github.com:amplitude/dom-mutator#ef95c531a822bce55c197a6bf5e1d86d03bc086c"
 
 domexception@^4.0.0:
   version "4.0.0"

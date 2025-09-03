@@ -16,8 +16,14 @@ import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
+import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
-import { Defaults, WebExperimentClient, WebExperimentConfig } from './types';
+import {
+  Defaults,
+  WebExperimentClient,
+  WebExperimentConfig,
+  WebExperimentUser,
+} from './types';
 import {
   ApplyVariantsOptions,
   PageObject,
@@ -25,8 +31,15 @@ import {
   PreviewVariantsOptions,
   RevertVariantsOptions,
 } from './types';
+import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
-import { WindowMessenger } from './util/messenger';
+import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
+import { patchRemoveChild } from './util/patch';
+import {
+  getStorageItem,
+  setStorageItem,
+  removeStorageItem,
+} from './util/storage';
 import {
   getUrlParams,
   removeQueryParams,
@@ -37,10 +50,13 @@ import {
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
 
-export const PREVIEW_SEGMENT_NAME = 'Preview';
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
+const PREVIEW_MODE_PARAM = 'PREVIEW';
+export const PREVIEW_SEGMENT_NAME = 'Preview';
+export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
+const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -83,6 +99,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
+  private previewFlags: Record<string, string> = {};
 
   constructor(
     apiKey: string,
@@ -109,6 +126,19 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     const urlParams = getUrlParams();
 
+    let previewFlags: Record<string, string> = {};
+    // explicit URL params takes precedence over session storage
+    if (urlParams[PREVIEW_MODE_PARAM]) {
+      Object.keys(urlParams).forEach((key) => {
+        if (key !== 'PREVIEW' && urlParams[key]) {
+          previewFlags[key] = urlParams[key];
+        }
+      });
+    } else {
+      previewFlags =
+        getStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
+    }
+
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
 
@@ -119,27 +149,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       });
 
       // Update initialFlags to force variant if in preview mode
-      if (
-        urlParams['PREVIEW'] &&
-        key in urlParams &&
-        urlParams[key] in variants
-      ) {
-        // Remove preview-related query parameters from the URL
-        this.globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(this.globalScope.location.href, ['PREVIEW', key]),
-        );
-        // Add or update the preview segment
+      if (key in previewFlags && previewFlags[key] in variants) {
+        this.previewFlags[key] = previewFlags[key];
+
         const previewSegment = {
           metadata: { segmentName: PREVIEW_SEGMENT_NAME },
-          variant: urlParams[key],
+          variant: previewFlags[key],
         };
 
-        // Update the flag's segments to include the preview segment
         flag.segments = [previewSegment];
-
-        // make all preview flags local
         metadata.evaluationMode = 'local';
       }
 
@@ -149,6 +167,28 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       flag.metadata = metadata;
     });
+
+    if (Object.keys(this.previewFlags).length > 0) {
+      if (urlParams[PREVIEW_MODE_PARAM]) {
+        setStorageItem(
+          'sessionStorage',
+          PREVIEW_MODE_SESSION_KEY,
+          this.previewFlags,
+        );
+        const previewParamsToRemove = [
+          ...Object.keys(this.previewFlags),
+          PREVIEW_MODE_PARAM,
+        ];
+        this.globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(
+            this.globalScope.location.href,
+            previewParamsToRemove,
+          ),
+        );
+      }
+    }
 
     const initialFlagsString = JSON.stringify(this.initialFlags);
 
@@ -180,8 +220,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.isRunning) {
       return;
     }
+    patchRemoveChild();
     const urlParams = getUrlParams();
-    this.isVisualEditorMode = urlParams['VISUAL_EDITOR'] === 'true';
+    this.isVisualEditorMode =
+      urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
+      getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
@@ -204,7 +247,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.globalScope.history.replaceState(
         {},
         '',
-        removeQueryParams(this.globalScope.location.href, ['VISUAL_EDITOR']),
+        removeQueryParams(this.globalScope.location.href, [
+          VISUAL_EDITOR_PARAM,
+        ]),
       );
       // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
       this.messageBus.publish('url_change', { updateActivePages: true });
@@ -216,14 +261,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.messageBus.publish('url_change', { updateActivePages: true });
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
-    let user;
-    try {
-      user = JSON.parse(
-        this.globalScope.localStorage.getItem(experimentStorageName) || '{}',
-      );
-    } catch (error) {
-      user = {};
-    }
+    const user =
+      getStorageItem<WebExperimentUser>(
+        'localStorage',
+        experimentStorageName,
+      ) || {};
 
     // if web_exp_id does not exist:
     // 1. if device_id exists, migrate device_id to web_exp_id and remove device_id
@@ -232,16 +274,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (!user.web_exp_id) {
       user.web_exp_id = user.device_id || UUID();
       delete user.device_id;
-      this.globalScope.localStorage.setItem(
-        experimentStorageName,
-        JSON.stringify(user),
-      );
+      setStorageItem('localStorage', experimentStorageName, user);
     } else if (user.web_exp_id && user.device_id) {
       delete user.device_id;
-      this.globalScope.localStorage.setItem(
-        experimentStorageName,
-        JSON.stringify(user),
-      );
+      setStorageItem('localStorage', experimentStorageName, user);
     }
 
     // evaluate variants for page targeting
@@ -338,6 +374,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param options
    */
   public applyVariants(options?: ApplyVariantsOptions) {
+    if (Object.keys(this.previewFlags).length > 0) {
+      showPreviewModeModal({
+        flags: this.previewFlags,
+      });
+    }
     const { flagKeys } = options || {};
     const variants = this.getVariants();
     if (Object.keys(variants).length === 0) {
@@ -595,7 +636,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-
+    setMarketingCookie(this.apiKey).then();
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
@@ -829,74 +870,53 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   ) {
     const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
     // Store the current flag and variant for exposure tracking after redirect
-    try {
-      const storedRedirects = JSON.parse(
-        this.globalScope.sessionStorage.getItem(redirectStorageKey) || '{}',
-      );
-
-      storedRedirects[flagKey] = { redirectUrl, variant };
-
-      this.globalScope.sessionStorage.setItem(
-        redirectStorageKey,
-        JSON.stringify(storedRedirects),
-      );
-    } catch (error) {
-      console.warn('Error storing redirect information:', error);
-    }
+    const storedRedirects =
+      getStorageItem('sessionStorage', redirectStorageKey) || {};
+    storedRedirects[flagKey] = { redirectUrl, variant };
+    setStorageItem('sessionStorage', redirectStorageKey, storedRedirects);
   }
 
   private fireStoredRedirectImpressions() {
     // Check for stored redirects and process them
     const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
-    try {
-      const storedRedirects = JSON.parse(
-        this.globalScope.sessionStorage.getItem(redirectStorageKey) || '{}',
-      );
+    const storedRedirects =
+      getStorageItem('sessionStorage', redirectStorageKey) || {};
 
-      // If we have stored redirects, track exposures for them
-      if (Object.keys(storedRedirects).length > 0) {
-        for (const storedFlagKey in storedRedirects) {
-          const { redirectUrl, variant } = storedRedirects[storedFlagKey];
-          const currentUrl = urlWithoutParamsAndAnchor(
-            this.globalScope.location.href,
-          );
-          const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
-          if (matchesUrl([currentUrl], strippedRedirectUrl)) {
-            // Force variant to ensure original evaluation result is tracked
-            this.exposureWithDedupe(storedFlagKey, variant, true);
+    // If we have stored redirects, track exposures for them
+    if (Object.keys(storedRedirects).length > 0) {
+      for (const storedFlagKey in storedRedirects) {
+        const { redirectUrl, variant } = storedRedirects[storedFlagKey];
+        const currentUrl = urlWithoutParamsAndAnchor(
+          this.globalScope.location.href,
+        );
+        const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
+        if (matchesUrl([currentUrl], strippedRedirectUrl)) {
+          // Force variant to ensure original evaluation result is tracked
+          this.exposureWithDedupe(storedFlagKey, variant, true);
 
-            // Remove this flag from stored redirects
-            delete storedRedirects[storedFlagKey];
-          }
+          // Remove this flag from stored redirects
+          delete storedRedirects[storedFlagKey];
         }
       }
+    }
 
-      // Update or clear the storage
-      if (Object.keys(storedRedirects).length > 0) {
-        // track exposure with timeout of 1s
-        this.globalScope.setTimeout(() => {
-          try {
-            const redirects = JSON.parse(
-              this.globalScope.sessionStorage.getItem(redirectStorageKey) ||
-                '{}',
-            );
-            for (const storedFlagKey in redirects) {
-              this.exposureWithDedupe(
-                storedFlagKey,
-                redirects[storedFlagKey].variant,
-                true,
-              );
-            }
-            this.globalScope.sessionStorage.removeItem(redirectStorageKey);
-          } catch (error) {
-            console.warn('Error processing stored redirects events:', error);
-          }
-        }, 500);
-      } else {
-        this.globalScope.sessionStorage.removeItem(redirectStorageKey);
-      }
-    } catch (error) {
-      console.warn('Error processing stored redirects events:', error);
+    // Update or clear the storage
+    if (Object.keys(storedRedirects).length > 0) {
+      // track exposure with timeout of 500ms
+      this.globalScope.setTimeout(() => {
+        const redirects =
+          getStorageItem('sessionStorage', redirectStorageKey) || {};
+        for (const storedFlagKey in redirects) {
+          this.exposureWithDedupe(
+            storedFlagKey,
+            redirects[storedFlagKey].variant,
+            true,
+          );
+        }
+        removeStorageItem('sessionStorage', redirectStorageKey);
+      }, 500);
+    } else {
+      removeStorageItem('sessionStorage', redirectStorageKey);
     }
   }
 }

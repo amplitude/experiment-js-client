@@ -1,5 +1,8 @@
 import { EvaluationCondition } from '@amplitude/experiment-core';
-import { ExperimentConfig } from '@amplitude/experiment-js-client';
+import {
+  ExperimentConfig,
+  ExperimentUser,
+} from '@amplitude/experiment-js-client';
 import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
 import { MessageType } from './message-bus';
@@ -72,3 +75,7 @@ export interface WebExperimentClient {
 
   setRedirectHandler(handler: (url: string) => void): void;
 }
+
+export type WebExperimentUser = {
+  web_exp_id?: string;
+} & ExperimentUser;
