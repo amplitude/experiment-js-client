@@ -66,7 +66,7 @@ const configs = [
     ...getOutputConfig({
       entryFileNames: 'experiment-tag-min.js',
       exports: 'auto',
-      format: 'umd',
+      format: 'iife',
       globals: {},
       extend: true,
     }),
