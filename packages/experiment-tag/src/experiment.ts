@@ -83,6 +83,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       [flagKey: string]: string | undefined; // variant
     };
   } = {};
+  // Also used by chrome extension
   private flagVariantMap: {
     [flagKey: string]: {
       [variantKey: string]: Variant;
@@ -236,9 +237,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     );
     this.subscriptionManager.initSubscriptions();
 
+    // if in preview mode, listen for ForceVariant messages
+    if (urlParams['PREVIEW']) {
+      WindowMessenger.setup(this);
+    }
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
-      WindowMessenger.setup();
+      WindowMessenger.setup(this);
       this.globalScope.history.replaceState(
         {},
         '',
@@ -558,6 +563,25 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.customRedirectHandler = handler;
   }
 
+  previewNewFlagAndVariant(
+    flagKey: string,
+    pageViewObject: PageObject,
+    variants: Record<string, Variant>,
+    variantKey: string,
+  ) {
+    const urlParams = getUrlParams();
+    if (urlParams['PREVIEW']) {
+      this.globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(this.globalScope.location.href, ['PREVIEW', flagKey]),
+      );
+    }
+    this.updateActivePages(flagKey, pageViewObject, true);
+    this.flagVariantMap[flagKey] = variants;
+    this.previewVariants({ keyToVariant: { [flagKey]: variantKey } });
+  }
+
   private async fetchRemoteFlags() {
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -791,7 +815,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       } else {
         this.experimentClient.exposure(key);
       }
-      this.urlExposureCache[currentUrl][key] = variant.key;
+      (this.urlExposureCache[currentUrl] ??= {})[key] = variant.key;
     }
   }
 
@@ -809,6 +833,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
+  // Also used by chrome extension
   updateActivePages(flagKey: string, page: PageObject, isActive: boolean) {
     if (!this.activePages[flagKey]) {
       this.activePages[flagKey] = {};
