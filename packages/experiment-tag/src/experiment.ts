@@ -400,7 +400,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         continue;
       }
       const variant = variants[key];
-      const variantKey = variant.key || '';
+      // force variant if in preview mode
+      const variantKey = this.previewFlags[key] || variant.key || '';
 
       // Check if the variant key has changed for this experiment
       // If so, revert all mutations for this experiment
@@ -419,13 +420,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
       if (isWebExperimentation) {
-        const payloadIsArray = Array.isArray(variant.payload);
+        const payloadIsArray = Array.isArray(
+          this.flagVariantMap[key][variantKey].payload,
+        );
         // TODO: update to handle impression tracking when control variant redirect is supported
-        if (variant.key === 'off' || variant.key === 'control') {
+        if (variantKey === 'off' || variantKey === 'control') {
           if (this.isActionActiveOnPage(key, undefined)) {
             this.exposureWithDedupe(key, variant);
           }
-          if (variant.key === 'off') {
+          if (variantKey === 'off') {
             // revert all applied mutations and injections
             this.revertVariants({ flagKeys: [key] });
             continue;
