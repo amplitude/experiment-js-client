@@ -552,6 +552,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     variants: Record<string, Variant>,
     variantKey: string,
   ) {
+    console.log(
+      'previewNewFlagAndVariant',
+      flagKey,
+      pageViewObject,
+      variants,
+      variantKey,
+    );
     this.updateActivePages(flagKey, pageViewObject, true);
     this.flagVariantMap[flagKey] = variants;
     this.previewVariants({ keyToVariant: { [flagKey]: variantKey } });
