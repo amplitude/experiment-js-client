@@ -452,6 +452,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (!payload || !Array.isArray(payload)) {
         return;
       }
+
+      if (this.isPreviewMode) {
+        this.exposureWithDedupe(key, variantObject, true);
+      }
       this.handleVariantAction(key, variantObject);
     }
   }
