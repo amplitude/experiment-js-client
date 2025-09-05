@@ -899,7 +899,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.isPreviewMode = urlParams[PREVIEW_MODE_PARAM] === 'true';
     if (this.isPreviewMode) {
       Object.keys(urlParams).forEach((key) => {
-        if (key !== PREVIEW_MODE_PARAM && urlParams[key]) {
+        if (
+          key !== PREVIEW_MODE_PARAM &&
+          urlParams[key] &&
+          this.initialFlags.find((flag: EvaluationFlag) => flag.key === key)
+        ) {
           this.previewFlags[key] = urlParams[key];
         }
       });
