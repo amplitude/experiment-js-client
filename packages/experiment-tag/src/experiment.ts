@@ -143,28 +143,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     });
 
-    if (Object.keys(this.previewFlags).length > 0) {
-      if (this.isPreviewMode) {
-        setStorageItem(
-          'sessionStorage',
-          PREVIEW_MODE_SESSION_KEY,
-          this.previewFlags,
-        );
-        const previewParamsToRemove = [
-          ...Object.keys(this.previewFlags),
-          PREVIEW_MODE_PARAM,
-        ];
-        this.globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(
-            this.globalScope.location.href,
-            previewParamsToRemove,
-          ),
-        );
-      }
-    }
-
     const initialFlagsString = JSON.stringify(this.initialFlags);
 
     // initialize the experiment
@@ -910,9 +888,33 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           this.previewFlags[key] = urlParams[key];
         }
       });
+
+      setStorageItem(
+        'sessionStorage',
+        PREVIEW_MODE_SESSION_KEY,
+        this.previewFlags,
+      );
+      const previewParamsToRemove = [
+        ...Object.keys(this.previewFlags),
+        PREVIEW_MODE_PARAM,
+      ];
+      this.globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(
+          this.globalScope.location.href,
+          previewParamsToRemove,
+        ),
+      );
     } else {
       this.previewFlags =
         getStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
+    }
+
+    if (Object.keys(this.previewFlags).length > 0) {
+      this.isPreviewMode = true;
+    } else {
+      return;
     }
   }
 }
