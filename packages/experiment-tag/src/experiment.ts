@@ -127,11 +127,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     const urlParams = getUrlParams();
 
-    // explicit URL params takes precedence over session storage
-    if (urlParams[PREVIEW_MODE_PARAM]) {
-      this.isPreviewMode = true;
-      this.setPreviewFlags(urlParams);
-    }
+    this.setPreviewFlags(urlParams);
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
@@ -903,8 +899,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private setPreviewFlags(urlParams: Record<string, string>) {
-    this.isPreviewMode = urlParams[PREVIEW_MODE_PARAM] === 'true';
-    if (this.isPreviewMode) {
+    // explicit URL params takes precedence over session storage
+    if (urlParams[PREVIEW_MODE_PARAM] === 'true') {
       Object.keys(urlParams).forEach((key) => {
         if (
           key !== PREVIEW_MODE_PARAM &&
@@ -914,6 +910,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           this.previewFlags[key] = urlParams[key];
         }
       });
+    } else {
+      this.previewFlags =
+        getStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
     }
   }
 }
