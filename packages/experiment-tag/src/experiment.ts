@@ -127,18 +127,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     const urlParams = getUrlParams();
 
-    let previewFlags: Record<string, string> = {};
     // explicit URL params takes precedence over session storage
     if (urlParams[PREVIEW_MODE_PARAM]) {
       this.isPreviewMode = true;
-      Object.keys(urlParams).forEach((key) => {
-        if (key !== PREVIEW_MODE_PARAM && urlParams[key]) {
-          previewFlags[key] = urlParams[key];
-        }
-      });
-    } else {
-      previewFlags =
-        getStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
+      this.setPreviewFlags(urlParams);
     }
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
@@ -153,8 +145,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (metadata.evaluationMode !== 'local') {
         this.remoteFlagKeys.push(key);
       }
-
-      flag.metadata = metadata;
     });
 
     if (Object.keys(this.previewFlags).length > 0) {
@@ -388,11 +378,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.fireStoredRedirectImpressions();
 
     for (const key in variants) {
-      if (flagKeys && !flagKeys.includes(key)) {
+      // preview actions are handled by previewVariants
+      if ((flagKeys && !flagKeys.includes(key)) || this.previewFlags[key]) {
         continue;
       }
       const variant = variants[key];
-      // force variant if in preview mode
       const variantKey = variant.key || '';
 
       // Check if the variant key has changed for this experiment
@@ -562,24 +552,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     variants: Record<string, Variant>,
     variantKey: string,
   ) {
-    const urlParams = getUrlParams();
-    if (urlParams[PREVIEW_MODE_PARAM]) {
-      this.globalScope.history.replaceState(
-        {},
-        '',
-        removeQueryParams(this.globalScope.location.href, [
-          PREVIEW_MODE_PARAM,
-          flagKey,
-        ]),
-      );
-      this.isPreviewMode = true;
-      this.previewFlags = {};
-      Object.keys(urlParams).forEach((key) => {
-        if (key !== PREVIEW_MODE_PARAM && urlParams[key]) {
-          this.previewFlags[key] = urlParams[key];
-        }
-      });
-    }
     this.updateActivePages(flagKey, pageViewObject, true);
     this.flagVariantMap[flagKey] = variants;
     this.previewVariants({ keyToVariant: { [flagKey]: variantKey } });
@@ -920,6 +892,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }, 500);
     } else {
       removeStorageItem('sessionStorage', redirectStorageKey);
+    }
+  }
+
+  private setPreviewFlags(urlParams: Record<string, string>) {
+    this.isPreviewMode = urlParams[PREVIEW_MODE_PARAM] === 'true';
+    if (this.isPreviewMode) {
+      Object.keys(urlParams).forEach((key) => {
+        if (key !== PREVIEW_MODE_PARAM && urlParams[key]) {
+          this.previewFlags[key] = urlParams[key];
+        }
+      });
     }
   }
 }

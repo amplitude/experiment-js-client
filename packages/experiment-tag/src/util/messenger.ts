@@ -43,7 +43,7 @@ export class WindowMessenger {
             variantKey: string;
             variants: Variant[];
             injectSrc: string;
-            amplitudeWindowUrl: string
+            amplitudeWindowUrl: string;
           };
         }>,
       ) => {
