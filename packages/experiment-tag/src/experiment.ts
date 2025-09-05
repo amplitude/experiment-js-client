@@ -99,7 +99,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
-  private previewFlags: Record<string, string> = {};
+  isPreviewMode = false;
+  previewFlags: Record<string, string> = {};
 
   constructor(
     apiKey: string,
@@ -129,8 +130,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     let previewFlags: Record<string, string> = {};
     // explicit URL params takes precedence over session storage
     if (urlParams[PREVIEW_MODE_PARAM]) {
+      this.isPreviewMode = true;
       Object.keys(urlParams).forEach((key) => {
-        if (key !== 'PREVIEW' && urlParams[key]) {
+        if (key !== PREVIEW_MODE_PARAM && urlParams[key]) {
           previewFlags[key] = urlParams[key];
         }
       });
@@ -148,19 +150,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           convertEvaluationVariantToVariant(variants[variantKey]);
       });
 
-      // Update initialFlags to force variant if in preview mode
-      if (key in previewFlags && previewFlags[key] in variants) {
-        this.previewFlags[key] = previewFlags[key];
-
-        const previewSegment = {
-          metadata: { segmentName: PREVIEW_SEGMENT_NAME },
-          variant: previewFlags[key],
-        };
-
-        flag.segments = [previewSegment];
-        metadata.evaluationMode = 'local';
-      }
-
       if (metadata.evaluationMode !== 'local') {
         this.remoteFlagKeys.push(key);
       }
@@ -169,7 +158,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
 
     if (Object.keys(this.previewFlags).length > 0) {
-      if (urlParams[PREVIEW_MODE_PARAM]) {
+      if (this.isPreviewMode) {
         setStorageItem(
           'sessionStorage',
           PREVIEW_MODE_SESSION_KEY,
@@ -238,7 +227,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.initSubscriptions();
 
     // if in preview mode, listen for ForceVariant messages
-    if (urlParams['PREVIEW']) {
+    if (urlParams[PREVIEW_MODE_PARAM]) {
       WindowMessenger.setup(this);
     }
     // if in visual edit mode, remove the query param
@@ -374,14 +363,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param options
    */
   public applyVariants(options?: ApplyVariantsOptions) {
-    if (Object.keys(this.previewFlags).length > 0) {
+    if (this.isPreviewMode && Object.keys(this.previewFlags).length > 0) {
       showPreviewModeModal({
         flags: this.previewFlags,
       });
     }
     const { flagKeys } = options || {};
     const variants = this.getVariants();
-    if (Object.keys(variants).length === 0) {
+    if (
+      Object.keys(variants).length === 0 &&
+      Object.keys(this.previewFlags).length === 0
+    ) {
       return;
     }
     const currentUrl = urlWithoutParamsAndAnchor(
@@ -401,7 +393,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
       const variant = variants[key];
       // force variant if in preview mode
-      const variantKey = this.previewFlags[key] || variant.key || '';
+      const variantKey = variant.key || '';
 
       // Check if the variant key has changed for this experiment
       // If so, revert all mutations for this experiment
@@ -420,9 +412,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       const isWebExperimentation = variant.metadata?.deliveryMethod === 'web';
       if (isWebExperimentation) {
-        const payloadIsArray = Array.isArray(
-          this.flagVariantMap[key][variantKey].payload,
-        );
+        const payloadIsArray = Array.isArray(variant.payload);
         // TODO: update to handle impression tracking when control variant redirect is supported
         if (variantKey === 'off' || variantKey === 'control') {
           if (this.isActionActiveOnPage(key, undefined)) {
@@ -573,12 +563,22 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     variantKey: string,
   ) {
     const urlParams = getUrlParams();
-    if (urlParams['PREVIEW']) {
+    if (urlParams[PREVIEW_MODE_PARAM]) {
       this.globalScope.history.replaceState(
         {},
         '',
-        removeQueryParams(this.globalScope.location.href, ['PREVIEW', flagKey]),
+        removeQueryParams(this.globalScope.location.href, [
+          PREVIEW_MODE_PARAM,
+          flagKey,
+        ]),
       );
+      this.isPreviewMode = true;
+      this.previewFlags = {};
+      Object.keys(urlParams).forEach((key) => {
+        if (key !== PREVIEW_MODE_PARAM && urlParams[key]) {
+          this.previewFlags[key] = urlParams[key];
+        }
+      });
     }
     this.updateActivePages(flagKey, pageViewObject, true);
     this.flagVariantMap[flagKey] = variants;
