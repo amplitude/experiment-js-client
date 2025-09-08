@@ -543,7 +543,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       '',
       removeQueryParams(this.globalScope.location.href, previewParamsToRemove),
     );
-    this.previewVariants({ keyToVariant: { [flagKey]: variantKey } });
+    // compare initialFlags variant payload with ForceVariant payload, if different, apply new variant actions
+    const initialPayload = this.flagVariantMap[flagKey][variantKey].payload;
+    const forcePayload = variants[variantKey].payload;
+    if (JSON.stringify(initialPayload) !== JSON.stringify(forcePayload)) {
+      this.previewVariants({ keyToVariant: { [flagKey]: variantKey } });
+    }
   }
 
   private async fetchRemoteFlags() {
