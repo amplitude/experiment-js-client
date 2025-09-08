@@ -192,7 +192,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.initSubscriptions();
 
     // if in preview mode, listen for ForceVariant messages
-    if (urlParams[PREVIEW_MODE_PARAM]) {
+    if (urlParams[PREVIEW_MODE_PARAM] === 'true') {
+      console.log('Preview mode enabled');
       WindowMessenger.setup(this);
     }
     // if in visual edit mode, remove the query param
