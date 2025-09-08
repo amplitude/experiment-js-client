@@ -59,7 +59,6 @@ export class WindowMessenger {
           return;
         }
         if (e.data.type === 'OpenOverlay') {
-          console.log('OpenOverlay', e.data.context);
           if (
             state !== 'closed' ||
             !match.test(new URL(e.data.context.injectSrc).hostname)
@@ -75,7 +74,6 @@ export class WindowMessenger {
               state = 'closed';
             });
         } else if (e.data.type === 'ForceVariant') {
-          console.log('ForceVariant', e.data.context);
           const variants = e.data.context.variants.reduce((acc, variant) => {
             if (variant.key) {
               acc[variant.key] = variant;

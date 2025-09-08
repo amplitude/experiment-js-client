@@ -266,6 +266,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
+    this.previewVariants({ keyToVariant: this.previewFlags });
 
     if (this.remoteFlagKeys.length === 0) {
       this.isRunning = true;
