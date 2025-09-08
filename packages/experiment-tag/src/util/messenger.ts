@@ -2,13 +2,10 @@ import { Variant } from '@amplitude/experiment-js-client';
 
 import {
   DefaultWebExperimentClient,
-  PREVIEW_MODE_PARAM,
-  PREVIEW_MODE_SESSION_KEY,
 } from '../experiment';
 import { PageObject } from '../types';
 
-import { getStorageItem, setStorageItem } from './storage';
-import { removeQueryParams } from './url';
+import { getStorageItem } from './storage';
 
 interface VisualEditorSession {
   injectSrc: string;
@@ -88,20 +85,6 @@ export class WindowMessenger {
           const flagKey = e.data.context.flagKey;
           const pageViewObject = e.data.context.pageViewObject;
           const variantKey = e.data.context.variantKey;
-          // set isPreviewMode to true as fallback when initialFlags are stale
-          webExperimentClient.isPreviewMode = true;
-          const previewParamsToRemove = [flagKey, PREVIEW_MODE_PARAM];
-          setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
-            [flagKey]: variantKey,
-          });
-          webExperimentClient.globalScope.history.replaceState(
-            {},
-            '',
-            removeQueryParams(
-              webExperimentClient.globalScope.location.href,
-              previewParamsToRemove,
-            ),
-          );
           webExperimentClient.previewNewFlagAndVariant(
             flagKey,
             pageViewObject,

@@ -53,7 +53,7 @@ import { convertEvaluationVariantToVariant } from './util/variant';
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
-export const PREVIEW_MODE_PARAM = 'PREVIEW';
+const PREVIEW_MODE_PARAM = 'PREVIEW';
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
@@ -530,6 +530,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   ) {
     this.updateActivePages(flagKey, pageViewObject, true);
     this.flagVariantMap[flagKey] = variants;
+    this.previewFlags[flagKey] = variantKey;
+    // set isPreviewMode to true as fallback when initialFlags are stale
+    this.isPreviewMode = true;
+    const previewParamsToRemove = [flagKey, PREVIEW_MODE_PARAM];
+    setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
+      [flagKey]: variantKey,
+    });
+    this.globalScope.history.replaceState(
+      {},
+      '',
+      removeQueryParams(this.globalScope.location.href, previewParamsToRemove),
+    );
     this.previewVariants({ keyToVariant: { [flagKey]: variantKey } });
   }
 
@@ -902,7 +914,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         ),
       );
       // if in preview mode, listen for ForceVariant messages
-      console.log('Preview mode enabled');
       WindowMessenger.setup(this);
     } else {
       this.previewFlags =
