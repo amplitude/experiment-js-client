@@ -128,8 +128,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     const urlParams = getUrlParams();
 
-    this.setPreviewFlags(urlParams);
-
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
 
@@ -191,11 +189,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     );
     this.subscriptionManager.initSubscriptions();
 
-    // if in preview mode, listen for ForceVariant messages
-    if (urlParams[PREVIEW_MODE_PARAM] === 'true') {
-      console.log('Preview mode enabled');
-      WindowMessenger.setup(this);
-    }
+    this.setupPreviewMode(urlParams);
+
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
       WindowMessenger.setup(this);
@@ -876,7 +871,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private setPreviewFlags(urlParams: Record<string, string>) {
+  private setupPreviewMode(urlParams: Record<string, string>) {
     // explicit URL params takes precedence over session storage
     if (urlParams[PREVIEW_MODE_PARAM] === 'true') {
       Object.keys(urlParams).forEach((key) => {
@@ -906,6 +901,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           previewParamsToRemove,
         ),
       );
+      // if in preview mode, listen for ForceVariant messages
+      console.log('Preview mode enabled');
+      WindowMessenger.setup(this);
     } else {
       this.previewFlags =
         getStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
