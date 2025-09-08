@@ -62,6 +62,7 @@ export class WindowMessenger {
           return;
         }
         if (e.data.type === 'OpenOverlay') {
+          console.log('OpenOverlay', e.data.context);
           if (
             state !== 'closed' ||
             !match.test(new URL(e.data.context.injectSrc).hostname)
