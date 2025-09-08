@@ -53,7 +53,7 @@ import { convertEvaluationVariantToVariant } from './util/variant';
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
-const PREVIEW_MODE_PARAM = 'PREVIEW';
+export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
@@ -64,7 +64,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;
   private readonly initialFlags: [];
   private readonly config: WebExperimentConfig;
-  private readonly globalScope: typeof globalThis;
+  readonly globalScope: typeof globalThis;
   private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
   appliedMutations: {
@@ -99,6 +99,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
+  // Preview mode is set by url params or postMessage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, string> = {};
 
@@ -327,11 +328,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param options
    */
   public applyVariants(options?: ApplyVariantsOptions) {
-    if (this.isPreviewMode && Object.keys(this.previewFlags).length > 0) {
-      showPreviewModeModal({
-        flags: this.previewFlags,
-      });
-    }
     const { flagKeys } = options || {};
     const variants = this.getVariants();
     if (
@@ -434,6 +430,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const { keyToVariant } = options;
     if (!keyToVariant) {
       return;
+    }
+
+    if (this.isPreviewMode && Object.keys(this.previewFlags).length > 0) {
+      showPreviewModeModal({
+        flags: this.previewFlags,
+      });
     }
 
     this.revertVariants({ flagKeys: Object.keys(keyToVariant) });

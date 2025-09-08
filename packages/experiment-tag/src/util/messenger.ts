@@ -1,10 +1,10 @@
-import { getGlobalScope } from '@amplitude/experiment-core';
 import { Variant } from '@amplitude/experiment-js-client';
 
-import { DefaultWebExperimentClient } from '../experiment';
+import { DefaultWebExperimentClient, PREVIEW_MODE_PARAM } from '../experiment';
 import { PageObject } from '../types';
 
 import { getStorageItem } from './storage';
+import { removeQueryParams } from './url';
 
 interface VisualEditorSession {
   injectSrc: string;
@@ -32,7 +32,7 @@ export class WindowMessenger {
       return;
     }
 
-    getGlobalScope()?.addEventListener(
+    webExperimentClient.globalScope.addEventListener(
       'message',
       (
         e: MessageEvent<{
@@ -82,6 +82,17 @@ export class WindowMessenger {
           const flagKey = e.data.context.flagKey;
           const pageViewObject = e.data.context.pageViewObject;
           const variantKey = e.data.context.variantKey;
+          // set isPreviewMode to true as fallback when initialFlags are stale
+          webExperimentClient.isPreviewMode = true;
+          const previewParamsToRemove = [flagKey, PREVIEW_MODE_PARAM];
+          webExperimentClient.globalScope.history.replaceState(
+            {},
+            '',
+            removeQueryParams(
+              webExperimentClient.globalScope.location.href,
+              previewParamsToRemove,
+            ),
+          );
           webExperimentClient.previewNewFlagAndVariant(
             flagKey,
             pageViewObject,
