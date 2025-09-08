@@ -1,9 +1,13 @@
 import { Variant } from '@amplitude/experiment-js-client';
 
-import { DefaultWebExperimentClient, PREVIEW_MODE_PARAM } from '../experiment';
+import {
+  DefaultWebExperimentClient,
+  PREVIEW_MODE_PARAM,
+  PREVIEW_MODE_SESSION_KEY,
+} from '../experiment';
 import { PageObject } from '../types';
 
-import { getStorageItem } from './storage';
+import { getStorageItem, setStorageItem } from './storage';
 import { removeQueryParams } from './url';
 
 interface VisualEditorSession {
@@ -73,6 +77,7 @@ export class WindowMessenger {
               state = 'closed';
             });
         } else if (e.data.type === 'ForceVariant') {
+          console.log('ForceVariant', e.data.context);
           const variants = e.data.context.variants.reduce((acc, variant) => {
             if (variant.key) {
               acc[variant.key] = variant;
@@ -85,6 +90,9 @@ export class WindowMessenger {
           // set isPreviewMode to true as fallback when initialFlags are stale
           webExperimentClient.isPreviewMode = true;
           const previewParamsToRemove = [flagKey, PREVIEW_MODE_PARAM];
+          setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
+            [flagKey]: variantKey,
+          });
           webExperimentClient.globalScope.history.replaceState(
             {},
             '',
