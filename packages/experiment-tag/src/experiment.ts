@@ -378,11 +378,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (isWebExperimentation) {
         const payloadIsArray = Array.isArray(variant.payload);
         // TODO: update to handle impression tracking when control variant redirect is supported
-        if (variantKey === 'off' || variantKey === 'control') {
+        if (variant.key === 'off' || variant.key === 'control') {
           if (this.isActionActiveOnPage(key, undefined)) {
             this.exposureWithDedupe(key, variant);
           }
-          if (variantKey === 'off') {
+          if (variant.key === 'off') {
             // revert all applied mutations and injections
             this.revertVariants({ flagKeys: [key] });
             continue;
