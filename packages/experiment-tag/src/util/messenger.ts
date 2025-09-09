@@ -1,8 +1,6 @@
 import { Variant } from '@amplitude/experiment-js-client';
 
-import {
-  DefaultWebExperimentClient,
-} from '../experiment';
+import { DefaultWebExperimentClient } from '../experiment';
 import { PageObject } from '../types';
 
 import { getStorageItem } from './storage';

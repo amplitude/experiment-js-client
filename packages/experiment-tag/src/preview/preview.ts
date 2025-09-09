@@ -1,5 +1,6 @@
 /**
  * Lightweight floating dismissable modal for experiment preview mode
+ * Compatible with Next.js hydration
  */
 import { Variant } from '@amplitude/experiment-js-client';
 
@@ -11,16 +12,25 @@ interface PreviewModeModalOptions {
 export class PreviewModeModal {
   private modal: HTMLDivElement | null = null;
   private options: PreviewModeModalOptions;
+  private readonly isClient: boolean = false;
 
   constructor(options: PreviewModeModalOptions) {
     this.options = options;
+    // Ensure we're in a browser environment
+    this.isClient = typeof window !== 'undefined';
   }
 
   show(): void {
+    // Early return if not in browser environment
+    if (!this.isClient) {
+      return;
+    }
+
     if (document.getElementById('amp-preview-modal')) {
       return;
     }
 
+    // Wait for both DOM and Next.js hydration to complete
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
         this.createModal();
@@ -42,13 +52,17 @@ export class PreviewModeModal {
   }
 
   private createModal(): void {
-    if (!document.body) {
+    if (!document.body || !this.isClient) {
       return;
     }
 
     this.modal = document.createElement('div');
     this.modal.id = 'amp-preview-modal';
     this.modal.className = 'amp-preview-modal';
+
+    // Mark as hydration-safe to prevent Next.js from interfering
+    this.modal.setAttribute('data-hydration-safe', 'true');
+    this.modal.setAttribute('data-preserve-hydration', 'true');
 
     const container = document.createElement('div');
     container.className = 'amp-preview-modal-container';
@@ -106,7 +120,12 @@ export class PreviewModeModal {
 
     this.injectStyles();
 
-    document.body.appendChild(this.modal);
+    // Use requestAnimationFrame to ensure stable DOM insertion
+    requestAnimationFrame(() => {
+      if (this.modal && document.body) {
+        document.body.appendChild(this.modal);
+      }
+    });
   }
 
   private attachEventListeners(): void {
@@ -320,11 +339,17 @@ export class PreviewModeModal {
 
 /**
  * Convenience function to create and show a preview mode modal
+ * Compatible with Next.js hydration
  */
 export function showPreviewModeModal(
   options: PreviewModeModalOptions,
 ): PreviewModeModal {
   const modal = new PreviewModeModal(options);
+
+  // Ensure we're in browser environment
+  if (typeof window === 'undefined') {
+    return modal;
+  }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
