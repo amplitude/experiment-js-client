@@ -17,7 +17,7 @@ export class PreviewModeModal {
   }
 
   show(): void {
-    if (this.modal || document.getElementById('amp-preview-modal')) {
+    if (document.getElementById('amp-preview-modal')) {
       return;
     }
 
