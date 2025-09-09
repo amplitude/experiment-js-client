@@ -433,12 +433,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    if (this.isPreviewMode && Object.keys(this.previewFlags).length > 0) {
-      showPreviewModeModal({
-        flags: this.previewFlags,
-      });
-    }
-
     this.revertVariants({ flagKeys: Object.keys(keyToVariant) });
 
     for (const [flagKey, variant] of Object.entries(keyToVariant)) {
@@ -451,11 +445,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (!payload || !Array.isArray(payload)) {
         return;
       }
-
+      this.handleVariantAction(flagKey, variantObject);
       if (this.isPreviewMode) {
         this.exposureWithDedupe(flagKey, variantObject, true);
+        showPreviewModeModal({
+          flags: this.previewFlags,
+        });
       }
-      this.handleVariantAction(flagKey, variantObject);
     }
   }
 
