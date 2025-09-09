@@ -328,7 +328,11 @@ describe('initializeExperiment', () => {
       '',
       'http://test.com/',
     );
-    expect(mockExposure).toHaveBeenCalledWith('test');
+    expect(mockExposureInternal).toHaveBeenCalledWith('test', {
+      variant: { key: 'control', value: 'control' },
+      source: 'local-evaluation',
+      hasDefaultVariant: false,
+    });
   });
 
   test('preview - force treatment variant when on control page', async () => {
@@ -406,13 +410,15 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    DefaultWebExperimentClient.getInstance(
+    const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2', undefined),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
     );
+
+    client.start().then();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledTimes(0);
