@@ -235,7 +235,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (
         this.remoteFlagKeys.includes(flagKey) &&
         variant.metadata?.blockingEvaluation &&
-        Object.keys(this.activePages).includes(flagKey)
+        Object.keys(this.activePages).includes(flagKey) &&
+        !this.remoteFlagKeys.every((key) =>
+          Object.keys(this.previewFlags).includes(key),
+        )
       ) {
         this.isRemoteBlocking = true;
         // Apply anti-flicker CSS to prevent UI flicker
@@ -272,7 +275,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ),
     });
 
-    if (this.remoteFlagKeys.length === 0) {
+    if (
+      this.remoteFlagKeys.every((key) =>
+        Object.keys(this.previewFlags).includes(key),
+      )
+    ) {
       this.isRunning = true;
       return;
     }
@@ -331,10 +338,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   public applyVariants(options?: ApplyVariantsOptions) {
     const { flagKeys } = options || {};
     const variants = this.getVariants();
-    if (
-      Object.keys(variants).length === 0 &&
-      Object.keys(this.previewFlags).length === 0
-    ) {
+    if (Object.keys(variants).length === 0) {
       return;
     }
     const currentUrl = urlWithoutParamsAndAnchor(
@@ -898,9 +902,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           this.flagVariantMap[key][urlParams[key]]
         ) {
           this.previewFlags[key] = this.flagVariantMap[key][urlParams[key]];
-          // remove previewed flag from remote flag keys
-          this.remoteFlagKeys = this.remoteFlagKeys.filter((k) => k !== key);
-          this.localFlagKeys.push(key);
         }
       });
 

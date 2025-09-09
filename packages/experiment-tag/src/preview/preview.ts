@@ -328,7 +328,6 @@ export class PreviewModeModal {
 
 /**
  * Convenience function to create and show a preview mode modal
- * Compatible with Next.js hydration
  */
 export function showPreviewModeModal(
   options: PreviewModeModalOptions,
