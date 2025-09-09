@@ -901,7 +901,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           this.flagVariantMap[key] &&
           this.flagVariantMap[key][urlParams[key]]
         ) {
-          this.previewFlags[key] = this.flagVariantMap[urlParams[key]];
+          this.previewFlags[key] = this.flagVariantMap[key][urlParams[key]];
         }
       });
 
