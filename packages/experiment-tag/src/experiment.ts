@@ -263,14 +263,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
-    this.previewVariants({
-      keyToVariant: Object.fromEntries(
-        Object.entries(this.previewFlags).map(([flagKey, variant]) => [
-          flagKey,
-          variant.key || '',
-        ]),
-      ),
-    });
 
     if (this.remoteFlagKeys.length === 0) {
       this.isRunning = true;
@@ -280,6 +272,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
     this.applyVariants({ flagKeys: this.remoteFlagKeys });
+    this.previewVariants({
+      keyToVariant: Object.fromEntries(
+        Object.entries(this.previewFlags).map(([flagKey, variant]) => [
+          flagKey,
+          variant.key || '',
+        ]),
+      ),
+    });
     this.isRunning = true;
   }
 
