@@ -99,7 +99,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
-  // Preview mode is set by url params or postMessage, not chrome extension
+  // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, Variant> = {};
 
