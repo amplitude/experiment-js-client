@@ -1,6 +1,5 @@
 /**
  * Lightweight floating dismissable modal for experiment preview mode
- * Compatible with Next.js hydration
  */
 import { Variant } from '@amplitude/experiment-js-client';
 
