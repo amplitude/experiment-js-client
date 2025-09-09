@@ -29,6 +29,7 @@ import {
   PageObject,
   PageObjects,
   PreviewVariantsOptions,
+  PreviewState,
   RevertVariantsOptions,
 } from './types';
 import { setMarketingCookie } from './util/cookie';
@@ -530,16 +531,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     variantKey: string,
   ) {
     this.updateActivePages(flagKey, pageViewObject, true);
-    this.flagVariantMap[flagKey] = variants;
     this.previewFlags[flagKey] = variants[variantKey];
+
     // set isPreviewMode to true as fallback when initialFlags are stale
     this.isPreviewMode = true;
     const previewParamsToRemove = [flagKey, PREVIEW_MODE_PARAM];
-    setStorageItem(
-      'sessionStorage',
-      PREVIEW_MODE_SESSION_KEY,
-      this.previewFlags,
-    );
+    setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
+      previewFlags: this.previewFlags,
+      pageViewObject,
+      flagKey,
+    });
     this.globalScope.history.replaceState(
       {},
       '',
@@ -905,11 +906,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         }
       });
 
-      setStorageItem(
-        'sessionStorage',
-        PREVIEW_MODE_SESSION_KEY,
-        this.previewFlags,
-      );
+      // For URL params, we only have variant info, so store in old format for now
+      // The new format will be used when previewNewFlagAndVariant is called
+      setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
+        previewFlags: this.previewFlags,
+      });
       const previewParamsToRemove = [
         ...Object.keys(this.previewFlags),
         PREVIEW_MODE_PARAM,
@@ -925,8 +926,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // if in preview mode, listen for ForceVariant messages
       WindowMessenger.setup(this);
     } else {
-      this.previewFlags =
-        getStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
+      // Load from session storage and handle both old and new formats
+      const previewState: PreviewState | null = getStorageItem(
+        'sessionStorage',
+        PREVIEW_MODE_SESSION_KEY,
+      );
+      if (previewState) {
+        this.previewFlags = previewState.previewFlags;
+        if (previewState.pageViewObject && previewState.flagKey) {
+          this.updateActivePages(
+            previewState.flagKey,
+            previewState.pageViewObject,
+            true,
+          );
+        }
+      }
     }
 
     if (Object.keys(this.previewFlags).length > 0) {
