@@ -101,7 +101,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private isVisualEditorMode = false;
   // Preview mode is set by url params or postMessage, not chrome extension
   isPreviewMode = false;
-  previewFlags: Record<string, string> = {};
+  previewFlags: Record<string, Variant> = {};
 
   constructor(
     apiKey: string,
@@ -125,8 +125,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ...config,
       ...(this.globalScope.experimentConfig ?? {}),
     };
-
-    const urlParams = getUrlParams();
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
@@ -266,7 +264,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
-    this.previewVariants({ keyToVariant: this.previewFlags });
+    this.previewVariants({
+      keyToVariant: Object.fromEntries(
+        Object.entries(this.previewFlags).map(([flagKey, variant]) => [
+          flagKey,
+          variant.key || '',
+        ]),
+      ),
+    });
 
     if (this.remoteFlagKeys.length === 0) {
       this.isRunning = true;
@@ -439,11 +444,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     for (const key in keyToVariant) {
       const variant = keyToVariant[key];
-      const flag = this.flagVariantMap[key];
-      if (!flag) {
-        return;
-      }
-      const variantObject = flag[variant];
+      const variantObject = this.previewFlags[variant];
       if (!variantObject) {
         return;
       }
@@ -531,7 +532,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   ) {
     this.updateActivePages(flagKey, pageViewObject, true);
     this.flagVariantMap[flagKey] = variants;
-    this.previewFlags[flagKey] = variantKey;
+    this.previewFlags[flagKey] = variants[variantKey];
     // set isPreviewMode to true as fallback when initialFlags are stale
     this.isPreviewMode = true;
     const previewParamsToRemove = [flagKey, PREVIEW_MODE_PARAM];
@@ -896,9 +897,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         if (
           key !== PREVIEW_MODE_PARAM &&
           urlParams[key] &&
-          this.initialFlags.find((flag: EvaluationFlag) => flag.key === key)
+          this.flagVariantMap[key]
         ) {
-          this.previewFlags[key] = urlParams[key];
+          this.previewFlags[key] = this.flagVariantMap[urlParams[key]];
         }
       });
 
