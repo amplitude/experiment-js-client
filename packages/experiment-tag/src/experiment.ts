@@ -441,8 +441,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     this.revertVariants({ flagKeys: Object.keys(keyToVariant) });
 
-    for (const key in keyToVariant) {
-      const variantObject = this.previewFlags[key];
+    for (const [flagKey, variant] of Object.entries(keyToVariant)) {
+      const variantObject =
+        this.previewFlags[flagKey] || this.flagVariantMap[flagKey][variant];
       if (!variantObject) {
         return;
       }
@@ -452,9 +453,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
 
       if (this.isPreviewMode) {
-        this.exposureWithDedupe(key, variantObject, true);
+        this.exposureWithDedupe(flagKey, variantObject, true);
       }
-      this.handleVariantAction(key, variantObject);
+      this.handleVariantAction(flagKey, variantObject);
     }
   }
 
