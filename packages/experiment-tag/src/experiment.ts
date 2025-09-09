@@ -536,9 +536,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // set isPreviewMode to true as fallback when initialFlags are stale
     this.isPreviewMode = true;
     const previewParamsToRemove = [flagKey, PREVIEW_MODE_PARAM];
-    setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
-      [flagKey]: variantKey,
-    });
+    setStorageItem(
+      'sessionStorage',
+      PREVIEW_MODE_SESSION_KEY,
+      this.previewFlags,
+    );
     this.globalScope.history.replaceState(
       {},
       '',
@@ -897,6 +899,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         if (
           key !== PREVIEW_MODE_PARAM &&
           urlParams[key] &&
+          this.flagVariantMap[key] &&
           this.flagVariantMap[key][urlParams[key]]
         ) {
           this.previewFlags[key] = this.flagVariantMap[urlParams[key]];
