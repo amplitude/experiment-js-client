@@ -42,9 +42,6 @@ export class PreviewModeModal {
     this.modal.id = 'amp-preview-modal';
     this.modal.className = 'amp-preview-modal';
 
-    this.modal.setAttribute('data-hydration-safe', 'true');
-    this.modal.setAttribute('data-preserve-hydration', 'true');
-
     const container = document.createElement('div');
     container.className = 'amp-preview-modal-container';
 
@@ -100,8 +97,6 @@ export class PreviewModeModal {
     this.modal.appendChild(closeButton);
 
     this.injectStyles();
-
-    // Use requestAnimationFrame to ensure stable DOM insertion
     requestAnimationFrame(() => {
       if (this.modal && document.body) {
         document.body.appendChild(this.modal);
@@ -319,7 +314,7 @@ export class PreviewModeModal {
 }
 
 /**
- * Convenience function to create and show a preview mode modal with a 1-second delay
+ * Convenience function to create and show a preview mode modal
  */
 export function showPreviewModeModal(
   options: PreviewModeModalOptions,

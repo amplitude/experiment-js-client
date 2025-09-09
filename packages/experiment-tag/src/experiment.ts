@@ -906,8 +906,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         }
       });
 
-      // For URL params, we only have variant info, so store in old format for now
-      // The new format will be used when previewNewFlagAndVariant is called
       setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
         previewFlags: this.previewFlags,
       });
@@ -926,7 +924,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // if in preview mode, listen for ForceVariant messages
       WindowMessenger.setup(this);
     } else {
-      // Load from session storage and handle both old and new formats
       const previewState: PreviewState | null = getStorageItem(
         'sessionStorage',
         PREVIEW_MODE_SESSION_KEY,
