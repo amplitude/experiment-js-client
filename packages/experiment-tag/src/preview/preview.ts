@@ -20,16 +20,8 @@ export class PreviewModeModal {
     if (document.getElementById('amp-preview-modal')) {
       return;
     }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        this.createModal();
-        this.attachEventListeners();
-      });
-    } else {
-      this.createModal();
-      this.attachEventListeners();
-    }
+    this.createModal();
+    this.attachEventListeners();
   }
 
   hide(): void {
@@ -327,20 +319,15 @@ export class PreviewModeModal {
 }
 
 /**
- * Convenience function to create and show a preview mode modal
+ * Convenience function to create and show a preview mode modal with a 1-second delay
  */
 export function showPreviewModeModal(
   options: PreviewModeModalOptions,
 ): PreviewModeModal {
   const modal = new PreviewModeModal(options);
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      modal.show();
-    });
-  } else {
+  setTimeout(() => {
     modal.show();
-  }
+  }, 500);
 
   return modal;
 }
