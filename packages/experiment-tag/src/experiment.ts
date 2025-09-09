@@ -185,9 +185,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       },
       this.globalScope,
     );
-    this.subscriptionManager.initSubscriptions();
-
     this.setupPreviewMode(urlParams);
+    this.subscriptionManager.initSubscriptions();
 
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
