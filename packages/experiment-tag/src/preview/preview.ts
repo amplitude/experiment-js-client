@@ -12,25 +12,16 @@ interface PreviewModeModalOptions {
 export class PreviewModeModal {
   private modal: HTMLDivElement | null = null;
   private options: PreviewModeModalOptions;
-  private readonly isClient: boolean = false;
 
   constructor(options: PreviewModeModalOptions) {
     this.options = options;
-    // Ensure we're in a browser environment
-    this.isClient = typeof window !== 'undefined';
   }
 
   show(): void {
-    // Early return if not in browser environment
-    if (!this.isClient) {
-      return;
-    }
-
     if (document.getElementById('amp-preview-modal')) {
       return;
     }
 
-    // Wait for both DOM and Next.js hydration to complete
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
         this.createModal();
@@ -52,7 +43,7 @@ export class PreviewModeModal {
   }
 
   private createModal(): void {
-    if (!document.body || !this.isClient) {
+    if (!document.body) {
       return;
     }
 
@@ -60,7 +51,6 @@ export class PreviewModeModal {
     this.modal.id = 'amp-preview-modal';
     this.modal.className = 'amp-preview-modal';
 
-    // Mark as hydration-safe to prevent Next.js from interfering
     this.modal.setAttribute('data-hydration-safe', 'true');
     this.modal.setAttribute('data-preserve-hydration', 'true');
 
@@ -345,11 +335,6 @@ export function showPreviewModeModal(
   options: PreviewModeModalOptions,
 ): PreviewModeModal {
   const modal = new PreviewModeModal(options);
-
-  // Ensure we're in browser environment
-  if (typeof window === 'undefined') {
-    return modal;
-  }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
