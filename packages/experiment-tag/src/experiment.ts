@@ -897,7 +897,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         if (
           key !== PREVIEW_MODE_PARAM &&
           urlParams[key] &&
-          this.flagVariantMap[key]
+          this.flagVariantMap[key][urlParams[key]]
         ) {
           this.previewFlags[key] = this.flagVariantMap[urlParams[key]];
         }
