@@ -442,8 +442,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.revertVariants({ flagKeys: Object.keys(keyToVariant) });
 
     for (const key in keyToVariant) {
-      const variant = keyToVariant[key];
-      const variantObject = this.previewFlags[variant];
+      const variantObject = this.previewFlags[key];
       if (!variantObject) {
         return;
       }
