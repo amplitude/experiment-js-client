@@ -320,8 +320,28 @@ export function showPreviewModeModal(
   options: PreviewModeModalOptions,
 ): PreviewModeModal {
   const modal = new PreviewModeModal(options);
+
+  let documentReady = false;
+  let timeoutReady = false;
+
+  const tryShow = () => {
+    if (documentReady && timeoutReady) {
+      modal.show();
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      documentReady = true;
+      tryShow();
+    });
+  } else {
+    documentReady = true;
+  }
+
   setTimeout(() => {
-    modal.show();
+    timeoutReady = true;
+    tryShow();
   }, 500);
 
   return modal;
