@@ -5,9 +5,12 @@ import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import resolve from '@rollup/plugin-node-resolve';
 import replace from '@rollup/plugin-replace';
+import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
+import gzip from 'rollup-plugin-gzip';
 
+import * as packageJson from './package.json';
 import tsConfig from './tsconfig.json';
 
 const getCommonBrowserConfig = (target) => ({
@@ -48,6 +51,7 @@ const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
     name: 'Experiment',
+    banner: `/* ${packageJson.name} v${packageJson.version} - For license info see https://app.unpkg.com/@amplitude/experiment-js-client@${packageJson.version}/files/LICENSE */`,
     ...outputOptions,
   },
 });
@@ -90,6 +94,25 @@ const configs = [
       '@amplitude/analytics-connector',
       '@amplitude/experiment-core',
     ],
+  },
+  {
+    ...getCommonBrowserConfig('es5'),
+    ...getOutputConfig({
+      entryFileNames: 'experiment-browser.min.js',
+      exports: 'named',
+      format: 'umd',
+    }),
+    plugins: [
+      ...getCommonBrowserConfig('es5').plugins,
+      terser({
+        format: {
+          comments:
+            /@amplitude\/.* v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/,
+        },
+      }),
+      gzip(),
+    ],
+    external: [],
   },
 ];
 
