@@ -97,10 +97,7 @@ jobs:
         run: |
           UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/experiment-tag/" || true)
           if [ -n "$UPDATED_PACKAGES" ]; then
-            echo "experiment_tag_updated=true" >> $GITHUB_OUTPUT
             echo "UPLOAD_PACKAGES=${UPLOAD_PACKAGES:+$UPLOAD_PACKAGES,}tag" >> $GITHUB_ENV
-          else
-            echo "experiment_tag_updated=false" >> $GITHUB_OUTPUT
           fi
 
       # Check if experiment-plugin-segment was updated
@@ -110,10 +107,7 @@ jobs:
         run: |
           UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/plugin-segment/" || true)
           if [ -n "$UPDATED_PACKAGES" ]; then
-            echo "experiment_plugin_updated=true" >> $GITHUB_OUTPUT
             echo "UPLOAD_PACKAGES=${UPLOAD_PACKAGES:+$UPLOAD_PACKAGES,}segment-plugin" >> $GITHUB_ENV
-          else
-            echo "experiment_plugin_updated=false" >> $GITHUB_OUTPUT
           fi
 
       # Check if experiment-browser was updated
@@ -123,10 +117,7 @@ jobs:
         run: |
           UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/experiment-browser/" || true)
           if [ -n "$UPDATED_PACKAGES" ]; then
-            echo "experiment_browser_updated=true" >> $GITHUB_OUTPUT
             echo "UPLOAD_PACKAGES=${UPLOAD_PACKAGES:+$UPLOAD_PACKAGES,}browser" >> $GITHUB_ENV
-          else
-            echo "experiment_browser_updated=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Install AWS SDK dependencies
