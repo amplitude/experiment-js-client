@@ -16,7 +16,9 @@ import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
+import { FetchHttpClient, WrapperClient } from './preview/http';
 import { showPreviewModeModal } from './preview/preview';
+import { SdkPreviewApi } from './preview/preview-api';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   Defaults,
@@ -54,7 +56,7 @@ import { convertEvaluationVariantToVariant } from './util/variant';
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
-const PREVIEW_MODE_PARAM = 'PREVIEW';
+export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export const PREVIEW_SEGMENT_NAME = 'Preview';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
@@ -524,36 +526,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.customRedirectHandler = handler;
   }
 
-  previewNewFlagAndVariant(
-    flagKey: string,
-    pageViewObject: PageObject,
-    variants: Record<string, Variant>,
-    variantKey: string,
-  ) {
-    this.updateActivePages(flagKey, pageViewObject, true);
-    this.previewFlags[flagKey] = variants[variantKey];
-
-    // set isPreviewMode to true as fallback when initialFlags are stale
-    this.isPreviewMode = true;
-    const previewParamsToRemove = [flagKey, PREVIEW_MODE_PARAM];
-    setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
-      previewFlags: this.previewFlags,
-      pageViewObject,
-      flagKey,
-    });
-    this.globalScope.history.replaceState(
-      {},
-      '',
-      removeQueryParams(this.globalScope.location.href, previewParamsToRemove),
-    );
-    // compare initialFlags variant payload with ForceVariant payload, if different, apply new variant actions
-    const initialPayload = this.flagVariantMap[flagKey][variantKey].payload;
-    const forcePayload = variants[variantKey].payload;
-    if (JSON.stringify(initialPayload) !== JSON.stringify(forcePayload)) {
-      this.previewVariants({ keyToVariant: { [flagKey]: variantKey } });
-    }
-  }
-
   private async fetchRemoteFlags() {
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -930,13 +902,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
       if (previewState) {
         this.previewFlags = previewState.previewFlags;
-        if (previewState.pageViewObject && previewState.flagKey) {
-          this.updateActivePages(
-            previewState.flagKey,
-            previewState.pageViewObject,
-            true,
-          );
-        }
       }
     }
 

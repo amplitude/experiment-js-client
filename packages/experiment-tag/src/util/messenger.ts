@@ -1,7 +1,4 @@
-import { Variant } from '@amplitude/experiment-js-client';
-
 import { DefaultWebExperimentClient } from '../experiment';
-import { PageObject } from '../types';
 
 import { getStorageItem } from './storage';
 
@@ -37,10 +34,6 @@ export class WindowMessenger {
         e: MessageEvent<{
           type: string;
           context: {
-            flagKey: string;
-            pageViewObject: PageObject;
-            variantKey: string;
-            variants: Variant[];
             injectSrc: string;
             amplitudeWindowUrl: string;
           };
@@ -71,26 +64,6 @@ export class WindowMessenger {
             .catch(() => {
               state = 'closed';
             });
-        } else if (e.data.type === 'ForceVariant') {
-          const variants = e.data.context.variants.reduce((acc, variant) => {
-            if (variant.key) {
-              acc[variant.key] = variant;
-            }
-            return acc;
-          }, {} as Record<string, Variant>);
-          const flagKey = e.data.context.flagKey;
-          const pageViewObject = e.data.context.pageViewObject;
-          const variantKey = e.data.context.variantKey;
-          webExperimentClient.previewNewFlagAndVariant(
-            flagKey,
-            pageViewObject,
-            variants,
-            variantKey,
-          );
-          e.source?.postMessage(
-            { type: 'DoneForceVariant' },
-            { targetOrigin: e.origin },
-          );
         }
       },
     );
