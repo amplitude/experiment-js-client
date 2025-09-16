@@ -65,8 +65,7 @@ const configs = [
     ...config,
     ...getOutputConfig({
       entryFileNames: 'experiment-tag-min.js',
-      exports: 'named',
-      format: 'umd',
+      format: 'iife',
     }),
     plugins: [
       ...config.plugins,
@@ -76,8 +75,8 @@ const configs = [
           comments:
             /@amplitude\/.* v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/,
         },
-      }), // Apply terser plugin for minification
-      gzip(), // Add gzip plugin to create .gz files
+      }),
+      gzip(),
     ],
     external: [],
   },
