@@ -42,6 +42,7 @@ const startClient = (
   DefaultWebExperimentClient.getInstance(apiKey, flags, objects, config)
     .start()
     .finally(() => {
+      // Remove anti-flicker css if it exists
       document.getElementById('amp-exp-css')?.remove();
     });
 };

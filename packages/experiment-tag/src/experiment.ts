@@ -272,6 +272,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
 
     if (
+      // do not fetch remote flags if all remote flags are in preview mode
       this.remoteFlagKeys.every((key) =>
         Object.keys(this.previewFlags).includes(key),
       )
