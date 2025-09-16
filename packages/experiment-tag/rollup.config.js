@@ -65,10 +65,7 @@ const configs = [
     ...config,
     ...getOutputConfig({
       entryFileNames: 'experiment-tag-min.js',
-      exports: 'auto',
       format: 'iife',
-      globals: {},
-      extend: true,
     }),
     plugins: [
       ...config.plugins,
