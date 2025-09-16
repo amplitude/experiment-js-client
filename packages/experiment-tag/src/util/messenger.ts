@@ -1,4 +1,4 @@
-import { DefaultWebExperimentClient } from '../experiment';
+import { getGlobalScope } from '@amplitude/experiment-core';
 
 import { getStorageItem } from './storage';
 
@@ -10,7 +10,7 @@ interface VisualEditorSession {
 export const VISUAL_EDITOR_SESSION_KEY = 'visual-editor-state';
 
 export class WindowMessenger {
-  static setup(webExperimentClient: DefaultWebExperimentClient) {
+  static setup() {
     let state: 'closed' | 'opening' | 'open' = 'closed';
 
     // Check for existing session on setup
@@ -28,7 +28,7 @@ export class WindowMessenger {
       return;
     }
 
-    webExperimentClient.globalScope.addEventListener(
+    getGlobalScope()?.addEventListener(
       'message',
       (
         e: MessageEvent<{

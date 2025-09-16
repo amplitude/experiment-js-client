@@ -65,7 +65,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;
   private readonly initialFlags: [];
   private readonly config: WebExperimentConfig;
-  readonly globalScope: typeof globalThis;
+  private readonly globalScope: typeof globalThis;
   private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
   appliedMutations: {
@@ -191,7 +191,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
-      WindowMessenger.setup(this);
+      WindowMessenger.setup();
       this.globalScope.history.replaceState(
         {},
         '',
@@ -872,7 +872,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         ),
       );
       // if in preview mode, listen for ForceVariant messages
-      WindowMessenger.setup(this);
+      WindowMessenger.setup();
     } else {
       const previewState: PreviewState | null = getStorageItem(
         'sessionStorage',
