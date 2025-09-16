@@ -1,14 +1,4 @@
-/**
- * @packageDocumentation
- * @internal
- */
-
 import { safeGlobal, TimeoutError } from '@amplitude/experiment-core';
-import {
-  HttpClient as CoreHttpClient,
-  HttpRequest,
-  HttpResponse,
-} from '@amplitude/experiment-core';
 import unfetch from 'unfetch';
 
 export interface SimpleResponse {
@@ -18,78 +8,46 @@ export interface SimpleResponse {
 
 export interface HttpClient {
   request(
-    requestUrl: string,
+    url: string,
     method: string,
     headers: Record<string, string>,
     data: string | null,
-    timeoutMillis?: number,
+    timeout?: number,
   ): Promise<SimpleResponse>;
 }
 
 const fetch = safeGlobal.fetch || unfetch;
 
-/*
- * Copied from:
- * https://github.com/github/fetch/issues/175#issuecomment-284787564
- */
-const timeout = (
+const withTimeout = (
   promise: Promise<SimpleResponse>,
-  timeoutMillis?: number,
+  ms?: number,
 ): Promise<SimpleResponse> => {
-  // Don't timeout if timeout is null or invalid
-  if (timeoutMillis == null || timeoutMillis <= 0) {
-    return promise;
-  }
-  return new Promise(function (resolve, reject) {
-    safeGlobal.setTimeout(function () {
-      reject(
-        new TimeoutError(
-          'Request timeout after ' + timeoutMillis + ' milliseconds',
-        ),
-      );
-    }, timeoutMillis);
-    promise.then(resolve, reject);
-  });
+  if (!ms || ms <= 0) return promise;
+
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new TimeoutError(`Timeout after ${ms}ms`)), ms),
+    ),
+  ]);
 };
 
-const _request = (
-  requestUrl: string,
+const makeRequest = async (
+  url: string,
   method: string,
   headers: Record<string, string>,
   data: string,
-  timeoutMillis?: number,
+  timeout?: number,
 ): Promise<SimpleResponse> => {
-  const call = async () => {
-    const response = await fetch(requestUrl, {
-      method: method,
-      headers: headers,
-      body: data,
-    });
-    const simpleResponse: SimpleResponse = {
+  const request = async () => {
+    const response = await fetch(url, { method, headers, body: data });
+    return {
       status: response.status,
       body: await response.text(),
     };
-    return simpleResponse;
   };
-  return timeout(call(), timeoutMillis);
+
+  return withTimeout(request(), timeout);
 };
 
-export class WrapperClient implements CoreHttpClient {
-  private readonly client: HttpClient;
-
-  constructor(client: HttpClient) {
-    this.client = client;
-  }
-
-  async request(request: HttpRequest): Promise<HttpResponse> {
-    return await this.client.request(
-      request.requestUrl,
-      request.method,
-      request.headers,
-      null,
-      request.timeoutMillis,
-    );
-  }
-}
-
-export const FetchHttpClient: HttpClient = { request: _request };
+export const HttpClient: HttpClient = { request: makeRequest };

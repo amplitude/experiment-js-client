@@ -30,7 +30,7 @@ export type PreviewVariantsOptions = {
 };
 
 export type PreviewState = {
-  previewFlags: Record<string, Variant>;
+  previewFlags: Record<string, string>;
 };
 
 export type PageObject = {
@@ -55,7 +55,6 @@ export interface WebExperimentConfig extends ExperimentConfig {
 
 export const Defaults: WebExperimentConfig = {
   useDefaultNavigationHandler: true,
-  fetchTimeoutMillis: 10000,
   serverZone: 'US',
 };
 

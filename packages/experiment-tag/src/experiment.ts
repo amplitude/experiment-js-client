@@ -16,9 +16,7 @@ import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
-import { FetchHttpClient, WrapperClient } from './preview/http';
 import { showPreviewModeModal } from './preview/preview';
-import { SdkPreviewApi } from './preview/preview-api';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   Defaults,
@@ -34,6 +32,7 @@ import {
   PreviewState,
   RevertVariantsOptions,
 } from './types';
+import { applyAntiFlickerCss } from './util/anti-flicker';
 import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
@@ -57,7 +56,6 @@ const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
-export const PREVIEW_SEGMENT_NAME = 'Preview';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 
@@ -104,7 +102,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private isVisualEditorMode = false;
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
-  previewFlags: Record<string, Variant> = {};
+  previewFlags: Record<string, string> = {};
 
   constructor(
     apiKey: string,
@@ -245,7 +243,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ) {
         this.isRemoteBlocking = true;
         // Apply anti-flicker CSS to prevent UI flicker
-        this.applyAntiFlickerCss();
+        applyAntiFlickerCss();
       }
     }
 
@@ -270,12 +268,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
     this.previewVariants({
-      keyToVariant: Object.fromEntries(
-        Object.entries(this.previewFlags).map(([flagKey, variant]) => [
-          flagKey,
-          variant.key || '',
-        ]),
-      ),
+      keyToVariant: this.previewFlags,
     });
 
     if (
@@ -443,8 +436,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.revertVariants({ flagKeys: Object.keys(keyToVariant) });
 
     for (const [flagKey, variant] of Object.entries(keyToVariant)) {
-      const variantObject =
-        this.previewFlags[flagKey] || this.flagVariantMap[flagKey][variant];
+      const variantObject = this.flagVariantMap[flagKey][variant];
       if (!variantObject) {
         return;
       }
@@ -763,20 +755,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private applyAntiFlickerCss() {
-    if (!this.globalScope.document.getElementById('amp-exp-css')) {
-      const id = 'amp-exp-css';
-      const s = document.createElement('style');
-      s.id = id;
-      s.innerText =
-        '* { visibility: hidden !important; background-image: none !important; }';
-      document.head.appendChild(s);
-      this.globalScope.window.setTimeout(function () {
-        s.remove();
-      }, 1000);
-    }
-  }
-
   // Also used by chrome extension
   updateActivePages(flagKey: string, page: PageObject, isActive: boolean) {
     if (!this.activePages[flagKey]) {
@@ -868,13 +846,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // explicit URL params takes precedence over session storage
     if (urlParams[PREVIEW_MODE_PARAM] === 'true') {
       Object.keys(urlParams).forEach((key) => {
-        if (
-          key !== PREVIEW_MODE_PARAM &&
-          urlParams[key] &&
-          this.flagVariantMap[key] &&
-          this.flagVariantMap[key][urlParams[key]]
-        ) {
-          this.previewFlags[key] = this.flagVariantMap[key][urlParams[key]];
+        if (key !== PREVIEW_MODE_PARAM && urlParams[key]) {
+          this.previewFlags[key] = urlParams[key];
         }
       });
 

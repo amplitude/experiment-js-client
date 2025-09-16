@@ -1,15 +1,12 @@
-import { EvaluationFlag, HttpClient } from '@amplitude/experiment-core';
+import { EvaluationFlag } from '@amplitude/experiment-core';
 
+import { version } from '../../package.json';
 import { PageObjects } from '../types';
 
-export type GetFlagsOptions = {
-  libraryName: string;
-  libraryVersion: string;
-  timeoutMillis?: number;
-};
+import { HttpClient } from './http';
 
 export interface PreviewApi {
-  getPreviewFlagsAndPageViewObjects(options?: GetFlagsOptions): Promise<{
+  getPreviewFlagsAndPageViewObjects(): Promise<{
     flags: EvaluationFlag[];
     pageViewObjects: PageObjects;
   }>;
@@ -30,26 +27,21 @@ export class SdkPreviewApi implements PreviewApi {
     this.httpClient = httpClient;
   }
 
-  public async getPreviewFlagsAndPageViewObjects(
-    options?: GetFlagsOptions,
-  ): Promise<{
+  public async getPreviewFlagsAndPageViewObjects(): Promise<{
     flags: EvaluationFlag[];
     pageViewObjects: PageObjects;
   }> {
     const headers: Record<string, string> = {
       Authorization: `Api-Key ${this.deploymentKey}`,
     };
-    if (options?.libraryName && options?.libraryVersion) {
-      headers[
-        'X-Amp-Exp-Library'
-      ] = `${options.libraryName}/${options.libraryVersion}`;
-    }
-    const response = await this.httpClient.request({
-      requestUrl: `${this.serverUrl}/web/v1/configs`,
-      method: 'GET',
-      headers: headers,
-      timeoutMillis: options?.timeoutMillis,
-    });
+    headers['X-Amp-Exp-Library'] = `experiment-tag/${version}`;
+    const response = await this.httpClient.request(
+      `${this.serverUrl}/web/v1/configs`,
+      'GET',
+      headers,
+      null,
+      10000,
+    );
     if (response.status != 200) {
       throw Error(`Preview error response: status=${response.status}`);
     }

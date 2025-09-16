@@ -137,11 +137,7 @@ export class SubscriptionManager {
               this.webExperimentClient.applyVariants();
               if (this.webExperimentClient.isPreviewMode) {
                 this.webExperimentClient.previewVariants({
-                  keyToVariant: Object.fromEntries(
-                    Object.entries(this.webExperimentClient.previewFlags).map(
-                      ([flagKey, variant]) => [flagKey, variant.key || ''],
-                    ),
-                  ),
+                  keyToVariant: this.webExperimentClient.previewFlags,
                 });
               }
             }

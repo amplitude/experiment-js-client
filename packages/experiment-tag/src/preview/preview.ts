@@ -1,10 +1,9 @@
 /**
  * Lightweight floating dismissable modal for experiment preview mode
  */
-import { Variant } from '@amplitude/experiment-js-client';
 
 interface PreviewModeModalOptions {
-  flags: Record<string, Variant>;
+  flags: Record<string, string>;
   onDismiss?: () => void;
 }
 
@@ -72,13 +71,13 @@ export class PreviewModeModal {
       `;
 
       const variantBadge = document.createElement('span');
-      variantBadge.className = `amp-preview-modal-badge amp-preview-modal-variant-badge amp-preview-modal-variant-${variant.key?.toLowerCase()}`;
+      variantBadge.className = `amp-preview-modal-badge amp-preview-modal-variant-badge amp-preview-modal-variant-${variant.toLowerCase()}`;
 
       const greenDot = document.createElement('span');
       greenDot.className = 'amp-preview-modal-variant-dot';
 
       variantBadge.appendChild(greenDot);
-      variantBadge.appendChild(document.createTextNode(variant.key || ''));
+      variantBadge.appendChild(document.createTextNode(variant));
 
       flagRow.appendChild(iconContainer);
       flagRow.appendChild(titleElement);

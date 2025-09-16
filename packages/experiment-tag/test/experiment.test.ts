@@ -3,6 +3,7 @@ import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
 import { DefaultWebExperimentClient } from 'src/experiment';
+import * as antiFlickerUtils from 'src/util/anti-flicker';
 import * as uuid from 'src/util/uuid';
 import { stringify } from 'ts-jest';
 
@@ -137,7 +138,7 @@ describe('initializeExperiment', () => {
     // Ensure the mock is properly set
     mockGetGlobalScope.mockReturnValue(mockGlobal);
     antiFlickerSpy = jest
-      .spyOn(DefaultWebExperimentClient.prototype as any, 'applyAntiFlickerCss')
+      .spyOn(antiFlickerUtils, 'applyAntiFlickerCss')
       .mockImplementation(jest.fn());
   });
 
