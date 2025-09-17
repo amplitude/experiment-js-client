@@ -55,7 +55,6 @@ export interface WebExperimentConfig extends ExperimentConfig {
 
 export const Defaults: WebExperimentConfig = {
   useDefaultNavigationHandler: true,
-  serverZone: 'US',
 };
 
 /**

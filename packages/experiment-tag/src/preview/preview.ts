@@ -183,6 +183,9 @@ export class PreviewModeModal {
         color: #1a202c;
         font-size: 14px;
         white-space: nowrap;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       /* Base badge styles */
