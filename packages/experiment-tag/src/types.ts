@@ -2,6 +2,7 @@ import { EvaluationCondition } from '@amplitude/experiment-core';
 import {
   ExperimentConfig,
   ExperimentUser,
+  Variant,
 } from '@amplitude/experiment-js-client';
 import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
@@ -26,6 +27,10 @@ export type PreviewVariantsOptions = {
    * A map of flag keys to variant keys to be previewed.
    */
   keyToVariant?: Record<string, string>;
+};
+
+export type PreviewState = {
+  previewFlags: Record<string, string>;
 };
 
 export type PageObject = {

@@ -1,5 +1,9 @@
-import { EvaluationVariant, getGlobalScope } from '@amplitude/experiment-core';
-import { Variant } from '@amplitude/experiment-js-client';
+import { getGlobalScope } from '@amplitude/experiment-core';
+
+import { PREVIEW_MODE_PARAM, PREVIEW_MODE_SESSION_KEY } from '../experiment';
+import { PreviewState } from '../types';
+
+import { getStorageItem } from './storage';
 
 export const getUrlParams = (): Record<string, string> => {
   const globalScope = getGlobalScope();
@@ -62,4 +66,21 @@ export const concatenateQueryParamsOf = (
   });
 
   return resultUrlObj.toString();
+};
+
+export const isPreviewMode = (): boolean => {
+  if (getUrlParams()[PREVIEW_MODE_PARAM] === 'true') {
+    return true;
+  }
+  const previewState = getStorageItem(
+    'sessionStorage',
+    PREVIEW_MODE_SESSION_KEY,
+  ) as PreviewState;
+  if (
+    previewState?.previewFlags &&
+    Object.keys(previewState.previewFlags).length > 0
+  ) {
+    return true;
+  }
+  return false;
 };

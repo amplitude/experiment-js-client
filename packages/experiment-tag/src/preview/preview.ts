@@ -16,19 +16,11 @@ export class PreviewModeModal {
   }
 
   show(): void {
-    if (this.modal || document.getElementById('amp-preview-modal')) {
+    if (document.getElementById('amp-preview-modal')) {
       return;
     }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        this.createModal();
-        this.attachEventListeners();
-      });
-    } else {
-      this.createModal();
-      this.attachEventListeners();
-    }
+    this.createModal();
+    this.attachEventListeners();
   }
 
   hide(): void {
@@ -104,8 +96,11 @@ export class PreviewModeModal {
     this.modal.appendChild(closeButton);
 
     this.injectStyles();
-
-    document.body.appendChild(this.modal);
+    requestAnimationFrame(() => {
+      if (this.modal && document.body) {
+        document.body.appendChild(this.modal);
+      }
+    });
   }
 
   private attachEventListeners(): void {
@@ -188,6 +183,9 @@ export class PreviewModeModal {
         color: #1a202c;
         font-size: 14px;
         white-space: nowrap;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       /* Base badge styles */
@@ -325,13 +323,28 @@ export function showPreviewModeModal(
 ): PreviewModeModal {
   const modal = new PreviewModeModal(options);
 
+  let documentReady = false;
+  let timeoutReady = false;
+
+  const tryShow = () => {
+    if (documentReady && timeoutReady) {
+      modal.show();
+    }
+  };
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      modal.show();
+      documentReady = true;
+      tryShow();
     });
   } else {
-    modal.show();
+    documentReady = true;
   }
+
+  setTimeout(() => {
+    timeoutReady = true;
+    tryShow();
+  }, 500);
 
   return modal;
 }
