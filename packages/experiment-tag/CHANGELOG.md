@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.9.3...@amplitude/experiment-tag@0.9.4) (2025-09-16)
+
+
+### Bug Fixes
+
+* update removeQueryParams to support hash-based routing ([#213](https://github.com/amplitude/experiment-js-client/issues/213)) ([275709e](https://github.com/amplitude/experiment-js-client/commit/275709eadb8de18790b2f57dcca33cae43b1deeb))
+* Update web experiment build format to IIFE  ([#210](https://github.com/amplitude/experiment-js-client/issues/210)) ([74702f5](https://github.com/amplitude/experiment-js-client/commit/74702f58e7a01dc8c83d30ff221df095762830f0))
+
+
+
+
+
 ## [0.9.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.9.2...@amplitude/experiment-tag@0.9.3) (2025-08-29)
 
 

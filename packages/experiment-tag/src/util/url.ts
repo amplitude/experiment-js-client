@@ -29,11 +29,28 @@ export const removeQueryParams = (
   url: string,
   paramsToRemove: string[],
 ): string => {
-  const urlObj = new URL(url);
-  for (const param of paramsToRemove) {
-    urlObj.searchParams.delete(param);
+  const hashIndex = url.indexOf('#');
+  const hasHashPath =
+    hashIndex !== -1 && url.substring(hashIndex + 1).startsWith('/');
+
+  if (!hasHashPath) {
+    const urlObj = new URL(url);
+    for (const param of paramsToRemove) {
+      urlObj.searchParams.delete(param);
+    }
+    return urlObj.toString();
   }
-  return urlObj.toString();
+
+  // Hash-based routing handling
+  const [urlWithoutHash, hash] = url.split('#');
+  const hashObj = new URL(`http://dummy.com/${hash}`);
+
+  for (const param of paramsToRemove) {
+    hashObj.searchParams.delete(param);
+  }
+
+  const newHash = hashObj.pathname.substring(1) + hashObj.search;
+  return `${urlWithoutHash}#${newHash}`;
 };
 
 export const matchesUrl = (urlArray: string[], urlString: string): boolean => {
