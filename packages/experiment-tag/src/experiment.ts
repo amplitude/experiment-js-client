@@ -29,8 +29,10 @@ import {
   PageObject,
   PageObjects,
   PreviewVariantsOptions,
+  PreviewState,
   RevertVariantsOptions,
 } from './types';
+import { applyAntiFlickerCss } from './util/anti-flicker';
 import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
@@ -53,8 +55,7 @@ import { convertEvaluationVariantToVariant } from './util/variant';
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
-const PREVIEW_MODE_PARAM = 'PREVIEW';
-export const PREVIEW_SEGMENT_NAME = 'Preview';
+export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 
@@ -99,7 +100,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
-  private previewFlags: Record<string, string> = {};
+  // Preview mode is set by url params, postMessage or session storage, not chrome extension
+  isPreviewMode = false;
+  previewFlags: Record<string, string> = {};
 
   constructor(
     apiKey: string,
@@ -124,21 +127,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ...(this.globalScope.experimentConfig ?? {}),
     };
 
-    const urlParams = getUrlParams();
-
-    let previewFlags: Record<string, string> = {};
-    // explicit URL params takes precedence over session storage
-    if (urlParams[PREVIEW_MODE_PARAM]) {
-      Object.keys(urlParams).forEach((key) => {
-        if (key !== 'PREVIEW' && urlParams[key]) {
-          previewFlags[key] = urlParams[key];
-        }
-      });
-    } else {
-      previewFlags =
-        getStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY) || {};
-    }
-
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
 
@@ -148,47 +136,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           convertEvaluationVariantToVariant(variants[variantKey]);
       });
 
-      // Update initialFlags to force variant if in preview mode
-      if (key in previewFlags && previewFlags[key] in variants) {
-        this.previewFlags[key] = previewFlags[key];
-
-        const previewSegment = {
-          metadata: { segmentName: PREVIEW_SEGMENT_NAME },
-          variant: previewFlags[key],
-        };
-
-        flag.segments = [previewSegment];
-        metadata.evaluationMode = 'local';
-      }
-
       if (metadata.evaluationMode !== 'local') {
         this.remoteFlagKeys.push(key);
       }
-
-      flag.metadata = metadata;
     });
-
-    if (Object.keys(this.previewFlags).length > 0) {
-      if (urlParams[PREVIEW_MODE_PARAM]) {
-        setStorageItem(
-          'sessionStorage',
-          PREVIEW_MODE_SESSION_KEY,
-          this.previewFlags,
-        );
-        const previewParamsToRemove = [
-          ...Object.keys(this.previewFlags),
-          PREVIEW_MODE_PARAM,
-        ];
-        this.globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(
-            this.globalScope.location.href,
-            previewParamsToRemove,
-          ),
-        );
-      }
-    }
 
     const initialFlagsString = JSON.stringify(this.initialFlags);
 
@@ -235,15 +186,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       },
       this.globalScope,
     );
+    this.setupPreviewMode(urlParams);
     this.subscriptionManager.initSubscriptions();
 
-    // if in preview mode, listen for ForceVariant messages
-    if (urlParams['PREVIEW']) {
-      WindowMessenger.setup(this);
-    }
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
-      WindowMessenger.setup(this);
+      WindowMessenger.setup();
       this.globalScope.history.replaceState(
         {},
         '',
@@ -288,11 +236,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (
         this.remoteFlagKeys.includes(flagKey) &&
         variant.metadata?.blockingEvaluation &&
-        Object.keys(this.activePages).includes(flagKey)
+        Object.keys(this.activePages).includes(flagKey) &&
+        !this.remoteFlagKeys.every((key) =>
+          Object.keys(this.previewFlags).includes(key),
+        )
       ) {
         this.isRemoteBlocking = true;
         // Apply anti-flicker CSS to prevent UI flicker
-        this.applyAntiFlickerCss();
+        applyAntiFlickerCss();
       }
     }
 
@@ -316,8 +267,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
+    this.previewVariants({
+      keyToVariant: this.previewFlags,
+    });
 
-    if (this.remoteFlagKeys.length === 0) {
+    if (
+      // do not fetch remote flags if all remote flags are in preview mode
+      this.remoteFlagKeys.every((key) =>
+        Object.keys(this.previewFlags).includes(key),
+      )
+    ) {
       this.isRunning = true;
       return;
     }
@@ -374,11 +333,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param options
    */
   public applyVariants(options?: ApplyVariantsOptions) {
-    if (Object.keys(this.previewFlags).length > 0) {
-      showPreviewModeModal({
-        flags: this.previewFlags,
-      });
-    }
     const { flagKeys } = options || {};
     const variants = this.getVariants();
     if (Object.keys(variants).length === 0) {
@@ -396,7 +350,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.fireStoredRedirectImpressions();
 
     for (const key in variants) {
-      if (flagKeys && !flagKeys.includes(key)) {
+      // preview actions are handled by previewVariants
+      if ((flagKeys && !flagKeys.includes(key)) || this.previewFlags[key]) {
         continue;
       }
       const variant = variants[key];
@@ -491,6 +446,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (!variantObject) {
         return;
       }
+      if (this.isPreviewMode) {
+        this.exposureWithDedupe(key, variantObject, true);
+        showPreviewModeModal({
+          flags: this.previewFlags,
+        });
+      }
       const payload = variantObject.payload;
       if (!payload || !Array.isArray(payload)) {
         return;
@@ -561,25 +522,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public setRedirectHandler(handler: (url: string) => void) {
     this.customRedirectHandler = handler;
-  }
-
-  previewNewFlagAndVariant(
-    flagKey: string,
-    pageViewObject: PageObject,
-    variants: Record<string, Variant>,
-    variantKey: string,
-  ) {
-    const urlParams = getUrlParams();
-    if (urlParams['PREVIEW']) {
-      this.globalScope.history.replaceState(
-        {},
-        '',
-        removeQueryParams(this.globalScope.location.href, ['PREVIEW', flagKey]),
-      );
-    }
-    this.updateActivePages(flagKey, pageViewObject, true);
-    this.flagVariantMap[flagKey] = variants;
-    this.previewVariants({ keyToVariant: { [flagKey]: variantKey } });
   }
 
   private async fetchRemoteFlags() {
@@ -819,20 +761,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private applyAntiFlickerCss() {
-    if (!this.globalScope.document.getElementById('amp-exp-css')) {
-      const id = 'amp-exp-css';
-      const s = document.createElement('style');
-      s.id = id;
-      s.innerText =
-        '* { visibility: hidden !important; background-image: none !important; }';
-      document.head.appendChild(s);
-      this.globalScope.window.setTimeout(function () {
-        s.remove();
-      }, 1000);
-    }
-  }
-
   // Also used by chrome extension
   updateActivePages(flagKey: string, page: PageObject, isActive: boolean) {
     if (!this.activePages[flagKey]) {
@@ -917,6 +845,49 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }, 500);
     } else {
       removeStorageItem('sessionStorage', redirectStorageKey);
+    }
+  }
+
+  private setupPreviewMode(urlParams: Record<string, string>) {
+    // explicit URL params takes precedence over session storage
+    if (urlParams[PREVIEW_MODE_PARAM] === 'true') {
+      Object.keys(urlParams).forEach((key) => {
+        if (key !== PREVIEW_MODE_PARAM && urlParams[key]) {
+          this.previewFlags[key] = urlParams[key];
+        }
+      });
+
+      setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
+        previewFlags: this.previewFlags,
+      });
+      const previewParamsToRemove = [
+        ...Object.keys(this.previewFlags),
+        PREVIEW_MODE_PARAM,
+      ];
+      this.globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(
+          this.globalScope.location.href,
+          previewParamsToRemove,
+        ),
+      );
+      // if in preview mode, listen for ForceVariant messages
+      WindowMessenger.setup();
+    } else {
+      const previewState: PreviewState | null = getStorageItem(
+        'sessionStorage',
+        PREVIEW_MODE_SESSION_KEY,
+      );
+      if (previewState) {
+        this.previewFlags = previewState.previewFlags;
+      }
+    }
+
+    if (Object.keys(this.previewFlags).length > 0) {
+      this.isPreviewMode = true;
+    } else {
+      return;
     }
   }
 }
