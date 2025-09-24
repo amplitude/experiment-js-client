@@ -71,12 +71,10 @@ describe('UserSessionExposureTracker', () => {
 
     const exposure: Exposure = { flag_key: 'flag', variant: 'variant' };
 
-    // Start with no user context
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure);
     }
 
-    // Change to user with userId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { user_id: 'uid' });
     }
@@ -91,12 +89,10 @@ describe('UserSessionExposureTracker', () => {
 
     const exposure: Exposure = { flag_key: 'flag', variant: 'variant' };
 
-    // Start with no user context
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure);
     }
 
-    // Change to user with deviceId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { device_id: 'did' });
     }
@@ -111,12 +107,10 @@ describe('UserSessionExposureTracker', () => {
 
     const exposure: Exposure = { flag_key: 'flag', variant: 'variant' };
 
-    // Start with userId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { user_id: 'uid' });
     }
 
-    // Change to no user context
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure);
     }
@@ -131,12 +125,10 @@ describe('UserSessionExposureTracker', () => {
 
     const exposure: Exposure = { flag_key: 'flag', variant: 'variant' };
 
-    // Start with deviceId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { device_id: 'did' });
     }
 
-    // Change to no user context
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure);
     }
@@ -151,12 +143,10 @@ describe('UserSessionExposureTracker', () => {
 
     const exposure: Exposure = { flag_key: 'flag', variant: 'variant' };
 
-    // Start with first userId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { user_id: 'uid' });
     }
 
-    // Change to different userId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { user_id: 'uid2' });
     }
@@ -171,12 +161,10 @@ describe('UserSessionExposureTracker', () => {
 
     const exposure: Exposure = { flag_key: 'flag', variant: 'variant' };
 
-    // Start with first deviceId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { device_id: 'did' });
     }
 
-    // Change to different deviceId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { device_id: 'did2' });
     }
@@ -191,12 +179,10 @@ describe('UserSessionExposureTracker', () => {
 
     const exposure: Exposure = { flag_key: 'flag', variant: 'variant' };
 
-    // Start with no user context
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure);
     }
 
-    // Change to user with both userId and deviceId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { user_id: 'uid', device_id: 'did' });
     }
@@ -211,12 +197,10 @@ describe('UserSessionExposureTracker', () => {
 
     const exposure: Exposure = { flag_key: 'flag', variant: 'variant' };
 
-    // Start with both userId and deviceId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { user_id: 'uid', device_id: 'did' });
     }
 
-    // Change to no user context
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure);
     }
@@ -231,12 +215,10 @@ describe('UserSessionExposureTracker', () => {
 
     const exposure: Exposure = { flag_key: 'flag', variant: 'variant' };
 
-    // Start with first userId and deviceId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { user_id: 'uid', device_id: 'did' });
     }
 
-    // Change to different userId and deviceId
     for (let i = 0; i <= 10; i++) {
       tracker.track(exposure, { user_id: 'uid2', device_id: 'did2' });
     }
