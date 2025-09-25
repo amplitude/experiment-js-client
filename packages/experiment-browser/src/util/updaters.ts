@@ -57,6 +57,10 @@ function isErrorRetriable(e: Error | ErrorEvent): boolean {
 export class VariantsStreamUpdater implements VariantUpdater {
   private evaluationApi: StreamEvaluationApi;
   private hasNonretriableError = false;
+  private streamOk = false;
+  private lastParams: {user: ExperimentUser, options: GetVariantsOptions} | undefined;
+  private onUpdate: VariantUpdateCallback | undefined;
+  private onError: VariantErrorCallback | undefined;
 
   constructor(evaluationApi: StreamEvaluationApi) {
     this.evaluationApi = evaluationApi;
@@ -70,17 +74,32 @@ export class VariantsStreamUpdater implements VariantUpdater {
     if (this.hasNonretriableError) {
       throw new Error('Stream updater has non-retriable error, not starting');
     }
+    const {user, options} = params;
+    
+    if (this.streamOk && JSON.stringify(this.lastParams?.user) === JSON.stringify(user) && JSON.stringify(this.lastParams?.options) === JSON.stringify(options)) {
+      this.onUpdate = onUpdate;
+      this.onError = onError;
+      return;
+    }
     await this.stop();
+
+    this.onUpdate = onUpdate;
+    this.onError = onError;
     try {
       await this.evaluationApi.streamVariants(
-        params.user,
-        params.options,
-        onUpdate,
+        user,
+        options,
+        (data) => {
+          this.onUpdate?.(data);
+        },
         async (error) => {
+          const onError = this.onError;
           await this.handleError(error);
-          onError(error);
+          onError?.(error);
         },
       );
+      this.streamOk = true;
+      this.lastParams = {user, options};
     } catch (error) {
       console.error(
         '[Experiment] Stream updater failed to start: ' +
@@ -103,7 +122,10 @@ export class VariantsStreamUpdater implements VariantUpdater {
   }
 
   async stop(): Promise<void> {
+    this.streamOk = false;
     await this.evaluationApi.close();
+    this.onUpdate = undefined;
+    this.onError = undefined;
   }
 }
 

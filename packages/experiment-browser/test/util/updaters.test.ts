@@ -94,6 +94,66 @@ describe('VariantsStreamUpdater tests', () => {
     expect(mockStreamApi.close).toHaveBeenCalledTimes(2); // Close called again on error.
     expect(updater['hasNonretriableError']).toBe(false);
   });
+
+  test('connect success then re-start with same params, should not reconnect', async () => {
+    const mockStreamApi = {
+      streamVariants: jest.fn(),
+      close: jest.fn(),
+    };
+    const updater = new VariantsStreamUpdater(mockStreamApi);
+    const onUpdate = jest.fn();
+    await updater.start(onUpdate, jest.fn(), {
+      user: {},
+      config: {},
+      options: {},
+    });
+    expect(mockStreamApi.streamVariants).toHaveBeenCalledTimes(1);
+    mockStreamApi.streamVariants.mock.lastCall[2]({ 'test-flag': {} });
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(mockStreamApi.close).toHaveBeenCalledTimes(1);
+
+    const onUpdate2 = jest.fn();
+    await updater.start(onUpdate2, jest.fn(), {
+      user: {},
+      config: {},
+      options: {},
+    });
+    expect(mockStreamApi.streamVariants).toHaveBeenCalledTimes(1);
+    mockStreamApi.streamVariants.mock.lastCall[2]({ 'test-flag': {} });
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate2).toHaveBeenCalledTimes(1);
+    expect(mockStreamApi.close).toHaveBeenCalledTimes(1);
+  });
+
+  test('connect success then params change, should reconnect', async () => {
+    const mockStreamApi = {
+      streamVariants: jest.fn(),
+      close: jest.fn(),
+    };
+    const updater = new VariantsStreamUpdater(mockStreamApi);
+    const onUpdate = jest.fn();
+    await updater.start(onUpdate, jest.fn(), {
+      user: {},
+      config: {},
+      options: {},
+    });
+    expect(mockStreamApi.streamVariants).toHaveBeenCalledTimes(1);
+    mockStreamApi.streamVariants.mock.lastCall[2]({ 'test-flag': {} });
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(mockStreamApi.close).toHaveBeenCalledTimes(1);
+
+    const onUpdate2 = jest.fn();
+    await updater.start(onUpdate2, jest.fn(), {
+      user: {user_id: '123'},
+      config: {},
+      options: {},
+    });
+    expect(mockStreamApi.streamVariants).toHaveBeenCalledTimes(2);
+    mockStreamApi.streamVariants.mock.lastCall[2]({ 'test-flag': {} });
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate2).toHaveBeenCalledTimes(1);
+    expect(mockStreamApi.close).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('VariantsFetchUpdater tests', () => {

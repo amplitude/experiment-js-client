@@ -31,6 +31,7 @@ if (!process.env['MANAGEMENT_API_KEY']) {
 }
 
 const SERVER_URL = process.env['SERVER_URL'] || Defaults.serverUrl;
+// const FLAGS_SERVER_URL = process.env['FLAGS_SERVER_URL'] || Defaults.flagsServerUrl;
 const STREAM_SERVER_URL =
   process.env['STREAM_SERVER_URL'] || Defaults.streamVariantsServerUrl;
 const MANAGEMENT_API_SERVER_URL =
