@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.17.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.16.2...@amplitude/experiment-js-client@1.17.0) (2025-09-26)
+
+
+### Features
+
+* invalidate exposure cache on user identity change ([#216](https://github.com/amplitude/experiment-js-client/issues/216)) ([0a47b35](https://github.com/amplitude/experiment-js-client/commit/0a47b350bb4c09e541fc3795191d648524f8ffdb))
+
+
+
+
+
 ## [1.16.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.16.1...@amplitude/experiment-js-client@1.16.2) (2025-07-28)
 
 
