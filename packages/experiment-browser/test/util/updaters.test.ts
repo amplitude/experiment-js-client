@@ -103,7 +103,7 @@ describe('VariantsStreamUpdater tests', () => {
     const updater = new VariantsStreamUpdater(mockStreamApi);
     const onUpdate = jest.fn();
     await updater.start(onUpdate, jest.fn(), {
-      user: {},
+      user: {user_id: "b", device_id: "c"},
       config: {},
       options: {},
     });
@@ -114,7 +114,7 @@ describe('VariantsStreamUpdater tests', () => {
 
     const onUpdate2 = jest.fn();
     await updater.start(onUpdate2, jest.fn(), {
-      user: {},
+      user: {device_id: "c", user_id: "b"},
       config: {},
       options: {},
     });

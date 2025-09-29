@@ -12,6 +12,7 @@ import { FetchOptions } from '../types/client';
 import { ExperimentUser } from '../types/user';
 
 import { Backoff } from './backoff';
+import { isEqual } from './equals';
 
 export interface Updater {
   start(
@@ -76,7 +77,7 @@ export class VariantsStreamUpdater implements VariantUpdater {
     }
     const {user, options} = params;
     
-    if (this.streamOk && JSON.stringify(this.lastParams?.user) === JSON.stringify(user) && JSON.stringify(this.lastParams?.options) === JSON.stringify(options)) {
+    if (this.streamOk && isEqual(this.lastParams?.user, user) && isEqual(this.lastParams?.options, options)) {
       this.onUpdate = onUpdate;
       this.onError = onError;
       return;
