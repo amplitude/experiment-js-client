@@ -135,6 +135,11 @@ export class SubscriptionManager {
                 });
               }
               this.webExperimentClient.applyVariants();
+              if (this.webExperimentClient.isPreviewMode) {
+                this.webExperimentClient.previewVariants({
+                  keyToVariant: this.webExperimentClient.previewFlags,
+                });
+              }
             }
 
             const activePages = this.webExperimentClient.getActivePages();
