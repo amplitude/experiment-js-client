@@ -40,6 +40,7 @@ import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
 import { ConsentAwareStorage } from './util/storage';
+import { ConsentAwareExposureHandler } from './util/consent-aware-exposure-handler';
 import {
   getUrlParams,
   removeQueryParams,
@@ -105,6 +106,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     status: ConsentStatus.GRANTED,
   };
   private storage: ConsentAwareStorage;
+  private consentAwareExposureHandler: ConsentAwareExposureHandler;
 
   constructor(
     apiKey: string,
@@ -136,6 +138,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Initialize consent-aware storage
     this.storage = new ConsentAwareStorage(this.consentOptions.status);
 
+    // Initialize consent-aware exposure handler
+    this.consentAwareExposureHandler = new ConsentAwareExposureHandler(
+      this.consentOptions.status,
+      this.config.exposureTrackingProvider,
+    );
+
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
 
@@ -164,6 +172,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       fetchOnStart: false,
       automaticExposureTracking: false,
       ...this.config,
+      exposureTrackingProvider: this.consentAwareExposureHandler,
     });
     // Get all the locally available flag keys from the SDK.
     const variants = this.experimentClient.all();
@@ -538,6 +547,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.consentOptions.status = consentStatus;
     // Update storage consent status to handle persistence behavior
     this.storage.setConsentStatus(consentStatus);
+    this.consentAwareExposureHandler.setConsentStatus(consentStatus);
   }
 
   private async fetchRemoteFlags() {
