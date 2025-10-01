@@ -97,9 +97,7 @@ jobs:
         run: |
           UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/experiment-tag/" || true)
           if [ -n "$UPDATED_PACKAGES" ]; then
-            echo "experiment_tag_updated=true" >> $GITHUB_OUTPUT
-          else
-            echo "experiment_tag_updated=false" >> $GITHUB_OUTPUT
+            echo "UPLOAD_PACKAGES=${UPLOAD_PACKAGES:+$UPLOAD_PACKAGES,}tag" >> $GITHUB_ENV
           fi
 
       # Check if experiment-plugin-segment was updated
@@ -109,9 +107,17 @@ jobs:
         run: |
           UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/plugin-segment/" || true)
           if [ -n "$UPDATED_PACKAGES" ]; then
-            echo "experiment_plugin_updated=true" >> $GITHUB_OUTPUT
-          else
-            echo "experiment_plugin_updated=false" >> $GITHUB_OUTPUT
+            echo "UPLOAD_PACKAGES=${UPLOAD_PACKAGES:+$UPLOAD_PACKAGES,}segment-plugin" >> $GITHUB_ENV
+          fi
+
+      # Check if experiment-browser was updated
+      - name: Check if experiment-browser was updated
+        id: check-experiment-browser
+        if: ${{ github.event.inputs.dryRun == 'false'}}
+        run: |
+          UPDATED_PACKAGES=$(git diff --name-only HEAD~1 HEAD | grep "packages/experiment-browser/" || true)
+          if [ -n "$UPDATED_PACKAGES" ]; then
+            echo "UPLOAD_PACKAGES=${UPLOAD_PACKAGES:+$UPLOAD_PACKAGES,}browser" >> $GITHUB_ENV
           fi
 
       - name: Install AWS SDK dependencies
@@ -119,7 +125,7 @@ jobs:
 
       # Configure AWS credentials for S3 upload
       - name: Configure AWS Credentials
-        if: ${{ github.event.inputs.dryRun == 'false' && (steps.check-experiment-tag.outputs.experiment_tag_updated == 'true' || steps.check-experiment-plugin.outputs.experiment_plugin_updated == 'true') }}
+        if: ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != '' }}
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -127,8 +133,8 @@ jobs:
 
       # Upload experiment packages to S3 after version and docs are updated
       - name: Upload experiment packages to S3
-        if: ${{ github.event.inputs.dryRun == 'false' && (steps.check-experiment-tag.outputs.experiment_tag_updated == 'true' || steps.check-experiment-plugin.outputs.experiment_plugin_updated == 'true') }}
+        if: ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != '' }}
         env:
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
-          PACKAGES: ${{ steps.check-experiment-tag.outputs.experiment_tag_updated == 'true' && steps.check-experiment-plugin.outputs.experiment_plugin_updated == 'true' && 'tag,segment-plugin' || steps.check-experiment-tag.outputs.experiment_tag_updated == 'true' && 'tag' || 'segment-plugin' }}
+          PACKAGES: ${{ env.UPLOAD_PACKAGES }}
         run: node scripts/upload-to-s3.js
