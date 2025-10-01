@@ -17,6 +17,7 @@ import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
+import { ConsentAwareStorage } from './storage/storage';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   ConsentOptions,
@@ -39,7 +40,6 @@ import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
-import { ConsentAwareStorage } from './storage/storage';
 import {
   getUrlParams,
   removeQueryParams,

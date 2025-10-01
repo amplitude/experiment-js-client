@@ -136,15 +136,15 @@ export class ConsentAwareStorage {
    */
   public removeItem(storageType: StorageType, key: string): void {
     const storageMap = this.inMemoryStorage.get(storageType);
+    if (this.consentStatus === ConsentStatus.GRANTED) {
+      removeStorageItem(storageType, key);
+      return;
+    }
     if (storageMap) {
       storageMap.delete(key);
       if (storageMap.size === 0) {
         this.inMemoryStorage.delete(storageType);
       }
-    }
-
-    if (this.consentStatus === ConsentStatus.GRANTED) {
-      removeStorageItem(storageType, key);
     }
   }
 }
