@@ -55,6 +55,15 @@ const availablePackages = {
         file: 'experiment-browser.min.js.gz',
         gzipped: true,
       },
+  'chrome-extension': {
+    name: 'experiment-tag-latest-chrome-ext-v1',
+    packagePath: '../packages/experiment-tag/package.json',
+    distPath: 'packages/experiment-tag/dist',
+    files: [
+      {
+        file: 'experiment-tag-min.js',
+        gzipped: false,
+      },
     ],
   },
 };
@@ -120,7 +129,11 @@ const allPromises = packagesToUpload.flatMap((packageConfig) => {
       const body = fs.readFileSync(filePath);
 
       // Create the key with version and optional branch name
-      let fileName = `${packageConfig.name}-${version}`;
+      let fileName = `${packageConfig.name}`;
+      if (packageConfig.name !== availablePackages['chrome-extension'].name) {
+        // chrome extension is not versioned
+        fileName += `-${version}`;
+      }
       if (branchName) {
         fileName += `-${branchName}`;
       }

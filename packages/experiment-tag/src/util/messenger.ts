@@ -33,7 +33,10 @@ export class WindowMessenger {
       (
         e: MessageEvent<{
           type: string;
-          context: { injectSrc: string; amplitudeWindowUrl: string };
+          context: {
+            injectSrc: string;
+            amplitudeWindowUrl: string;
+          };
         }>,
       ) => {
         const match = /^.*\.amplitude\.com$/;
@@ -46,7 +49,6 @@ export class WindowMessenger {
           // new URL(e.origin) can throw.
           return;
         }
-
         if (e.data.type === 'OpenOverlay') {
           if (
             state !== 'closed' ||

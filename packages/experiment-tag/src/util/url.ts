@@ -1,5 +1,9 @@
-import { EvaluationVariant, getGlobalScope } from '@amplitude/experiment-core';
-import { Variant } from '@amplitude/experiment-js-client';
+import { getGlobalScope } from '@amplitude/experiment-core';
+
+import { PREVIEW_MODE_PARAM, PREVIEW_MODE_SESSION_KEY } from '../experiment';
+import { PreviewState } from '../types';
+
+import { getStorageItem } from './storage';
 
 export const getUrlParams = (): Record<string, string> => {
   const globalScope = getGlobalScope();
@@ -25,11 +29,28 @@ export const removeQueryParams = (
   url: string,
   paramsToRemove: string[],
 ): string => {
-  const urlObj = new URL(url);
-  for (const param of paramsToRemove) {
-    urlObj.searchParams.delete(param);
+  const hashIndex = url.indexOf('#');
+  const hasHashPath =
+    hashIndex !== -1 && url.substring(hashIndex + 1).startsWith('/');
+
+  if (!hasHashPath) {
+    const urlObj = new URL(url);
+    for (const param of paramsToRemove) {
+      urlObj.searchParams.delete(param);
+    }
+    return urlObj.toString();
   }
-  return urlObj.toString();
+
+  // Hash-based routing handling
+  const [urlWithoutHash, hash] = url.split('#');
+  const hashObj = new URL(`http://dummy.com/${hash}`);
+
+  for (const param of paramsToRemove) {
+    hashObj.searchParams.delete(param);
+  }
+
+  const newHash = hashObj.pathname.substring(1) + hashObj.search;
+  return `${urlWithoutHash}#${newHash}`;
 };
 
 export const matchesUrl = (urlArray: string[], urlString: string): boolean => {
@@ -62,4 +83,21 @@ export const concatenateQueryParamsOf = (
   });
 
   return resultUrlObj.toString();
+};
+
+export const isPreviewMode = (): boolean => {
+  if (getUrlParams()[PREVIEW_MODE_PARAM] === 'true') {
+    return true;
+  }
+  const previewState = getStorageItem(
+    'sessionStorage',
+    PREVIEW_MODE_SESSION_KEY,
+  ) as PreviewState;
+  if (
+    previewState?.previewFlags &&
+    Object.keys(previewState.previewFlags).length > 0
+  ) {
+    return true;
+  }
+  return false;
 };

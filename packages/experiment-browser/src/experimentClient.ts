@@ -52,7 +52,7 @@ import {
   convertVariant,
 } from './util/convert';
 import { SessionAnalyticsProvider } from './util/sessionAnalyticsProvider';
-import { SessionExposureTrackingProvider } from './util/sessionExposureTrackingProvider';
+import { UserSessionExposureTracker } from './util/userSessionExposureTracker';
 
 // Configs which have been removed from the public API.
 // May be added back in the future.
@@ -82,7 +82,7 @@ export class ExperimentClient implements Client {
   private readonly engine: EvaluationEngine = new EvaluationEngine();
   private user: ExperimentUser | undefined;
   private userProvider: ExperimentUserProvider | undefined;
-  private exposureTrackingProvider: ExposureTrackingProvider | undefined;
+  private userSessionExposureTracker: UserSessionExposureTracker | undefined;
   private retriesBackoff: Backoff | undefined;
   private poller: Poller;
   private isRunning = false;
@@ -151,7 +151,7 @@ export class ExperimentClient implements Client {
       );
     }
     if (this.config.exposureTrackingProvider) {
-      this.exposureTrackingProvider = new SessionExposureTrackingProvider(
+      this.userSessionExposureTracker = new UserSessionExposureTracker(
         this.config.exposureTrackingProvider,
       );
     }
@@ -913,7 +913,8 @@ export class ExperimentClient implements Client {
         }
       }
     }
-    this.exposureTrackingProvider?.track(exposure);
+    const user = this.addContext(this.getUser());
+    this.userSessionExposureTracker?.track(exposure, user);
     this.integrationManager.track(exposure);
   }
 
