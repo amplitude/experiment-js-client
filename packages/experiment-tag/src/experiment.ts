@@ -39,7 +39,7 @@ import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
-import { ConsentAwareStorage } from './util/storage';
+import { ConsentAwareStorage } from './storage/storage';
 import {
   getUrlParams,
   removeQueryParams,

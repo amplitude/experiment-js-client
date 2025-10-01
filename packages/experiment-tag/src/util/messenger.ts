@@ -1,6 +1,6 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import { getStorageItem } from './storage';
+import { getStorageItem } from '../storage/storage';
 
 interface VisualEditorSession {
   injectSrc: string;

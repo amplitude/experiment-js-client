@@ -84,26 +84,20 @@ export class ConsentAwareStorage {
    * Set the consent status and handle persistence accordingly
    */
   public setConsentStatus(consentStatus: ConsentStatus): void {
-    const previousStatus = this.consentStatus;
     this.consentStatus = consentStatus;
 
-    if (previousStatus === ConsentStatus.PENDING) {
-      if (consentStatus === ConsentStatus.GRANTED) {
-        for (const [
-          storageType,
-          storageMap,
-        ] of this.inMemoryStorage.entries()) {
-          for (const [key, value] of storageMap.entries()) {
-            try {
-              const jsonString = JSON.stringify(value);
-              getStorage(storageType)?.setItem(key, jsonString);
-            } catch (error) {
-              console.warn(`Failed to persist data for key ${key}:`, error);
-            }
+    if (consentStatus === ConsentStatus.GRANTED) {
+      for (const [storageType, storageMap] of this.inMemoryStorage.entries()) {
+        for (const [key, value] of storageMap.entries()) {
+          try {
+            const jsonString = JSON.stringify(value);
+            getStorage(storageType)?.setItem(key, jsonString);
+          } catch (error) {
+            console.warn(`Failed to persist data for key ${key}:`, error);
           }
         }
-        this.inMemoryStorage.clear();
       }
+      this.inMemoryStorage.clear();
     }
   }
 
@@ -111,13 +105,13 @@ export class ConsentAwareStorage {
    * Get a JSON value from storage with consent awareness
    */
   public getItem<T>(storageType: StorageType, key: string): T | null {
+    if (this.consentStatus === ConsentStatus.GRANTED) {
+      return getStorageItem(storageType, key);
+    }
+
     const storageMap = this.inMemoryStorage.get(storageType);
     if (storageMap && storageMap.has(key)) {
       return storageMap.get(key) as T;
-    }
-
-    if (this.consentStatus === ConsentStatus.GRANTED) {
-      return getStorageItem(storageType, key);
     }
 
     return null;
