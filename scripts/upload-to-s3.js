@@ -55,6 +55,8 @@ const availablePackages = {
         file: 'experiment-browser.min.js.gz',
         gzipped: true,
       },
+    ],
+  },
   'chrome-extension': {
     name: 'experiment-tag-latest-chrome-ext-v1',
     packagePath: '../packages/experiment-tag/package.json',
