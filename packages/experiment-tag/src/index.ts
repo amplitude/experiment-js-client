@@ -3,7 +3,7 @@ import { getGlobalScope } from '@amplitude/experiment-core';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
-import { WebExperimentConfig } from './types';
+import { ConsentStatus, WebExperimentConfig } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { isPreviewMode } from './util/url';
 
@@ -13,6 +13,12 @@ export const initialize = (
   pageObjects: string,
   config: WebExperimentConfig,
 ): void => {
+  if (
+    getGlobalScope()?.globalScope.experimentConfig.consentOptions.status ===
+    ConsentStatus.REJECTED
+  ) {
+    return;
+  }
   const shouldFetchConfigs =
     isPreviewMode() || getGlobalScope()?.WebExperiment.injectedByExtension;
 
