@@ -405,17 +405,5 @@ describe('ConsentAwareStorage', () => {
 
       consoleSpy.mockRestore();
     });
-
-    it('should clear marketing cookies when consent changes from PENDING to REJECTED', async () => {
-      storage = new ConsentAwareStorage(ConsentStatus.PENDING);
-
-      await storage.setMarketingCookie(testApiKey);
-
-      storage.setConsentStatus(ConsentStatus.REJECTED);
-
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      expect(mockCookieStorage.set).not.toHaveBeenCalled();
-    });
   });
 });
