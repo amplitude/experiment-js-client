@@ -102,7 +102,6 @@ export class ConsentAwareStorage {
       }
       this.inMemoryStorage.clear();
       this.persistMarketingCookies().then();
-      this.inMemoryMarketingCookies.clear();
     }
   }
 

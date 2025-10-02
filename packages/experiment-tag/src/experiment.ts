@@ -591,9 +591,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    this.storage.setMarketingCookie(this.apiKey).catch((error) => {
-      console.warn('Failed to set marketing cookie:', error);
-    });
+    this.storage.setMarketingCookie(this.apiKey).then();
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
