@@ -17,6 +17,7 @@ import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
+import { ConsentAwareStorage } from './storage/consent-aware-storage';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   ConsentOptions,
@@ -35,7 +36,6 @@ import {
   RevertVariantsOptions,
 } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
-import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
@@ -135,7 +135,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.consentOptions = this.config.consentOptions;
     }
 
-    // Initialize consent-aware storage
     this.storage = new ConsentAwareStorage(this.consentOptions.status);
 
     // Initialize consent-aware exposure handler
@@ -604,7 +603,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    setMarketingCookie(this.apiKey).then();
+    this.storage.setMarketingCookie(this.apiKey).then();
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
