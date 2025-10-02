@@ -1,3 +1,4 @@
+import { CampaignParser, CookieStorage } from '@amplitude/analytics-core';
 import * as experimentCore from '@amplitude/experiment-core';
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
@@ -26,6 +27,20 @@ jest.mock('src/util/messenger', () => {
     },
   };
 });
+
+jest.mock('@amplitude/analytics-core', () => ({
+  ...jest.requireActual('@amplitude/analytics-core'),
+  CampaignParser: jest.fn(),
+  CookieStorage: jest.fn(),
+  MKTG: 'MKTG',
+}));
+
+const MockCampaignParser = CampaignParser as jest.MockedClass<
+  typeof CampaignParser
+>;
+const MockCookieStorage = CookieStorage as jest.MockedClass<
+  typeof CookieStorage
+>;
 
 const newMockGlobal = (overrides?: Record<string, unknown>) => {
   const createStorageMock = () => {
@@ -1359,6 +1374,135 @@ describe('initializeExperiment', () => {
       );
 
       expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('marketing cookie with different consent status', () => {
+    let mockCampaignParser: any;
+    let mockCookieStorage: any;
+    const mockCampaign = { utm_source: 'test', utm_medium: 'test' };
+
+    beforeEach(() => {
+      mockCampaignParser = {
+        parse: jest.fn().mockResolvedValue(mockCampaign),
+      };
+      mockCookieStorage = {
+        set: jest.fn().mockResolvedValue(undefined),
+      };
+
+      MockCampaignParser.mockImplementation(() => mockCampaignParser);
+      MockCookieStorage.mockImplementation(() => mockCookieStorage);
+    });
+
+    it('should set marketing cookie directly during redirect when consent is GRANTED', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/2',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+        'http://test.com/2',
+      );
+
+      expect(MockCampaignParser).toHaveBeenCalledTimes(1);
+      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(1);
+      expect(MockCookieStorage).toHaveBeenCalledWith({ sameSite: 'Lax' });
+      expect(mockCookieStorage.set).toHaveBeenCalledWith(
+        `AMP_MKTG_ORIGINAL_${stringify(apiKey).substring(0, 10)}`,
+        mockCampaign,
+      );
+    });
+
+    it('should store marketing cookie in memory during redirect when consent is PENDING', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/2',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+        'http://test.com/2',
+      );
+
+      expect(MockCampaignParser).toHaveBeenCalledTimes(1);
+      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(1);
+      expect(MockCookieStorage).not.toHaveBeenCalled();
+      expect(mockCookieStorage.set).not.toHaveBeenCalled();
+    });
+
+    it('should not set marketing cookie during redirect when consent is REJECTED', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.REJECTED,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/2',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+        'http://test.com/2',
+      );
+
+      expect(MockCampaignParser).toHaveBeenCalledTimes(1);
+      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(1);
+      expect(MockCookieStorage).not.toHaveBeenCalled();
+      expect(mockCookieStorage.set).not.toHaveBeenCalled();
     });
   });
 
