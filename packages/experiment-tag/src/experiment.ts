@@ -36,11 +36,10 @@ import {
   RevertVariantsOptions,
 } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
+import { ConsentAwareExposureHandler } from './util/consent-aware-exposure-handler';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
-import { ConsentAwareStorage } from './util/storage';
-import { ConsentAwareExposureHandler } from './util/consent-aware-exposure-handler';
 import {
   getUrlParams,
   removeQueryParams,
