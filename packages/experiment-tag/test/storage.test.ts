@@ -1,10 +1,24 @@
+import { CampaignParser, CookieStorage } from '@amplitude/analytics-core';
 import * as coreUtil from '@amplitude/experiment-core';
 
 import { ConsentAwareStorage } from '../src/storage/storage';
 import { ConsentStatus } from '../src/types';
 
-// Mock the getGlobalScope function
 const spyGetGlobalScope = jest.spyOn(coreUtil, 'getGlobalScope');
+
+// Mock CampaignParser and CookieStorage
+jest.mock('@amplitude/analytics-core', () => ({
+  CampaignParser: jest.fn(),
+  CookieStorage: jest.fn(),
+  MKTG: 'MKTG',
+}));
+
+const MockCampaignParser = CampaignParser as jest.MockedClass<
+  typeof CampaignParser
+>;
+const MockCookieStorage = CookieStorage as jest.MockedClass<
+  typeof CookieStorage
+>;
 
 describe('ConsentAwareStorage', () => {
   let mockGlobal: any;
@@ -110,18 +124,20 @@ describe('ConsentAwareStorage', () => {
       storage = new ConsentAwareStorage(ConsentStatus.REJECTED);
     });
 
-    it('should not store data anywhere', () => {
-      storage.setItem('localStorage', 'testKey', { key: 'value' });
+    it('should store data in memory but not in actual storage', () => {
+      const testData = { key: 'value' };
+      storage.setItem('localStorage', 'testKey', testData);
 
       expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
-      expect(storage.getItem('localStorage', 'testKey')).toBeNull();
+      expect(storage.getItem('localStorage', 'testKey')).toEqual(testData);
     });
 
-    it('should not store data in sessionStorage', () => {
-      storage.setItem('sessionStorage', 'testKey', { key: 'value' });
+    it('should store data in memory for sessionStorage but not in actual storage', () => {
+      const testData = { key: 'value' };
+      storage.setItem('sessionStorage', 'testKey', testData);
 
       expect(mockGlobal.sessionStorage.setItem).not.toHaveBeenCalled();
-      expect(storage.getItem('sessionStorage', 'testKey')).toBeNull();
+      expect(storage.getItem('sessionStorage', 'testKey')).toEqual(testData);
     });
   });
 
@@ -171,8 +187,17 @@ describe('ConsentAwareStorage', () => {
       storage = new ConsentAwareStorage(ConsentStatus.REJECTED);
     });
 
-    it('should return null and not access actual storage', () => {
+    it('should return data from memory and not access actual storage', () => {
+      const testData = { key: 'value' };
+      storage.setItem('localStorage', 'testKey', testData);
+
       const retrieved = storage.getItem('localStorage', 'testKey');
+      expect(retrieved).toEqual(testData);
+      expect(mockGlobal.localStorage.getItem).not.toHaveBeenCalled();
+    });
+
+    it('should return null for non-existent keys', () => {
+      const retrieved = storage.getItem('localStorage', 'nonExistentKey');
       expect(retrieved).toBeNull();
       expect(mockGlobal.localStorage.getItem).not.toHaveBeenCalled();
     });
@@ -281,6 +306,116 @@ describe('ConsentAwareStorage', () => {
       storage.setConsentStatus(ConsentStatus.REJECTED);
 
       expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setMarketingCookie', () => {
+    let mockCampaignParser: any;
+    let mockCookieStorage: any;
+    const mockCampaign = { utm_source: 'test', utm_medium: 'test' };
+    const testApiKey = 'test-api-key-1234567890';
+
+    beforeEach(() => {
+      mockCampaignParser = {
+        parse: jest.fn().mockResolvedValue(mockCampaign),
+      };
+      mockCookieStorage = {
+        set: jest.fn().mockResolvedValue(undefined),
+      };
+
+      MockCampaignParser.mockImplementation(() => mockCampaignParser);
+      MockCookieStorage.mockImplementation(() => mockCookieStorage);
+    });
+
+    it('should set marketing cookie directly when consent is GRANTED', async () => {
+      storage = new ConsentAwareStorage(ConsentStatus.GRANTED);
+
+      await storage.setMarketingCookie(testApiKey);
+
+      expect(MockCampaignParser).toHaveBeenCalledTimes(1);
+      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(1);
+      expect(MockCookieStorage).toHaveBeenCalledWith({ sameSite: 'Lax' });
+      expect(mockCookieStorage.set).toHaveBeenCalledWith(
+        'AMP_MKTG_ORIGINAL_test-api-k',
+        mockCampaign,
+      );
+    });
+
+    it('should store marketing cookie in memory when consent is PENDING', async () => {
+      storage = new ConsentAwareStorage(ConsentStatus.PENDING);
+
+      await storage.setMarketingCookie(testApiKey);
+
+      expect(MockCampaignParser).toHaveBeenCalledTimes(1);
+      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(1);
+      expect(MockCookieStorage).not.toHaveBeenCalled();
+      expect(mockCookieStorage.set).not.toHaveBeenCalled();
+    });
+
+    it('should persist marketing cookies when consent changes from PENDING to GRANTED', async () => {
+      storage = new ConsentAwareStorage(ConsentStatus.PENDING);
+
+      // Set marketing cookie while consent is pending
+      await storage.setMarketingCookie(testApiKey);
+      expect(mockCookieStorage.set).not.toHaveBeenCalled();
+
+      // Change consent to granted
+      storage.setConsentStatus(ConsentStatus.GRANTED);
+
+      // Wait for async persistence to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(MockCookieStorage).toHaveBeenCalledWith({ sameSite: 'Lax' });
+      expect(mockCookieStorage.set).toHaveBeenCalledWith(
+        'AMP_MKTG_ORIGINAL_test-api-k',
+        mockCampaign,
+      );
+    });
+
+    it('should handle marketing cookie errors gracefully', async () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const error = new Error('Cookie error');
+      mockCookieStorage.set.mockRejectedValue(error);
+
+      storage = new ConsentAwareStorage(ConsentStatus.GRANTED);
+
+      await storage.setMarketingCookie(testApiKey);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to set marketing cookie:',
+        error,
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle campaign parser errors gracefully', async () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const error = new Error('Parser error');
+      mockCampaignParser.parse.mockRejectedValue(error);
+
+      storage = new ConsentAwareStorage(ConsentStatus.GRANTED);
+
+      await storage.setMarketingCookie(testApiKey);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to set marketing cookie:',
+        error,
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should clear marketing cookies when consent changes from PENDING to REJECTED', async () => {
+      storage = new ConsentAwareStorage(ConsentStatus.PENDING);
+
+      await storage.setMarketingCookie(testApiKey);
+
+      storage.setConsentStatus(ConsentStatus.REJECTED);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(mockCookieStorage.set).not.toHaveBeenCalled();
     });
   });
 });

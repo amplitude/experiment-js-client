@@ -3,6 +3,7 @@ import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
 import { DefaultWebExperimentClient } from 'src/experiment';
+import { ConsentStatus } from 'src/types';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
 import * as uuid from 'src/util/uuid';
 import { stringify } from 'ts-jest';
@@ -1226,6 +1227,144 @@ describe('initializeExperiment', () => {
 
     // Verify sessionStorage was cleared
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
+  });
+
+  describe('consent status initialization and storage persistence', () => {
+    let mockConsentAwareStorage: any;
+
+    beforeEach(() => {
+      // Mock ConsentAwareStorage
+      mockConsentAwareStorage = {
+        setItem: jest.fn(),
+        getItem: jest.fn(),
+        removeItem: jest.fn(),
+        setConsentStatus: jest.fn(),
+      };
+    });
+
+    it('should initialize experiment with PENDING consent and store data in memory only', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      expect(mockExposure).toHaveBeenCalledWith('test');
+
+      // With PENDING consent, data should be stored in memory only, not in actual localStorage
+      expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should initialize experiment with GRANTED consent and store data directly in actual storage', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      expect(mockExposure).toHaveBeenCalledWith('test');
+      expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
+        'EXP_' + stringify(apiKey),
+        JSON.stringify({ web_exp_id: 'mock' }),
+      );
+    });
+
+    it('should handle consent status change from PENDING to GRANTED during experiment lifecycle', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      expect(mockExposure).toHaveBeenCalledWith('test');
+
+      // Clear any previous localStorage calls from start()
+      jest.clearAllMocks();
+
+      // Change consent status to GRANTED
+      client.setConsentStatus(ConsentStatus.GRANTED);
+
+      // Trigger some action that would cause storage operations
+      client.applyVariants();
+
+      // Verify that previously stored data is now persisted to actual storage
+      expect(mockGlobal.localStorage.setItem).toHaveBeenCalled();
+    });
+
+    it('should handle consent status change from PENDING to REJECTED during experiment lifecycle', () => {
+      // Start with PENDING consent
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+      client.start();
+
+      expect(mockExposure).toHaveBeenCalledWith('test');
+
+      // Clear any previous localStorage calls from start()
+      jest.clearAllMocks();
+
+      client.setConsentStatus(ConsentStatus.REJECTED);
+
+      const experimentStorageKey = `EXP_${stringify(apiKey).slice(0, 10)}`;
+      expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalledWith(
+        experimentStorageKey,
+        expect.stringContaining('web_exp_id'),
+      );
+
+      expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
+    });
   });
 
   describe('remote evaluation - flag already stored in session storage', () => {

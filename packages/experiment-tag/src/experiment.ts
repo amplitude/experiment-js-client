@@ -36,7 +36,6 @@ import {
   RevertVariantsOptions,
 } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
-import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
@@ -133,7 +132,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.consentOptions = this.config.consentOptions;
     }
 
-    // Initialize consent-aware storage
     this.storage = new ConsentAwareStorage(this.consentOptions.status);
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
@@ -536,7 +534,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   public setConsentStatus(consentStatus: ConsentStatus) {
     this.consentOptions.status = consentStatus;
-    // Update storage consent status to handle persistence behavior
     this.storage.setConsentStatus(consentStatus);
   }
 
@@ -594,7 +591,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    setMarketingCookie(this.apiKey).then();
+    this.storage.setMarketingCookie(this.apiKey).catch((error) => {
+      console.warn('Failed to set marketing cookie:', error);
+    });
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
