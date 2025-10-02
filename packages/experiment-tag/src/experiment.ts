@@ -17,7 +17,7 @@ import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
-import { ConsentAwareStorage } from './storage/storage';
+import { ConsentAwareStorage } from './storage/consent-aware-storage';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   ConsentOptions,

@@ -1,8 +1,7 @@
 import { CampaignParser, CookieStorage } from '@amplitude/analytics-core';
 import * as coreUtil from '@amplitude/experiment-core';
-
-import { ConsentAwareStorage } from '../src/storage/storage';
-import { ConsentStatus } from '../src/types';
+import { ConsentAwareStorage } from 'src/storage/consent-aware-storage';
+import { ConsentStatus } from 'src/types';
 
 const spyGetGlobalScope = jest.spyOn(coreUtil, 'getGlobalScope');
 
