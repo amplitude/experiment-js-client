@@ -1320,18 +1320,13 @@ describe('initializeExperiment', () => {
       // Clear any previous localStorage calls from start()
       jest.clearAllMocks();
 
-      // Change consent status to GRANTED
       client.setConsentStatus(ConsentStatus.GRANTED);
-
-      // Trigger some action that would cause storage operations
-      client.applyVariants();
 
       // Verify that previously stored data is now persisted to actual storage
       expect(mockGlobal.localStorage.setItem).toHaveBeenCalled();
     });
 
     it('should handle consent status change from PENDING to REJECTED during experiment lifecycle', () => {
-      // Start with PENDING consent
       const mockGlobal = newMockGlobal({
         experimentConfig: {
           consentOptions: {
