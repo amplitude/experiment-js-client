@@ -2,8 +2,8 @@ import {
   Exposure,
   ExposureTrackingProvider,
 } from '@amplitude/experiment-js-client';
-import { ConsentStatus } from 'src/types';
 import { ConsentAwareExposureHandler } from 'src/exposure/consent-aware-exposure-handler';
+import { ConsentStatus } from 'src/types';
 
 class TestExposureTrackingProvider implements ExposureTrackingProvider {
   public trackedExposures: Exposure[] = [];
