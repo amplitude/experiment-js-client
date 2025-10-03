@@ -101,25 +101,21 @@ export class IntegrationManager {
   }
 
   private getExposureEvent(exposure: Exposure): ExperimentEvent {
-    const time = exposure.time;
     let event: ExperimentEvent = {
       eventType: '$exposure',
       eventProperties: exposure,
-      time,
     };
     if (exposure.metadata?.exposureEvent) {
       // Metadata specifically passes the exposure event definition
       event = {
         eventType: exposure.metadata?.exposureEvent as string,
         eventProperties: exposure,
-        time,
       };
     } else if (exposure.metadata?.deliveryMethod === 'web') {
       // Web experiments track impression events by default
       event = {
         eventType: '$impression',
         eventProperties: exposure,
-        time,
       };
     }
     return event;
