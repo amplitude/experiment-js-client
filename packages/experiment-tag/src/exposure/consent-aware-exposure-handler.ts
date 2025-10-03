@@ -36,7 +36,6 @@ export class ConsentAwareExposureHandler implements ExposureTrackingProvider {
         }
         this.pendingExposures = [];
       } else if (consentStatus === ConsentStatus.REJECTED) {
-        // Delete all pending exposures when consent is rejected
         this.pendingExposures = [];
       }
     }
