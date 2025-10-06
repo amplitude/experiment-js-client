@@ -190,7 +190,11 @@ export class ExperimentClient implements Client {
       storage,
     );
     this.flags = getFlagStorage(this.apiKey, storageInstanceName, storage);
-    this.fetchVariantsOptions = getVariantsOptionsStorage(this.apiKey, storageInstanceName, storage);
+    this.fetchVariantsOptions = getVariantsOptionsStorage(
+      this.apiKey,
+      storageInstanceName,
+      storage,
+    );
     try {
       this.flags.load();
       this.variants.load();
@@ -727,7 +731,10 @@ export class ExperimentClient implements Client {
   }
 
   public async setTrackAssignmentEvent(doTrack: boolean): Promise<void> {
-    this.fetchVariantsOptions.put({ ...this.fetchVariantsOptions.get(), trackingOption: doTrack ? 'track' : 'no-track' });
+    this.fetchVariantsOptions.put({
+      ...this.fetchVariantsOptions.get(),
+      trackingOption: doTrack ? 'track' : 'no-track',
+    });
     this.fetchVariantsOptions.store();
   }
 

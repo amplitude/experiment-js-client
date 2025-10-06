@@ -1588,10 +1588,15 @@ describe('setTrackAssignmentEvent', () => {
 
   test('setTrackAssignmentEvent() sets trackingOption to track and getVariants is called with correct options', async () => {
     const client = new ExperimentClient(API_KEY, {});
-    
+
     // Mock the evaluationApi.getVariants method
-    const getVariantsSpy = jest.spyOn((client as any).evaluationApi, 'getVariants');
-    getVariantsSpy.mockResolvedValue({ 'test-flag': { key: 'on', value: 'on' } });
+    const getVariantsSpy = jest.spyOn(
+      (client as any).evaluationApi,
+      'getVariants',
+    );
+    getVariantsSpy.mockResolvedValue({
+      'test-flag': { key: 'on', value: 'on' },
+    });
 
     // Set track assignment event to true
     await client.setTrackAssignmentEvent(true);
@@ -1608,7 +1613,7 @@ describe('setTrackAssignmentEvent', () => {
       expect.objectContaining({
         trackingOption: 'track',
         timeoutMillis: expect.any(Number),
-      })
+      }),
     );
 
     // Set track assignment event to false
@@ -1626,13 +1631,13 @@ describe('setTrackAssignmentEvent', () => {
       expect.objectContaining({
         trackingOption: 'no-track',
         timeoutMillis: expect.any(Number),
-      })
+      }),
     );
   });
 
   test('setTrackAssignmentEvent persists the setting to storage', async () => {
     const client = new ExperimentClient(API_KEY, {});
-    
+
     // Set track assignment event to true
     await client.setTrackAssignmentEvent(true);
 
@@ -1640,8 +1645,13 @@ describe('setTrackAssignmentEvent', () => {
     const client2 = new ExperimentClient(API_KEY, {});
 
     // Mock the evaluationApi.getVariants method for the second client
-    const getVariantsSpy = jest.spyOn((client2 as any).evaluationApi, 'getVariants');
-    getVariantsSpy.mockResolvedValue({ 'test-flag': { key: 'on', value: 'on' } });
+    const getVariantsSpy = jest.spyOn(
+      (client2 as any).evaluationApi,
+      'getVariants',
+    );
+    getVariantsSpy.mockResolvedValue({
+      'test-flag': { key: 'on', value: 'on' },
+    });
 
     // Fetch variants with the second client
     await client2.fetch(testUser);
@@ -1655,16 +1665,21 @@ describe('setTrackAssignmentEvent', () => {
       expect.objectContaining({
         trackingOption: 'track',
         timeoutMillis: expect.any(Number),
-      })
+      }),
     );
   });
 
   test('multiple calls to setTrackAssignmentEvent uses the latest setting', async () => {
     const client = new ExperimentClient(API_KEY, {});
-    
+
     // Mock the evaluationApi.getVariants method
-    const getVariantsSpy = jest.spyOn((client as any).evaluationApi, 'getVariants');
-    getVariantsSpy.mockResolvedValue({ 'test-flag': { key: 'off', value: 'off' } });
+    const getVariantsSpy = jest.spyOn(
+      (client as any).evaluationApi,
+      'getVariants',
+    );
+    getVariantsSpy.mockResolvedValue({
+      'test-flag': { key: 'off', value: 'off' },
+    });
 
     // Set track assignment event to true, then false
     await client.setTrackAssignmentEvent(true);
@@ -1682,16 +1697,21 @@ describe('setTrackAssignmentEvent', () => {
       expect.objectContaining({
         trackingOption: 'no-track',
         timeoutMillis: expect.any(Number),
-      })
+      }),
     );
   });
 
   test('setTrackAssignmentEvent preserves other existing options while updating trackingOption', async () => {
     const client = new ExperimentClient(API_KEY, {});
-    
+
     // Mock the evaluationApi.getVariants method
-    const getVariantsSpy = jest.spyOn((client as any).evaluationApi, 'getVariants');
-    getVariantsSpy.mockResolvedValue({ 'test-flag': { key: 'on', value: 'on' } });
+    const getVariantsSpy = jest.spyOn(
+      (client as any).evaluationApi,
+      'getVariants',
+    );
+    getVariantsSpy.mockResolvedValue({
+      'test-flag': { key: 'on', value: 'on' },
+    });
 
     // Set track assignment event to true
     await client.setTrackAssignmentEvent(true);
@@ -1710,7 +1730,7 @@ describe('setTrackAssignmentEvent', () => {
         trackingOption: 'track',
         flagKeys: ['test-flag'],
         timeoutMillis: expect.any(Number),
-      })
+      }),
     );
   });
 });

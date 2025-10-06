@@ -44,10 +44,7 @@ export class SingleValueStoreCache<V> {
   private readonly storage: Storage;
   private value: V | undefined;
 
-  constructor(
-    namespace: string,
-    storage: Storage,
-  ) {
+  constructor(namespace: string, storage: Storage) {
     this.namespace = namespace;
     this.storage = storage;
     this.value = this.get();
@@ -56,7 +53,7 @@ export class SingleValueStoreCache<V> {
   public get(): V | undefined {
     return this.value;
   }
-  
+
   public put(value: V): void {
     this.value = value;
   }
