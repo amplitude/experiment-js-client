@@ -732,7 +732,7 @@ export class ExperimentClient implements Client {
 
   public async setTrackAssignmentEvent(doTrack: boolean): Promise<void> {
     this.fetchVariantsOptions.put({
-      ...this.fetchVariantsOptions.get(),
+      ...(this.fetchVariantsOptions.get() || {}),
       trackingOption: doTrack ? 'track' : 'no-track',
     });
     this.fetchVariantsOptions.store();

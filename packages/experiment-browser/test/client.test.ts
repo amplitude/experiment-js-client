@@ -1586,6 +1586,34 @@ describe('setTrackAssignmentEvent', () => {
     jest.restoreAllMocks();
   });
 
+  test('setTrackAssignmentEvent() no call ok', async () => {
+    const client = new ExperimentClient(API_KEY, {});
+
+    // Mock the evaluationApi.getVariants method
+    const getVariantsSpy = jest.spyOn(
+      (client as any).evaluationApi,
+      'getVariants',
+    );
+    getVariantsSpy.mockResolvedValue({
+      'test-flag': { key: 'on', value: 'on' },
+    });
+
+    // Fetch variants to trigger the API call
+    await client.fetch(testUser);
+
+    // Verify getVariants was called with trackingOption: 'track'
+    expect(getVariantsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: testUser.user_id,
+        library: expect.stringContaining('experiment-js-client'),
+      }),
+      expect.objectContaining({
+        trackingOption: undefined,
+        timeoutMillis: expect.any(Number),
+      }),
+    );
+  });
+
   test('setTrackAssignmentEvent() sets trackingOption to track and getVariants is called with correct options', async () => {
     const client = new ExperimentClient(API_KEY, {});
 
