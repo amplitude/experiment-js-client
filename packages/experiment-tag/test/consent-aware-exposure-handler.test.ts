@@ -23,9 +23,19 @@ class TestExposureTrackingProvider implements ExposureTrackingProvider {
 describe('ConsentAwareExposureHandler', () => {
   let provider: TestExposureTrackingProvider;
   let handler: ConsentAwareExposureHandler;
+  let mockDate: jest.SpyInstance;
 
   beforeEach(() => {
     provider = new TestExposureTrackingProvider();
+    if (mockDate) {
+      mockDate.mockRestore();
+    }
+  });
+
+  afterEach(() => {
+    if (mockDate) {
+      mockDate.mockRestore();
+    }
   });
 
   describe('when consent is granted', () => {
@@ -98,7 +108,6 @@ describe('ConsentAwareExposureHandler', () => {
       handler.track(exposure1);
       handler.track(exposure2);
 
-      // Change consent to granted
       handler.setConsentStatus(ConsentStatus.GRANTED);
 
       expect(provider.trackCount).toBe(2);
@@ -124,13 +133,11 @@ describe('ConsentAwareExposureHandler', () => {
       handler.track(exposure1);
       handler.track(exposure2);
 
-      // Change consent to rejected
       handler.setConsentStatus(ConsentStatus.REJECTED);
 
       expect(provider.trackCount).toBe(0);
       expect(provider.trackedExposures).toEqual([]);
 
-      // Even if consent becomes granted later, the previously pending exposures should not be fired
       handler.setConsentStatus(ConsentStatus.GRANTED);
       expect(provider.trackCount).toBe(0);
       expect(provider.trackedExposures).toEqual([]);
@@ -211,6 +218,89 @@ describe('ConsentAwareExposureHandler', () => {
     });
   });
 
+  describe('timestamp handling', () => {
+    beforeEach(() => {
+      handler = new ConsentAwareExposureHandler(
+        ConsentStatus.GRANTED,
+        provider,
+      );
+    });
+
+    test('should add timestamp to exposures when tracking immediately', () => {
+      const mockTimestamp = 1234567890000;
+      mockDate = jest
+        .spyOn(Date.prototype, 'getTime')
+        .mockReturnValue(mockTimestamp);
+
+      const exposure: Exposure = {
+        flag_key: 'test-flag',
+        variant: 'test-variant',
+      };
+
+      handler.track(exposure);
+
+      expect(provider.trackCount).toBe(1);
+      const trackedExposure = provider.trackedExposures[0];
+      expect(trackedExposure.time).toBe(mockTimestamp);
+      expect(mockDate).toHaveBeenCalled();
+    });
+
+    test('should add timestamp to pending exposures when stored', () => {
+      handler = new ConsentAwareExposureHandler(
+        ConsentStatus.PENDING,
+        provider,
+      );
+
+      const mockTimestamp = 1234567890000;
+      mockDate = jest
+        .spyOn(Date.prototype, 'getTime')
+        .mockReturnValue(mockTimestamp);
+
+      const exposure: Exposure = {
+        flag_key: 'test-flag',
+        variant: 'test-variant',
+      };
+
+      handler.track(exposure);
+
+      handler.setConsentStatus(ConsentStatus.GRANTED);
+
+      expect(provider.trackCount).toBe(1);
+      const trackedExposure = provider.trackedExposures[0];
+      expect(trackedExposure.time).toBe(mockTimestamp);
+      expect(mockDate).toHaveBeenCalled();
+    });
+
+    test('should add different timestamps to multiple exposures', () => {
+      const exposure1: Exposure = {
+        flag_key: 'flag1',
+        variant: 'variant1',
+      };
+      const exposure2: Exposure = {
+        flag_key: 'flag2',
+        variant: 'variant2',
+      };
+
+      const mockTimestamp1 = 1234567890000;
+      const mockTimestamp2 = 1234567891000;
+      mockDate = jest
+        .spyOn(Date.prototype, 'getTime')
+        .mockReturnValueOnce(mockTimestamp1)
+        .mockReturnValueOnce(mockTimestamp2);
+
+      handler.track(exposure1);
+      handler.track(exposure2);
+
+      expect(provider.trackCount).toBe(2);
+      const trackedExposure1 = provider.trackedExposures[0];
+      const trackedExposure2 = provider.trackedExposures[1];
+
+      expect(trackedExposure1.time).toBe(mockTimestamp1);
+      expect(trackedExposure2.time).toBe(mockTimestamp2);
+      expect(mockDate).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('error handling', () => {
     let errorProvider: ExposureTrackingProvider;
 
@@ -238,6 +328,26 @@ describe('ConsentAwareExposureHandler', () => {
         'Failed to track exposure:',
         expect.any(Error),
       );
+
+      consoleSpy.mockRestore();
+    });
+
+    test('should still add timestamp even when tracking fails', () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const mockTimestamp = 1234567890000;
+      mockDate = jest
+        .spyOn(Date.prototype, 'getTime')
+        .mockReturnValue(mockTimestamp);
+
+      const exposure: Exposure = {
+        flag_key: 'test-flag',
+        variant: 'test-variant',
+      };
+
+      handler.track(exposure);
+
+      expect(exposure.time).toBe(mockTimestamp);
+      expect(mockDate).toHaveBeenCalled();
 
       consoleSpy.mockRestore();
     });

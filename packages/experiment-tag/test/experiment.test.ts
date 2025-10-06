@@ -1516,13 +1516,10 @@ describe('initializeExperiment', () => {
       expect(mockExposure).toHaveBeenCalledWith('test-flag-2');
       expect(mockExposureTrackingProvider.track).not.toHaveBeenCalled();
 
-      // Clear mock calls to focus on consent change behavior
       mockExposureTrackingProvider.track.mockClear();
 
-      // Change consent to granted
       client.setConsentStatus(ConsentStatus.GRANTED);
 
-      // All pending exposures should now be tracked
       expect(mockExposureTrackingProvider.track).toHaveBeenCalledTimes(2);
       expect(mockExposureTrackingProvider.track).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1573,15 +1570,12 @@ describe('initializeExperiment', () => {
 
       client.start();
 
-      // Both exposures should be called but not tracked yet
       expect(mockExposure).toHaveBeenCalledWith('test-flag-1');
       expect(mockExposure).toHaveBeenCalledWith('test-flag-2');
       expect(mockExposureTrackingProvider.track).not.toHaveBeenCalled();
 
-      // Change consent to rejected
       client.setConsentStatus(ConsentStatus.REJECTED);
 
-      // No exposures should be tracked
       expect(mockExposureTrackingProvider.track).not.toHaveBeenCalled();
 
       // Even if consent becomes granted later, the previously pending exposures should not be fired
