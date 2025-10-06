@@ -45,6 +45,10 @@ export type Exposure = {
    * evaluation for the user. Used for system purposes.
    */
   metadata?: Record<string, unknown>;
+  /**
+   * (Optional) The time the exposure occurred.
+   */
+  time?: number;
 };
 
 /**

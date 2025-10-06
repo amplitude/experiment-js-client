@@ -54,6 +54,7 @@ export class ConsentAwareExposureHandler implements ExposureTrackingProvider {
    * Track an exposure with consent awareness
    */
   public track(exposure: Exposure): void {
+    exposure.time = new Date().getTime();
     if (this.consentStatus === ConsentStatus.PENDING) {
       this.pendingExposures.push(exposure);
     } else if (this.consentStatus === ConsentStatus.GRANTED) {
