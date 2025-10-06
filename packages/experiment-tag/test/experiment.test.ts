@@ -1507,6 +1507,403 @@ describe('initializeExperiment', () => {
     });
   });
 
+  describe('consent aware exposure tracking', () => {
+    let mockExperimentIntegration: any;
+    let originalTrackSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      // Create fresh mock experimentIntegration for each test
+      originalTrackSpy = jest.fn().mockReturnValue(true);
+      mockExperimentIntegration = {
+        track: originalTrackSpy,
+        getUser: jest.fn().mockReturnValue({
+          user_id: 'user',
+          device_id: 'device',
+        }),
+        type: 'integration',
+      };
+    });
+
+    afterEach(() => {
+      // Clear experimentIntegration between tests
+      if (mockGlobal?.experimentIntegration) {
+        mockGlobal.experimentIntegration = undefined;
+      }
+      originalTrackSpy.mockClear();
+    });
+
+    it('should track exposures immediately when consent is GRANTED', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      expect(originalTrackSpy).toHaveBeenCalled();
+      expect(originalTrackSpy.mock.calls[0][0]).toMatchObject({
+        eventType: '$impression',
+        eventProperties: expect.objectContaining({
+          flag_key: 'test',
+          variant: 'treatment',
+        }),
+      });
+    });
+
+    it('should store exposures in memory when consent is PENDING', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      // Should not track immediately when consent is pending
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not track exposures when consent is REJECTED', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.REJECTED,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+    });
+
+    it('should fire all pending exposures when consent changes from PENDING to GRANTED', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test-1', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+          createMutateFlag('test-2', 'control', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify({
+          'test-1': DEFAULT_PAGE_OBJECTS.test,
+          'test-2': DEFAULT_PAGE_OBJECTS.test,
+        }),
+      );
+
+      client.start();
+
+      // Should not track immediately when consent is pending
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      // Change consent to granted
+      client.setConsentStatus(ConsentStatus.GRANTED);
+
+      // Should now fire all pending exposures
+      expect(originalTrackSpy).toHaveBeenCalled();
+
+      const trackedEvents = originalTrackSpy.mock.calls.map(call => call[0]);
+      expect(trackedEvents).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            eventType: '$impression',
+            eventProperties: expect.objectContaining({
+              flag_key: 'test-1',
+              variant: 'treatment',
+            }),
+          }),
+          expect.objectContaining({
+            eventType: '$impression',
+            eventProperties: expect.objectContaining({
+              flag_key: 'test-2',
+              variant: 'control',
+            }),
+          }),
+        ])
+      );
+    });
+
+    it('should delete all pending exposures when consent changes from PENDING to REJECTED', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      // Should not track immediately when consent is pending
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      // Change consent to rejected
+      client.setConsentStatus(ConsentStatus.REJECTED);
+
+      // Should not fire any exposures
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      // Even if consent is later granted, should not fire the previously pending exposures
+      client.setConsentStatus(ConsentStatus.GRANTED);
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+    });
+
+    it('should track new exposures immediately after consent becomes GRANTED', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test-1', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      // Should not track immediately when consent is pending
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      // Change consent to granted
+      client.setConsentStatus(ConsentStatus.GRANTED);
+
+      // Should fire any pending exposures (if any were created during start)
+      // Clear mock calls to test new exposures
+      originalTrackSpy.mockClear();
+
+      // Trigger a new exposure by calling exposure method directly
+      client.getExperimentClient().exposure('test-1');
+
+      // Should track the new exposure immediately
+      expect(originalTrackSpy).toHaveBeenCalledTimes(1);
+      expect(originalTrackSpy.mock.calls[0][0]).toMatchObject({
+        eventType: '$impression',
+        eventProperties: expect.objectContaining({
+          flag_key: 'test-1',
+          variant: 'treatment',
+        }),
+      });
+    });
+
+    it('should handle multiple consent status changes correctly', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      // Should not track immediately when consent is pending
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      // Change to rejected - should delete pending exposures
+      client.setConsentStatus(ConsentStatus.REJECTED);
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      // Change to pending again
+      client.setConsentStatus(ConsentStatus.PENDING);
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      // Trigger a new exposure
+      client.getExperimentClient().exposure('test');
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      // Change to granted - should fire the new pending exposure
+      client.setConsentStatus(ConsentStatus.GRANTED);
+      expect(originalTrackSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should add timestamp to exposure events', () => {
+      const mockDate = new Date('2023-01-01T00:00:00.000Z');
+      const mockGetTime = jest.spyOn(Date.prototype, 'getTime').mockReturnValue(mockDate.getTime());
+
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      expect(originalTrackSpy).toHaveBeenCalled();
+      expect(originalTrackSpy.mock.calls[0][0]).toMatchObject({
+        eventType: '$impression',
+        eventProperties: expect.objectContaining({
+          flag_key: 'test',
+          variant: 'treatment',
+          time: mockDate.getTime(),
+        }),
+      });
+
+      mockGetTime.mockRestore();
+    });
+
+    it('should handle exposure tracking errors gracefully', () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const errorExperimentIntegration = {
+        track: jest.fn().mockImplementation(() => {
+          throw new Error('Tracking failed');
+        }),
+        getUser: jest.fn().mockReturnValue({
+          user_id: 'user',
+          device_id: 'device',
+        }),
+        type: 'integration',
+      };
+
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+        experimentIntegration: errorExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      // Should not throw an error
+      expect(() => client.start()).not.toThrow();
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith('Failed to track event:', expect.any(Error));
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should handle pending exposure tracking errors gracefully when consent becomes granted', () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const errorExperimentIntegration = {
+        track: jest.fn().mockImplementation(() => {
+          throw new Error('Tracking failed');
+        }),
+        getUser: jest.fn().mockReturnValue({
+          user_id: 'user',
+          device_id: 'device',
+        }),
+        type: 'integration',
+      };
+
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: errorExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      // Should not throw an error when changing consent status
+      expect(() => client.setConsentStatus(ConsentStatus.GRANTED)).not.toThrow();
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith('Failed to track pending event:', expect.any(Error));
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
   describe('remote evaluation - flag already stored in session storage', () => {
     const sessionStorageMock = () => {
       let store = {};
