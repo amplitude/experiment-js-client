@@ -1,28 +1,67 @@
 import {
-  Exposure,
-  ExposureTrackingProvider,
+  ExperimentEvent,
+  IntegrationPlugin,
 } from '@amplitude/experiment-js-client';
+import { getGlobalScope } from '@amplitude/experiment-core';
 
 import { ConsentStatus } from '../types';
 
 /**
- * Consent-aware exposure handler that manages exposure tracking based on consent status
+ * Consent-aware exposure handler that wraps window.experimentIntegration.track
  */
-export class ConsentAwareExposureHandler implements ExposureTrackingProvider {
-  private pendingExposures: Exposure[] = [];
+export class ConsentAwareExposureHandler {
+  private pendingEvents: ExperimentEvent[] = [];
   private consentStatus: ConsentStatus = ConsentStatus.PENDING;
-  private exposureTrackingProvider?: ExposureTrackingProvider;
+  private originalTrack: ((event: ExperimentEvent) => boolean) | null = null;
 
-  constructor(
-    initialConsentStatus: ConsentStatus,
-    exposureTrackingProvider?: ExposureTrackingProvider,
-  ) {
+  constructor(initialConsentStatus: ConsentStatus) {
     this.consentStatus = initialConsentStatus;
-    this.exposureTrackingProvider = exposureTrackingProvider;
   }
 
   /**
-   * Set the consent status and handle exposure tracking accordingly
+   * Wrap the experimentIntegration.track method with consent-aware logic
+   */
+  public wrapExperimentIntegrationTrack(): void {
+    const globalScope = getGlobalScope();
+    const experimentIntegration =
+      globalScope?.experimentIntegration as IntegrationPlugin;
+    if (experimentIntegration?.track) {
+      this.originalTrack = experimentIntegration.track.bind(
+        experimentIntegration,
+      );
+      experimentIntegration.track = this.createConsentAwareTrack(
+        this.originalTrack,
+      );
+    }
+  }
+
+  /**
+   * Create a consent-aware wrapper for the track method
+   */
+  private createConsentAwareTrack(
+    originalTrack: (event: ExperimentEvent) => boolean,
+  ) {
+    return (event: ExperimentEvent): boolean => {
+      if (event?.eventProperties) {
+        event.eventProperties.time = new Date().getTime();
+      }
+      try {
+        if (this.consentStatus === ConsentStatus.PENDING) {
+          this.pendingEvents.push(event);
+          return true;
+        } else if (this.consentStatus === ConsentStatus.GRANTED) {
+          return originalTrack(event);
+        }
+        return false;
+      } catch (error) {
+        console.warn('Failed to track event:', error);
+        return false;
+      }
+    };
+  }
+
+  /**
+   * Set the consent status and handle pending events accordingly
    */
   public setConsentStatus(consentStatus: ConsentStatus): void {
     const previousStatus = this.consentStatus;
@@ -30,46 +69,20 @@ export class ConsentAwareExposureHandler implements ExposureTrackingProvider {
 
     if (previousStatus === ConsentStatus.PENDING) {
       if (consentStatus === ConsentStatus.GRANTED) {
-        for (const exposure of this.pendingExposures) {
-          this.trackExposureDirectly(exposure);
+        // Fire all pending events
+        for (const event of this.pendingEvents) {
+          if (this.originalTrack) {
+            try {
+              this.originalTrack(event);
+            } catch (error) {
+              console.warn('Failed to track pending event:', error);
+            }
+          }
         }
-        this.pendingExposures = [];
+        this.pendingEvents = [];
       } else if (consentStatus === ConsentStatus.REJECTED) {
-        this.pendingExposures = [];
-      }
-    }
-  }
-
-  /**
-   * Set the exposure tracking provider
-   */
-  public setExposureTrackingProvider(
-    exposureTrackingProvider: ExposureTrackingProvider,
-  ): void {
-    this.exposureTrackingProvider = exposureTrackingProvider;
-  }
-
-  /**
-   * Track an exposure with consent awareness
-   */
-  public track(exposure: Exposure): void {
-    exposure.time = new Date().getTime();
-    if (this.consentStatus === ConsentStatus.PENDING) {
-      this.pendingExposures.push(exposure);
-    } else if (this.consentStatus === ConsentStatus.GRANTED) {
-      this.trackExposureDirectly(exposure);
-    }
-  }
-
-  /**
-   * Track exposure directly using the underlying provider
-   */
-  private trackExposureDirectly(exposure: Exposure): void {
-    if (this.exposureTrackingProvider) {
-      try {
-        this.exposureTrackingProvider.track(exposure);
-      } catch (error) {
-        console.warn('Failed to track exposure:', error);
+        // Delete all pending events
+        this.pendingEvents = [];
       }
     }
   }

@@ -138,7 +138,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     this.consentAwareExposureHandler = new ConsentAwareExposureHandler(
       this.consentOptions.status,
-      this.config.exposureTrackingProvider,
     );
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
@@ -169,7 +168,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       fetchOnStart: false,
       automaticExposureTracking: false,
       ...this.config,
-      exposureTrackingProvider: this.consentAwareExposureHandler,
     });
     // Get all the locally available flag keys from the SDK.
     const variants = this.experimentClient.all();
@@ -273,7 +271,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     this.globalScope.experimentIntegration.type = 'integration';
+    this.consentAwareExposureHandler.wrapExperimentIntegrationTrack();
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
+
     this.experimentClient.setUser(user);
 
     if (!this.isRemoteBlocking) {
