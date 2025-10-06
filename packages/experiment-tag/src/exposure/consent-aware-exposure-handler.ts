@@ -30,7 +30,6 @@ export class ConsentAwareExposureHandler implements ExposureTrackingProvider {
 
     if (previousStatus === ConsentStatus.PENDING) {
       if (consentStatus === ConsentStatus.GRANTED) {
-        // Fire all pending exposures when consent is granted
         for (const exposure of this.pendingExposures) {
           this.trackExposureDirectly(exposure);
         }

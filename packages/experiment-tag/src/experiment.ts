@@ -136,7 +136,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     this.storage = new ConsentAwareStorage(this.consentOptions.status);
 
-    // Initialize consent-aware exposure handler
     this.consentAwareExposureHandler = new ConsentAwareExposureHandler(
       this.consentOptions.status,
       this.config.exposureTrackingProvider,
@@ -543,7 +542,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   public setConsentStatus(consentStatus: ConsentStatus) {
     this.consentOptions.status = consentStatus;
-    // Update storage consent status to handle persistence behavior
     this.storage.setConsentStatus(consentStatus);
     this.consentAwareExposureHandler.setConsentStatus(consentStatus);
   }
