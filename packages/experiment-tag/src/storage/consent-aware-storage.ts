@@ -138,3 +138,38 @@ export class ConsentAwareStorage {
     }
   }
 }
+
+export class ConsentAwareLocalStorage {
+  constructor(private consentAwareStorage: ConsentAwareStorage) {}
+
+  get(key: string): string {
+    return this.consentAwareStorage.getItem<string>('localStorage', key) || '';
+  }
+
+  put(key: string, value: string): void {
+    this.consentAwareStorage.setItem('localStorage', key, value);
+  }
+
+  delete(key: string): void {
+    this.consentAwareStorage.removeItem('localStorage', key);
+  }
+}
+
+export class ConsentAwareSessionStorage {
+  constructor(private consentAwareStorage: ConsentAwareStorage) {}
+
+  get(key: string): string {
+    return (
+      this.consentAwareStorage.getItem<string>('sessionStorage', key) || ''
+    );
+  }
+
+  put(key: string, value: string): void {
+    this.consentAwareStorage.setItem('sessionStorage', key, value);
+  }
+
+  delete(key: string): void {
+    this.consentAwareStorage.removeItem('sessionStorage', key);
+  }
+}
+

@@ -74,8 +74,18 @@ const newExperimentClient = (
     userProvider:
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      config?.defaultUserProvider ??
-      new DefaultUserProvider(config?.userProvider, apiKey),
+      config?.consentAwareStorage
+        ? new DefaultUserProvider(
+            config?.userProvider,
+            apiKey,
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            config?.consentAwareStorage.localStorage,
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            config?.consentAwareStorage.sessionStorage,
+          )
+        : new DefaultUserProvider(config?.userProvider, apiKey),
   });
 };
 
