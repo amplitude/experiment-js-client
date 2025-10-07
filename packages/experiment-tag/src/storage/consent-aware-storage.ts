@@ -172,4 +172,3 @@ export class ConsentAwareSessionStorage {
     this.consentAwareStorage.removeItem('sessionStorage', key);
   }
 }
-

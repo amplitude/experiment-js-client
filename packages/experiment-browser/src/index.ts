@@ -34,4 +34,3 @@ export {
   ExperimentPluginType,
   ExperimentEvent,
 } from './types/plugin';
-export { DefaultUserProvider } from './providers/default';

@@ -72,17 +72,14 @@ const newExperimentClient = (
   return new ExperimentClient(apiKey, {
     ...config,
     userProvider:
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
+      // @ts-expect-error - consentAwareStorage not in type definition
       config?.consentAwareStorage
         ? new DefaultUserProvider(
             config?.userProvider,
             apiKey,
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
+            // @ts-expect-error - consentAwareStorage not in type definition
             config?.consentAwareStorage.localStorage,
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
+            // @ts-expect-error - consentAwareStorage not in type definition
             config?.consentAwareStorage.sessionStorage,
           )
         : new DefaultUserProvider(config?.userProvider, apiKey),
