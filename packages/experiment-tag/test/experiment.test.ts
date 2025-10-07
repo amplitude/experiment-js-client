@@ -1377,7 +1377,6 @@ describe('initializeExperiment', () => {
     });
   });
 
-
   describe('marketing cookie with different consent status', () => {
     let mockCampaignParser: any;
     let mockCookieStorage: any;
@@ -1637,16 +1636,13 @@ describe('initializeExperiment', () => {
 
       client.start();
 
-      // Should not track immediately when consent is pending
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
-      // Change consent to granted
       client.setConsentStatus(ConsentStatus.GRANTED);
 
-      // Should now fire all pending exposures
       expect(originalTrackSpy).toHaveBeenCalled();
 
-      const trackedEvents = originalTrackSpy.mock.calls.map(call => call[0]);
+      const trackedEvents = originalTrackSpy.mock.calls.map((call) => call[0]);
       expect(trackedEvents).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -1663,7 +1659,7 @@ describe('initializeExperiment', () => {
               variant: 'control',
             }),
           }),
-        ])
+        ]),
       );
     });
 
@@ -1688,16 +1684,12 @@ describe('initializeExperiment', () => {
 
       client.start();
 
-      // Should not track immediately when consent is pending
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
-      // Change consent to rejected
       client.setConsentStatus(ConsentStatus.REJECTED);
 
-      // Should not fire any exposures
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
-      // Even if consent is later granted, should not fire the previously pending exposures
       client.setConsentStatus(ConsentStatus.GRANTED);
       expect(originalTrackSpy).not.toHaveBeenCalled();
     });
@@ -1723,20 +1715,14 @@ describe('initializeExperiment', () => {
 
       client.start();
 
-      // Should not track immediately when consent is pending
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
-      // Change consent to granted
       client.setConsentStatus(ConsentStatus.GRANTED);
 
-      // Should fire any pending exposures (if any were created during start)
-      // Clear mock calls to test new exposures
       originalTrackSpy.mockClear();
 
-      // Trigger a new exposure by calling exposure method directly
       client.getExperimentClient().exposure('test-1');
 
-      // Should track the new exposure immediately
       expect(originalTrackSpy).toHaveBeenCalledTimes(1);
       expect(originalTrackSpy.mock.calls[0][0]).toMatchObject({
         eventType: '$impression',
@@ -1768,29 +1754,26 @@ describe('initializeExperiment', () => {
 
       client.start();
 
-      // Should not track immediately when consent is pending
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
-      // Change to rejected - should delete pending exposures
       client.setConsentStatus(ConsentStatus.REJECTED);
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
-      // Change to pending again
       client.setConsentStatus(ConsentStatus.PENDING);
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
-      // Trigger a new exposure
       client.getExperimentClient().exposure('test');
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
-      // Change to granted - should fire the new pending exposure
       client.setConsentStatus(ConsentStatus.GRANTED);
       expect(originalTrackSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should add timestamp to exposure events', () => {
       const mockDate = new Date('2023-01-01T00:00:00.000Z');
-      const mockGetTime = jest.spyOn(Date.prototype, 'getTime').mockReturnValue(mockDate.getTime());
+      const mockGetTime = jest
+        .spyOn(Date.prototype, 'getTime')
+        .mockReturnValue(mockDate.getTime());
 
       const mockGlobal = newMockGlobal({
         experimentConfig: {
@@ -1856,10 +1839,12 @@ describe('initializeExperiment', () => {
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
 
-      // Should not throw an error
       expect(() => client.start()).not.toThrow();
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith('Failed to track event:', expect.any(Error));
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Failed to track event:',
+        expect.any(Error),
+      );
       consoleWarnSpy.mockRestore();
     });
 
@@ -1896,10 +1881,14 @@ describe('initializeExperiment', () => {
 
       client.start();
 
-      // Should not throw an error when changing consent status
-      expect(() => client.setConsentStatus(ConsentStatus.GRANTED)).not.toThrow();
+      expect(() =>
+        client.setConsentStatus(ConsentStatus.GRANTED),
+      ).not.toThrow();
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith('Failed to track pending event:', expect.any(Error));
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Failed to track pending event:',
+        expect.any(Error),
+      );
       consoleWarnSpy.mockRestore();
     });
   });

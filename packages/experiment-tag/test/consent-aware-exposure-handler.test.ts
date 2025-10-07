@@ -1,3 +1,4 @@
+import * as experimentCore from '@amplitude/experiment-core';
 import {
   ExperimentEvent,
   IntegrationPlugin,
@@ -37,25 +38,22 @@ class TestIntegrationPlugin implements IntegrationPlugin {
 }
 
 describe('ConsentAwareExposureHandler', () => {
+  const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
   let integrationPlugin: TestIntegrationPlugin;
   let handler: ConsentAwareExposureHandler;
   let mockGlobalScope: any;
-  let mockGetGlobalScope: jest.SpyInstance;
 
   beforeEach(() => {
     integrationPlugin = new TestIntegrationPlugin();
     mockGlobalScope = {
       experimentIntegration: integrationPlugin,
     };
-    mockGetGlobalScope = jest.spyOn(require('@amplitude/experiment-core'), 'getGlobalScope');
     mockGetGlobalScope.mockReturnValue(mockGlobalScope);
   });
 
   afterEach(() => {
     integrationPlugin.reset();
-    if (mockGetGlobalScope) {
-      mockGetGlobalScope.mockRestore();
-    }
+    jest.clearAllMocks();
   });
 
   describe('when consent is granted', () => {
@@ -245,7 +243,9 @@ describe('ConsentAwareExposureHandler', () => {
     });
 
     test('should not throw error when no integration exists', () => {
-      expect(() => handler.setConsentStatus(ConsentStatus.PENDING)).not.toThrow();
+      expect(() =>
+        handler.setConsentStatus(ConsentStatus.PENDING),
+      ).not.toThrow();
     });
   });
 
@@ -278,7 +278,9 @@ describe('ConsentAwareExposureHandler', () => {
         },
       };
 
-      expect(() => errorGlobalScope.experimentIntegration.track(event)).not.toThrow();
+      expect(() =>
+        errorGlobalScope.experimentIntegration.track(event),
+      ).not.toThrow();
     });
   });
 });

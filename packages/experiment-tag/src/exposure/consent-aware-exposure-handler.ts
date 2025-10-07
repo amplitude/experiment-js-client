@@ -1,8 +1,8 @@
+import { getGlobalScope } from '@amplitude/experiment-core';
 import {
   ExperimentEvent,
   IntegrationPlugin,
 } from '@amplitude/experiment-js-client';
-import { getGlobalScope } from '@amplitude/experiment-core';
 
 import { ConsentStatus } from '../types';
 
@@ -13,6 +13,7 @@ export class ConsentAwareExposureHandler {
   private pendingEvents: ExperimentEvent[] = [];
   private consentStatus: ConsentStatus = ConsentStatus.PENDING;
   private originalTrack: ((event: ExperimentEvent) => boolean) | null = null;
+  private isWrapped = false;
 
   constructor(initialConsentStatus: ConsentStatus) {
     this.consentStatus = initialConsentStatus;
@@ -20,19 +21,38 @@ export class ConsentAwareExposureHandler {
 
   /**
    * Wrap the experimentIntegration.track method with consent-aware logic
+   * Prevents nested wrapping by checking if already wrapped
    */
   public wrapExperimentIntegrationTrack(): void {
+    if (this.isWrapped) {
+      return;
+    }
+
     const globalScope = getGlobalScope();
     const experimentIntegration =
       globalScope?.experimentIntegration as IntegrationPlugin;
     if (experimentIntegration?.track) {
+      if (this.isTrackMethodWrapped(experimentIntegration.track)) {
+        return;
+      }
+
       this.originalTrack = experimentIntegration.track.bind(
         experimentIntegration,
       );
-      experimentIntegration.track = this.createConsentAwareTrack(
-        this.originalTrack,
-      );
+      const wrappedTrack = this.createConsentAwareTrack(this.originalTrack);
+      (wrappedTrack as any).__isConsentAwareWrapped = true;
+      experimentIntegration.track = wrappedTrack;
+      this.isWrapped = true;
     }
+  }
+
+  /**
+   * Check if a track method is already wrapped
+   */
+  private isTrackMethodWrapped(
+    trackMethod: (event: ExperimentEvent) => boolean,
+  ): boolean {
+    return (trackMethod as any).__isConsentAwareWrapped === true;
   }
 
   /**
@@ -69,7 +89,6 @@ export class ConsentAwareExposureHandler {
 
     if (previousStatus === ConsentStatus.PENDING) {
       if (consentStatus === ConsentStatus.GRANTED) {
-        // Fire all pending events
         for (const event of this.pendingEvents) {
           if (this.originalTrack) {
             try {
