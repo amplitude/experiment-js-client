@@ -158,8 +158,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       internalInstanceNameSuffix: 'web',
       defaultUserProvider: createConsentAwareUserProvider(
         this.storage,
-        config.userProvider,
         this.apiKey,
+        config.userProvider,
       ),
       initialFlags: initialFlagsString,
       // timeout for fetching remote flags

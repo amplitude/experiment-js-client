@@ -13,13 +13,13 @@ import { Storage } from './types';
  *
  * @param consentAwareStorage - The ConsentAwareStorage instance to use for all storage operations
  * @param userProvider - Optional nested user provider for additional user context
- * @param apiKey - Optional API key for storage key generation
+ * @param apiKey - API key for storage key generation
  * @returns A DefaultUserProvider configured with consent-aware storage
  */
 export function createConsentAwareUserProvider(
   consentAwareStorage: ConsentAwareStorage,
+  apiKey: string,
   userProvider?: ExperimentUserProvider,
-  apiKey?: string,
 ): DefaultUserProvider {
   return new DefaultUserProvider(
     userProvider,
