@@ -107,15 +107,6 @@ export class ConsentAwareStorage {
       removeStorageItem(storageType, key);
       return;
     }
-
-    // Remove from JSON storage
-    const jsonStorageMap = this.inMemoryStorage.get(storageType);
-    if (jsonStorageMap) {
-      jsonStorageMap.delete(key);
-      if (jsonStorageMap.size === 0) {
-        this.inMemoryStorage.delete(storageType);
-      }
-    }
   }
   /**
    * Set marketing cookie with consent awareness

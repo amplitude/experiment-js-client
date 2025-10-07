@@ -74,7 +74,7 @@ const newExperimentClient = (
     userProvider:
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      config.defaultUserProvider ??
+      config?.defaultUserProvider ??
       new DefaultUserProvider(config?.userProvider, apiKey),
   });
 };
