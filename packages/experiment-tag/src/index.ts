@@ -14,7 +14,7 @@ export const initialize = (
   config: WebExperimentConfig,
 ): void => {
   if (
-    getGlobalScope()?.experimentConfig.consentOptions.status ===
+    getGlobalScope()?.experimentConfig?.consentOptions?.status ===
     ConsentStatus.REJECTED
   ) {
     return;
