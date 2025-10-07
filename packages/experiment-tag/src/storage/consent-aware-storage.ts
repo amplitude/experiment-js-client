@@ -16,7 +16,6 @@ import {
  */
 export class ConsentAwareStorage {
   private inMemoryStorage: Map<StorageType, Map<string, unknown>> = new Map();
-  private inMemoryRawStorage: Map<StorageType, Map<string, string>> = new Map();
   private inMemoryMarketingCookies: Map<string, Campaign> = new Map();
   private consentStatus: ConsentStatus;
 
@@ -43,19 +42,6 @@ export class ConsentAwareStorage {
         }
       }
       this.inMemoryStorage.clear();
-
-      // Persist raw string storage
-      for (const [storageType, storageMap] of this.inMemoryRawStorage.entries()) {
-        for (const [key, value] of storageMap.entries()) {
-          try {
-            getStorage(storageType)?.setItem(key, value);
-          } catch (error) {
-            console.warn(`Failed to persist raw data for key ${key}:`, error);
-          }
-        }
-      }
-      this.inMemoryRawStorage.clear();
-
       this.persistMarketingCookies().then();
     }
   }
@@ -128,15 +114,6 @@ export class ConsentAwareStorage {
       jsonStorageMap.delete(key);
       if (jsonStorageMap.size === 0) {
         this.inMemoryStorage.delete(storageType);
-      }
-    }
-
-    // Remove from raw storage
-    const rawStorageMap = this.inMemoryRawStorage.get(storageType);
-    if (rawStorageMap) {
-      rawStorageMap.delete(key);
-      if (rawStorageMap.size === 0) {
-        this.inMemoryRawStorage.delete(storageType);
       }
     }
   }
