@@ -4,6 +4,7 @@ import { UAParser } from '@amplitude/ua-parser-js';
 import { LocalStorage } from '../storage/local-storage';
 import { SessionStorage } from '../storage/session-storage';
 import { ExperimentUserProvider } from '../types/provider';
+import { Storage } from '../types/storage';
 import { ExperimentUser } from '../types/user';
 
 export class DefaultUserProvider implements ExperimentUserProvider {
@@ -13,17 +14,24 @@ export class DefaultUserProvider implements ExperimentUserProvider {
       ? this.globalScope?.navigator.userAgent
       : undefined;
   private readonly ua = new UAParser(this.userAgent).getResult();
-  private readonly localStorage = new LocalStorage();
-  private readonly sessionStorage = new SessionStorage();
+  private readonly localStorage: Storage;
+  private readonly sessionStorage: Storage;
   private readonly storageKey: string;
 
   public readonly userProvider: ExperimentUserProvider | undefined;
   private readonly apiKey?: string;
 
-  constructor(userProvider?: ExperimentUserProvider, apiKey?: string) {
+  constructor(
+    userProvider?: ExperimentUserProvider,
+    apiKey?: string,
+    customLocalStorage?: Storage,
+    customSessionStorage?: Storage,
+  ) {
     this.userProvider = userProvider;
     this.apiKey = apiKey;
     this.storageKey = `EXP_${this.apiKey?.slice(0, 10)}_DEFAULT_USER_PROVIDER`;
+    this.localStorage = customLocalStorage || new LocalStorage();
+    this.sessionStorage = customSessionStorage || new SessionStorage();
   }
 
   getUser(): ExperimentUser {

@@ -17,6 +17,7 @@ import mutate, { MutationController } from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
+import { createConsentAwareUserProvider } from './providers/consent-aware-user-provider';
 import { ConsentAwareStorage } from './storage/consent-aware-storage';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
@@ -155,6 +156,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       internalInstanceNameSuffix: 'web',
+      defaultUserProvider: createConsentAwareUserProvider(
+        this.storage,
+        config.userProvider,
+        this.apiKey,
+      ),
       initialFlags: initialFlagsString,
       // timeout for fetching remote flags
       fetchTimeoutMillis: 1000,
