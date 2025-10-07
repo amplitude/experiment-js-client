@@ -238,6 +238,8 @@ describe('ConsentAwareExposureHandler', () => {
 
   describe('without experiment integration', () => {
     beforeEach(() => {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       mockGetGlobalScope.mockReturnValue({});
       handler = new ConsentAwareExposureHandler(ConsentStatus.GRANTED);
     });
