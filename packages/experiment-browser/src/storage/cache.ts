@@ -65,7 +65,13 @@ export class SingleValueStoreCache<V> {
   }
 
   public store(): void {
-    this.storage.put(this.namespace, JSON.stringify(this.value));
+    if (this.value === undefined) {
+      // Delete the key if the value is undefined
+      this.storage.delete(this.namespace);
+    } else {
+      // Also store false or null values
+      this.storage.put(this.namespace, JSON.stringify(this.value));
+    }
   }
 }
 
