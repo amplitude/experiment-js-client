@@ -22,6 +22,10 @@ import {
   ConsentAwareSessionStorage,
   ConsentAwareStorage,
 } from './storage/consent-aware-storage';
+import {
+  getAndParseStorageItem,
+  setAndStringifyStorageItem,
+} from './storage/storage';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   ConsentOptions,
@@ -878,9 +882,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         }
       });
 
-      this.storage.setItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
-        previewFlags: this.previewFlags,
-      });
+      setAndStringifyStorageItem<PreviewState>(
+        'sessionStorage',
+        PREVIEW_MODE_SESSION_KEY,
+        {
+          previewFlags: this.previewFlags,
+        },
+      );
       const previewParamsToRemove = [
         ...Object.keys(this.previewFlags),
         PREVIEW_MODE_PARAM,
@@ -896,7 +904,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // if in preview mode, listen for ForceVariant messages
       WindowMessenger.setup();
     } else {
-      const previewState: PreviewState | null = this.storage.getItem(
+      const previewState = getAndParseStorageItem<PreviewState>(
         'sessionStorage',
         PREVIEW_MODE_SESSION_KEY,
       );

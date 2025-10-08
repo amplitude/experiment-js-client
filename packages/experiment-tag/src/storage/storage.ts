@@ -3,43 +3,54 @@ import { getGlobalScope } from '@amplitude/experiment-core';
 export type StorageType = 'localStorage' | 'sessionStorage';
 
 /**
- * Get a JSON value from storage and parse it
+ * Get a JSON value from storage
  * @param storageType - The type of storage to use ('localStorage' or 'sessionStorage')
- * @param key - The key to retrieve
- * @returns The parsed JSON value or null if not found or invalid JSON
+ * @param key - The key to retrieve the value for
+ * @returns The JSON string value, or null if not found
  */
-export const getStorageItem = <T>(
+export const getRawStorageItem = <T>(
+  storageType: StorageType,
+  key: string,
+): string => {
+  return getStorage(storageType)?.getItem(key) || '';
+};
+
+/**
+ * Set a JSON value in storage
+ * @param storageType - The type of storage to use ('localStorage' or 'sessionStorage')
+ * @param key - The key to set the value for
+ * @param value - The value to set
+ */
+export const setRawStorageItem = (
+  storageType: StorageType,
+  key: string,
+  value: string,
+): void => {
+  getStorage(storageType)?.setItem(key, value);
+};
+
+export const getAndParseStorageItem = <T>(
   storageType: StorageType,
   key: string,
 ): T | null => {
+  const value = getRawStorageItem(storageType, key);
   try {
-    const value = getStorage(storageType)?.getItem(key);
-    if (!value) {
-      return null;
-    }
-    return JSON.parse(value) as T;
-  } catch (error) {
-    console.warn(`Failed to get and parse JSON from ${storageType}:`, error);
+    return JSON.parse(value);
+  } catch {
     return null;
   }
 };
 
-/**
- * Set a JSON value in storage by stringifying it
- * @param storageType - The type of storage to use ('localStorage' or 'sessionStorage')
- * @param key - The key to store the value under
- * @param value - The value to stringify and store
- */
-export const setStorageItem = (
+export const setAndStringifyStorageItem = <T>(
   storageType: StorageType,
   key: string,
-  value: unknown,
+  value: T,
 ): void => {
   try {
-    const jsonString = JSON.stringify(value);
-    getStorage(storageType)?.setItem(key, jsonString);
+    const stringValue = JSON.stringify(value);
+    setRawStorageItem(storageType, key, stringValue);
   } catch (error) {
-    console.warn(`Failed to stringify and set JSON in ${storageType}:`, error);
+    console.warn(`Failed to persist data for key ${key}:`, error);
   }
 };
 
@@ -59,7 +70,7 @@ export const removeStorageItem = (
   }
 };
 
-export const getStorage = (storageType: StorageType): Storage | null => {
+const getStorage = (storageType: StorageType): Storage | null => {
   const globalScope = getGlobalScope();
   if (!globalScope) {
     return null;

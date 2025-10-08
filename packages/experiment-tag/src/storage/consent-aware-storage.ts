@@ -4,10 +4,11 @@ import type { Campaign } from '@amplitude/analytics-core';
 import { ConsentStatus } from '../types';
 
 import {
-  getStorage,
-  getStorageItem,
+  getAndParseStorageItem,
+  getRawStorageItem,
   removeStorageItem,
-  setStorageItem,
+  setAndStringifyStorageItem,
+  setRawStorageItem,
   StorageType,
 } from './storage';
 
@@ -16,6 +17,7 @@ import {
  */
 export class ConsentAwareStorage {
   private inMemoryStorage: Map<StorageType, Map<string, unknown>> = new Map();
+  private inMemoryRawStorage: Map<StorageType, Map<string, string>> = new Map();
   private inMemoryMarketingCookies: Map<string, Campaign> = new Map();
   private consentStatus: ConsentStatus;
 
@@ -32,15 +34,19 @@ export class ConsentAwareStorage {
     if (consentStatus === ConsentStatus.GRANTED) {
       for (const [storageType, storageMap] of this.inMemoryStorage.entries()) {
         for (const [key, value] of storageMap.entries()) {
-          try {
-            const jsonString = JSON.stringify(value);
-            getStorage(storageType)?.setItem(key, jsonString);
-          } catch (error) {
-            console.warn(`Failed to persist data for key ${key}:`, error);
-          }
+          setAndStringifyStorageItem(storageType, key, value);
+        }
+      }
+      for (const [
+        storageType,
+        storageMap,
+      ] of this.inMemoryRawStorage.entries()) {
+        for (const [key, value] of storageMap.entries()) {
+          setRawStorageItem(storageType, key, value);
         }
       }
       this.inMemoryStorage.clear();
+      this.inMemoryRawStorage.clear();
       this.persistMarketingCookies().then();
     }
   }
@@ -73,7 +79,8 @@ export class ConsentAwareStorage {
    */
   public getItem<T>(storageType: StorageType, key: string): T | null {
     if (this.consentStatus === ConsentStatus.GRANTED) {
-      return getStorageItem(storageType, key);
+      const value = getAndParseStorageItem(storageType, key);
+      return value as T;
     }
 
     const storageMap = this.inMemoryStorage.get(storageType);
@@ -89,7 +96,7 @@ export class ConsentAwareStorage {
    */
   public setItem(storageType: StorageType, key: string, value: unknown): void {
     if (this.consentStatus === ConsentStatus.GRANTED) {
-      setStorageItem(storageType, key, value);
+      setAndStringifyStorageItem(storageType, key, value);
     } else {
       if (!this.inMemoryStorage.has(storageType)) {
         this.inMemoryStorage.set(storageType, new Map());
@@ -112,6 +119,42 @@ export class ConsentAwareStorage {
       if (storageMap.size === 0) {
         this.inMemoryStorage.delete(storageType);
       }
+    }
+  }
+
+  /**
+   * Get a raw string value from storage with consent awareness
+   * This is used by Storage interface implementations that expect raw strings
+   */
+  public getRawItem(storageType: StorageType, key: string): string {
+    if (this.consentStatus === ConsentStatus.GRANTED) {
+      return getRawStorageItem(storageType, key);
+    }
+
+    const storageMap = this.inMemoryRawStorage.get(storageType);
+    if (storageMap && storageMap.has(key)) {
+      return storageMap.get(key) || '';
+    }
+
+    return '';
+  }
+
+  /**
+   * Set a raw string value in storage with consent awareness
+   * This is used by Storage interface implementations that work with raw strings
+   */
+  public setRawItem(
+    storageType: StorageType,
+    key: string,
+    value: string,
+  ): void {
+    if (this.consentStatus === ConsentStatus.GRANTED) {
+      setRawStorageItem(storageType, key, value);
+    } else {
+      if (!this.inMemoryRawStorage.has(storageType)) {
+        this.inMemoryRawStorage.set(storageType, new Map());
+      }
+      this.inMemoryRawStorage.get(storageType)?.set(key, value);
     }
   }
 
@@ -143,11 +186,11 @@ export class ConsentAwareLocalStorage {
   constructor(private consentAwareStorage: ConsentAwareStorage) {}
 
   get(key: string): string {
-    return this.consentAwareStorage.getItem<string>('localStorage', key) || '';
+    return this.consentAwareStorage.getRawItem('localStorage', key);
   }
 
   put(key: string, value: string): void {
-    this.consentAwareStorage.setItem('localStorage', key, value);
+    this.consentAwareStorage.setRawItem('localStorage', key, value);
   }
 
   delete(key: string): void {
@@ -159,13 +202,11 @@ export class ConsentAwareSessionStorage {
   constructor(private consentAwareStorage: ConsentAwareStorage) {}
 
   get(key: string): string {
-    return (
-      this.consentAwareStorage.getItem<string>('sessionStorage', key) || ''
-    );
+    return this.consentAwareStorage.getRawItem('sessionStorage', key);
   }
 
   put(key: string, value: string): void {
-    this.consentAwareStorage.setItem('sessionStorage', key, value);
+    this.consentAwareStorage.setRawItem('sessionStorage', key, value);
   }
 
   delete(key: string): void {

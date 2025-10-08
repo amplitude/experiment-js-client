@@ -1507,28 +1507,18 @@ describe('initializeExperiment', () => {
   });
 
   describe('remote evaluation - flag already stored in session storage', () => {
-    const sessionStorageMock = () => {
-      let store = {};
-      return {
-        getItem: jest.fn((key) => store[key] || null),
-        setItem: jest.fn((key, value) => {
-          store[key] = value;
-        }),
-        removeItem: jest.fn((key) => {
-          delete store[key];
-        }),
-        clear: jest.fn(() => {
-          store = {};
-        }),
-      };
-    };
+    let testMockGlobal: any;
+
     beforeEach(() => {
-      Object.defineProperty(safeGlobal, 'sessionStorage', {
-        value: sessionStorageMock(),
+      // Create fresh mock global for each test in this describe block
+      testMockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
       });
-    });
-    afterEach(() => {
-      safeGlobal.sessionStorage.clear();
+      mockGetGlobalScope.mockReturnValue(testMockGlobal);
     });
     test('evaluated, applied, and impression tracked, start updates flag in storage, applied, impression deduped', async () => {
       const apiKey = 'api1';
@@ -1545,7 +1535,7 @@ describe('initializeExperiment', () => {
           flagVersion: 2,
         },
       );
-      safeGlobal.sessionStorage.setItem(
+      testMockGlobal.sessionStorage.setItem(
         storageKey,
         JSON.stringify({ test: storedFlag }),
       );
@@ -1592,7 +1582,7 @@ describe('initializeExperiment', () => {
       expect(mockExposure).toHaveBeenCalledTimes(1);
       // Check remote flag store in storage
       const flags = JSON.parse(
-        safeGlobal.sessionStorage.getItem(storageKey) as string,
+        testMockGlobal.sessionStorage.getItem(storageKey) as string,
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
@@ -1619,7 +1609,7 @@ describe('initializeExperiment', () => {
           flagVersion: 2,
         },
       );
-      safeGlobal.sessionStorage.setItem(
+      testMockGlobal.sessionStorage.setItem(
         storageKey,
         JSON.stringify({ test: storedFlag }),
       );
@@ -1674,7 +1664,7 @@ describe('initializeExperiment', () => {
       expect(mockExposure).toHaveBeenCalledTimes(2);
       // Check remote flag store in storage
       const flags = JSON.parse(
-        safeGlobal.sessionStorage.getItem(storageKey) as string,
+        testMockGlobal.sessionStorage.getItem(storageKey) as string,
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
