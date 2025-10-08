@@ -3,7 +3,7 @@ import { getGlobalScope } from '@amplitude/experiment-core';
 export type StorageType = 'localStorage' | 'sessionStorage';
 
 /**
- * Get a JSON value from storage
+ * Get a JSON string value from storage
  * @param storageType - The type of storage to use ('localStorage' or 'sessionStorage')
  * @param key - The key to retrieve the value for
  * @returns The JSON string value, or null if not found
@@ -16,10 +16,10 @@ export const getRawStorageItem = <T>(
 };
 
 /**
- * Set a JSON value in storage
+ * Set a JSON string value in storage
  * @param storageType - The type of storage to use ('localStorage' or 'sessionStorage')
  * @param key - The key to set the value for
- * @param value - The value to set
+ * @param value - The JSON string value to set
  */
 export const setRawStorageItem = (
   storageType: StorageType,

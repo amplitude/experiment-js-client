@@ -1510,7 +1510,6 @@ describe('initializeExperiment', () => {
     let testMockGlobal: any;
 
     beforeEach(() => {
-      // Create fresh mock global for each test in this describe block
       testMockGlobal = newMockGlobal({
         experimentConfig: {
           consentOptions: {
