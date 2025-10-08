@@ -273,7 +273,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.globalScope.experimentIntegration.type = 'integration';
     this.consentAwareExposureHandler.wrapExperimentIntegrationTrack();
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
-
     this.experimentClient.setUser(user);
 
     if (!this.isRemoteBlocking) {
