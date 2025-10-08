@@ -13,7 +13,6 @@ export class ConsentAwareExposureHandler {
   private pendingEvents: ExperimentEvent[] = [];
   private consentStatus: ConsentStatus = ConsentStatus.PENDING;
   private originalTrack: ((event: ExperimentEvent) => boolean) | null = null;
-  private isWrapped = false;
 
   constructor(initialConsentStatus: ConsentStatus) {
     this.consentStatus = initialConsentStatus;
@@ -24,10 +23,6 @@ export class ConsentAwareExposureHandler {
    * Prevents nested wrapping by checking if already wrapped
    */
   public wrapExperimentIntegrationTrack(): void {
-    if (this.isWrapped) {
-      return;
-    }
-
     const globalScope = getGlobalScope();
     const experimentIntegration =
       globalScope?.experimentIntegration as IntegrationPlugin;
@@ -42,7 +37,6 @@ export class ConsentAwareExposureHandler {
       const wrappedTrack = this.createConsentAwareTrack(this.originalTrack);
       (wrappedTrack as any).__isConsentAwareWrapped = true;
       experimentIntegration.track = wrappedTrack;
-      this.isWrapped = true;
     }
   }
 
