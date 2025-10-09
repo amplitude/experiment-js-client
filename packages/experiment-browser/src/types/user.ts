@@ -126,6 +126,8 @@ export type ExperimentUser = {
    */
   url_param?: Record<string, string | string[]>;
 
+  persisted_utm_param?: Record<string, string | string[]>;
+
   /**
    * The user agent string.
    */

@@ -52,10 +52,7 @@ export async function enrichUserWithCampaignData(
 
   return {
     ...user,
-    user_properties: {
-      ...user.user_properties,
-      ...utmParams,
-    },
+    persisted_utm_param: utmParams,
   };
 }
 

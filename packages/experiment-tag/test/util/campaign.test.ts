@@ -3,7 +3,6 @@ import {
   CampaignParser,
   CookieStorage,
   getStorageKey,
-  MKTG,
 } from '@amplitude/analytics-core';
 import { ExperimentUser } from '@amplitude/experiment-js-client';
 
@@ -18,7 +17,7 @@ jest.mock('@amplitude/analytics-core', () => ({
   CampaignParser: jest.fn(),
   CookieStorage: jest.fn(),
   getStorageKey: jest.fn(),
-  MKTG: MKTG,
+  MKTG: 'MKTG',
 }));
 
 jest.mock('../../src/util/storage', () => ({
@@ -109,8 +108,7 @@ describe('campaign utilities', () => {
 
       expect(result).toEqual({
         ...baseUser,
-        user_properties: {
-          ...baseUser.user_properties,
+        persisted_utm_param: {
           utm_source: 'current_source',
           utm_medium: 'current_medium',
           utm_campaign: 'current_campaign',
@@ -164,8 +162,7 @@ describe('campaign utilities', () => {
 
       const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
-      expect(result.user_properties).toEqual({
-        ...baseUser.user_properties,
+      expect(result.persisted_utm_param).toEqual({
         utm_source: 'current_source',
         utm_medium: 'experiment_medium',
         utm_campaign: 'current_campaign',
@@ -193,8 +190,7 @@ describe('campaign utilities', () => {
 
       const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
-      expect(result.user_properties).toEqual({
-        ...baseUser.user_properties,
+      expect(result.persisted_utm_param).toEqual({
         utm_source: 'current_source',
         utm_medium: 'experiment_medium',
         utm_campaign: 'current_campaign',
@@ -227,8 +223,7 @@ describe('campaign utilities', () => {
 
       const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
-      expect(result.user_properties).toEqual({
-        ...baseUser.user_properties,
+      expect(result.persisted_utm_param).toEqual({
         utm_source: 'test_source',
         utm_medium: 'amplitude_medium',
         utm_term: 'experiment_term',
@@ -262,8 +257,7 @@ describe('campaign utilities', () => {
 
       const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
-      expect(result.user_properties).toEqual({
-        ...baseUser.user_properties,
+      expect(result.persisted_utm_param).toEqual({
         utm_source: 'current_source',
         utm_medium: 'experiment_medium',
         utm_campaign: 'experiment_campaign',
@@ -278,7 +272,10 @@ describe('campaign utilities', () => {
 
       const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
-      expect(result).toEqual(baseUser);
+      expect(result).toEqual({
+        ...baseUser,
+        persisted_utm_param: {},
+      });
       expect(mockSetStorageItem).toHaveBeenCalledWith(
         'localStorage',
         'EXP_MKTG_test-api-k',
@@ -302,7 +299,7 @@ describe('campaign utilities', () => {
 
       const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
-      expect(result.user_properties).toMatchObject({
+      expect(result.persisted_utm_param).toMatchObject({
         utm_source: 'test_source',
         utm_medium: 'test_medium',
         utm_campaign: 'test_campaign',
@@ -391,7 +388,7 @@ describe('campaign utilities', () => {
         user_id: 'test',
       });
 
-      expect(result.user_properties).toMatchObject({
+      expect(result.persisted_utm_param).toMatchObject({
         utm_source: 'test',
       });
     });
