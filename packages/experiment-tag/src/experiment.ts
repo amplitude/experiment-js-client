@@ -33,6 +33,7 @@ import {
   RevertVariantsOptions,
 } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
+import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
@@ -247,6 +248,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
+    const enrichedUser = await enrichUserWithCampaignData(this.apiKey, user);
+
     // If no integration has been set, use an Amplitude integration.
     if (!this.globalScope.experimentIntegration) {
       const connector = AnalyticsConnector.getInstance('$default_instance');
@@ -258,7 +261,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     this.globalScope.experimentIntegration.type = 'integration';
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
-    this.experimentClient.setUser(user);
+    this.experimentClient.setUser(enrichedUser);
 
     if (!this.isRemoteBlocking) {
       // Remove anti-flicker css if remote flags are not blocking
