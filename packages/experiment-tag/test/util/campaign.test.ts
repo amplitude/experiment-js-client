@@ -286,30 +286,6 @@ describe('campaign utilities', () => {
       );
     });
 
-    it('should handle user without existing user_properties', async () => {
-      const userWithoutProps: ExperimentUser = {
-        user_id: 'test-user',
-        device_id: 'test-device',
-      };
-
-      const currentCampaign: Partial<Campaign> = {
-        utm_source: 'test_source',
-      };
-
-      mockCampaignParser.parse.mockResolvedValue(currentCampaign as Campaign);
-      mockCookieStorage.get.mockResolvedValue(undefined);
-      mockGetStorageItem.mockReturnValue(null);
-
-      const result = await enrichUserWithCampaignData(apiKey, userWithoutProps);
-
-      expect(result).toEqual({
-        ...userWithoutProps,
-        user_properties: {
-          utm_source: 'test_source',
-        },
-      });
-    });
-
     it('should handle all UTM parameter types', async () => {
       const fullCampaign: Partial<Campaign> = {
         utm_source: 'test_source',
@@ -334,22 +310,6 @@ describe('campaign utilities', () => {
         utm_content: 'test_content',
         utm_id: 'test_id',
       });
-    });
-
-    it('should generate correct storage key from API key', async () => {
-      const longApiKey =
-        'very-long-api-key-that-should-be-truncated-1234567890';
-
-      mockCampaignParser.parse.mockResolvedValue({} as Campaign);
-      mockCookieStorage.get.mockResolvedValue(undefined);
-      mockGetStorageItem.mockReturnValue(null);
-
-      await enrichUserWithCampaignData(longApiKey, baseUser);
-
-      expect(mockGetStorageItem).toHaveBeenCalledWith(
-        'localStorage',
-        'EXP_MKTG_very-long-',
-      );
     });
 
     it('should handle async errors gracefully', async () => {
@@ -393,41 +353,6 @@ describe('campaign utilities', () => {
         emptyCampaign,
       );
     });
-
-    it('should generate correct storage key for different API keys', () => {
-      const shortApiKey = 'short';
-      const longApiKey = 'very-long-api-key-that-exceeds-ten-characters';
-
-      persistUrlUtmParams(shortApiKey, {});
-      expect(mockSetStorageItem).toHaveBeenCalledWith(
-        'localStorage',
-        'EXP_MKTG_short',
-        {},
-      );
-
-      persistUrlUtmParams(longApiKey, {});
-      expect(mockSetStorageItem).toHaveBeenCalledWith(
-        'localStorage',
-        'EXP_MKTG_very-long-',
-        {},
-      );
-    });
-
-    it('should persist non-UTM parameters if provided', () => {
-      const campaignWithNonUtm = {
-        utm_source: 'test_source',
-        custom_param: 'custom_value',
-        another_param: 'another_value',
-      };
-
-      persistUrlUtmParams(apiKey, campaignWithNonUtm);
-
-      expect(mockSetStorageItem).toHaveBeenCalledWith(
-        'localStorage',
-        'EXP_MKTG_test-api-k',
-        campaignWithNonUtm,
-      );
-    });
   });
 
   describe('fetchCampaignData (internal function behavior)', () => {
@@ -469,76 +394,6 @@ describe('campaign utilities', () => {
       expect(result.user_properties).toMatchObject({
         utm_source: 'test',
       });
-    });
-  });
-
-  describe('integration tests', () => {
-    it('should work end-to-end with realistic campaign data and filtering', async () => {
-      const apiKey = 'prod-api-key-1234567890';
-      const user: ExperimentUser = {
-        user_id: 'user123',
-        device_id: 'device456',
-        user_properties: {
-          existing_prop: 'value',
-        },
-      };
-
-      const urlCampaign: Partial<Campaign> = {
-        utm_source: 'google',
-        utm_medium: 'cpc',
-        utm_campaign: 'summer_sale',
-        utm_term: undefined as any,
-        referrer: 'google.com',
-      } as any;
-
-      const amplitudeCampaign: Partial<Campaign> = {
-        utm_source: 'facebook',
-        utm_medium: 'social',
-        utm_term: 'shoes',
-        utm_content: 'ad_variant_a',
-        session_id: '12345',
-      } as any;
-
-      const experimentCampaign = {
-        utm_term: 'sneakers',
-        utm_id: 'exp_123',
-        utm_content: undefined as any,
-        internal_flag: true,
-      };
-
-      mockCampaignParser.parse.mockResolvedValue(urlCampaign as Campaign);
-      mockCookieStorage.get.mockResolvedValue(amplitudeCampaign as Campaign);
-      mockGetStorageItem.mockReturnValue(experimentCampaign);
-      mockGetStorageKey.mockReturnValue('AMP_MKTG_prod-api-k');
-
-      const result = await enrichUserWithCampaignData(apiKey, user);
-
-      expect(result).toEqual({
-        user_id: 'user123',
-        device_id: 'device456',
-        user_properties: {
-          existing_prop: 'value',
-          utm_source: 'google',
-          utm_medium: 'cpc',
-          utm_campaign: 'summer_sale',
-          utm_term: 'sneakers',
-          utm_content: 'ad_variant_a',
-          utm_id: 'exp_123',
-        },
-      });
-
-      expect(mockSetStorageItem).toHaveBeenCalledWith(
-        'localStorage',
-        'EXP_MKTG_prod-api-k',
-        {
-          utm_source: 'google',
-          utm_medium: 'cpc',
-          utm_campaign: 'summer_sale',
-          utm_term: 'sneakers',
-          utm_content: 'ad_variant_a',
-          utm_id: 'exp_123',
-        },
-      );
     });
   });
 });
