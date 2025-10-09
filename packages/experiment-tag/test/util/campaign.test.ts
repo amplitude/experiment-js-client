@@ -274,13 +274,8 @@ describe('campaign utilities', () => {
 
       expect(result).toEqual({
         ...baseUser,
-        persisted_utm_param: {},
       });
-      expect(mockSetStorageItem).toHaveBeenCalledWith(
-        'localStorage',
-        'EXP_MKTG_test-api-k',
-        {},
-      );
+      expect(mockSetStorageItem).not.toHaveBeenCalled();
     });
 
     it('should handle all UTM parameter types', async () => {
