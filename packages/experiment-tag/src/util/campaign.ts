@@ -48,12 +48,14 @@ export async function enrichUserWithCampaignData(
     }
   }
 
-  persistUrlUtmParams(apiKey, utmParams);
-
-  return {
-    ...user,
-    persisted_utm_param: utmParams,
-  };
+  if (Object.keys(utmParams).length > 0) {
+    persistUrlUtmParams(apiKey, utmParams);
+    return {
+      ...user,
+      persisted_utm_param: utmParams,
+    };
+  }
+  return user;
 }
 
 /**
