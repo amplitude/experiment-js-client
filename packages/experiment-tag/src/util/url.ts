@@ -1,9 +1,9 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
 import { PREVIEW_MODE_PARAM } from '../experiment';
+import { getPreviewModeSessionKey } from '../storage/keys';
 import { getStorageItem } from '../storage/storage';
 import { PreviewState } from '../types';
-import { getPreviewModeSessionKey } from '../storage/keys';
 
 export const getUrlParams = (): Record<string, string> => {
   const globalScope = getGlobalScope();
