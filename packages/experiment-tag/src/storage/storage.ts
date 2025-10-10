@@ -1,5 +1,13 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+import { WebExperimentConfig } from '../types';
+
+import {
+  getDefaultUserProviderStorageKey,
+  getExperimentStorageKey,
+  getUnsentEventsStorageKey,
+} from './keys';
+
 export type StorageType = 'localStorage' | 'sessionStorage';
 
 /**
@@ -65,4 +73,18 @@ export const getStorage = (storageType: StorageType): Storage | null => {
     return null;
   }
   return globalScope[storageType];
+};
+
+export const deletePersistedData = (
+  apiKey: string,
+  config: WebExperimentConfig,
+): void => {
+  const experimentStorageKey = getExperimentStorageKey(apiKey);
+  const defaultUserProviderStorageKey =
+    getDefaultUserProviderStorageKey(apiKey);
+  const unsentEventsStorageKey = getUnsentEventsStorageKey(config);
+  removeStorageItem('localStorage', experimentStorageKey);
+  removeStorageItem('localStorage', defaultUserProviderStorageKey);
+  removeStorageItem('sessionStorage', defaultUserProviderStorageKey);
+  removeStorageItem('localStorage', unsentEventsStorageKey);
 };

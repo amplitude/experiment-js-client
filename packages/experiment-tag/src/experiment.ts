@@ -18,6 +18,13 @@ import mutate, { MutationController } from 'dom-mutator';
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
 import { ConsentAwareStorage } from './storage/consent-aware-storage';
+import {
+  getExperimentStorageKey,
+  getPreviewModeSessionKey,
+  getRedirectStorageKey,
+  getVisualEditorSessionKey,
+} from './storage/keys';
+import { deletePersistedData } from './storage/storage';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   ConsentOptions,
@@ -37,7 +44,7 @@ import {
 } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { getInjectUtils } from './util/inject-utils';
-import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
+import { WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
 import {
   getUrlParams,
@@ -53,7 +60,6 @@ const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
-export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 
 safeGlobal.Experiment = FeatureExperiment;
@@ -182,7 +188,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const urlParams = getUrlParams();
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
-      this.storage.getItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !==
+      this.storage.getItem('sessionStorage', getVisualEditorSessionKey()) !==
         null;
     this.subscriptionManager = new SubscriptionManager(
       this,
@@ -216,7 +222,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
     this.messageBus.publish('url_change', { updateActivePages: true });
 
-    const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
+    const experimentStorageName = getExperimentStorageKey(this.apiKey);
     const user =
       this.storage.getItem<WebExperimentUser>(
         'localStorage',
@@ -535,6 +541,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   public setConsentStatus(consentStatus: ConsentStatus) {
     this.consentOptions.status = consentStatus;
     this.storage.setConsentStatus(consentStatus);
+    if (consentStatus === ConsentStatus.REJECTED) {
+      deletePersistedData(this.apiKey, this.config);
+    }
   }
 
   private async fetchRemoteFlags() {
@@ -809,7 +818,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     variant: Variant,
     redirectUrl: string,
   ) {
-    const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+    const redirectStorageKey = getRedirectStorageKey(this.apiKey);
     // Store the current flag and variant for exposure tracking after redirect
     const storedRedirects =
       this.storage.getItem('sessionStorage', redirectStorageKey) || {};
@@ -819,7 +828,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   private fireStoredRedirectImpressions() {
     // Check for stored redirects and process them
-    const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+    const redirectStorageKey = getRedirectStorageKey(this.apiKey);
     const storedRedirects =
       this.storage.getItem('sessionStorage', redirectStorageKey) || {};
 
@@ -870,7 +879,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         }
       });
 
-      this.storage.setItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
+      this.storage.setItem('sessionStorage', getPreviewModeSessionKey(), {
         previewFlags: this.previewFlags,
       });
       const previewParamsToRemove = [
@@ -890,7 +899,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     } else {
       const previewState: PreviewState | null = this.storage.getItem(
         'sessionStorage',
-        PREVIEW_MODE_SESSION_KEY,
+        getPreviewModeSessionKey(),
       );
       if (previewState) {
         this.previewFlags = previewState.previewFlags;
