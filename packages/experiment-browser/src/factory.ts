@@ -71,18 +71,14 @@ const newExperimentClient = (
 ): ExperimentClient => {
   return new ExperimentClient(apiKey, {
     ...config,
-    userProvider:
-      // @ts-expect-error - consentAwareStorage not in type definition
-      config?.consentAwareStorage
-        ? new DefaultUserProvider(
-            config?.userProvider,
-            apiKey,
-            // @ts-expect-error - consentAwareStorage not in type definition
-            config?.consentAwareStorage.localStorage,
-            // @ts-expect-error - consentAwareStorage not in type definition
-            config?.consentAwareStorage.sessionStorage,
-          )
-        : new DefaultUserProvider(config?.userProvider, apiKey),
+    userProvider: config?.['consentAwareStorage']
+      ? new DefaultUserProvider(
+          config?.userProvider,
+          apiKey,
+          config?.['consentAwareStorage']?.['localStorage'],
+          config?.['consentAwareStorage']?.['sessionStorage'],
+        )
+      : new DefaultUserProvider(config?.userProvider, apiKey),
   });
 };
 
