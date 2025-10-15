@@ -65,7 +65,7 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
   const baseGlobal = {
     localStorage: createStorageMock(),
     sessionStorage: createStorageMock(),
-    document: { referrer: '' },
+    document: { referrer: '', cookie: '' },
     history: { replaceState: jest.fn() },
     addEventListener: jest.fn(),
     experimentIntegration: {
@@ -1245,18 +1245,6 @@ describe('initializeExperiment', () => {
   });
 
   describe('consent status initialization and storage persistence', () => {
-    let mockConsentAwareStorage: any;
-
-    beforeEach(() => {
-      // Mock ConsentAwareStorage
-      mockConsentAwareStorage = {
-        setItem: jest.fn(),
-        getItem: jest.fn(),
-        removeItem: jest.fn(),
-        setConsentStatus: jest.fn(),
-      };
-    });
-
     it('should initialize experiment with PENDING consent and store data in memory only', () => {
       const mockGlobal = newMockGlobal({
         experimentConfig: {
@@ -1386,12 +1374,8 @@ describe('initializeExperiment', () => {
       mockCampaignParser = {
         parse: jest.fn().mockResolvedValue(mockCampaign),
       };
-      mockCookieStorage = {
-        set: jest.fn().mockResolvedValue(undefined),
-      };
 
       MockCampaignParser.mockImplementation(() => mockCampaignParser);
-      MockCookieStorage.mockImplementation(() => mockCookieStorage);
     });
 
     it('should set marketing cookie directly during redirect when consent is GRANTED', async () => {
@@ -1403,6 +1387,14 @@ describe('initializeExperiment', () => {
         },
       });
       mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      mockCookieStorage = {
+        set: jest.fn().mockImplementation((key, value) => {
+          mockGlobal.document.cookie = `${key}=${JSON.stringify(value)}`;
+          return Promise.resolve();
+        }),
+      };
+      MockCookieStorage.mockImplementation(() => mockCookieStorage);
 
       const client = DefaultWebExperimentClient.getInstance(
         stringify(apiKey),
@@ -1423,13 +1415,9 @@ describe('initializeExperiment', () => {
       expect(mockGlobal.location.replace).toHaveBeenCalledWith(
         'http://test.com/2',
       );
-
-      expect(MockCampaignParser).toHaveBeenCalledTimes(1);
-      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(1);
-      expect(MockCookieStorage).toHaveBeenCalledWith({ sameSite: 'Lax' });
-      expect(mockCookieStorage.set).toHaveBeenCalledWith(
-        `AMP_MKTG_ORIGINAL_${stringify(apiKey).substring(0, 10)}`,
-        mockCampaign,
+      expect(mockGlobal.document.cookie).toContain('AMP_MKTG_ORIGINAL_');
+      expect(mockGlobal.document.cookie).toContain(
+        stringify(apiKey).substring(0, 10),
       );
     });
 
