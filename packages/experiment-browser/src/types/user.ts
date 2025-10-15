@@ -126,6 +126,9 @@ export type ExperimentUser = {
    */
   url_param?: Record<string, string | string[]>;
 
+  /**
+   * Persisted UTM parameters from parsed from the current URL and stored in local storage.
+   */
   persisted_utm_param?: Record<string, string | string[]>;
 
   /**
