@@ -33,9 +33,9 @@ export async function enrichUserWithCampaignData(
   // Filter out undefined values and non-UTM parameters
   const utmParams: Record<string, string> = {};
   const allCampaigns = [
-    persistedAmplitudeCampaign,
-    persistedExperimentCampaign,
-    currentCampaign,
+    persistedAmplitudeCampaign, // lowest priority
+    persistedExperimentCampaign, // medium prioirty
+    currentCampaign, // highest priority
   ];
 
   for (const campaign of allCampaigns) {
