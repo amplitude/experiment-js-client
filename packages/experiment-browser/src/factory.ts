@@ -71,14 +71,12 @@ const newExperimentClient = (
 ): ExperimentClient => {
   return new ExperimentClient(apiKey, {
     ...config,
-    userProvider: config?.['consentAwareStorage']
-      ? new DefaultUserProvider(
-          config?.userProvider,
-          apiKey,
-          config?.['consentAwareStorage']?.['localStorage'],
-          config?.['consentAwareStorage']?.['sessionStorage'],
-        )
-      : new DefaultUserProvider(config?.userProvider, apiKey),
+    userProvider: new DefaultUserProvider(
+      config?.userProvider,
+      apiKey,
+      config?.['consentAwareStorage']?.localStorage,
+      config?.['consentAwareStorage']?.sessionStorage,
+    ),
   });
 };
 
