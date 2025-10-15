@@ -48,10 +48,10 @@ export async function enrichUserWithCampaignData(
   }
 
   if (Object.keys(utmParams).length > 0) {
-    persistUrlUtmParams(apiKey, utmParams);
+    persistUrlParams(apiKey, utmParams);
     return {
       ...user,
-      persisted_utm_param: utmParams,
+      persisted_url_param: utmParams,
     };
   }
   return user;
@@ -60,7 +60,7 @@ export async function enrichUserWithCampaignData(
 /**
  * Persists UTM parameters from the current URL to experiment-tag storage
  */
-export function persistUrlUtmParams(
+export function persistUrlParams(
   apiKey: string,
   campaign: Record<string, string>,
 ): void {

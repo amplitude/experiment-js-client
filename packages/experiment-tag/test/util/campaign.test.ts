@@ -8,7 +8,7 @@ import { type ExperimentUser } from '@amplitude/experiment-js-client';
 
 import {
   enrichUserWithCampaignData,
-  persistUrlUtmParams,
+  persistUrlParams,
 } from '../../src/util/campaign';
 import * as storageUtils from '../../src/util/storage';
 
@@ -108,7 +108,7 @@ describe('campaign utilities', () => {
 
       expect(result).toEqual({
         ...baseUser,
-        persisted_utm_param: {
+        persisted_url_param: {
           utm_source: 'current_source',
           utm_medium: 'current_medium',
           utm_campaign: 'current_campaign',
@@ -162,7 +162,7 @@ describe('campaign utilities', () => {
 
       const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
-      expect(result.persisted_utm_param).toEqual({
+      expect(result.persisted_url_param).toEqual({
         utm_source: 'current_source',
         utm_medium: 'experiment_medium',
         utm_campaign: 'current_campaign',
@@ -196,7 +196,7 @@ describe('campaign utilities', () => {
 
       const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
-      expect(result.persisted_utm_param).toEqual({
+      expect(result.persisted_url_param).toEqual({
         utm_source: 'test_source',
         utm_medium: 'amplitude_medium',
         utm_term: 'experiment_term',
@@ -230,7 +230,7 @@ describe('campaign utilities', () => {
 
       const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
-      expect(result.persisted_utm_param).toEqual({
+      expect(result.persisted_url_param).toEqual({
         utm_source: 'current_source',
         utm_medium: 'experiment_medium',
         utm_campaign: 'experiment_campaign',
@@ -267,7 +267,7 @@ describe('campaign utilities', () => {
 
       const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
-      expect(result.persisted_utm_param).toMatchObject({
+      expect(result.persisted_url_param).toMatchObject({
         utm_source: 'test_source',
         utm_medium: 'test_medium',
         utm_campaign: 'test_campaign',
@@ -298,7 +298,7 @@ describe('campaign utilities', () => {
         utm_campaign: 'test_campaign',
       };
 
-      persistUrlUtmParams(apiKey, campaign);
+      persistUrlParams(apiKey, campaign);
 
       expect(mockSetStorageItem).toHaveBeenCalledWith(
         'localStorage',
@@ -310,7 +310,7 @@ describe('campaign utilities', () => {
     it('should handle empty campaign object', () => {
       const emptyCampaign = {};
 
-      persistUrlUtmParams(apiKey, emptyCampaign);
+      persistUrlParams(apiKey, emptyCampaign);
 
       expect(mockSetStorageItem).toHaveBeenCalledWith(
         'localStorage',
@@ -356,7 +356,7 @@ describe('campaign utilities', () => {
         user_id: 'test',
       });
 
-      expect(result.persisted_utm_param).toMatchObject({
+      expect(result.persisted_url_param).toMatchObject({
         utm_source: 'test',
       });
     });
