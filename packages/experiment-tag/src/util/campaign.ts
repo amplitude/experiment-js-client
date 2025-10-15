@@ -1,12 +1,12 @@
 import {
-  Campaign,
+  type Campaign,
   CampaignParser,
   CookieStorage,
   getStorageKey,
   MKTG,
 } from '@amplitude/analytics-core';
 import { UTMParameters } from '@amplitude/analytics-core/lib/esm/types/campaign';
-import { ExperimentUser } from '@amplitude/experiment-js-client';
+import { type ExperimentUser } from '@amplitude/experiment-js-client';
 
 import { getStorageItem, setStorageItem } from './storage';
 
