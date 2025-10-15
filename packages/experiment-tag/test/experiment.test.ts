@@ -26,6 +26,12 @@ jest.mock('src/util/messenger', () => {
   };
 });
 
+jest.mock('src/util/selector', () => {
+  return {
+    isElementOnPage: jest.fn(() => true),
+  };
+});
+
 const newMockGlobal = (overrides?: Record<string, unknown>) => {
   const createStorageMock = () => {
     let store: Record<string, string> = {};

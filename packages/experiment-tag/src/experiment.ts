@@ -51,6 +51,7 @@ import {
 } from './util/url';
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
+import { isElementOnPage } from './util/selector';
 
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
@@ -611,7 +612,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
             index
           ];
         }
-      } else {
+      } else if (isElementOnPage(m?.selector)) {
         // always track exposure if mutation is active
         this.exposureWithDedupe(flagKey, variant);
         // Check if mutation has already been applied
