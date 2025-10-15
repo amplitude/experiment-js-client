@@ -77,7 +77,7 @@ export class ConsentAwareStorage {
     }
 
     const storageMap = this.inMemoryStorage.get(storageType);
-    if (storageMap && storageMap.has(key)) {
+    if (storageMap?.has(key)) {
       return storageMap.get(key) as T;
     }
 
