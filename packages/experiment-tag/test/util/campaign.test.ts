@@ -1,10 +1,10 @@
 import {
-  Campaign,
+  type Campaign,
   CampaignParser,
   CookieStorage,
   getStorageKey,
 } from '@amplitude/analytics-core';
-import { ExperimentUser } from '@amplitude/experiment-js-client';
+import { type ExperimentUser } from '@amplitude/experiment-js-client';
 
 import {
   enrichUserWithCampaignData,
@@ -139,7 +139,7 @@ describe('campaign utilities', () => {
     it('should preserve lower priority values when current campaign has undefined values', async () => {
       const currentCampaign: Partial<Campaign> = {
         utm_source: 'current_source',
-        utm_medium: undefined as any,
+        utm_medium: undefined,
         utm_campaign: 'current_campaign',
       };
 
@@ -171,44 +171,17 @@ describe('campaign utilities', () => {
       });
     });
 
-    it('should filter out undefined values and preserve lower priority values', async () => {
-      const currentCampaign: Partial<Campaign> = {
-        utm_source: 'current_source',
-        utm_medium: undefined as any,
-        utm_campaign: 'current_campaign',
-      };
-
-      const persistedExperimentCampaign = {
-        utm_source: 'experiment_source',
-        utm_medium: 'experiment_medium',
-        utm_term: 'experiment_term',
-      };
-
-      mockCampaignParser.parse.mockResolvedValue(currentCampaign as Campaign);
-      mockCookieStorage.get.mockResolvedValue(undefined);
-      mockGetStorageItem.mockReturnValue(persistedExperimentCampaign);
-
-      const result = await enrichUserWithCampaignData(apiKey, baseUser);
-
-      expect(result.persisted_utm_param).toEqual({
-        utm_source: 'current_source',
-        utm_medium: 'experiment_medium',
-        utm_campaign: 'current_campaign',
-        utm_term: 'experiment_term',
-      });
-    });
-
     it('should filter out non-UTM parameters from all sources', async () => {
       const currentCampaign: Partial<Campaign> = {
         utm_source: 'test_source',
         non_utm_param: 'should_be_filtered',
         random_field: 'also_filtered',
-      } as any;
+      };
 
       const persistedAmplitudeCampaign: Partial<Campaign> = {
         utm_medium: 'amplitude_medium',
         amplitude_specific: 'filtered_out',
-      } as any;
+      };
 
       const persistedExperimentCampaign = {
         utm_term: 'experiment_term',
@@ -233,20 +206,20 @@ describe('campaign utilities', () => {
     it('should handle mixed undefined values across all sources', async () => {
       const currentCampaign: Partial<Campaign> = {
         utm_source: 'current_source',
-        utm_medium: undefined as any,
-        utm_campaign: undefined as any,
+        utm_medium: undefined,
+        utm_campaign: undefined,
       };
 
       const persistedAmplitudeCampaign: Partial<Campaign> = {
         utm_source: 'amplitude_source',
-        utm_medium: undefined as any,
+        utm_medium: undefined,
         utm_term: 'amplitude_term',
       };
 
       const persistedExperimentCampaign = {
         utm_medium: 'experiment_medium',
         utm_campaign: 'experiment_campaign',
-        utm_content: undefined as any,
+        utm_content: undefined,
       };
 
       mockCampaignParser.parse.mockResolvedValue(currentCampaign as Campaign);

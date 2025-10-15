@@ -5,11 +5,10 @@ import {
   getStorageKey,
   MKTG,
 } from '@amplitude/analytics-core';
+import { UTMParameters } from '@amplitude/analytics-core/lib/esm/types/campaign';
 import { ExperimentUser } from '@amplitude/experiment-js-client';
 
 import { getStorageItem, setStorageItem } from './storage';
-
-type UTMParams = Record<string, string>;
 
 /**
  * Enriches the user object's userProperties with UTM parameters based on priority:
@@ -25,13 +24,13 @@ export async function enrichUserWithCampaignData(
   const [currentCampaign, persistedAmplitudeCampaign] = await fetchCampaignData(
     apiKey,
   );
-  const persistedExperimentCampaign = getStorageItem<UTMParams>(
+  const persistedExperimentCampaign = getStorageItem<UTMParameters>(
     'localStorage',
     experimentStorageKey,
   );
 
   // Filter out undefined values and non-UTM parameters
-  const utmParams: Record<string, string> = {};
+  const utmParams: Partial<UTMParameters> = {};
   const allCampaigns = [
     persistedAmplitudeCampaign,
     persistedExperimentCampaign,
