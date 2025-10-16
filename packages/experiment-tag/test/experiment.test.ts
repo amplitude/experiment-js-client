@@ -1771,8 +1771,8 @@ describe('initializeExperiment', () => {
 
     it('should add timestamp to exposure events', () => {
       const mockDate = new Date('2023-01-01T00:00:00.000Z');
-      const mockGetTime = jest
-        .spyOn(Date.prototype, 'getTime')
+      const mockNow = jest
+        .spyOn(Date, 'now')
         .mockReturnValue(mockDate.getTime());
 
       const mockGlobal = newMockGlobal({
@@ -1805,7 +1805,7 @@ describe('initializeExperiment', () => {
         }),
       });
 
-      mockGetTime.mockRestore();
+      mockNow.mockRestore();
     });
 
     it('should handle exposure tracking errors gracefully', () => {

@@ -57,7 +57,7 @@ export class ConsentAwareExposureHandler {
   ) {
     return (event: ExperimentEvent): boolean => {
       if (event?.eventProperties) {
-        event.eventProperties.time = new Date().getTime();
+        event.eventProperties.time = Date.now();
       }
       try {
         if (this.consentStatus === ConsentStatus.PENDING) {
