@@ -558,6 +558,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   public setConsentStatus(consentStatus: ConsentStatus) {
+    if (
+      consentStatus == undefined ||
+      consentStatus === this.consentOptions.status
+    ) {
+      return;
+    }
     this.consentOptions.status = consentStatus;
     this.storage.setConsentStatus(consentStatus);
     if (consentStatus === ConsentStatus.REJECTED) {
