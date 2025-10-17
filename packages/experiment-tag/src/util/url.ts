@@ -1,6 +1,7 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import { PREVIEW_MODE_PARAM, PREVIEW_MODE_SESSION_KEY } from '../experiment';
+import { PREVIEW_MODE_PARAM } from '../experiment';
+import { getPreviewModeSessionKey } from '../storage/keys';
 import { getAndParseStorageItem } from '../storage/storage';
 import { PreviewState } from '../types';
 
@@ -90,7 +91,7 @@ export const isPreviewMode = (): boolean => {
   }
   const previewState = getAndParseStorageItem<PreviewState>(
     'sessionStorage',
-    PREVIEW_MODE_SESSION_KEY,
+    getPreviewModeSessionKey(),
   );
   if (!previewState) {
     return false;

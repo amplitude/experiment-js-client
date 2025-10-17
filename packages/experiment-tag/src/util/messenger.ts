@@ -1,13 +1,12 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+import { getVisualEditorSessionKey } from '../storage/keys';
 import { getAndParseStorageItem } from '../storage/storage';
 
 interface VisualEditorSession {
   injectSrc: string;
   amplitudeWindowUrl: string;
 }
-
-export const VISUAL_EDITOR_SESSION_KEY = 'visual-editor-state';
 
 export class WindowMessenger {
   static setup() {
@@ -75,9 +74,8 @@ export class WindowMessenger {
   private static getStoredSession(): VisualEditorSession | null {
     const sessionData = getAndParseStorageItem<VisualEditorSession>(
       'sessionStorage',
-      VISUAL_EDITOR_SESSION_KEY,
-    ) as VisualEditorSession;
-
+      getVisualEditorSessionKey(),
+    );
     if (!sessionData) {
       return null;
     }
