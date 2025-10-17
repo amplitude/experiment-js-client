@@ -2,7 +2,6 @@ import { EvaluationCondition } from '@amplitude/experiment-core';
 import {
   ExperimentConfig,
   ExperimentUser,
-  Variant,
 } from '@amplitude/experiment-js-client';
 import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
