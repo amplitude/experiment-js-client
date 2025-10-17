@@ -1,7 +1,7 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
 import { PREVIEW_MODE_PARAM, PREVIEW_MODE_SESSION_KEY } from '../experiment';
-import { getStorageItem } from '../storage/storage';
+import { getAndParseStorageItem } from '../storage/storage';
 import { PreviewState } from '../types';
 
 export const getUrlParams = (): Record<string, string> => {
@@ -88,15 +88,15 @@ export const isPreviewMode = (): boolean => {
   if (getUrlParams()[PREVIEW_MODE_PARAM] === 'true') {
     return true;
   }
-  const previewState = getStorageItem(
+  const previewState = getAndParseStorageItem<PreviewState>(
     'sessionStorage',
     PREVIEW_MODE_SESSION_KEY,
-  ) as PreviewState;
-  if (
-    previewState?.previewFlags &&
-    Object.keys(previewState.previewFlags).length > 0
-  ) {
-    return true;
+  );
+  if (!previewState) {
+    return false;
   }
-  return false;
+  return (
+    previewState.previewFlags &&
+    Object.keys(previewState.previewFlags).length > 0
+  );
 };
