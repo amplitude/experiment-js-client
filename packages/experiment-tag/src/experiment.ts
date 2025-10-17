@@ -24,9 +24,12 @@ import {
   ConsentAwareStorage,
 } from './storage/consent-aware-storage';
 import {
+  getDefaultUserProviderStorageKey,
   getExperimentStorageKey,
   getPreviewModeSessionKey,
   getRedirectStorageKey,
+  getRemoteFlagsStorageKey,
+  getUnsentEventsStorageKey,
   getVisualEditorSessionKey,
 } from './storage/keys';
 import {
@@ -564,11 +567,28 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     ) {
       return;
     }
+    const previousConsentStatus = this.consentOptions.status;
     this.consentOptions.status = consentStatus;
-    this.storage.setConsentStatus(consentStatus);
+
     if (consentStatus === ConsentStatus.REJECTED) {
+      if (previousConsentStatus === ConsentStatus.GRANTED) {
+        const experimentStorageKey = getExperimentStorageKey(this.apiKey);
+        const defaultUserProviderStorageKey = getDefaultUserProviderStorageKey(
+          this.apiKey,
+        );
+        const flagsStorageKey = getRemoteFlagsStorageKey(
+          this.apiKey,
+          this.config.instanceName,
+        );
+
+        this.storage.loadPersistedDataToMemory(
+          [experimentStorageKey],
+          [flagsStorageKey, defaultUserProviderStorageKey],
+        );
+      }
       deletePersistedData(this.apiKey, this.config);
     }
+    this.storage.setConsentStatus(consentStatus);
     this.consentAwareExposureHandler.setConsentStatus(consentStatus);
   }
 

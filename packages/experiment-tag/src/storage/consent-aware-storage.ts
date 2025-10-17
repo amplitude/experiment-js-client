@@ -51,6 +51,56 @@ export class ConsentAwareStorage {
     }
   }
 
+  public loadPersistedDataToMemory(
+    jsonKeys?: string[],
+    rawKeys?: string[],
+  ): void {
+    for (const key of jsonKeys || []) {
+      const localStorageValue = getAndParseStorageItem('localStorage', key);
+      if (localStorageValue !== null) {
+        if (!this.inMemoryStorage.has('localStorage')) {
+          this.inMemoryStorage.set('localStorage', new Map());
+        }
+        this.inMemoryStorage.get('localStorage')?.set(key, localStorageValue);
+      }
+
+      const sessionStorageValue = getAndParseStorageItem('sessionStorage', key);
+      if (sessionStorageValue !== null) {
+        if (!this.inMemoryStorage.has('sessionStorage')) {
+          this.inMemoryStorage.set('sessionStorage', new Map());
+        }
+        this.inMemoryStorage
+          .get('sessionStorage')
+          ?.set(key, sessionStorageValue);
+      }
+    }
+
+    // Load raw string data into inMemoryRawStorage
+    for (const key of rawKeys || []) {
+      // Load from localStorage
+      const localStorageValue = getRawStorageItem('localStorage', key);
+      if (localStorageValue) {
+        if (!this.inMemoryRawStorage.has('localStorage')) {
+          this.inMemoryRawStorage.set('localStorage', new Map());
+        }
+        this.inMemoryRawStorage
+          .get('localStorage')
+          ?.set(key, localStorageValue);
+      }
+
+      // Load from sessionStorage
+      const sessionStorageValue = getRawStorageItem('sessionStorage', key);
+      if (sessionStorageValue) {
+        if (!this.inMemoryRawStorage.has('sessionStorage')) {
+          this.inMemoryRawStorage.set('sessionStorage', new Map());
+        }
+        this.inMemoryRawStorage
+          .get('sessionStorage')
+          ?.set(key, sessionStorageValue);
+      }
+    }
+  }
+
   /**
    * Persist marketing cookies from memory to actual cookies
    */

@@ -25,3 +25,13 @@ export const getPreviewModeSessionKey = (): string => {
 export const getVisualEditorSessionKey = (): string => {
   return 'visual-editor-state';
 };
+
+export const getRemoteFlagsStorageKey = (
+  apiKey: string,
+  instanceName?: string,
+): string => {
+  const truncatedDeployment = apiKey.substring(apiKey.length - 6);
+  return `amp-exp-${truncatedDeployment}-${
+    instanceName ?? 'default_instance'
+  }-web-flags`;
+};
