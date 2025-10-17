@@ -19,16 +19,16 @@ import { ConsentAwareExposureHandler } from './exposure/consent-aware-exposure-h
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
 import {
+  ConsentAwareLocalStorage,
+  ConsentAwareSessionStorage,
+  ConsentAwareStorage,
+} from './storage/consent-aware-storage';
+import {
   getExperimentStorageKey,
   getPreviewModeSessionKey,
   getRedirectStorageKey,
   getVisualEditorSessionKey,
 } from './storage/keys';
-import {
-  ConsentAwareLocalStorage,
-  ConsentAwareSessionStorage,
-  ConsentAwareStorage,
-} from './storage/consent-aware-storage';
 import {
   deletePersistedData,
   getAndParseStorageItem,
