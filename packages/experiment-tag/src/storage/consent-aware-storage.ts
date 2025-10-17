@@ -4,10 +4,11 @@ import type { Campaign } from '@amplitude/analytics-core';
 import { ConsentStatus } from '../types';
 
 import {
-  getStorage,
-  getStorageItem,
+  getAndParseStorageItem,
+  getRawStorageItem,
   removeStorageItem,
-  setStorageItem,
+  setAndStringifyStorageItem,
+  setRawStorageItem,
   StorageType,
 } from './storage';
 
@@ -16,6 +17,7 @@ import {
  */
 export class ConsentAwareStorage {
   private inMemoryStorage: Map<StorageType, Map<string, unknown>> = new Map();
+  private inMemoryRawStorage: Map<StorageType, Map<string, string>> = new Map();
   private inMemoryMarketingCookies: Map<string, Campaign> = new Map();
   private consentStatus: ConsentStatus;
 
@@ -32,16 +34,20 @@ export class ConsentAwareStorage {
     if (consentStatus === ConsentStatus.GRANTED) {
       for (const [storageType, storageMap] of this.inMemoryStorage.entries()) {
         for (const [key, value] of storageMap.entries()) {
-          try {
-            const jsonString = JSON.stringify(value);
-            getStorage(storageType)?.setItem(key, jsonString);
-          } catch (error) {
-            console.warn(`Failed to persist data for key ${key}:`, error);
-          }
+          setAndStringifyStorageItem(storageType, key, value);
+        }
+      }
+      for (const [
+        storageType,
+        storageMap,
+      ] of this.inMemoryRawStorage.entries()) {
+        for (const [key, value] of storageMap.entries()) {
+          setRawStorageItem(storageType, key, value);
         }
       }
       this.inMemoryStorage.clear();
-      this.persistMarketingCookies().then();
+      this.inMemoryRawStorage.clear();
+      this.persistMarketingCookies().catch();
     }
   }
 
@@ -73,11 +79,12 @@ export class ConsentAwareStorage {
    */
   public getItem<T>(storageType: StorageType, key: string): T | null {
     if (this.consentStatus === ConsentStatus.GRANTED) {
-      return getStorageItem(storageType, key);
+      const value = getAndParseStorageItem(storageType, key);
+      return value as T;
     }
 
     const storageMap = this.inMemoryStorage.get(storageType);
-    if (storageMap && storageMap.has(key)) {
+    if (storageMap?.has(key)) {
       return storageMap.get(key) as T;
     }
 
@@ -89,7 +96,7 @@ export class ConsentAwareStorage {
    */
   public setItem(storageType: StorageType, key: string, value: unknown): void {
     if (this.consentStatus === ConsentStatus.GRANTED) {
-      setStorageItem(storageType, key, value);
+      setAndStringifyStorageItem(storageType, key, value);
     } else {
       if (!this.inMemoryStorage.has(storageType)) {
         this.inMemoryStorage.set(storageType, new Map());
@@ -116,6 +123,42 @@ export class ConsentAwareStorage {
   }
 
   /**
+   * Get a raw string value from storage with consent awareness
+   * This is used by Storage interface implementations that expect raw strings
+   */
+  public getRawItem(storageType: StorageType, key: string): string {
+    if (this.consentStatus === ConsentStatus.GRANTED) {
+      return getRawStorageItem(storageType, key);
+    }
+
+    const storageMap = this.inMemoryRawStorage.get(storageType);
+    if (storageMap && storageMap.has(key)) {
+      return storageMap.get(key) || '';
+    }
+
+    return '';
+  }
+
+  /**
+   * Set a raw string value in storage with consent awareness
+   * This is used by Storage interface implementations that work with raw strings
+   */
+  public setRawItem(
+    storageType: StorageType,
+    key: string,
+    value: string,
+  ): void {
+    if (this.consentStatus === ConsentStatus.GRANTED) {
+      setRawStorageItem(storageType, key, value);
+    } else {
+      if (!this.inMemoryRawStorage.has(storageType)) {
+        this.inMemoryRawStorage.set(storageType, new Map());
+      }
+      this.inMemoryRawStorage.get(storageType)?.set(key, value);
+    }
+  }
+
+  /**
    * Set marketing cookie with consent awareness
    * Parses current campaign data from URL and referrer, then stores it in the marketing cookie
    */
@@ -136,5 +179,37 @@ export class ConsentAwareStorage {
     } catch (error) {
       console.warn('Failed to set marketing cookie:', error);
     }
+  }
+}
+
+export class ConsentAwareLocalStorage {
+  constructor(private consentAwareStorage: ConsentAwareStorage) {}
+
+  get(key: string): string {
+    return this.consentAwareStorage.getRawItem('localStorage', key);
+  }
+
+  put(key: string, value: string): void {
+    this.consentAwareStorage.setRawItem('localStorage', key, value);
+  }
+
+  delete(key: string): void {
+    this.consentAwareStorage.removeItem('localStorage', key);
+  }
+}
+
+export class ConsentAwareSessionStorage {
+  constructor(private consentAwareStorage: ConsentAwareStorage) {}
+
+  get(key: string): string {
+    return this.consentAwareStorage.getRawItem('sessionStorage', key);
+  }
+
+  put(key: string, value: string): void {
+    this.consentAwareStorage.setRawItem('sessionStorage', key, value);
+  }
+
+  delete(key: string): void {
+    this.consentAwareStorage.removeItem('sessionStorage', key);
   }
 }

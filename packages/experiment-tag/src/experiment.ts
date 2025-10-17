@@ -15,16 +15,25 @@ import {
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
+import { ConsentAwareExposureHandler } from './exposure/consent-aware-exposure-handler';
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
-import { ConsentAwareStorage } from './storage/consent-aware-storage';
 import {
   getExperimentStorageKey,
   getPreviewModeSessionKey,
   getRedirectStorageKey,
   getVisualEditorSessionKey,
 } from './storage/keys';
-import { deletePersistedData } from './storage/storage';
+import {
+  ConsentAwareLocalStorage,
+  ConsentAwareSessionStorage,
+  ConsentAwareStorage,
+} from './storage/consent-aware-storage';
+import {
+  deletePersistedData,
+  getAndParseStorageItem,
+  setAndStringifyStorageItem,
+} from './storage/storage';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
   ConsentOptions,
@@ -110,6 +119,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     status: ConsentStatus.GRANTED,
   };
   private storage: ConsentAwareStorage;
+  private consentAwareExposureHandler: ConsentAwareExposureHandler;
 
   constructor(
     apiKey: string,
@@ -140,6 +150,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     this.storage = new ConsentAwareStorage(this.consentOptions.status);
 
+    this.consentAwareExposureHandler = new ConsentAwareExposureHandler(
+      this.consentOptions.status,
+    );
+
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
 
@@ -161,6 +175,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       internalInstanceNameSuffix: 'web',
+      consentAwareStorage: {
+        localStorage: new ConsentAwareLocalStorage(this.storage),
+        sessionStorage: new ConsentAwareSessionStorage(this.storage),
+      },
       initialFlags: initialFlagsString,
       // timeout for fetching remote flags
       fetchTimeoutMillis: 1000,
@@ -271,6 +289,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     this.globalScope.experimentIntegration.type = 'integration';
+    this.consentAwareExposureHandler.wrapExperimentIntegrationTrack();
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(user);
 
@@ -544,6 +563,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (consentStatus === ConsentStatus.REJECTED) {
       deletePersistedData(this.apiKey, this.config);
     }
+    this.consentAwareExposureHandler.setConsentStatus(consentStatus);
   }
 
   private async fetchRemoteFlags() {
@@ -879,9 +899,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         }
       });
 
-      this.storage.setItem('sessionStorage', getPreviewModeSessionKey(), {
-        previewFlags: this.previewFlags,
-      });
+      setAndStringifyStorageItem<PreviewState>(
+        'sessionStorage',
+        getPreviewModeSessionKey(),
+        {
+          previewFlags: this.previewFlags,
+        },
+      );
       const previewParamsToRemove = [
         ...Object.keys(this.previewFlags),
         PREVIEW_MODE_PARAM,
@@ -897,7 +921,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // if in preview mode, listen for ForceVariant messages
       WindowMessenger.setup();
     } else {
-      const previewState: PreviewState | null = this.storage.getItem(
+      const previewState = getAndParseStorageItem<PreviewState>(
         'sessionStorage',
         getPreviewModeSessionKey(),
       );
