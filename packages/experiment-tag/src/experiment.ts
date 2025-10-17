@@ -15,6 +15,7 @@ import {
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
+import { ConsentAwareExposureHandler } from './exposure/consent-aware-exposure-handler';
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
 import {
@@ -112,6 +113,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     status: ConsentStatus.GRANTED,
   };
   private storage: ConsentAwareStorage;
+  private consentAwareExposureHandler: ConsentAwareExposureHandler;
 
   constructor(
     apiKey: string,
@@ -141,6 +143,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     this.storage = new ConsentAwareStorage(this.consentOptions.status);
+
+    this.consentAwareExposureHandler = new ConsentAwareExposureHandler(
+      this.consentOptions.status,
+    );
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
@@ -277,6 +283,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     this.globalScope.experimentIntegration.type = 'integration';
+    this.consentAwareExposureHandler.wrapExperimentIntegrationTrack();
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(user);
 
@@ -547,6 +554,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   public setConsentStatus(consentStatus: ConsentStatus) {
     this.consentOptions.status = consentStatus;
     this.storage.setConsentStatus(consentStatus);
+    this.consentAwareExposureHandler.setConsentStatus(consentStatus);
   }
 
   private async fetchRemoteFlags() {
