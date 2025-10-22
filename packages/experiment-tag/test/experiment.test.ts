@@ -142,8 +142,8 @@ describe('initializeExperiment', () => {
       .mockImplementation(jest.fn());
   });
 
-  test('should initialize experiment with empty user', () => {
-    DefaultWebExperimentClient.getInstance(
+  test('should initialize experiment with empty user', async () => {
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([]),
       JSON.stringify({}),
@@ -210,7 +210,7 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 
-  test('treatment variant on control page - should redirect and store in sessionStorage', () => {
+  test('treatment variant on control page - should redirect and store in sessionStorage', async () => {
     // Create a fresh mock global for this test
     mockGlobal = newMockGlobal();
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -237,7 +237,7 @@ describe('initializeExperiment', () => {
     );
 
     // Initialize the client to ensure messageBus is created
-    client.start();
+    await client.start();
 
     // Check redirect was called
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
@@ -277,8 +277,8 @@ describe('initializeExperiment', () => {
     }
   });
 
-  test('control variant on control page - should not redirect but call exposure', () => {
-    DefaultWebExperimentClient.getInstance(
+  test('control variant on control page - should not redirect but call exposure', async () => {
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
@@ -304,7 +304,7 @@ describe('initializeExperiment', () => {
     expect(storedRedirectsCall).toBeFalsy();
   });
 
-  test('preview - force control variant', () => {
+  test('preview - force control variant', async () => {
     const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com',
@@ -316,7 +316,7 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
@@ -430,7 +430,7 @@ describe('initializeExperiment', () => {
     );
   });
 
-  test('concatenate query params from original and redirected url', () => {
+  test('concatenate query params from original and redirected url', async () => {
     const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/?param1=a&param2=b',
@@ -458,7 +458,7 @@ describe('initializeExperiment', () => {
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
     );
 
-    client.start();
+    await client.start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
       'http://test.com/2?param3=c&param1=a&param2=b',
@@ -494,8 +494,8 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
-  test('should behave as control variant when payload is empty', () => {
-    DefaultWebExperimentClient.getInstance(
+  test('should behave as control variant when payload is empty', async () => {
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify([
         createRedirectFlag(
@@ -513,7 +513,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledWith('test');
   });
 
-  test('on targeted page, should call exposure and store in sessionStorage', () => {
+  test('on targeted page, should call exposure and store in sessionStorage', async () => {
     // Create a fresh mock global
     const mockGlobal = newMockGlobal({
       location: {
@@ -545,7 +545,7 @@ describe('initializeExperiment', () => {
     );
 
     // Initialize the client to ensure messageBus is created
-    client.start();
+    await client.start();
 
     // Check redirect was called
     expect(mockGlobal.location.replace).toHaveBeenCalledWith(
@@ -639,7 +639,7 @@ describe('initializeExperiment', () => {
       });
   });
 
-  test('remote evaluation - fetch successful, antiflicker applied', () => {
+  test('remote evaluation - fetch successful, antiflicker applied', async () => {
     const initialFlags = [
       // remote flag
       createMutateFlag(
@@ -656,7 +656,8 @@ describe('initializeExperiment', () => {
       createMutateFlag('test-2', 'treatment', [DEFAULT_MUTATE_SCOPE]),
     ];
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
-    DefaultWebExperimentClient.getInstance(
+
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify({
@@ -676,20 +677,17 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        // check remote flag variant actions called after successful fetch
-        expect(mockExposure).toHaveBeenCalledTimes(2);
-        expect(mockExposure).toHaveBeenCalledWith('test-2');
-      });
-    // check local flag variant actions called
-    expect(mockExposure).toHaveBeenCalledTimes(1);
+    ).start();
+
+    // check local flag variant actions called before remote fetch
     expect(mockExposure).toHaveBeenCalledWith('test-1');
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
+    // check remote flag variant actions called after successful fetch
+    expect(mockExposure).toHaveBeenCalledTimes(2);
+    expect(mockExposure).toHaveBeenCalledWith('test-2');
   });
 
-  test('remote evaluation - fetch fail, locally evaluate remote and local flags success', () => {
+  test('remote evaluation - fetch fail, locally evaluate remote and local flags success', async () => {
     const initialFlags = [
       // remote flag
       createMutateFlag(
@@ -716,7 +714,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags), 404);
 
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify({
@@ -736,14 +734,9 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        // check remote fetch failed safely
-        expect(mockExposure).toHaveBeenCalledTimes(2);
-      });
+    ).start();
     // check local flag variant actions called
-    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledTimes(2);
     expect(mockExposure).toHaveBeenCalledWith('test-1');
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
@@ -894,7 +887,7 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
-  test('scoped mutations - experiment active, both mutations active on same page', () => {
+  test('scoped mutations - experiment active, both mutations active on same page', async () => {
     const initialFlags = [
       // remote flag
       createMutateFlag(
@@ -909,7 +902,7 @@ describe('initializeExperiment', () => {
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
     );
-    client.start().then();
+    await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
@@ -925,7 +918,7 @@ describe('initializeExperiment', () => {
     ).toEqual(2);
   });
 
-  test('scoped mutations - experiment active, both mutations active on different pages', () => {
+  test('scoped mutations - experiment active, both mutations active on different pages', async () => {
     const initialFlags = [
       // remote flag
       createMutateFlag('test', 'treatment', [
@@ -943,7 +936,7 @@ describe('initializeExperiment', () => {
         },
       }),
     );
-    client.start().then();
+    await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
@@ -1013,7 +1006,7 @@ describe('initializeExperiment', () => {
     expect(Object.keys(appliedMutations).length).toEqual(0);
   });
 
-  test('scoped mutations - experiment active, subset of mutations active', () => {
+  test('scoped mutations - experiment active, subset of mutations active', async () => {
     const initialFlags = [
       createMutateFlag('test', 'treatment', [
         { metadata: { scope: ['B'] } },
@@ -1025,7 +1018,7 @@ describe('initializeExperiment', () => {
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
     );
-    client.start().then();
+    await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
@@ -1063,7 +1056,7 @@ describe('initializeExperiment', () => {
     expect(Object.keys(appliedMutations).length).toEqual(0);
   });
 
-  test('scoped mutations - experiment active, 1 active mutation with no scope, 1 mutation inactive', () => {
+  test('scoped mutations - experiment active, 1 active mutation with no scope, 1 mutation inactive', async () => {
     const initialFlags = [
       // remote flag
       createMutateFlag('test', 'treatment', [
@@ -1076,7 +1069,7 @@ describe('initializeExperiment', () => {
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
     );
-    client.start().then();
+    await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
     const appliedMutations = (client as any).appliedMutations;
@@ -1095,7 +1088,7 @@ describe('initializeExperiment', () => {
     ).toEqual(['0']);
   });
 
-  test('page object - update activePages and applyVariants upon navigation', () => {
+  test('page object - update activePages and applyVariants upon navigation', async () => {
     const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
     mockGetGlobalScope.mockReturnValue(
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -1129,7 +1122,7 @@ describe('initializeExperiment', () => {
         'test-2': test2Page,
       }),
     );
-    client.start().then();
+    await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test-1');
     let appliedMutations = (client as any).appliedMutations;
@@ -1447,7 +1440,7 @@ describe('helper methods', () => {
     jest.restoreAllMocks();
   });
 
-  test('get active experiments on current page', () => {
+  test('get active experiments on current page', async () => {
     Object.defineProperty(global, 'location', {
       value: {
         href: 'http://test.com',
@@ -1481,7 +1474,7 @@ describe('helper methods', () => {
         ),
       }),
     );
-    webExperiment.start();
+    await webExperiment.start();
     const activeExperiments = webExperiment.getActiveExperiments();
     expect(activeExperiments).toEqual(['targeted']);
   });

@@ -62,7 +62,7 @@ export const Defaults: WebExperimentConfig = {
  */
 
 export interface WebExperimentClient {
-  start(): void;
+  start(): Promise<void>;
 
   getExperimentClient(): ExperimentClient;
 
