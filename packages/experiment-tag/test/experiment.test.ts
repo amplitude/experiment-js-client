@@ -1462,7 +1462,6 @@ describe('initializeExperiment', () => {
         'http://test.com/2',
       );
 
-
       expect(MockCampaignParser).toHaveBeenCalledTimes(2);
       expect(mockCampaignParser.parse).toHaveBeenCalledTimes(2);
       expect(MockCookieStorage).toHaveBeenCalledTimes(1);
@@ -1498,7 +1497,6 @@ describe('initializeExperiment', () => {
       expect(mockGlobal.location.replace).toHaveBeenCalledWith(
         'http://test.com/2',
       );
-
 
       expect(MockCampaignParser).toHaveBeenCalledTimes(2);
       expect(mockCampaignParser.parse).toHaveBeenCalledTimes(2);
