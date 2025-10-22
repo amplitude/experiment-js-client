@@ -38,6 +38,7 @@ import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
+import { isElementOnPage } from './util/selector';
 import {
   getStorageItem,
   setStorageItem,
@@ -52,7 +53,6 @@ import {
 } from './util/url';
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
-import { isElementOnPage } from './util/selector';
 
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
