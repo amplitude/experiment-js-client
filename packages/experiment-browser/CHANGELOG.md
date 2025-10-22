@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.18.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.17.1...@amplitude/experiment-js-client@1.18.0) (2025-10-22)
+
+
+### Features
+
+* support persistent UTM targeting ([#226](https://github.com/amplitude/experiment-js-client/issues/226)) ([504f95b](https://github.com/amplitude/experiment-js-client/commit/504f95b7942f2871aeece9cd90d4842ff7822f88))
+
+
+
+
+
 ## [1.17.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.17.0...@amplitude/experiment-js-client@1.17.1) (2025-10-01)
 
 **Note:** Version bump only for package @amplitude/experiment-js-client
