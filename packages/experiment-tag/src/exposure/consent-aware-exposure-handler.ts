@@ -27,7 +27,7 @@ export class ConsentAwareExposureHandler {
     const experimentIntegration =
       globalScope?.experimentIntegration as IntegrationPlugin;
     if (experimentIntegration?.track) {
-      if (this.isTrackMethodWrapped(experimentIntegration.track)) {
+      if (this.isIntegrationWrapped(experimentIntegration)) {
         return;
       }
 
@@ -35,7 +35,7 @@ export class ConsentAwareExposureHandler {
         experimentIntegration,
       );
       const wrappedTrack = this.createConsentAwareTrack(this.originalTrack);
-      (wrappedTrack as any).__isConsentAwareWrapped = true;
+      (experimentIntegration as any).__isConsentAwareWrapped = true;
       experimentIntegration.track = wrappedTrack;
     }
   }
@@ -43,10 +43,8 @@ export class ConsentAwareExposureHandler {
   /**
    * Check if a track method is already wrapped
    */
-  private isTrackMethodWrapped(
-    trackMethod: (event: ExperimentEvent) => boolean,
-  ): boolean {
-    return (trackMethod as any).__isConsentAwareWrapped === true;
+  private isIntegrationWrapped(integration: IntegrationPlugin): boolean {
+    return (integration as any).__isConsentAwareWrapped === true;
   }
 
   /**
