@@ -127,6 +127,11 @@ export type ExperimentUser = {
   url_param?: Record<string, string | string[]>;
 
   /**
+   * Persisted parameters parsed from the URL and stored in local storage.
+   */
+  persisted_url_param?: Record<string, string | string[]>;
+
+  /**
    * The user agent string.
    */
   user_agent?: string;

@@ -42,6 +42,21 @@ const availablePackages = {
       },
     ],
   },
+  browser: {
+    name: 'experiment-browser',
+    packagePath: '../packages/experiment-browser/package.json',
+    distPath: 'packages/experiment-browser/dist',
+    files: [
+      {
+        file: 'experiment-browser.min.js',
+        gzipped: false,
+      },
+      {
+        file: 'experiment-browser.min.js.gz',
+        gzipped: true,
+      },
+    ],
+  },
   'chrome-extension': {
     name: 'experiment-tag-latest-chrome-ext-v1',
     packagePath: '../packages/experiment-tag/package.json',
@@ -72,9 +87,6 @@ if (packagesInput) {
       );
     }
   });
-} else {
-  // Default to all packages if none specified
-  packagesToUpload = Object.values(availablePackages);
 }
 
 // Log which packages we're uploading

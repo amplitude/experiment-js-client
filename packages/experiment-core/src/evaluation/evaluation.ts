@@ -116,7 +116,7 @@ export class EvaluationEngine {
     // We need special matching for null properties and set type prop values
     // and operators. All other values are matched as strings, since the
     // filter values are always strings.
-    if (!propValue) {
+    if (propValue === undefined || propValue === null) {
       return this.matchNull(condition.op, condition.values);
     } else if (this.isSetOperator(condition.op)) {
       const propValueStringList = this.coerceStringArray(propValue);

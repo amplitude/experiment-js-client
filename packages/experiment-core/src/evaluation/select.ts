@@ -11,7 +11,7 @@ export const select = (
     }
     selectable = (selectable as Record<string, unknown>)[selectorElement];
   }
-  if (!selectable) {
+  if (selectable === undefined || selectable === null) {
     return undefined;
   } else {
     return selectable;
