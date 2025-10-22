@@ -5,6 +5,7 @@ import { WebExperimentConfig } from '../types';
 import {
   getDefaultUserProviderStorageKey,
   getExperimentStorageKey,
+  getPersistedURLParamsKey,
   getUnsentEventsStorageKey,
 } from './keys';
 
@@ -94,8 +95,11 @@ export const deletePersistedData = (
   const defaultUserProviderStorageKey =
     getDefaultUserProviderStorageKey(apiKey);
   const unsentEventsStorageKey = getUnsentEventsStorageKey(config);
+  const persistedURLParamsKey = getPersistedURLParamsKey(apiKey);
+
   removeStorageItem('localStorage', experimentStorageKey);
   removeStorageItem('localStorage', defaultUserProviderStorageKey);
   removeStorageItem('sessionStorage', defaultUserProviderStorageKey);
   removeStorageItem('localStorage', unsentEventsStorageKey);
+  removeStorageItem('sessionStorage', persistedURLParamsKey);
 };

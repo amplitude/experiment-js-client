@@ -156,6 +156,17 @@ describe('initializeExperiment', () => {
     antiFlickerSpy = jest
       .spyOn(antiFlickerUtils, 'applyAntiFlickerCss')
       .mockImplementation(jest.fn());
+
+    const mockCampaignParser = {
+      parse: jest.fn().mockResolvedValue({}),
+    };
+    MockCampaignParser.mockImplementation(() => mockCampaignParser as any);
+
+    const mockCookieStorage = {
+      get: jest.fn().mockResolvedValue(undefined),
+      set: jest.fn(),
+    };
+    MockCookieStorage.mockImplementation(() => mockCookieStorage as any);
   });
 
   test('should initialize experiment with empty user', async () => {
@@ -1238,7 +1249,7 @@ describe('initializeExperiment', () => {
   });
 
   describe('consent status initialization and storage persistence', () => {
-    it('should initialize experiment with PENDING consent and store data in memory only', () => {
+    it('should initialize experiment with PENDING consent and store data in memory only', async () => {
       const mockGlobal = newMockGlobal({
         experimentConfig: {
           consentOptions: {
@@ -1256,7 +1267,7 @@ describe('initializeExperiment', () => {
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
 
-      client.start();
+      await client.start();
 
       expect(mockExposure).toHaveBeenCalledWith('test');
 
@@ -1264,7 +1275,7 @@ describe('initializeExperiment', () => {
       expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
     });
 
-    it('should initialize experiment with GRANTED consent and store data directly in actual storage', () => {
+    it('should initialize experiment with GRANTED consent and store data directly in actual storage', async () => {
       const mockGlobal = newMockGlobal({
         experimentConfig: {
           consentOptions: {
@@ -1282,7 +1293,7 @@ describe('initializeExperiment', () => {
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
 
-      client.start();
+      await client.start();
 
       expect(mockExposure).toHaveBeenCalledWith('test');
       expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
@@ -1291,7 +1302,7 @@ describe('initializeExperiment', () => {
       );
     });
 
-    it('should handle consent status change from PENDING to GRANTED during experiment lifecycle', () => {
+    it('should handle consent status change from PENDING to GRANTED during experiment lifecycle', async () => {
       const mockGlobal = newMockGlobal({
         experimentConfig: {
           consentOptions: {
@@ -1309,7 +1320,7 @@ describe('initializeExperiment', () => {
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
 
-      client.start();
+      await client.start();
 
       expect(mockExposure).toHaveBeenCalledWith('test');
 
@@ -1322,7 +1333,7 @@ describe('initializeExperiment', () => {
       expect(mockGlobal.localStorage.setItem).toHaveBeenCalled();
     });
 
-    it('should handle consent status change from PENDING to REJECTED during experiment lifecycle', () => {
+    it('should handle consent status change from PENDING to REJECTED during experiment lifecycle', async () => {
       const mockGlobal = newMockGlobal({
         experimentConfig: {
           consentOptions: {
@@ -1339,7 +1350,7 @@ describe('initializeExperiment', () => {
         ]),
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
-      client.start();
+      await client.start();
 
       expect(mockExposure).toHaveBeenCalledWith('test');
 
@@ -1368,7 +1379,13 @@ describe('initializeExperiment', () => {
         parse: jest.fn().mockResolvedValue(mockCampaign),
       };
 
-      MockCampaignParser.mockImplementation(() => mockCampaignParser);
+      mockCookieStorage = {
+        get: jest.fn().mockResolvedValue(undefined),
+        set: jest.fn().mockResolvedValue(undefined),
+      };
+
+      MockCampaignParser.mockImplementation(() => mockCampaignParser as any);
+      MockCookieStorage.mockImplementation(() => mockCookieStorage as any);
     });
 
     it('should set marketing cookie directly during redirect when consent is GRANTED', async () => {
@@ -1382,12 +1399,13 @@ describe('initializeExperiment', () => {
       mockGetGlobalScope.mockReturnValue(mockGlobal as any);
 
       mockCookieStorage = {
+        get: jest.fn().mockResolvedValue(undefined),
         set: jest.fn().mockImplementation((key, value) => {
           mockGlobal.document.cookie = `${key}=${JSON.stringify(value)}`;
           return Promise.resolve();
         }),
       };
-      MockCookieStorage.mockImplementation(() => mockCookieStorage);
+      MockCookieStorage.mockImplementation(() => mockCookieStorage as any);
 
       const client = DefaultWebExperimentClient.getInstance(
         stringify(apiKey),
@@ -1444,9 +1462,10 @@ describe('initializeExperiment', () => {
         'http://test.com/2',
       );
 
-      expect(MockCampaignParser).toHaveBeenCalledTimes(1);
-      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(1);
-      expect(MockCookieStorage).not.toHaveBeenCalled();
+
+      expect(MockCampaignParser).toHaveBeenCalledTimes(2);
+      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(2);
+      expect(MockCookieStorage).toHaveBeenCalledTimes(1);
       expect(mockCookieStorage.set).not.toHaveBeenCalled();
     });
 
@@ -1480,9 +1499,10 @@ describe('initializeExperiment', () => {
         'http://test.com/2',
       );
 
-      expect(MockCampaignParser).toHaveBeenCalledTimes(1);
-      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(1);
-      expect(MockCookieStorage).not.toHaveBeenCalled();
+
+      expect(MockCampaignParser).toHaveBeenCalledTimes(2);
+      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(2);
+      expect(MockCookieStorage).toHaveBeenCalledTimes(1);
       expect(mockCookieStorage.set).not.toHaveBeenCalled();
     });
   });
@@ -1512,7 +1532,7 @@ describe('initializeExperiment', () => {
       originalTrackSpy.mockClear();
     });
 
-    it('should track exposures immediately when consent is GRANTED', () => {
+    it('should track exposures immediately when consent is GRANTED', async () => {
       const mockGlobal = newMockGlobal({
         experimentConfig: {
           consentOptions: {
@@ -1531,7 +1551,7 @@ describe('initializeExperiment', () => {
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
 
-      client.start();
+      await client.start();
 
       expect(originalTrackSpy).toHaveBeenCalled();
       expect(originalTrackSpy.mock.calls[0][0]).toMatchObject({
@@ -1592,7 +1612,7 @@ describe('initializeExperiment', () => {
       expect(originalTrackSpy).not.toHaveBeenCalled();
     });
 
-    it('should fire all pending exposures when consent changes from PENDING to GRANTED', () => {
+    it('should fire all pending exposures when consent changes from PENDING to GRANTED', async () => {
       const mockGlobal = newMockGlobal({
         experimentConfig: {
           consentOptions: {
@@ -1615,7 +1635,7 @@ describe('initializeExperiment', () => {
         }),
       );
 
-      client.start();
+      await client.start();
 
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
@@ -1675,7 +1695,7 @@ describe('initializeExperiment', () => {
       expect(originalTrackSpy).not.toHaveBeenCalled();
     });
 
-    it('should track new exposures immediately after consent becomes GRANTED', () => {
+    it('should track new exposures immediately after consent becomes GRANTED', async () => {
       const mockGlobal = newMockGlobal({
         experimentConfig: {
           consentOptions: {
@@ -1694,7 +1714,7 @@ describe('initializeExperiment', () => {
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
 
-      client.start();
+      await client.start();
 
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
@@ -1714,7 +1734,7 @@ describe('initializeExperiment', () => {
       });
     });
 
-    it('should handle multiple consent status changes correctly', () => {
+    it('should handle multiple consent status changes correctly', async () => {
       const mockGlobal = newMockGlobal({
         experimentConfig: {
           consentOptions: {
@@ -1733,7 +1753,7 @@ describe('initializeExperiment', () => {
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
 
-      client.start();
+      await client.start();
 
       expect(originalTrackSpy).not.toHaveBeenCalled();
 
@@ -1750,7 +1770,7 @@ describe('initializeExperiment', () => {
       expect(originalTrackSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('should add timestamp to exposure events', () => {
+    it('should add timestamp to exposure events', async () => {
       const mockDate = new Date('2023-01-01T00:00:00.000Z');
       const mockNow = jest
         .spyOn(Date, 'now')
@@ -1774,7 +1794,7 @@ describe('initializeExperiment', () => {
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
 
-      client.start();
+      await client.start();
 
       expect(originalTrackSpy).toHaveBeenCalled();
       expect(originalTrackSpy.mock.calls[0][0]).toMatchObject({
@@ -1789,7 +1809,7 @@ describe('initializeExperiment', () => {
       mockNow.mockRestore();
     });
 
-    it('should handle exposure tracking errors gracefully', () => {
+    it('should handle exposure tracking errors gracefully', async () => {
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
       const errorExperimentIntegration = {
         track: jest.fn().mockImplementation(() => {
@@ -1820,7 +1840,7 @@ describe('initializeExperiment', () => {
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
 
-      expect(() => client.start()).not.toThrow();
+      await expect(client.start()).resolves.not.toThrow();
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Failed to track event:',
@@ -1829,7 +1849,7 @@ describe('initializeExperiment', () => {
       consoleWarnSpy.mockRestore();
     });
 
-    it('should handle pending exposure tracking errors gracefully when consent becomes granted', () => {
+    it('should handle pending exposure tracking errors gracefully when consent becomes granted', async () => {
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
       const errorExperimentIntegration = {
         track: jest.fn().mockImplementation(() => {
@@ -1860,7 +1880,7 @@ describe('initializeExperiment', () => {
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
       );
 
-      client.start();
+      await client.start();
 
       expect(() =>
         client.setConsentStatus(ConsentStatus.GRANTED),

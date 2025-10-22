@@ -1,3 +1,5 @@
+import { MKTG } from '@amplitude/analytics-core';
+
 import { WebExperimentConfig } from '../types';
 
 export const getExperimentStorageKey = (apiKey: string): string => {
@@ -24,4 +26,8 @@ export const getPreviewModeSessionKey = (): string => {
 
 export const getVisualEditorSessionKey = (): string => {
   return 'visual-editor-state';
+};
+
+export const getPersistedURLParamsKey = (apiKey: string): string => {
+  return `EXP_${MKTG}_${apiKey.substring(0, 10)}`;
 };

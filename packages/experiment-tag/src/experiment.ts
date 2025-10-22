@@ -280,7 +280,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
-    const enrichedUser = await enrichUserWithCampaignData(this.apiKey, user);
+    const enrichedUser = await enrichUserWithCampaignData(
+      this.apiKey,
+      user,
+      this.storage,
+    );
 
     // If no integration has been set, use an Amplitude integration.
     if (!this.globalScope.experimentIntegration) {
