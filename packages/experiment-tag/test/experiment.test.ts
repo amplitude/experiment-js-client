@@ -1418,6 +1418,120 @@ describe('initializeExperiment', () => {
       expect(call2.metadata.flagVersion).toEqual(4);
     });
   });
+
+  describe('isElementOnPage behavior', () => {
+    const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
+    const mockExposure = jest.spyOn(ExperimentClient.prototype, 'exposure');
+    const mockIsElementOnPage =
+      jest.requireMock('src/util/selector').isElementOnPage;
+    let mockGlobal;
+
+    beforeEach(() => {
+      apiKey++;
+      jest.clearAllMocks();
+      mockGlobal = newMockGlobal();
+      mockGetGlobalScope.mockReturnValue(mockGlobal);
+      // Reset the mock to return true by default
+      mockIsElementOnPage.mockReturnValue(true);
+    });
+
+    test('mutations should apply and exposure fired when selector element is present on page', async () => {
+      mockIsElementOnPage.mockReturnValue(true);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      const appliedMutations = (client as any).appliedMutations;
+      expect(Object.keys(appliedMutations).includes('test')).toBeTruthy();
+      expect(mockExposure).toHaveBeenCalledWith('test');
+    });
+
+    test('mutations should not apply and exposure not fired when selector element is not present on page', async () => {
+      mockIsElementOnPage.mockReturnValue(false);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      const appliedMutations = (client as any).appliedMutations;
+      expect(Object.keys(appliedMutations).length).toEqual(0);
+      expect(mockExposure).not.toHaveBeenCalledWith('test');
+    });
+
+    test('mutations and exposure should be checked for element presence on navigation', async () => {
+      // Start with element not present
+      mockIsElementOnPage.mockReturnValue(false);
+
+      const test1Page = createPageObject(
+        'A',
+        'url_change',
+        undefined,
+        'http://A.com',
+      );
+      const test2Page = createPageObject(
+        'B',
+        'url_change',
+        undefined,
+        'http://B.com',
+      );
+
+      mockGlobal = newMockGlobal({
+        location: {
+          href: 'http://A.com',
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test-1', 'treatment', [{ metadata: {} }]),
+          createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
+        ]),
+        JSON.stringify({
+          'test-1': test1Page,
+          'test-2': test2Page,
+        }),
+      );
+
+      await client.start();
+
+      // No mutations should be applied initially
+      let appliedMutations = (client as any).appliedMutations;
+      expect(Object.keys(appliedMutations).length).toEqual(0);
+      expect(mockExposure).not.toHaveBeenCalled();
+
+      // Mock element becomes available on page B
+      mockIsElementOnPage.mockReturnValue(true);
+
+      // Navigate to page B
+      (client as any).subscriptionManager.globalScope = newMockGlobal({
+        location: {
+          href: 'http://B.com',
+        },
+      });
+      (client as any).messageBus.publish('url_change', {});
+
+      // Now mutations should be applied and exposure fired
+      appliedMutations = (client as any).appliedMutations;
+      expect(Object.keys(appliedMutations).includes('test-2')).toBeTruthy();
+      expect(mockExposure).toHaveBeenCalledWith('test-2');
+      expect(mockExposure).not.toHaveBeenCalledWith('test-1');
+    });
+  });
 });
 
 test('feature experiment on global Experiment object', () => {
