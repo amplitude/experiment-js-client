@@ -19,31 +19,43 @@ export interface InjectUtils {
   remove: (() => void) | undefined;
 }
 
-export const getInjectUtils = (): InjectUtils =>
+export const getInjectUtils = (
+  state: { cancelled?: boolean } = {},
+): InjectUtils =>
   ({
     async waitForElement(selector: string): Promise<Element> {
-      // If selector found in DOM, then return directly.
-      const elem = document.querySelector(selector);
-      if (elem) {
-        return elem;
-      }
-
-      return new Promise<Element>((resolve) => {
-        // An observer that is listening for all DOM mutation events.
-        const observer = new MutationObserver(() => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          if (state.cancelled) {
+            return;
+          }
+          // If selector found in DOM, then return directly.
           const elem = document.querySelector(selector);
           if (elem) {
-            observer.disconnect();
             resolve(elem);
+            return;
           }
-        });
 
-        // Observe on all document changes.
-        observer.observe(document.documentElement, {
-          childList: true,
-          subtree: true,
-          attributes: true,
-        });
+          // An observer that is listening for all DOM mutation events.
+          const observer = new MutationObserver(() => {
+            if (state.cancelled) {
+              observer.disconnect();
+              return;
+            }
+            const elem = document.querySelector(selector);
+            if (elem) {
+              observer.disconnect();
+              resolve(elem);
+            }
+          });
+
+          // Observe on all document changes.
+          observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+          });
+        }, 0);
       });
     },
   } as InjectUtils);
