@@ -4,13 +4,24 @@
 
 This is the Web Experimentation SDK for Amplitude Experiment.
 
-## Generate example
+## Cookie Consent Configuration
 
-To generate an example snippet with custom flag configurations:
-1. Set `apiKey` (your Amplitude Project API key), `initialFlags` and `serverZone` in `example/build_example.js`
-2. Run `yarn build` to build minified UMD `experiment-tag.umd.js` and example `script.js`
+To run the script with respect to cookie consent, you can pass in the `consentOptions` in the `config` object.
 
-To test the snippet's behavior on web pages relevant to your experiment, the pages should:
-1. Include `script.js`
-2. Have the Amplitude Analytics SDK loaded (see [examples](https://github.com/amplitude/Amplitude-TypeScript/tree/main/packages/analytics-browser))
+```js
+window.experimentConfig = {
+  consentOptions: {
+    status: 0, // 0: rejected, 1: granted, 2: pending
+  },
+};
+```
 
+If the consent status is `REJECTED`, the script will not be executed. 
+If the consent status is `PENDING`, the script will be executed but the data will not be persisted in the browser's local storage. 
+If the consent status is `GRANTED`, the script will be executed and the data will be persisted in the browser's local storage.
+
+To update the consent status, you can call the `setConsentStatus` method on the `webExperiment` object.
+
+```js
+webExperiment.setConsentStatus(ConsentStatus.GRANTED);
+```
