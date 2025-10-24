@@ -733,6 +733,9 @@ export class ExperimentClient implements Client {
     this.debug('[Experiment] Fetch variants for user: ', user);
     const results = await this.evaluationApi.getVariants(user, {
       timeoutMillis: timeoutMillis,
+      customHeaders: this.config.customRequestHeaders
+        ? this.config.customRequestHeaders(user)
+        : undefined,
       ...options,
     });
     const variants: Variants = {};
@@ -758,6 +761,11 @@ export class ExperimentClient implements Client {
           user?.user_id || user?.device_id
             ? { user_id: user?.user_id, device_id: user?.device_id }
             : undefined,
+        customHeaders: this.config.customRequestHeaders
+          ? this.config.customRequestHeaders(
+              this.cleanUserPropsForFetch(this.getUser()),
+            )
+          : undefined,
       });
       this.flags.clear();
       this.flags.putAll(flags);

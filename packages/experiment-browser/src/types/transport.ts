@@ -1,3 +1,5 @@
+import { ExperimentUser } from './user';
+
 export interface SimpleResponse {
   status: number;
   body: string;
@@ -12,3 +14,7 @@ export interface HttpClient {
     timeoutMillis?: number,
   ): Promise<SimpleResponse>;
 }
+
+export type CustomRequestHeaders = (
+  user: ExperimentUser,
+) => Record<string, string> | undefined;

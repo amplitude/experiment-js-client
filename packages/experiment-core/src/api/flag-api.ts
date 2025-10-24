@@ -10,6 +10,7 @@ export type GetFlagsOptions = {
   timeoutMillis?: number;
   user?: Record<string, unknown>;
   deliveryMethod?: string | undefined;
+  customHeaders?: Record<string, string>;
 };
 
 export interface FlagApi {
@@ -34,7 +35,15 @@ export class SdkFlagApi implements FlagApi {
   public async getFlags(
     options?: GetFlagsOptions,
   ): Promise<Record<string, EvaluationFlag>> {
-    const headers: Record<string, string> = {
+    let headers: Record<string, string> = {};
+    if (options?.customHeaders) {
+      headers = {
+        ...options.customHeaders,
+        ...headers,
+      };
+    }
+    headers = {
+      ...headers,
       Authorization: `Api-Key ${this.deploymentKey}`,
     };
     if (options?.libraryName && options?.libraryVersion) {
