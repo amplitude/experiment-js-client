@@ -6,11 +6,13 @@ import { HttpClient } from '../transport/http';
 
 export type EvaluationMode = 'remote' | 'local';
 export type DeliveryMethod = 'feature' | 'web';
-export type TrackingOption = 'track' | 'no-track' | 'read-only';
+export type TrackingOption = 'track' | 'no-track' | 'read-only'; // For tracking assignment events
+export type ExposureTrackingOption = 'track' | 'no-track'; // For tracking exposure events
 
 export type GetVariantsOptions = {
   flagKeys?: string[];
-  trackingOption?: TrackingOption;
+  trackingOption?: TrackingOption; // For tracking assignment events
+  exposureTrackingOption?: ExposureTrackingOption; // For tracking exposure events
   deliveryMethod?: DeliveryMethod;
   evaluationMode?: EvaluationMode;
   timeoutMillis?: number;
@@ -52,8 +54,13 @@ export class SdkEvaluationApi implements EvaluationApi {
         JSON.stringify(options.flagKeys),
       );
     }
+    // For tracking assignment events
     if (options?.trackingOption) {
       headers['X-Amp-Exp-Track'] = options.trackingOption;
+    }
+    // For tracking exposure events
+    if (options?.exposureTrackingOption) {
+      headers['X-Amp-Exp-Exposure-Track'] = options.exposureTrackingOption;
     }
     const url = new URL(`${this.serverUrl}/sdk/v2/vardata?v=0`);
     if (options?.evaluationMode) {
