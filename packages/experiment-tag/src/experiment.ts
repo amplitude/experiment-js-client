@@ -704,6 +704,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     // Inject
     const utils = getInjectUtils();
+    if (action.data.widget) {
+      utils.props = action.data.widget.props;
+    }
     this.appliedInjections.add(id);
     try {
       const fn = this.globalScope[id];
