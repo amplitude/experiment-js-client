@@ -1576,7 +1576,7 @@ describe('flag config polling interval config', () => {
   });
 });
 
-describe('setTrackAssignmentEvent', () => {
+describe('setTracksAssignment', () => {
   beforeEach(async () => {
     await safeGlobal.localStorage.clear();
     jest.restoreAllMocks();
@@ -1586,7 +1586,7 @@ describe('setTrackAssignmentEvent', () => {
     jest.restoreAllMocks();
   });
 
-  test('setTrackAssignmentEvent() no call ok', async () => {
+  test('setTracksAssignment() no call ok', async () => {
     const client = new ExperimentClient(API_KEY, {});
 
     // Mock the evaluationApi.getVariants method
@@ -1614,7 +1614,7 @@ describe('setTrackAssignmentEvent', () => {
     );
   });
 
-  test('setTrackAssignmentEvent() sets trackingOption to track and getVariants is called with correct options', async () => {
+  test('setTracksAssignment() sets trackingOption to track and getVariants is called with correct options', async () => {
     const client = new ExperimentClient(API_KEY, {});
 
     // Mock the evaluationApi.getVariants method
@@ -1627,7 +1627,7 @@ describe('setTrackAssignmentEvent', () => {
     });
 
     // Set track assignment event to true
-    await client.setTrackAssignmentEvent(true);
+    await client.setTracksAssignment(true);
 
     // Fetch variants to trigger the API call
     await client.fetch(testUser);
@@ -1645,7 +1645,7 @@ describe('setTrackAssignmentEvent', () => {
     );
 
     // Set track assignment event to false
-    await client.setTrackAssignmentEvent(false);
+    await client.setTracksAssignment(false);
 
     // Fetch variants to trigger the API call
     await client.fetch(testUser);
@@ -1663,11 +1663,11 @@ describe('setTrackAssignmentEvent', () => {
     );
   });
 
-  test('setTrackAssignmentEvent persists the setting to storage', async () => {
+  test('setTracksAssignment persists the setting to storage', async () => {
     const client = new ExperimentClient(API_KEY, {});
 
     // Set track assignment event to true
-    await client.setTrackAssignmentEvent(true);
+    await client.setTracksAssignment(true);
 
     // Create a new client instance to verify persistence
     const client2 = new ExperimentClient(API_KEY, {});
@@ -1697,7 +1697,7 @@ describe('setTrackAssignmentEvent', () => {
     );
   });
 
-  test('multiple calls to setTrackAssignmentEvent uses the latest setting', async () => {
+  test('multiple calls to setTracksAssignment uses the latest setting', async () => {
     const client = new ExperimentClient(API_KEY, {});
 
     // Mock the evaluationApi.getVariants method
@@ -1710,8 +1710,8 @@ describe('setTrackAssignmentEvent', () => {
     });
 
     // Set track assignment event to true, then false
-    await client.setTrackAssignmentEvent(true);
-    await client.setTrackAssignmentEvent(false);
+    await client.setTracksAssignment(true);
+    await client.setTracksAssignment(false);
 
     // Fetch variants to trigger the API call
     await client.fetch(testUser);
@@ -1729,7 +1729,7 @@ describe('setTrackAssignmentEvent', () => {
     );
   });
 
-  test('setTrackAssignmentEvent preserves other existing options while updating trackingOption', async () => {
+  test('setTracksAssignment preserves other existing options while updating trackingOption', async () => {
     const client = new ExperimentClient(API_KEY, {});
 
     // Mock the evaluationApi.getVariants method
@@ -1742,7 +1742,7 @@ describe('setTrackAssignmentEvent', () => {
     });
 
     // Set track assignment event to true
-    await client.setTrackAssignmentEvent(true);
+    await client.setTracksAssignment(true);
 
     // Fetch variants with specific flag keys to ensure other options are preserved
     const fetchOptions = { flagKeys: ['test-flag'] };
