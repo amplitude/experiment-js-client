@@ -1,54 +1,67 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const isEqual = (obj1: any, obj2: any): boolean => {
-  const primitive = ['string', 'number', 'boolean', 'undefined'];
-  const typeA = typeof obj1;
-  const typeB = typeof obj2;
-  if (typeA !== typeB) {
-    return false;
-  }
-  for (const p of primitive) {
-    if (p === typeA) {
-      return obj1 === obj2;
-    }
-  }
-  // check null
-  if (obj1 == null && obj2 == null) {
+export const isEqual = (value1: any, value2: any, seen = new WeakSet()) => {
+  // 1. Strict equality check for primitives and same object references
+  if (value1 === value2) {
     return true;
-  } else if (obj1 == null || obj2 == null) {
+  }
+
+  // 2. Handle null and undefined (already covered by === if both are null/undefined)
+  // If one is null/undefined and the other is not, they are not equal.
+  if (value1 == null || value2 == null) {
     return false;
   }
-  // if got here - objects
-  if (obj1.length !== obj2.length) {
+
+  // 3. Handle different types
+  if (typeof value1 !== typeof value2) {
     return false;
   }
-  //check if arrays
-  const isArrayA = Array.isArray(obj1);
-  const isArrayB = Array.isArray(obj2);
-  if (isArrayA !== isArrayB) {
-    return false;
+
+  // 4. Handle specific object types (Date, RegExp)
+  if (value1 instanceof Date && value2 instanceof Date) {
+    return value1.getTime() === value2.getTime();
   }
-  if (isArrayA && isArrayB) {
-    //arrays
-    for (let i = 0; i < obj1.length; i++) {
-      if (!isEqual(obj1[i], obj2[i])) {
+  if (value1 instanceof RegExp && value2 instanceof RegExp) {
+    return value1.source === value2.source && value1.flags === value2.flags;
+  }
+
+  // 5. Handle objects and arrays (deep comparison)
+  if (typeof value1 === 'object' && typeof value2 === 'object') {
+    // Prevent infinite recursion with circular references
+    if (seen.has(value1) && seen.has(value2)) {
+      return true; // Already processed and found to be equal
+    }
+    seen.add(value1);
+    seen.add(value2);
+
+    // Compare arrays
+    if (Array.isArray(value1) && Array.isArray(value2)) {
+      if (value1.length !== value2.length) {
+        return false;
+      }
+      for (let i = 0; i < value1.length; i++) {
+        if (!isEqual(value1[i], value2[i], seen)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Compare plain objects
+    const keys1 = Object.keys(value1);
+    const keys2 = Object.keys(value2);
+
+    if (keys1.length !== keys2.length) {
+      return false;
+    }
+
+    for (const key of keys1) {
+      if (!keys2.includes(key) || !isEqual(value1[key], value2[key], seen)) {
         return false;
       }
     }
-  } else {
-    //objects
-    const sorted1 = Object.keys(obj1).sort();
-    const sorted2 = Object.keys(obj2).sort();
-    if (!isEqual(sorted1, sorted2)) {
-      return false;
-    }
-    //compare object values
-    let result = true;
-    Object.keys(obj1).forEach((key) => {
-      if (!isEqual(obj1[key], obj2[key])) {
-        result = false;
-      }
-    });
-    return result;
+    return true;
   }
-  return true;
-};
+
+  // 6. Default case: values are not equal
+  return false;
+}
