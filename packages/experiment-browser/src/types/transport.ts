@@ -12,3 +12,5 @@ export interface HttpClient {
     timeoutMillis?: number,
   ): Promise<SimpleResponse>;
 }
+
+export type CustomRequestHeaders = Record<string, () => string>;

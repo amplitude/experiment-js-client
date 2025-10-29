@@ -14,6 +14,7 @@ export type GetVariantsOptions = {
   deliveryMethod?: DeliveryMethod;
   evaluationMode?: EvaluationMode;
   timeoutMillis?: number;
+  customHeaders?: Record<string, string>;
 };
 
 export interface EvaluationApi {
@@ -43,7 +44,15 @@ export class SdkEvaluationApi implements EvaluationApi {
     options?: GetVariantsOptions,
   ): Promise<Record<string, EvaluationVariant>> {
     const userJsonBase64 = Base64.encodeURL(JSON.stringify(user));
-    const headers: Record<string, string> = {
+    let headers: Record<string, string> = {};
+    if (options?.customHeaders) {
+      headers = {
+        ...options.customHeaders,
+        ...headers,
+      };
+    }
+    headers = {
+      ...headers,
       Authorization: `Api-Key ${this.deploymentKey}`,
       'X-Amp-Exp-User': userJsonBase64,
     };

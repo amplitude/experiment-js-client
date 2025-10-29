@@ -731,8 +731,18 @@ export class ExperimentClient implements Client {
     user = await this.addContextOrWait(user);
     user = this.cleanUserPropsForFetch(user);
     this.debug('[Experiment] Fetch variants for user: ', user);
+    let customHeaders = undefined;
+    if (this.config.customRequestHeaders) {
+      customHeaders = {};
+      Object.entries(this.config.customRequestHeaders).forEach(
+        ([key, value]) => {
+          customHeaders[key] = value();
+        },
+      );
+    }
     const results = await this.evaluationApi.getVariants(user, {
       timeoutMillis: timeoutMillis,
+      customHeaders: customHeaders,
       ...options,
     });
     const variants: Variants = {};
