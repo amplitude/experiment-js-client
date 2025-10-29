@@ -624,7 +624,7 @@ describe('initializeExperiment', () => {
     await client2.start();
 
     // Wait for async operations to complete
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Verify exposureInternal was called with the correct flag key
     expect(mockExposureInternal).toHaveBeenCalled();

@@ -829,7 +829,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       .then((storedRedirects) => {
         const redirects = storedRedirects || {};
         redirects[flagKey] = { redirectUrl, variant };
-        storage.set(storageKey, redirects);
+        storage.set(storageKey, redirects).catch();
       })
       .catch((error) => {
         console.error(
