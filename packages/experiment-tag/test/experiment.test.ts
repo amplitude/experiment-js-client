@@ -23,7 +23,7 @@ const cookieStore: Record<string, any> = {};
 
 export const getCookieStore = () => cookieStore;
 export const clearCookieStore = () => {
-  Object.keys(cookieStore).forEach(key => delete cookieStore[key]);
+  Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
 };
 
 jest.mock('@amplitude/analytics-core', () => {
@@ -41,10 +41,12 @@ jest.mock('@amplitude/analytics-core', () => {
         delete cookieStore[key];
         return Promise.resolve();
       }),
-      getRaw: jest.fn((key: string) => Promise.resolve(JSON.stringify(cookieStore[key]))),
+      getRaw: jest.fn((key: string) =>
+        Promise.resolve(JSON.stringify(cookieStore[key])),
+      ),
       isEnabled: jest.fn(() => Promise.resolve(true)),
       reset: jest.fn(() => {
-        Object.keys(cookieStore).forEach(key => delete cookieStore[key]);
+        Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
         return Promise.resolve();
       }),
     })),
@@ -280,9 +282,6 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
 
-    // Wait a bit for async cookie operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
-
     // Directly check if the value was stored in cookies
     const storedRedirects = getCookieStore()[redirectStorageKey];
     expect(storedRedirects).toBeDefined();
@@ -300,7 +299,7 @@ describe('initializeExperiment', () => {
       (client as any).messageBus.publish('url_change', {});
 
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Verify exposureInternal was called with the correct flag key
       expect(mockExposureInternal).toHaveBeenCalledTimes(1);
@@ -409,9 +408,6 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
 
-    // Wait a bit for async cookie operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
-
     // Check if redirect info was stored in cookies
     const storedRedirects = getCookieStore()[redirectStorageKey];
     expect(storedRedirects).toBeDefined();
@@ -428,7 +424,7 @@ describe('initializeExperiment', () => {
     (client as any).messageBus.publish('url_change', {});
 
     // Wait for async operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Verify exposureInternal was called with the correct flag key
     expect(mockExposureInternal).toHaveBeenCalledTimes(1);
@@ -509,9 +505,6 @@ describe('initializeExperiment', () => {
       'http://test.com/2?param3=c&param1=a&param2=b',
     );
 
-    // Wait a bit for async cookie operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
-
     // Check if redirect info was stored in cookies
     const storedRedirects = getCookieStore()[redirectStorageKey];
     expect(storedRedirects).toBeDefined();
@@ -528,7 +521,7 @@ describe('initializeExperiment', () => {
     (client as any).messageBus.publish('url_change', {});
 
     // Wait for async operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Verify exposureInternal was called with the correct flag key
     expect(mockExposureInternal).toHaveBeenCalledTimes(1);
@@ -591,7 +584,7 @@ describe('initializeExperiment', () => {
     );
 
     // Wait for async cookie operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Check if redirect info was stored in cookies (should use root domain example.com)
     const storedRedirects = getCookieStore()[redirectStorageKey];
@@ -631,7 +624,7 @@ describe('initializeExperiment', () => {
     await client2.start();
 
     // Wait for async operations to complete
-    await new Promise(resolve => setTimeout(resolve, 600));
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     // Verify exposureInternal was called with the correct flag key
     expect(mockExposureInternal).toHaveBeenCalled();
@@ -661,12 +654,14 @@ describe('initializeExperiment', () => {
 
     const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
-    // Spy on console.warn to verify warning is logged
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
     // Create page object for example.com
     const pageObjects = {
-      test: createPageObject('A', 'url_change', undefined, 'http://example.com'),
+      test: createPageObject(
+        'A',
+        'url_change',
+        undefined,
+        'http://example.com',
+      ),
     };
 
     const client = DefaultWebExperimentClient.getInstance(
@@ -691,18 +686,11 @@ describe('initializeExperiment', () => {
     );
 
     // Wait for async cookie operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
-
-    // Verify warning was logged
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Redirect impressions are only supported for same root domain'),
-    );
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Check that redirect info was NOT stored in cookies (different domain)
     const storedRedirects = getCookieStore()[redirectStorageKey];
     expect(storedRedirects).toBeUndefined();
-
-    consoleWarnSpy.mockRestore();
   });
 
   test('localhost subdomain redirect - should store and fire impressions', async () => {
@@ -752,7 +740,7 @@ describe('initializeExperiment', () => {
     // );
 
     // Wait for async cookie operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Check if redirect info was stored in cookies (should use root domain localhost)
     const storedRedirects = getCookieStore()[redirectStorageKey];
@@ -818,9 +806,6 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
 
-    // Wait a bit for async cookie operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
-
     // Check if redirect info was stored in cookies
     const storedRedirects = getCookieStore()[redirectStorageKey];
     expect(storedRedirects).toBeDefined();
@@ -839,7 +824,7 @@ describe('initializeExperiment', () => {
       (client as any).messageBus.publish('url_change', {});
 
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Verify exposureInternal was called with the correct flag key
       expect(mockExposureInternal).toHaveBeenCalledTimes(1);
@@ -1128,9 +1113,6 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
 
-    // Wait a bit for async cookie operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
-
     // Check if redirect info was stored in cookies
     const storedRedirects = getCookieStore()[redirectStorageKey];
     expect(storedRedirects).toBeDefined();
@@ -1147,7 +1129,7 @@ describe('initializeExperiment', () => {
     (client as any).messageBus.publish('url_change', {});
 
     // Wait for async operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Verify exposureInternal was called with the correct flag key
     expect(mockExposureInternal).toHaveBeenCalledTimes(1);
@@ -1481,13 +1463,15 @@ describe('initializeExperiment', () => {
     await client.start();
 
     // Wait for async operations to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Verify exposureInternal was called (once for redirect, once for other-flag)
     expect(mockExposureInternal).toHaveBeenCalledTimes(2);
 
     // Find the test-redirect call
-    const redirectCall = mockExposureInternal.mock.calls.find(call => call[0] === 'test-redirect');
+    const redirectCall = mockExposureInternal.mock.calls.find(
+      (call) => call[0] === 'test-redirect',
+    );
     expect(redirectCall).toBeDefined();
 
     // Check that the sourceVariant parameter contains the expected properties

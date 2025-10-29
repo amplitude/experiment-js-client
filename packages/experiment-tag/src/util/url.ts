@@ -104,26 +104,19 @@ export const isPreviewMode = (): boolean => {
 
 /**
  * Extracts the root domain from a URL and returns it with a leading dot for cookie sharing.
- * Examples:
- * - app.economist.com -> .economist.com
- * - xxx.localhost.test -> .localhost.test
- * - subdomain.localhost -> .localhost
  */
 export const getCookieDomain = (url: string): string | undefined => {
   try {
     const hostname = new URL(url).hostname;
 
-    // Handle localhost and subdomains
     if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
       return '.localhost';
     }
 
-    // Handle IP addresses
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
       return hostname;
     }
 
-    // Extract root domain (e.g., app.economist.com -> economist.com)
     const parts = hostname.split('.');
     const rootDomain = parts.length <= 2 ? hostname : parts.slice(-2).join('.');
 
