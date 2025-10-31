@@ -192,11 +192,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.setupPreviewMode(urlParams);
     this.subscriptionManager.initSubscriptions();
 
-    // Subscribe to url_change events to fire redirect impressions
-    this.messageBus.subscribe('url_change', () => {
-      this.fireStoredRedirectImpressions().catch();
-    });
-
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
       WindowMessenger.setup();
@@ -280,6 +275,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.previewVariants({
       keyToVariant: this.previewFlags,
     });
+    this.fireStoredRedirectImpressions().catch();
 
     if (
       // do not fetch remote flags if all remote flags are in preview mode
@@ -451,6 +447,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         return;
       }
       const variantObject = flag[variant];
+      if (variantObject?.metadata) {
+        variantObject.metadata.deliveryMethod = 'web';
+      }
       if (!variantObject) {
         return;
       }
