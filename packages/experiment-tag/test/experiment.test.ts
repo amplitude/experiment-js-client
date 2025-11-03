@@ -330,7 +330,14 @@ describe('initializeExperiment', () => {
       'http://test.com/',
     );
     expect(mockExposureInternal).toHaveBeenCalledWith('test', {
-      variant: { key: 'control', value: 'control' },
+      variant: {
+        key: 'control',
+        value: 'control',
+        metadata: {
+          deliveryMethod: 'web',
+          url: 'http://localhost/',
+        },
+      },
       source: 'local-evaluation',
       hasDefaultVariant: false,
     });
