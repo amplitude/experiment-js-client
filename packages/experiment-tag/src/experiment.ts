@@ -137,6 +137,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       Object.keys(variants).forEach((variantKey) => {
         this.flagVariantMap[key][variantKey] =
           convertEvaluationVariantToVariant(variants[variantKey]);
+        this.flagVariantMap[key][variantKey].metadata = {
+          deliveryMethod: 'web',
+        };
       });
 
       if (metadata.evaluationMode !== 'local') {
@@ -447,9 +450,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         return;
       }
       const variantObject = flag[variant];
-      if (variantObject?.metadata) {
-        variantObject.metadata.deliveryMethod = 'web';
-      }
       if (!variantObject) {
         return;
       }
