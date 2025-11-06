@@ -34,3 +34,5 @@ export {
   ExperimentPluginType,
   ExperimentEvent,
 } from './types/plugin';
+export { Logger, LogLevel } from './types/logger';
+export { ConsoleLogger } from './logger/consoleLogger';
