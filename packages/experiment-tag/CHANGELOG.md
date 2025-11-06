@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.11.0...@amplitude/experiment-tag@0.11.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* previewVariants should fire impression events ([#235](https://github.com/amplitude/experiment-js-client/issues/235)) ([2b08845](https://github.com/amplitude/experiment-js-client/commit/2b08845936c5828c62e6333054122ad3d464d5e2))
+
+
+
+
+
 # [0.11.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.10.0...@amplitude/experiment-tag@0.11.0) (2025-10-22)
 
 

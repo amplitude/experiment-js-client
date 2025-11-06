@@ -899,6 +899,9 @@ export class ExperimentClient implements Client {
     }
 
     if (metadata) exposure.metadata = metadata;
+    if (this.isWebExperiment) {
+      exposure.time = Date.now();
+    }
 
     // Add current URL for web experiments
     if (this.isWebExperiment) {
