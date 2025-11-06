@@ -278,7 +278,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.previewVariants({
       keyToVariant: this.previewFlags,
     });
+
+    // fire stored redirect impressions upon startup
     this.fireStoredRedirectImpressions().catch();
+    this.addPageChangeSubscriber(() => {
+      // support custom redirect handler
+      this.fireStoredRedirectImpressions().catch();
+    });
 
     if (
       // do not fetch remote flags if all remote flags are in preview mode
