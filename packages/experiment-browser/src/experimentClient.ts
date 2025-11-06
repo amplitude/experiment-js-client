@@ -21,6 +21,8 @@ import { version as PACKAGE_VERSION } from '../package.json';
 
 import { Defaults, ExperimentConfig } from './config';
 import { IntegrationManager } from './integration/manager';
+import { AmpLogger } from './logger/ampLogger';
+import { ConsoleLogger } from './logger/consoleLogger';
 import {
   getFlagStorage,
   getVariantStorage,
@@ -33,6 +35,7 @@ import { FetchHttpClient, WrapperClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
 import { Exposure, ExposureTrackingProvider } from './types/exposure';
+import { LogLevel } from './types/logger';
 import { ExperimentPlugin, IntegrationPlugin } from './types/plugin';
 import { ExperimentUserProvider } from './types/provider';
 import { isFallback, Source, VariantSource } from './types/source';
@@ -75,6 +78,7 @@ const euFlagsServerUrl = 'https://flag.lab.eu.amplitude.com';
 export class ExperimentClient implements Client {
   private readonly apiKey: string;
   private readonly config: ExperimentConfig;
+  private readonly logger: AmpLogger;
   private readonly variants: LoadStoreCache<Variant>;
   private readonly flags: LoadStoreCache<EvaluationFlag>;
   private readonly flagApi: FlagApi;
@@ -128,6 +132,10 @@ export class ExperimentClient implements Client {
           : config.flagConfigPollingIntervalMillis ??
             Defaults.flagConfigPollingIntervalMillis,
     };
+    this.logger = new AmpLogger(
+      this.config.loggerProvider || new ConsoleLogger(),
+      ExperimentClient.getLogLevel(config),
+    );
     const internalInstanceName = this.config?.['internalInstanceNameSuffix'];
     this.isWebExperiment = internalInstanceName === 'web';
     this.poller = new Poller(
@@ -297,12 +305,10 @@ export class ExperimentClient implements Client {
       }
 
       // Otherwise, handle errors silently as before
-      if (this.config.debug) {
-        if (e instanceof TimeoutError) {
-          console.debug(e);
-        } else {
-          console.error(e);
-        }
+      if (e instanceof TimeoutError) {
+        this.logger.debug(e);
+      } else {
+        this.logger.error(e);
       }
     }
     return this;
@@ -332,7 +338,7 @@ export class ExperimentClient implements Client {
     if (this.config.automaticExposureTracking) {
       this.exposureInternal(key, sourceVariant);
     }
-    this.debug(
+    this.logger.debug(
       `[Experiment] variant for ${key} is ${
         sourceVariant.variant?.key || sourceVariant.variant?.value
       }`,
@@ -697,7 +703,7 @@ export class ExperimentClient implements Client {
       throw Error('Experiment API key is empty');
     }
 
-    this.debug(`[Experiment] Fetch all: retry=${retry}`);
+    this.logger.debug(`[Experiment] Fetch all: retry=${retry}`);
 
     // Proactively cancel retries if active in order to avoid unnecessary API
     // requests. A new failure will restart the retries.
@@ -730,7 +736,7 @@ export class ExperimentClient implements Client {
   ): Promise<Variants> {
     user = await this.addContextOrWait(user);
     user = this.cleanUserPropsForFetch(user);
-    this.debug('[Experiment] Fetch variants for user: ', user);
+    this.logger.debug('[Experiment] Fetch variants for user: ', user);
     const results = await this.evaluationApi.getVariants(user, {
       timeoutMillis: timeoutMillis,
       ...options,
@@ -739,7 +745,7 @@ export class ExperimentClient implements Client {
     for (const key of Object.keys(results)) {
       variants[key] = convertEvaluationVariantToVariant(results[key]);
     }
-    this.debug('[Experiment] Received variants: ', variants);
+    this.logger.debug('[Experiment] Received variants: ', variants);
     return variants;
   }
 
@@ -763,7 +769,7 @@ export class ExperimentClient implements Client {
       this.flags.putAll(flags);
     } catch (e) {
       if (e instanceof TimeoutError) {
-        this.config.debug && console.debug(e);
+        this.logger.debug(e);
         // If throwOnError is configured to true, rethrow timeout errors
         if (this.config.throwOnError) {
           throw e;
@@ -802,14 +808,14 @@ export class ExperimentClient implements Client {
     } catch (e) {
       // catch localStorage undefined error
     }
-    this.debug('[Experiment] Stored variants: ', variants);
+    this.logger.debug('[Experiment] Stored variants: ', variants);
   }
 
   private async startRetries(
     user: ExperimentUser,
     options: FetchOptions,
   ): Promise<void> {
-    this.debug('[Experiment] Retry fetch');
+    this.logger.debug('[Experiment] Retry fetch');
     this.retriesBackoff = new Backoff(
       fetchBackoffAttempts,
       fetchBackoffMinMillis,
@@ -938,11 +944,13 @@ export class ExperimentClient implements Client {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private debug(message?: any, ...optionalParams: any[]): void {
-    if (this.config.debug) {
-      console.debug(message, ...optionalParams);
+  private static getLogLevel(config: ExperimentConfig): LogLevel {
+    // Backwards compatibility: if debug flag is set to true, use Debug level
+    if (config.debug === true) {
+      return LogLevel.Debug;
     }
+    // Otherwise use the configured logLevel or default to Error
+    return config.logLevel ?? LogLevel.Error;
   }
 
   private shouldRetryFetch(e: Error): boolean {
