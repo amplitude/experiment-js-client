@@ -293,27 +293,24 @@ describe('initializeExperiment', () => {
     // Clear exposure tracking before simulating URL change
     mockExposureInternal.mockClear();
 
-    // Ensure messageBus exists before publishing
-    if ((client as any).messageBus) {
-      // Simulate URL change event after redirect
-      (client as any).messageBus.publish('url_change', {});
+    // Simulate URL change event after redirect
+    (client as any).messageBus.publish('url_change', {});
 
-      // Wait for async operations to complete
-      await new Promise((resolve) => setTimeout(resolve, 10));
+    // Wait for async operations to complete
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
-      // Verify exposureInternal was called with the correct flag key
-      expect(mockExposureInternal).toHaveBeenCalledTimes(1);
-      expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+    // Verify exposureInternal was called with the correct flag key
+    expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+    expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
 
-      // Check that the sourceVariant parameter contains the expected properties
-      const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
-      expect(sourceVariant).toBeDefined();
-      expect(sourceVariant.variant).toBeDefined();
-      expect(sourceVariant.variant.key).toBe('treatment');
+    // Check that the sourceVariant parameter contains the expected properties
+    const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+    expect(sourceVariant).toBeDefined();
+    expect(sourceVariant.variant).toBeDefined();
+    expect(sourceVariant.variant.key).toBe('treatment');
 
-      // Verify sessionStorage was cleared after tracking
-      expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
-    }
+    // Verify sessionStorage was cleared after tracking
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
   test('control variant on control page - should not redirect but call exposure', async () => {

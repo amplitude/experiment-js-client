@@ -281,8 +281,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // fire stored redirect impressions upon startup
     this.fireStoredRedirectImpressions().catch();
-    this.addPageChangeSubscriber(() => {
-      // support custom redirect handler
+    // Subscribe directly to url_change events to fire redirect impressions
+    this.messageBus.subscribe('url_change', () => {
       this.fireStoredRedirectImpressions().catch();
     });
 
