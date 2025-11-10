@@ -1,3 +1,4 @@
+import { execSync } from 'child_process';
 import { join, resolve as pathResolve } from 'path';
 
 import tsConfig from '@amplitude/experiment-js-client/tsconfig.json';
@@ -12,6 +13,15 @@ import gzip from 'rollup-plugin-gzip';
 import license from 'rollup-plugin-license';
 
 import * as packageJson from './package.json';
+
+let branchName = '';
+try {
+  const fullBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
+  const cleanBranch = fullBranch.replace(/^web\//, '');
+  branchName = cleanBranch !== 'main' ? cleanBranch : '';
+} catch (error) {
+  console.warn('Unable to get git branch name:', error.message);
+}
 
 const getCommonBrowserConfig = (target) => ({
   input: 'src/index.ts',
@@ -54,7 +64,7 @@ const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
     name: 'WebExperiment',
-    banner: `/* ${packageJson.name} v${packageJson.version} - For license info see https://unpkg.com/@amplitude/experiment-tag@${packageJson.version}/files/LICENSE */`,
+    banner: `/* ${packageJson.name} v${packageJson.version}${branchName ? ` (${branchName})` : ''} - For license info see https://unpkg.com/@amplitude/experiment-tag@${packageJson.version}/files/LICENSE */`,
     ...outputOptions,
   },
 });

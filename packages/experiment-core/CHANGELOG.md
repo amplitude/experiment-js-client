@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.11.0...@amplitude/experiment-core@0.11.1) (2025-10-22)
+
+
+### Bug Fixes
+
+* do not treat falsy values like 0 and false as undefined ([#220](https://github.com/amplitude/experiment-js-client/issues/220)) ([17d8548](https://github.com/amplitude/experiment-js-client/commit/17d85489d2b73f8f36bfb89c6b968bccd73b4e99))
+
+
+
+
+
 # [0.11.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.10.1...@amplitude/experiment-core@0.11.0) (2025-02-14)
 
 

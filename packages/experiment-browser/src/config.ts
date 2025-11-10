@@ -1,6 +1,7 @@
 import { FetchHttpClient } from './transport/http';
 import { ExperimentAnalyticsProvider } from './types/analytics';
 import { ExposureTrackingProvider } from './types/exposure';
+import { Logger, LogLevel } from './types/logger';
 import { ExperimentUserProvider } from './types/provider';
 import { Source } from './types/source';
 import { HttpClient } from './types/transport';
@@ -13,8 +14,22 @@ export interface ExperimentConfig {
   /**
    * Debug all assignment requests in the UI Debugger and log additional
    * information to the console. This should be false for production builds.
+   * @deprecated Use logLevel instead. When debug is true, it sets logLevel to Debug.
    */
   debug?: boolean;
+
+  /**
+   * The minimum log level to output. Messages below this level will be ignored.
+   * Supported levels: Disable, Error (default), Warn, Info, Debug, Verbose.
+   * If the deprecated debug flag is set to true, this will default to Debug.
+   */
+  logLevel?: LogLevel;
+
+  /**
+   * Custom logger implementation. If not provided, a default ConsoleLogger will be used.
+   * The logger must implement the Logger interface with methods for error, warn, info, debug, and verbose.
+   */
+  loggerProvider?: Logger;
 
   /**
    * The name of the instance being initialized. Used for initializing separate
@@ -165,6 +180,8 @@ export interface ExperimentConfig {
  | **Option**       | **Default**                       |
  |------------------|-----------------------------------|
  | **debug**        | `false`                           |
+ | **logLevel**     | `LogLevel.Error`                  |
+ | **logger**       | `null` (ConsoleLogger will be used) |
  | **instanceName** | `$default_instance` |
  | **fallbackVariant**         | `null`                 |
  | **initialVariants**         | `null`                 |
@@ -189,6 +206,8 @@ export interface ExperimentConfig {
  */
 export const Defaults: ExperimentConfig = {
   debug: false,
+  logLevel: LogLevel.Error,
+  loggerProvider: null,
   instanceName: '$default_instance',
   fallbackVariant: {},
   initialVariants: {},
