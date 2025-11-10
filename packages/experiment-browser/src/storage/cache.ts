@@ -1,4 +1,4 @@
-import { EvaluationFlag } from '@amplitude/experiment-core';
+import { EvaluationFlag, GetVariantsOptions } from '@amplitude/experiment-core';
 
 import { Storage } from '../types/storage';
 import { Variant } from '../types/variant';
@@ -28,6 +28,52 @@ export const getFlagStorage = (
   const namespace = `amp-exp-${instanceName}-${truncatedDeployment}-flags`;
   return new LoadStoreCache<EvaluationFlag>(namespace, storage);
 };
+
+export const getVariantsOptionsStorage = (
+  deploymentKey: string,
+  instanceName: string,
+  storage: Storage = new LocalStorage(),
+): SingleValueStoreCache<GetVariantsOptions> => {
+  const truncatedDeployment = deploymentKey.substring(deploymentKey.length - 6);
+  const namespace = `amp-exp-${instanceName}-${truncatedDeployment}-variants-options`;
+  return new SingleValueStoreCache<GetVariantsOptions>(namespace, storage);
+};
+
+export class SingleValueStoreCache<V> {
+  private readonly namespace: string;
+  private readonly storage: Storage;
+  private value: V | undefined;
+
+  constructor(namespace: string, storage: Storage) {
+    this.namespace = namespace;
+    this.storage = storage;
+  }
+
+  public get(): V | undefined {
+    return this.value;
+  }
+
+  public put(value: V): void {
+    this.value = value;
+  }
+
+  public load(): void {
+    const value = this.storage.get(this.namespace);
+    if (value) {
+      this.value = JSON.parse(value);
+    }
+  }
+
+  public store(): void {
+    if (this.value === undefined) {
+      // Delete the key if the value is undefined
+      this.storage.delete(this.namespace);
+    } else {
+      // Also store false or null values
+      this.storage.put(this.namespace, JSON.stringify(this.value));
+    }
+  }
+}
 
 export class LoadStoreCache<V> {
   private readonly namespace: string;

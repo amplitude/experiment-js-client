@@ -15,6 +15,7 @@ import {
   TimeoutError,
   topologicalSort,
   getGlobalScope,
+  GetVariantsOptions,
 } from '@amplitude/experiment-core';
 
 import { version as PACKAGE_VERSION } from '../package.json';
@@ -25,8 +26,10 @@ import { AmpLogger } from './logger/ampLogger';
 import { ConsoleLogger } from './logger/consoleLogger';
 import {
   getFlagStorage,
+  getVariantsOptionsStorage,
   getVariantStorage,
   LoadStoreCache,
+  SingleValueStoreCache,
   transformVariantFromStorage,
 } from './storage/cache';
 import { LocalStorage } from './storage/local-storage';
@@ -93,6 +96,7 @@ export class ExperimentClient implements Client {
   private readonly integrationManager: IntegrationManager;
   // Web experiment adds a user to the flags request
   private readonly isWebExperiment: boolean;
+  private readonly fetchVariantsOptions: SingleValueStoreCache<GetVariantsOptions>;
 
   // Deprecated
   private analyticsProvider: SessionAnalyticsProvider | undefined;
@@ -194,9 +198,15 @@ export class ExperimentClient implements Client {
       storage,
     );
     this.flags = getFlagStorage(this.apiKey, storageInstanceName, storage);
+    this.fetchVariantsOptions = getVariantsOptionsStorage(
+      this.apiKey,
+      storageInstanceName,
+      storage,
+    );
     try {
       this.flags.load();
       this.variants.load();
+      this.fetchVariantsOptions.load();
     } catch (e) {
       // catch localStorage undefined error
     }
@@ -712,7 +722,10 @@ export class ExperimentClient implements Client {
     }
 
     try {
-      const variants = await this.doFetch(user, timeoutMillis, options);
+      const variants = await this.doFetch(user, timeoutMillis, {
+        trackingOption: this.fetchVariantsOptions.get()?.trackingOption,
+        ...options,
+      });
       await this.storeVariants(variants, options);
       return variants;
     } catch (e) {
@@ -721,6 +734,18 @@ export class ExperimentClient implements Client {
       }
       throw e;
     }
+  }
+
+  /**
+   * Enables or disables tracking of assignment events when fetching variants.
+   * @param doTrack Whether to track assignment events.
+   */
+  public async setTracksAssignment(doTrack: boolean): Promise<void> {
+    this.fetchVariantsOptions.put({
+      ...(this.fetchVariantsOptions.get() || {}),
+      trackingOption: doTrack ? 'track' : 'no-track',
+    });
+    this.fetchVariantsOptions.store();
   }
 
   private cleanUserPropsForFetch(user: ExperimentUser): ExperimentUser {
@@ -732,7 +757,7 @@ export class ExperimentClient implements Client {
   private async doFetch(
     user: ExperimentUser,
     timeoutMillis: number,
-    options?: FetchOptions,
+    options?: GetVariantsOptions,
   ): Promise<Variants> {
     user = await this.addContextOrWait(user);
     user = this.cleanUserPropsForFetch(user);

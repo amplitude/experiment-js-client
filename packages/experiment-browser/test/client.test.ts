@@ -1575,3 +1575,190 @@ describe('flag config polling interval config', () => {
     expect(client['config'].flagConfigPollingIntervalMillis).toEqual(900000);
   });
 });
+
+describe('setTracksAssignment', () => {
+  beforeEach(async () => {
+    await safeGlobal.localStorage.clear();
+    jest.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('setTracksAssignment() no call ok', async () => {
+    const client = new ExperimentClient(API_KEY, {});
+
+    // Mock the evaluationApi.getVariants method
+    const getVariantsSpy = jest.spyOn(
+      (client as any).evaluationApi,
+      'getVariants',
+    );
+    getVariantsSpy.mockResolvedValue({
+      'test-flag': { key: 'on', value: 'on' },
+    });
+
+    // Fetch variants to trigger the API call
+    await client.fetch(testUser);
+
+    // Verify getVariants was called with trackingOption: 'track'
+    expect(getVariantsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: testUser.user_id,
+        library: expect.stringContaining('experiment-js-client'),
+      }),
+      expect.objectContaining({
+        trackingOption: undefined,
+        timeoutMillis: expect.any(Number),
+      }),
+    );
+  });
+
+  test('setTracksAssignment() sets trackingOption to track and getVariants is called with correct options', async () => {
+    const client = new ExperimentClient(API_KEY, {});
+
+    // Mock the evaluationApi.getVariants method
+    const getVariantsSpy = jest.spyOn(
+      (client as any).evaluationApi,
+      'getVariants',
+    );
+    getVariantsSpy.mockResolvedValue({
+      'test-flag': { key: 'on', value: 'on' },
+    });
+
+    // Set track assignment event to true
+    await client.setTracksAssignment(true);
+
+    // Fetch variants to trigger the API call
+    await client.fetch(testUser);
+
+    // Verify getVariants was called with trackingOption: 'track'
+    expect(getVariantsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: testUser.user_id,
+        library: expect.stringContaining('experiment-js-client'),
+      }),
+      expect.objectContaining({
+        trackingOption: 'track',
+        timeoutMillis: expect.any(Number),
+      }),
+    );
+
+    // Set track assignment event to false
+    await client.setTracksAssignment(false);
+
+    // Fetch variants to trigger the API call
+    await client.fetch(testUser);
+
+    // Verify getVariants was called with trackingOption: 'no-track'
+    expect(getVariantsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: testUser.user_id,
+        library: expect.stringContaining('experiment-js-client'),
+      }),
+      expect.objectContaining({
+        trackingOption: 'no-track',
+        timeoutMillis: expect.any(Number),
+      }),
+    );
+  });
+
+  test('setTracksAssignment persists the setting to storage', async () => {
+    const client = new ExperimentClient(API_KEY, {});
+
+    // Set track assignment event to true
+    await client.setTracksAssignment(true);
+
+    // Create a new client instance to verify persistence
+    const client2 = new ExperimentClient(API_KEY, {});
+
+    // Mock the evaluationApi.getVariants method for the second client
+    const getVariantsSpy = jest.spyOn(
+      (client2 as any).evaluationApi,
+      'getVariants',
+    );
+    getVariantsSpy.mockResolvedValue({
+      'test-flag': { key: 'on', value: 'on' },
+    });
+
+    // Fetch variants with the second client
+    await client2.fetch(testUser);
+
+    // Verify the setting was persisted and loaded by the second client
+    expect(getVariantsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: testUser.user_id,
+        library: expect.stringContaining('experiment-js-client'),
+      }),
+      expect.objectContaining({
+        trackingOption: 'track',
+        timeoutMillis: expect.any(Number),
+      }),
+    );
+  });
+
+  test('multiple calls to setTracksAssignment uses the latest setting', async () => {
+    const client = new ExperimentClient(API_KEY, {});
+
+    // Mock the evaluationApi.getVariants method
+    const getVariantsSpy = jest.spyOn(
+      (client as any).evaluationApi,
+      'getVariants',
+    );
+    getVariantsSpy.mockResolvedValue({
+      'test-flag': { key: 'off', value: 'off' },
+    });
+
+    // Set track assignment event to true, then false
+    await client.setTracksAssignment(true);
+    await client.setTracksAssignment(false);
+
+    // Fetch variants to trigger the API call
+    await client.fetch(testUser);
+
+    // Verify getVariants was called with the latest setting (no-track)
+    expect(getVariantsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: testUser.user_id,
+        library: expect.stringContaining('experiment-js-client'),
+      }),
+      expect.objectContaining({
+        trackingOption: 'no-track',
+        timeoutMillis: expect.any(Number),
+      }),
+    );
+  });
+
+  test('setTracksAssignment preserves other existing options while updating trackingOption', async () => {
+    const client = new ExperimentClient(API_KEY, {});
+
+    // Mock the evaluationApi.getVariants method
+    const getVariantsSpy = jest.spyOn(
+      (client as any).evaluationApi,
+      'getVariants',
+    );
+    getVariantsSpy.mockResolvedValue({
+      'test-flag': { key: 'on', value: 'on' },
+    });
+
+    // Set track assignment event to true
+    await client.setTracksAssignment(true);
+
+    // Fetch variants with specific flag keys to ensure other options are preserved
+    const fetchOptions = { flagKeys: ['test-flag'] };
+    await client.fetch(testUser, fetchOptions);
+
+    // Verify getVariants was called with both trackingOption and flagKeys
+    expect(getVariantsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: testUser.user_id,
+        library: expect.stringContaining('experiment-js-client'),
+      }),
+      expect.objectContaining({
+        trackingOption: 'track',
+        flagKeys: ['test-flag'],
+        timeoutMillis: expect.any(Number),
+      }),
+    );
+  });
+});
