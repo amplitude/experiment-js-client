@@ -8,6 +8,14 @@ export interface InjectUtils {
   waitForElement(selector: string): Promise<Element>;
 
   /**
+   * Call function whenever the selector is missing from DOM
+   *
+   * @param selector The element selector to query for.
+   * @param callback The function to call when no element matches the selector
+   */
+  whenElementMissing(selector: string, callback: () => void): void;
+
+  /**
    * Function which can be set inside injected javascript code. This function is
    * called on page change, when experiments are re-evaluated.
    *
@@ -19,21 +27,32 @@ export interface InjectUtils {
   remove: (() => void) | undefined;
 }
 
-export const getInjectUtils = (): InjectUtils =>
+export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
   ({
     async waitForElement(selector: string): Promise<Element> {
+      let observer: MutationObserver | undefined = undefined;
+
+      const findElement = () => {
+        if (state.cancelled) {
+          observer?.disconnect();
+          return;
+        }
+
+        return document.querySelector(selector);
+      };
+
       // If selector found in DOM, then return directly.
-      const elem = document.querySelector(selector);
+      const elem = findElement();
       if (elem) {
         return elem;
       }
 
       return new Promise<Element>((resolve) => {
         // An observer that is listening for all DOM mutation events.
-        const observer = new MutationObserver(() => {
-          const elem = document.querySelector(selector);
+        observer = new MutationObserver(() => {
+          const elem = findElement();
           if (elem) {
-            observer.disconnect();
+            observer?.disconnect();
             resolve(elem);
           }
         });
@@ -44,6 +63,31 @@ export const getInjectUtils = (): InjectUtils =>
           subtree: true,
           attributes: true,
         });
+      });
+    },
+
+    whenElementMissing(selector: string, callback: () => void): void {
+      let observer: MutationObserver | undefined = undefined;
+      const checkMissing = () => {
+        if (state.cancelled) {
+          observer?.disconnect();
+          return;
+        }
+
+        const elem = document.querySelector(selector);
+        if (!elem) {
+          callback();
+        }
+      };
+
+      checkMissing();
+      observer = new MutationObserver(checkMissing);
+
+      // Observe on all document changes.
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
       });
     },
   } as InjectUtils);
