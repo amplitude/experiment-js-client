@@ -13,7 +13,7 @@ export interface InjectUtils {
    * @param selector The element selector to query for.
    * @param callback The function to call when no element matches the selector
    */
-  whenElementMissing(selector: string, callback: () => void): void;
+  onElementMissing(selector: string, callback: () => void): void;
 
   /**
    * Function which can be set inside injected javascript code. This function is
@@ -66,7 +66,7 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
       });
     },
 
-    whenElementMissing(selector: string, callback: () => void): void {
+    onElementMissing(selector: string, callback: () => void): void {
       let rateLimit = 0;
       let observer: MutationObserver | undefined = undefined;
       const checkMissing = () => {
