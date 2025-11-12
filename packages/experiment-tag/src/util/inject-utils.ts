@@ -67,12 +67,19 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
     },
 
     whenElementMissing(selector: string, callback: () => void): void {
+      let rateLimit = 0;
       let observer: MutationObserver | undefined = undefined;
       const checkMissing = () => {
         if (state.cancelled) {
           observer?.disconnect();
           return;
         }
+
+        if (rateLimit >= 10) {
+          return;
+        }
+        rateLimit++;
+        setTimeout(() => rateLimit--, 1000);
 
         const elem = document.querySelector(selector);
         if (!elem) {
