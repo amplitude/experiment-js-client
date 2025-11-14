@@ -16,6 +16,22 @@ export interface InjectUtils {
   onElementMissing(selector: string, callback: () => void): void;
 
   /**
+   * Inserts an element into the DOM at the specified selectors.
+   * Re-inserts element whenever it gets removed
+   *
+   * @param element The element to insert.
+   * @param parentSelector The parent selector to insert the element into.
+   * @param insertBeforeSelector The sibling selector to insert the element before.
+   */
+  insertElement(
+    element: Element,
+    {
+      parentSelector,
+      insertBeforeSelector,
+    }: { parentSelector: string; insertBeforeSelector: string | null },
+  ): void;
+  
+  /**
    * Function which can be set inside injected javascript code. This function is
    * called on page change, when experiments are re-evaluated.
    *
@@ -66,6 +82,50 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
       });
     },
 
+    insertElement(
+      element: Element,
+      options: { parentSelector: string; insertBeforeSelector: string | null },
+    ): void {
+      let rateLimit = 0;
+      let observer: MutationObserver | undefined = undefined;
+      const checkMissing = () => {
+        if (this.cancelled) {
+          observer?.disconnect();
+          return;
+        }
+  
+        if (rateLimit >= 10) {
+          return;
+        }
+        rateLimit++;
+        setTimeout(() => rateLimit--, 1000);
+  
+        if (!element.isConnected || element.ownerDocument !== document) {
+          const parent = document.querySelector(options.parentSelector);
+          if (!parent) {
+            return;
+          }
+          if (options.insertBeforeSelector) {
+            const sibling = parent.querySelector(options.insertBeforeSelector);
+            if (sibling) {
+              parent.insertBefore(element, sibling);
+            }
+          } else {
+            parent.appendChild(element);
+          }
+        }
+      };
+  
+      checkMissing();
+      observer = new MutationObserver(checkMissing);
+  
+      // Observe on all document changes.
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+      });
+    },
+      
     onElementMissing(selector: string, callback: () => void): void {
       let rateLimit = 0;
       let observer: MutationObserver | undefined = undefined;
@@ -94,7 +154,6 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
       observer.observe(document.documentElement, {
         childList: true,
         subtree: true,
-        attributes: true,
       });
     },
   } as InjectUtils);
