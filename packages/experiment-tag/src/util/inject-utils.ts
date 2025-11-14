@@ -89,7 +89,7 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
       let rateLimit = 0;
       let observer: MutationObserver | undefined = undefined;
       const checkMissing = () => {
-        if (this.cancelled) {
+        if (state.cancelled) {
           observer?.disconnect();
           return;
         }
