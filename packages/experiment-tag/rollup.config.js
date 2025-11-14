@@ -6,6 +6,7 @@ import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import resolve from '@rollup/plugin-node-resolve';
+import replace from '@rollup/plugin-replace';
 import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
@@ -59,6 +60,11 @@ const getCommonBrowserConfig = (target) => ({
         output: join(__dirname, 'dist', 'LICENSES'),
       },
     }),
+    replace({
+      preventAssignment: true,
+      define: '__amplitude__define__',
+      require: '__amplitude__require__',
+    }),
   ],
 });
 
@@ -81,7 +87,7 @@ const configs = [
     ...config,
     ...getOutputConfig({
       entryFileNames: 'experiment-tag-min.js',
-      format: 'iife',
+      format: 'umd',
     }),
     plugins: [
       ...config.plugins,
