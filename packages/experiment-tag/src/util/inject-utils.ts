@@ -88,10 +88,14 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
     ): void {
       let rateLimit = 0;
       let observer: MutationObserver | undefined = undefined;
-      const checkMissing = () => {
+      const checkElementInserted = () => {
         if (state.cancelled) {
           observer?.disconnect();
           return;
+        }
+
+        if (element.isConnected && element.ownerDocument === document) {
+          return; // element is already inserted
         }
 
         if (rateLimit >= 10) {
@@ -100,24 +104,22 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
         rateLimit++;
         setTimeout(() => rateLimit--, 1000);
 
-        if (!element.isConnected || element.ownerDocument !== document) {
-          const parent = document.querySelector(options.parentSelector);
-          if (!parent) {
-            return;
+        const parent = document.querySelector(options.parentSelector);
+        if (!parent) {
+          return;
+        }
+        if (options.insertBeforeSelector) {
+          const sibling = parent.querySelector(options.insertBeforeSelector);
+          if (sibling) {
+            parent.insertBefore(element, sibling);
           }
-          if (options.insertBeforeSelector) {
-            const sibling = parent.querySelector(options.insertBeforeSelector);
-            if (sibling) {
-              parent.insertBefore(element, sibling);
-            }
-          } else {
-            parent.appendChild(element);
-          }
+        } else {
+          parent.appendChild(element);
         }
       };
 
-      checkMissing();
-      observer = new MutationObserver(checkMissing);
+      checkElementInserted();
+      observer = new MutationObserver(checkElementInserted);
 
       // Observe on all document changes.
       observer.observe(document.documentElement, {
