@@ -36,7 +36,7 @@ import { LocalStorage } from './storage/local-storage';
 import { SessionStorage } from './storage/session-storage';
 import { FetchHttpClient, WrapperClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
-import { Client, FetchOptions } from './types/client';
+import { Client, FetchOptions, VariantOptions } from './types/client';
 import { Exposure, ExposureTrackingProvider } from './types/exposure';
 import { LogLevel } from './types/logger';
 import { ExperimentPlugin, IntegrationPlugin } from './types/plugin';
@@ -337,15 +337,25 @@ export class ExperimentClient implements Client {
    *
    * @param key The key to get the variant for.
    * @param fallback The highest priority fallback.
+   * @param options Additional options to configure the function behavior.
    * @see ExperimentConfig
    * @see ExposureTrackingProvider
+   * @see VariantOptions
    */
-  public variant(key: string, fallback?: string | Variant): Variant {
+  public variant(
+    key: string,
+    fallback?: string | Variant | undefined,
+    options?: VariantOptions | undefined,
+  ): Variant {
     if (!this.apiKey) {
       return { value: undefined };
     }
+    const shouldTrackExposure =
+      (this.config.automaticExposureTracking &&
+        options.trackExposure !== false) ||
+      options.trackExposure === true;
     const sourceVariant = this.variantAndSource(key, fallback);
-    if (this.config.automaticExposureTracking) {
+    if (shouldTrackExposure) {
       this.exposureInternal(key, sourceVariant);
     }
     this.logger.debug(
