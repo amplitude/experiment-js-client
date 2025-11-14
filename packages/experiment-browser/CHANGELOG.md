@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.20.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.19.0...@amplitude/experiment-js-client@1.20.0) (2025-11-14)
+
+
+### Features
+
+* add setTracksAssignment ([#224](https://github.com/amplitude/experiment-js-client/issues/224)) ([79e230b](https://github.com/amplitude/experiment-js-client/commit/79e230bbcf5716eaba998f21235c7ee7be08c418))
+
+
+
+
+
 # [1.19.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.18.0...@amplitude/experiment-js-client@1.19.0) (2025-11-06)
 
 
