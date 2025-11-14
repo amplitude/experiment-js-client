@@ -30,7 +30,7 @@ export interface InjectUtils {
       insertBeforeSelector,
     }: { parentSelector: string; insertBeforeSelector: string | null },
   ): void;
-  
+
   /**
    * Function which can be set inside injected javascript code. This function is
    * called on page change, when experiments are re-evaluated.
@@ -93,13 +93,13 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
           observer?.disconnect();
           return;
         }
-  
+
         if (rateLimit >= 10) {
           return;
         }
         rateLimit++;
         setTimeout(() => rateLimit--, 1000);
-  
+
         if (!element.isConnected || element.ownerDocument !== document) {
           const parent = document.querySelector(options.parentSelector);
           if (!parent) {
@@ -115,17 +115,17 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
           }
         }
       };
-  
+
       checkMissing();
       observer = new MutationObserver(checkMissing);
-  
+
       // Observe on all document changes.
       observer.observe(document.documentElement, {
         childList: true,
         subtree: true,
       });
     },
-      
+
     onElementMissing(selector: string, callback: () => void): void {
       let rateLimit = 0;
       let observer: MutationObserver | undefined = undefined;
