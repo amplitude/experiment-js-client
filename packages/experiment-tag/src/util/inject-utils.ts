@@ -8,27 +8,22 @@ export interface InjectUtils {
   waitForElement(selector: string): Promise<Element>;
 
   /**
-   * Call function whenever the selector is missing from DOM
-   *
-   * @param selector The element selector to query for.
-   * @param callback The function to call when no element matches the selector
-   */
-  onElementMissing(selector: string, callback: () => void): void;
-
-  /**
    * Inserts an element into the DOM at the specified selectors.
    * Re-inserts element whenever it gets removed
    *
    * @param element The element to insert.
-   * @param parentSelector The parent selector to insert the element into.
-   * @param insertBeforeSelector The sibling selector to insert the element before.
+   * @param  options The insertion options.
+   * @param options.parentSelector The parent selector to insert the element into.
+   * @param options.insertBeforeSelector The sibling selector to insert the element before.
+   * @param callback Optional callback to be called after every insertion.
    */
   insertElement(
     element: Element,
-    {
-      parentSelector,
-      insertBeforeSelector,
-    }: { parentSelector: string; insertBeforeSelector: string | null },
+    options: {
+      parentSelector: string;
+      insertBeforeSelector: string | null;
+    },
+    callback?: () => void,
   ): void;
 
   /**
@@ -84,7 +79,11 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
 
     insertElement(
       element: Element,
-      options: { parentSelector: string; insertBeforeSelector: string | null },
+      options: {
+        parentSelector: string;
+        insertBeforeSelector: string | null;
+      },
+      callback?: () => void,
     ): void {
       let rateLimit = 0;
       let observer: MutationObserver | undefined = undefined;
@@ -108,49 +107,17 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
         if (!parent) {
           return;
         }
-        if (options.insertBeforeSelector) {
-          const sibling = parent.querySelector(options.insertBeforeSelector);
-          if (sibling) {
-            parent.insertBefore(element, sibling);
-          }
-        } else {
-          parent.appendChild(element);
+        const sibling = options.insertBeforeSelector
+          ? parent.querySelector(options.insertBeforeSelector)
+          : null;
+        if (!options.insertBeforeSelector || sibling) {
+          parent.insertBefore(element, sibling);
+          callback?.();
         }
       };
 
       checkElementInserted();
       observer = new MutationObserver(checkElementInserted);
-
-      // Observe on all document changes.
-      observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-      });
-    },
-
-    onElementMissing(selector: string, callback: () => void): void {
-      let rateLimit = 0;
-      let observer: MutationObserver | undefined = undefined;
-      const checkMissing = () => {
-        if (state.cancelled) {
-          observer?.disconnect();
-          return;
-        }
-
-        if (rateLimit >= 10) {
-          return;
-        }
-        rateLimit++;
-        setTimeout(() => rateLimit--, 1000);
-
-        const elem = document.querySelector(selector);
-        if (!elem) {
-          callback();
-        }
-      };
-
-      checkMissing();
-      observer = new MutationObserver(checkMissing);
 
       // Observe on all document changes.
       observer.observe(document.documentElement, {
