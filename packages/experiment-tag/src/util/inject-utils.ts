@@ -10,6 +10,7 @@ export interface InjectUtils {
   /**
    * Inserts an element into the DOM at the specified selectors.
    * Re-inserts element whenever it gets removed
+   * Returns a promise that is resolved the first time the element is inserted.
    *
    * @param element The element to insert.
    * @param  options The insertion options.
@@ -24,7 +25,7 @@ export interface InjectUtils {
       insertBeforeSelector: string | null;
     },
     callback?: () => void,
-  ): void;
+  ): Promise<void>;
 
   /**
    * Function which can be set inside injected javascript code. This function is
@@ -84,45 +85,50 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
         insertBeforeSelector: string | null;
       },
       callback?: () => void,
-    ): void {
-      let rateLimit = 0;
-      let observer: MutationObserver | undefined = undefined;
-      const checkElementInserted = () => {
-        if (state.cancelled) {
-          observer?.disconnect();
-          return;
-        }
+    ): Promise<void> {
+      return new Promise((resolve) => {
+        let rateLimit = 0;
+        let observer: MutationObserver | undefined = undefined;
 
-        if (element.isConnected && element.ownerDocument === document) {
-          return; // element is already inserted
-        }
+        const checkElementInserted = () => {
+          if (state.cancelled) {
+            observer?.disconnect();
+            return;
+          }
 
-        if (rateLimit >= 10) {
-          return;
-        }
-        rateLimit++;
-        setTimeout(() => rateLimit--, 1000);
+          if (element.isConnected && element.ownerDocument === document) {
+            return; // element was already inserted
+          }
 
-        const parent = document.querySelector(options.parentSelector);
-        if (!parent) {
-          return;
-        }
-        const sibling = options.insertBeforeSelector
-          ? parent.querySelector(options.insertBeforeSelector)
-          : null;
-        if (!options.insertBeforeSelector || sibling) {
-          parent.insertBefore(element, sibling);
-          callback?.();
-        }
-      };
+          if (rateLimit >= 10) {
+            return;
+          }
+          rateLimit++;
+          setTimeout(() => rateLimit--, 1000);
 
-      checkElementInserted();
-      observer = new MutationObserver(checkElementInserted);
+          const parent = document.querySelector(options.parentSelector);
+          if (!parent) {
+            return;
+          }
+          const sibling = options.insertBeforeSelector
+            ? parent.querySelector(options.insertBeforeSelector)
+            : null;
+          if (!options.insertBeforeSelector || sibling) {
+            parent.insertBefore(element, sibling);
+            callback?.();
+            resolve();
+          }
+        };
 
-      // Observe on all document changes.
-      observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
+        checkElementInserted();
+        observer = new MutationObserver(checkElementInserted);
+
+        // Observe on all document changes.
+        observer.observe(document.documentElement, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+        });
       });
     },
   } as InjectUtils);
