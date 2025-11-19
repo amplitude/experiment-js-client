@@ -706,7 +706,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           .firstElementChild ?? undefined;
     }
     // Inject
-    const utils = getInjectUtils();
+    const state = { cancelled: false }; // individual state per injection
+    const utils = getInjectUtils(state);
     this.appliedInjections.add(id);
     try {
       const fn = this.globalScope[id];
@@ -728,6 +729,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Push the mutation
     this.appliedMutations[flagKey][variantKey][INJECT_ACTION][id] = {
       revert: () => {
+        state.cancelled = true;
         utils.remove?.();
         style?.remove();
         script?.remove();
