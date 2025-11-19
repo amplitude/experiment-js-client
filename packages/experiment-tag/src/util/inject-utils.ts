@@ -113,11 +113,15 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
           const sibling = options.insertBeforeSelector
             ? parent.querySelector(options.insertBeforeSelector)
             : null;
-          if (!options.insertBeforeSelector || sibling) {
-            parent.insertBefore(element, sibling);
-            callback?.();
-            resolve();
+
+          if (options.insertBeforeSelector && !sibling) {
+            // wait until matching sibling is found before inserting
+            return;
           }
+
+          parent.insertBefore(element, sibling);
+          callback?.();
+          resolve();
         };
 
         checkElementInserted();
