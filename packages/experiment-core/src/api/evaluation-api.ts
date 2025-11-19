@@ -11,8 +11,16 @@ export type ExposureTrackingOption = 'track' | 'no-track'; // For tracking expos
 
 export type GetVariantsOptions = {
   flagKeys?: string[];
-  trackingOption?: TrackingOption; // For tracking assignment events
-  exposureTrackingOption?: ExposureTrackingOption; // For tracking exposure events
+  /**
+   * Enables or disables tracking of assignment events when fetching variants.
+   * If not set, the default is to track assignment events.
+   */
+  trackingOption?: TrackingOption;
+  /**
+   * Enables or disables tracking of exposure events when fetching variants.
+   * If not set, the default is to not track exposure events.
+   */
+  exposureTrackingOption?: ExposureTrackingOption;
   deliveryMethod?: DeliveryMethod;
   evaluationMode?: EvaluationMode;
   timeoutMillis?: number;
