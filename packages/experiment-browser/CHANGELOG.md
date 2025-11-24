@@ -3,6 +3,41 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.20.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.20.0...@amplitude/experiment-js-client@1.20.1) (2025-11-24)
+
+**Note:** Version bump only for package @amplitude/experiment-js-client
+
+
+
+
+
+# [1.20.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.19.0...@amplitude/experiment-js-client@1.20.0) (2025-11-14)
+
+
+### Features
+
+* add setTracksAssignment ([#224](https://github.com/amplitude/experiment-js-client/issues/224)) ([79e230b](https://github.com/amplitude/experiment-js-client/commit/79e230bbcf5716eaba998f21235c7ee7be08c418))
+
+
+
+
+
+# [1.19.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.18.0...@amplitude/experiment-js-client@1.19.0) (2025-11-06)
+
+
+### Bug Fixes
+
+* attach timestamp to impression events upon variant action ([#237](https://github.com/amplitude/experiment-js-client/issues/237)) ([5ae8baf](https://github.com/amplitude/experiment-js-client/commit/5ae8baf1a6aacae477079386c11185f297c4d25c))
+
+
+### Features
+
+* allow configs to take in user provided logger instances for client logging behavior  ([#236](https://github.com/amplitude/experiment-js-client/issues/236)) ([d9618f8](https://github.com/amplitude/experiment-js-client/commit/d9618f8fd572d4fd6ceacb28ebe1b4353249f150))
+
+
+
+
+
 # [1.18.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.17.1...@amplitude/experiment-js-client@1.18.0) (2025-10-22)
 
 

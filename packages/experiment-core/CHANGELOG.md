@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.12.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.11.1...@amplitude/experiment-core@0.12.0) (2025-11-24)
+
+
+### Features
+
+* exposure tracking option ([#231](https://github.com/amplitude/experiment-js-client/issues/231)) ([50f6add](https://github.com/amplitude/experiment-js-client/commit/50f6add946fdc5174b9926a62e2e38b2b2b51af7))
+
+
+
+
+
 ## [0.11.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.11.0...@amplitude/experiment-core@0.11.1) (2025-10-22)
 
 

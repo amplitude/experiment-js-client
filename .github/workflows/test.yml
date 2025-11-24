@@ -39,6 +39,12 @@ jobs:
       continue-on-error: true # forked repos don't have access, and this is only for experiment-tag
       shell: bash
 
+    - name: Downgrade lerna for Node 18
+      if: ${{ matrix.node-version == '18' }}
+      run: |
+        yarn cache clean
+        yarn add lerna@6.6.2 -W --dev
+
     - name: Install
       run: yarn install --frozen-lockfile --force
 

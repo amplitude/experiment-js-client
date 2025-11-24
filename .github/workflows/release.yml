@@ -25,11 +25,11 @@ jobs:
     needs: [authorize]
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: write
+      id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Needed for lerna version to determine last tag
       - name: Fetch
@@ -42,9 +42,13 @@ jobs:
           key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm
+        run: npm install -g npm@latest
 
       - name: Set up SSH for deploy key
         run: |
@@ -75,17 +79,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: yarn lerna version --no-push --no-git-tag-version --loglevel silly --yes
 
-      - name: Setup NPM Token
-        if: ${{ github.event.inputs.dryRun == 'false'}}
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
-
       - name: Release
         if: ${{ github.event.inputs.dryRun == 'false'}}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
         run: |
           yarn lerna version --yes
           yarn lerna publish from-git --yes --loglevel silly

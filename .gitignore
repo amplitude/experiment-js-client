@@ -27,3 +27,6 @@ dist/
 
 # Example Experiment tag script
 packages/experiment-tag/example/
+
+# dotenv files
+.env*
