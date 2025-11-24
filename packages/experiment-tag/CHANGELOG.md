@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.14.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.12.0...@amplitude/experiment-tag@0.14.0) (2025-11-24)
+
+
+### Features
+
+* add new insertElement() function for SPA widgets ([#240](https://github.com/amplitude/experiment-js-client/issues/240)) ([00b9a3d](https://github.com/amplitude/experiment-js-client/commit/00b9a3da7c68b46253f8650c0ec489a8354571da))
+
+
+
+
+
 # [0.13.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.12.0...@amplitude/experiment-tag@0.13.0) (2025-11-20)
 
 
