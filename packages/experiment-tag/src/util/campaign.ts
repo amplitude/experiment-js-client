@@ -8,7 +8,8 @@ import {
 import { UTMParameters } from '@amplitude/analytics-core/lib/esm/types/campaign';
 import { type ExperimentUser } from '@amplitude/experiment-js-client';
 
-import { getStorageItem, setStorageItem } from './storage';
+import { ConsentAwareStorage } from '../storage/consent-aware-storage';
+import { getPersistedURLParamsKey } from '../storage/keys';
 
 /**
  * Enriches the user object's userProperties with UTM parameters based on priority:
@@ -19,12 +20,13 @@ import { getStorageItem, setStorageItem } from './storage';
 export async function enrichUserWithCampaignData(
   apiKey: string,
   user: ExperimentUser,
+  storage: ConsentAwareStorage,
 ): Promise<ExperimentUser> {
   const experimentStorageKey = `EXP_${MKTG}_${apiKey.substring(0, 10)}`;
   const [currentCampaign, persistedAmplitudeCampaign] = await fetchCampaignData(
     apiKey,
   );
-  const persistedExperimentCampaign = getStorageItem<UTMParameters>(
+  const persistedExperimentCampaign = storage.getItem<UTMParameters>(
     'localStorage',
     experimentStorageKey,
   );
@@ -48,7 +50,7 @@ export async function enrichUserWithCampaignData(
   }
 
   if (Object.keys(utmParams).length > 0) {
-    persistUrlParams(apiKey, utmParams);
+    persistUrlParams(apiKey, utmParams, storage);
     return {
       ...user,
       persisted_url_param: utmParams,
@@ -63,9 +65,10 @@ export async function enrichUserWithCampaignData(
 export function persistUrlParams(
   apiKey: string,
   campaign: Record<string, string>,
+  storage: ConsentAwareStorage,
 ): void {
-  const experimentStorageKey = `EXP_${MKTG}_${apiKey.substring(0, 10)}`;
-  setStorageItem('localStorage', experimentStorageKey, campaign);
+  const experimentStorageKey = getPersistedURLParamsKey(apiKey);
+  storage.setItem('localStorage', experimentStorageKey, campaign);
 }
 
 async function fetchCampaignData(
