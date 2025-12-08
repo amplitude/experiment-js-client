@@ -587,11 +587,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    this.storeRedirectImpressions(flagKey, variant, redirectUrl);
+    const currentDomain = getCookieDomain(this.globalScope.location.href);
+    this.storeRedirectImpressions(flagKey, variant, currentDomain, redirectUrl);
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    setMarketingCookie(this.apiKey).then();
+    setMarketingCookie(this.apiKey, currentDomain).then();
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
@@ -809,9 +810,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private storeRedirectImpressions(
     flagKey: string,
     variant: Variant,
+    currentDomain: string | undefined,
     redirectUrl: string,
   ) {
-    const currentDomain = getCookieDomain(this.globalScope.location.href);
     const redirectDomain = getCookieDomain(redirectUrl);
 
     // Only allow redirects to same root domain for security

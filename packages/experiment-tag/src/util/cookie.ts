@@ -6,10 +6,16 @@ import type { Campaign } from '@amplitude/analytics-core';
 /**
  * Utility function to generate and set marketing cookie
  * Parses current campaign data from URL and referrer, then stores it in the marketing cookie
+ * @param apiKey - The API key used to generate the storage key
+ * @param domain - Cookie domain (e.g., result from getCookieDomain)
  */
-export async function setMarketingCookie(apiKey: string) {
+export async function setMarketingCookie(
+  apiKey: string,
+  domain: string | undefined,
+) {
   const storage = new CookieStorage<Campaign>({
     sameSite: 'Lax',
+    ...(domain && { domain }),
   });
 
   const parser = new CampaignParser();
