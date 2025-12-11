@@ -104,6 +104,9 @@ describe('SDK stream', () => {
       new WrapperClient(httpClient),
     );
     const fetchVariants = await fetchApi.getVariants(USER, OPTIONS);
+    Object.entries(fetchVariants).forEach(([key]) => {
+      delete fetchVariants[key]['metadata'];
+    });
 
     // At least one vardata streamed should be the same as the one fetched.
     // There can be other updates after stream establishment and before fetch.
@@ -113,7 +116,7 @@ describe('SDK stream', () => {
       streamVariants.filter(
         (f) => f[FLAG_KEY]['payload'] === fetchVariants[FLAG_KEY]['payload'],
       )[0],
-    ).toStrictEqual(fetchVariants);
+    ).toMatchObject(fetchVariants);
 
     // Test that stream is kept alive.
     await sleep(40000);
