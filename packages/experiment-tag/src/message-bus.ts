@@ -13,12 +13,14 @@ type Subscriber<T extends MessageType> = {
 };
 
 export type ElementAppearedPayload = { mutationList: MutationRecord[] };
+export type ElementVisiblePayload = { mutationList: MutationRecord[] };
 export type AnalyticsEventPayload = AnalyticsEvent;
 export type ManualTriggerPayload = { name: string };
 export type UrlChangePayload = { updateActivePages?: boolean };
 
 export type MessagePayloads = {
   element_appeared: ElementAppearedPayload;
+  element_visible: ElementVisiblePayload;
   url_change: UrlChangePayload;
   analytics_event: AnalyticsEventPayload;
   manual: ManualTriggerPayload;

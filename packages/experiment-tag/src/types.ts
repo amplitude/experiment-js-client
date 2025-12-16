@@ -2,7 +2,6 @@ import { EvaluationCondition } from '@amplitude/experiment-core';
 import {
   ExperimentConfig,
   ExperimentUser,
-  Variant,
 } from '@amplitude/experiment-js-client';
 import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
@@ -33,12 +32,29 @@ export type PreviewState = {
   previewFlags: Record<string, string>;
 };
 
+export interface ElementAppearedTriggerValue {
+  selector: string;
+}
+
+export interface ElementVisibleTriggerValue {
+  selector: string;
+  visibilityRatio?: number;
+}
+
+export interface ManualTriggerValue {
+  name: string;
+}
+
 export type PageObject = {
   id: string;
   name: string;
   conditions?: EvaluationCondition[][];
   trigger_type: MessageType;
-  trigger_value: Record<string, unknown>;
+  trigger_value:
+    | ElementAppearedTriggerValue
+    | ElementVisibleTriggerValue
+    | ManualTriggerValue
+    | Record<string, unknown>;
 };
 
 export type PageObjects = { [flagKey: string]: { [id: string]: PageObject } };
@@ -79,6 +95,8 @@ export interface WebExperimentClient {
   getActivePages(): PageObjects;
 
   setRedirectHandler(handler: (url: string) => void): void;
+
+  activate(name: string): void;
 }
 
 export type WebExperimentUser = {

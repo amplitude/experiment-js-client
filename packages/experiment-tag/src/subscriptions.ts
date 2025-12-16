@@ -4,12 +4,18 @@ import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
 import {
   MessageBus,
   MessagePayloads,
-  AnalyticsEventPayload,
+  ElementAppearedPayload,
   ManualTriggerPayload,
   MessageType,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
-import { PageObject, PageObjects } from './types';
+import {
+  ElementAppearedTriggerValue,
+  ElementVisibleTriggerValue,
+  ManualTriggerValue,
+  PageObject,
+  PageObjects,
+} from './types';
 
 const evaluationEngine = new EvaluationEngine();
 
@@ -31,6 +37,10 @@ export class SubscriptionManager {
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
     new Set();
   private lastNotifiedActivePages: PageObjects = {};
+  private intersectionObservers: Map<string, IntersectionObserver> = new Map();
+  private elementVisibilityState: Map<string, boolean> = new Map();
+  private elementAppearedState: Map<string, boolean> = new Map();
+  private activeElementSelectors: Set<string> = new Set();
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -54,8 +64,12 @@ export class SubscriptionManager {
     if (this.options.useDefaultNavigationHandler) {
       this.setupLocationChangePublisher();
     }
-    // this.setupMutationObserverPublisher();
+    this.setupMutationObserverPublisher();
+    this.setupVisibilityPublisher();
     this.setupPageObjectSubscriptions();
+    this.setupUrlChangeReset();
+    // Initial check for elements that already exist
+    this.checkInitialElements();
   };
 
   /**
@@ -162,15 +176,200 @@ export class SubscriptionManager {
     }
   };
 
+  private setupUrlChangeReset = () => {
+    // Reset element state on URL navigation
+    this.messageBus.subscribe('url_change', () => {
+      this.elementAppearedState.clear();
+      this.activeElementSelectors.clear();
+      const elementSelectors = this.getElementSelectors();
+      elementSelectors.forEach((selector) =>
+        this.activeElementSelectors.add(selector),
+      );
+      this.setupVisibilityPublisher();
+      this.checkInitialElements();
+    });
+  };
+
+  private checkInitialElements = () => {
+    // Trigger initial check for element_appeared triggers
+    this.messageBus.publish('element_appeared', { mutationList: [] });
+  };
+
+  private getElementSelectors(): Set<string> {
+    const selectors = new Set<string>();
+
+    for (const pages of Object.values(this.pageObjects)) {
+      for (const page of Object.values(pages)) {
+        if (
+          page.trigger_type === 'element_appeared' ||
+          page.trigger_type === 'element_visible'
+        ) {
+          const triggerValue = page.trigger_value as
+            | ElementAppearedTriggerValue
+            | ElementVisibleTriggerValue;
+          const selector = triggerValue.selector;
+          if (selector) {
+            selectors.add(selector);
+          }
+        }
+      }
+    }
+
+    return selectors;
+  }
+
+  private isMutationRelevantToSelector(
+    mutationList: MutationRecord[],
+    selector: string,
+  ): boolean {
+    for (const mutation of mutationList) {
+      // Check if any added nodes match the selector
+      if (mutation.addedNodes.length > 0) {
+        for (const node of Array.from(mutation.addedNodes)) {
+          if (node instanceof Element) {
+            try {
+              // Check if the added node itself matches
+              if (node.matches(selector)) {
+                return true;
+              }
+              // Check if any descendant matches
+              if (node.querySelector(selector)) {
+                return true;
+              }
+            } catch (e) {
+              // Invalid selector, skip
+              continue;
+            }
+          }
+        }
+      }
+
+      // Check if mutation target or its ancestors/descendants match
+      if (mutation.target instanceof Element) {
+        try {
+          // Check if target matches
+          if (mutation.target.matches(selector)) {
+            return true;
+          }
+          // Check if target contains matching elements
+          if (mutation.target.querySelector(selector)) {
+            return true;
+          }
+        } catch (e) {
+          // Invalid selector, skip
+          continue;
+        }
+      }
+    }
+
+    return false;
+  }
+
   private setupMutationObserverPublisher = () => {
+    this.activeElementSelectors = this.getElementSelectors();
+
+    // Create filter function that checks against active selectors (dynamic)
+    // As elements appear and are removed from activeElementSelectors,
+    // fewer mutations will pass the filter, improving performance over time
+    const filters =
+      this.activeElementSelectors.size > 0
+        ? [
+            (mutation: MutationRecord) => {
+              // Check against active selectors only (not already appeared)
+              return Array.from(this.activeElementSelectors).some((selector) =>
+                this.isMutationRelevantToSelector([mutation], selector),
+              );
+            },
+          ]
+        : [];
+
     const mutationManager = new DebouncedMutationManager(
       this.globalScope.document.documentElement,
       (mutationList) => {
         this.messageBus.publish('element_appeared', { mutationList });
       },
-      [],
+      filters,
     );
     return mutationManager.observe();
+  };
+
+  private setupVisibilityPublisher = () => {
+    // Set up IntersectionObservers for each element_visible page object
+    for (const pages of Object.values(this.pageObjects)) {
+      for (const page of Object.values(pages)) {
+        if (page.trigger_type === 'element_visible') {
+          const triggerValue = page.trigger_value as ElementVisibleTriggerValue;
+          const selector = triggerValue.selector;
+          const visibilityRatio = triggerValue.visibilityRatio ?? 0;
+
+          // Create unique key for this selector + threshold combination
+          const observerKey = `${selector}:${visibilityRatio}`;
+
+          // Skip if we already have an observer for this selector + threshold
+          if (this.intersectionObservers.has(observerKey)) {
+            continue;
+          }
+
+          // Create IntersectionObserver for this threshold
+          const observer = new IntersectionObserver(
+            (entries) => {
+              entries.forEach((entry) => {
+                const isVisible = entry.intersectionRatio >= visibilityRatio;
+
+                // Update visibility state
+                this.elementVisibilityState.set(observerKey, isVisible);
+
+                // If element becomes visible, disconnect observer (one-time trigger)
+                if (isVisible) {
+                  observer.disconnect();
+                  this.intersectionObservers.delete(observerKey);
+
+                  // Publish element_visible event
+                  this.messageBus.publish('element_visible', {
+                    mutationList: [],
+                  });
+                }
+              });
+            },
+            {
+              threshold: visibilityRatio,
+            },
+          );
+
+          this.intersectionObservers.set(observerKey, observer);
+
+          // Observe the element if it exists
+          const element = this.globalScope.document.querySelector(selector);
+          if (element) {
+            observer.observe(element);
+          }
+        }
+      }
+    }
+
+    // Re-check for elements on mutations (in case they appear later)
+    this.messageBus.subscribe('element_appeared', (payload) => {
+      const { mutationList } = payload;
+
+      for (const [
+        observerKey,
+        observer,
+      ] of this.intersectionObservers.entries()) {
+        const [selector] = observerKey.split(':');
+
+        // Check if mutation is relevant (or if it's the initial check with empty list)
+        const isRelevant =
+          mutationList.length === 0 ||
+          this.isMutationRelevantToSelector(mutationList, selector);
+
+        if (isRelevant) {
+          const element = this.globalScope.document.querySelector(selector);
+          if (element) {
+            observer.observe(element);
+          }
+        }
+      }
+    });
   };
 
   private setupLocationChangePublisher = () => {
@@ -236,31 +435,69 @@ export class SubscriptionManager {
       case 'url_change':
         return true;
 
-      case 'manual':
-        return (
-          (message as ManualTriggerPayload).name === page.trigger_value.name
-        );
-
-      case 'analytics_event': {
-        const eventMessage = message as AnalyticsEventPayload;
-        return (
-          eventMessage.event_type === page.trigger_value.event_type &&
-          Object.entries(page.trigger_value.event_properties || {}).every(
-            ([key, value]) => eventMessage.event_properties[key] === value,
-          )
-        );
+      case 'manual': {
+        const triggerValue = page.trigger_value as ManualTriggerValue;
+        return (message as ManualTriggerPayload).name === triggerValue.name;
       }
 
+      // case 'analytics_event': {
+      //   const eventMessage = message as AnalyticsEventPayload;
+      //   return (
+      //     eventMessage.event_type === page.trigger_value.event_type &&
+      //     Object.entries(page.trigger_value.event_properties || {}).every(
+      //       ([key, value]) => eventMessage.event_properties[key] === value,
+      //     )
+      //   );
+      // }
+
       case 'element_appeared': {
-        // const mutationMessage = message as DomMutationPayload;
-        const element = this.globalScope.document.querySelector(
-          page.trigger_value.selector as string,
-        );
+        const triggerValue = page.trigger_value as ElementAppearedTriggerValue;
+        const selector = triggerValue.selector;
+
+        // Check if we've already marked this element as appeared
+        if (this.elementAppearedState.get(selector)) {
+          return true;
+        }
+
+        // Check if mutation is relevant to this selector before querying DOM
+        // Skip this check if mutationList is empty (initial check)
+        const elementAppearedMessage = message as ElementAppearedPayload;
+        if (
+          elementAppearedMessage.mutationList.length > 0 &&
+          !this.isMutationRelevantToSelector(
+            elementAppearedMessage.mutationList,
+            selector,
+          )
+        ) {
+          return false;
+        }
+
+        // Check if element exists and is not hidden
+        const element = this.globalScope.document.querySelector(selector);
         if (element) {
           const style = window.getComputedStyle(element);
-          return style.display !== 'none' && style.visibility !== 'hidden';
+          const hasAppeared =
+            style.display !== 'none' && style.visibility !== 'hidden';
+
+          // Once it appears, remember it and remove from active checking
+          if (hasAppeared) {
+            this.elementAppearedState.set(selector, true);
+            this.activeElementSelectors.delete(selector);
+          }
+
+          return hasAppeared;
         }
         return false;
+      }
+
+      case 'element_visible': {
+        const triggerValue = page.trigger_value as ElementVisibleTriggerValue;
+        const selector = triggerValue.selector;
+        const visibilityRatio = triggerValue.visibilityRatio ?? 0;
+        const observerKey = `${selector}:${visibilityRatio}`;
+
+        // Check stored visibility state from IntersectionObserver
+        return this.elementVisibilityState.get(observerKey) ?? false;
       }
 
       default:

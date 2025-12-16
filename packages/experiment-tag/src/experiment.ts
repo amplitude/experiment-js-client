@@ -530,6 +530,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.customRedirectHandler = handler;
   }
 
+  /**
+   * Manually activate a page trigger with the specified name.
+   * @param name The name of the manual trigger to activate
+   */
+  public activate(name: string) {
+    this.messageBus.publish('manual', { name });
+  }
+
   private async fetchRemoteFlags() {
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment

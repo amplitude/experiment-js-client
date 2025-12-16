@@ -26,6 +26,36 @@ jest.mock('src/util/messenger', () => {
   };
 });
 
+// Mock MutationObserver for tests
+global.MutationObserver = class {
+  observe = jest.fn();
+  disconnect = jest.fn();
+  takeRecords = jest.fn(() => []);
+
+  constructor(callback: MutationCallback) {
+    // do nothing
+  }
+} as any;
+
+// Mock IntersectionObserver for tests
+global.IntersectionObserver = class {
+  observe = jest.fn();
+  unobserve = jest.fn();
+  disconnect = jest.fn();
+  takeRecords = jest.fn(() => []);
+
+  constructor(
+    callback: IntersectionObserverCallback,
+    options?: IntersectionObserverInit,
+  ) {
+    // do nothing
+  }
+
+  readonly root = null;
+  readonly rootMargin = '';
+  readonly thresholds = [];
+} as any;
+
 const newMockGlobal = (overrides?: Record<string, unknown>) => {
   const createStorageMock = () => {
     let store: Record<string, string> = {};
@@ -49,7 +79,18 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
   const baseGlobal = {
     localStorage: createStorageMock(),
     sessionStorage: createStorageMock(),
-    document: { referrer: '' },
+    document: {
+      referrer: '',
+      documentElement: {
+        nodeType: 1,
+        nodeName: 'HTML',
+      },
+      querySelector: jest.fn(),
+      createElement: jest.fn(),
+      head: {
+        appendChild: jest.fn(),
+      },
+    },
     history: { replaceState: jest.fn() },
     addEventListener: jest.fn(),
     experimentIntegration: {
@@ -73,6 +114,8 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
       host: 'test.com',
       replace: jest.fn(),
     },
+    innerHeight: 768,
+    innerWidth: 1024,
   };
 
   baseGlobal.location.replace = jest.fn((url) => {
