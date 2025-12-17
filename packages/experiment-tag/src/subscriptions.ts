@@ -6,7 +6,8 @@ import {
   MessagePayloads,
   ElementAppearedPayload,
   ManualTriggerPayload,
-  MessageType, TimeOnPagePayload,
+  MessageType,
+  TimeOnPagePayload,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
 import {
@@ -71,6 +72,7 @@ export class SubscriptionManager {
     this.setupUrlChangeReset();
     // Initial check for elements that already exist
     this.checkInitialElements();
+    this.setUpTimeOnPagePublisher();
   };
 
   /**
@@ -516,8 +518,9 @@ export class SubscriptionManager {
       }
 
       case 'time_on_page': {
-        const pageId = message as TimeOnPagePayload;
-        return pageId.pageId === page.id;
+        const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
+        const durationMs = (message as TimeOnPagePayload).durationMs;
+        return durationMs >= triggerValue.durationMs;
       }
 
       default:
