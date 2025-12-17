@@ -6,7 +6,7 @@ import {
   MessagePayloads,
   ElementAppearedPayload,
   ManualTriggerPayload,
-  MessageType,
+  MessageType, TimeOnPagePayload,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
 import {
@@ -15,6 +15,7 @@ import {
   ManualTriggerValue,
   PageObject,
   PageObjects,
+  TimeOnPageTriggerValue,
 } from './types';
 
 const evaluationEngine = new EvaluationEngine();
@@ -412,6 +413,20 @@ export class SubscriptionManager {
     wrapHistoryMethods();
   };
 
+  setUpTimeOnPagePublisher = () => {
+    for (const pages of Object.values(this.pageObjects)) {
+      for (const page of Object.values(pages)) {
+        if (page.trigger_type === 'time_on_page') {
+          const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
+          const durationMs = triggerValue.durationMs;
+          setTimeout(() => {
+            this.messageBus.publish('time_on_page');
+          }, durationMs);
+        }
+      }
+    }
+  };
+
   private isPageObjectActive = <T extends MessageType>(
     page: PageObject,
     message: MessagePayloads[T],
@@ -498,6 +513,11 @@ export class SubscriptionManager {
 
         // Check stored visibility state from IntersectionObserver
         return this.elementVisibilityState.get(observerKey) ?? false;
+      }
+
+      case 'time_on_page': {
+        const pageId = message as TimeOnPagePayload;
+        return pageId.pageId === page.id;
       }
 
       default:
