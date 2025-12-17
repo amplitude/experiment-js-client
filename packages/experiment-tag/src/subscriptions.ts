@@ -43,6 +43,8 @@ export class SubscriptionManager {
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Map<string, boolean> = new Map();
   private activeElementSelectors: Set<string> = new Set();
+  private timeOnPageTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+  private timeOnPage: number = 0;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -69,10 +71,10 @@ export class SubscriptionManager {
     this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
     this.setupPageObjectSubscriptions();
-    this.setupUrlChangeReset();
     // Initial check for elements that already exist
     this.checkInitialElements();
     this.setUpTimeOnPagePublisher();
+    this.setupUrlChangeReset();
   };
 
   /**
@@ -190,6 +192,7 @@ export class SubscriptionManager {
       );
       this.setupVisibilityPublisher();
       this.checkInitialElements();
+      this.setUpTimeOnPagePublisher();
     });
   };
 
@@ -416,14 +419,25 @@ export class SubscriptionManager {
   };
 
   setUpTimeOnPagePublisher = () => {
+    // Clear any existing timeouts first
+    this.timeOnPageTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+    this.timeOnPageTimeouts.clear();
+    this.timeOnPage = 0;
+    // Publish initial time_on_page event
+    this.messageBus.publish('time_on_page');
+
     for (const pages of Object.values(this.pageObjects)) {
       for (const page of Object.values(pages)) {
         if (page.trigger_type === 'time_on_page') {
           const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
           const durationMs = triggerValue.durationMs;
-          setTimeout(() => {
+          const timeoutId = setTimeout(() => {
+            this.timeOnPage = durationMs;
             this.messageBus.publish('time_on_page');
+            this.timeOnPageTimeouts.delete(timeoutId);
+            clearTimeout(timeoutId);
           }, durationMs);
+          this.timeOnPageTimeouts.add(timeoutId);
         }
       }
     }
@@ -519,8 +533,7 @@ export class SubscriptionManager {
 
       case 'time_on_page': {
         const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
-        const durationMs = (message as TimeOnPagePayload).durationMs;
-        return durationMs >= triggerValue.durationMs;
+        return this.timeOnPage >= triggerValue.durationMs;
       }
 
       default:
