@@ -44,7 +44,7 @@ export class SubscriptionManager {
   private elementAppearedState: Map<string, boolean> = new Map();
   private activeElementSelectors: Set<string> = new Set();
   private timeOnPageTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
-  private timeOnPage: number = 0;
+  private timeOnPage = 0;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
