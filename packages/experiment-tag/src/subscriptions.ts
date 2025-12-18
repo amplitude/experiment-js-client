@@ -7,6 +7,7 @@ import {
   ElementAppearedPayload,
   ManualTriggerPayload,
   MessageType,
+  ScrolledToPayload,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
 import {
@@ -15,6 +16,7 @@ import {
   ManualTriggerValue,
   PageObject,
   PageObjects,
+  ScrolledToTriggerValue,
 } from './types';
 
 const evaluationEngine = new EvaluationEngine();
@@ -41,6 +43,7 @@ export class SubscriptionManager {
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Map<string, boolean> = new Map();
   private activeElementSelectors: Set<string> = new Set();
+  private firedScrolledTo: Set<string> = new Set();
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -66,6 +69,7 @@ export class SubscriptionManager {
     }
     this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
+    this.setupScrolledToPublisher();
     this.setupPageObjectSubscriptions();
     this.setupUrlChangeReset();
     // Initial check for elements that already exist
@@ -181,6 +185,7 @@ export class SubscriptionManager {
     // Reset element state on URL navigation
     this.messageBus.subscribe('url_change', () => {
       this.elementAppearedState.clear();
+      this.firedScrolledTo.clear();
       this.activeElementSelectors.clear();
       const elementSelectors = this.getElementSelectors();
       elementSelectors.forEach((selector) =>
@@ -413,6 +418,70 @@ export class SubscriptionManager {
     wrapHistoryMethods();
   };
 
+  private setupScrolledToPublisher = () => {
+    const handleScroll = () => {
+      const scrollPercentage = this.calculateScrollPercentage();
+
+      // Check each scrolled_to page object
+      for (const pages of Object.values(this.pageObjects)) {
+        for (const page of Object.values(pages)) {
+          if (page.trigger_type === 'scrolled_to') {
+            const triggerValue = page.trigger_value as ScrolledToTriggerValue;
+
+            if (triggerValue.mode === 'percent') {
+              const key = `percent:${triggerValue.percentage}`;
+              if (
+                !this.firedScrolledTo.has(key) &&
+                scrollPercentage >= triggerValue.percentage
+              ) {
+                this.firedScrolledTo.add(key);
+                this.messageBus.publish('scrolled_to', { scrollPercentage });
+              }
+            } else if (triggerValue.mode === 'element') {
+              const element =
+                this.globalScope.document.querySelector(triggerValue.selector);
+              if (element) {
+                const elementPosition = element.getBoundingClientRect().top;
+                const scrollPosition = this.globalScope.scrollY;
+                const offset = triggerValue.offsetPx || 0;
+                const key = `element:${triggerValue.selector}:${offset}`;
+
+                if (
+                  !this.firedScrolledTo.has(key) &&
+                  scrollPosition + this.globalScope.innerHeight >=
+                    elementPosition + scrollPosition + offset
+                ) {
+                  this.firedScrolledTo.add(key);
+                  this.messageBus.publish('scrolled_to', { scrollPercentage });
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    this.globalScope.addEventListener('scroll', handleScroll, {
+      passive: true,
+    });
+
+    // Check immediately in case user is already scrolled
+    handleScroll();
+  };
+
+  private calculateScrollPercentage(): number {
+    const windowHeight = this.globalScope.innerHeight;
+    const documentHeight = this.globalScope.document.documentElement.scrollHeight;
+    const scrollTop = this.globalScope.scrollY;
+    const scrollableHeight = documentHeight - windowHeight;
+
+    if (scrollableHeight <= 0) {
+      return 100;
+    }
+
+    return (scrollTop / scrollableHeight) * 100;
+  }
+
   private isPageObjectActive = <T extends MessageType>(
     page: PageObject,
     message: MessagePayloads[T],
@@ -499,6 +568,21 @@ export class SubscriptionManager {
 
         // Check stored visibility state from IntersectionObserver
         return this.elementVisibilityState.get(observerKey) ?? false;
+      }
+
+      case 'scrolled_to': {
+        const triggerValue = page.trigger_value as ScrolledToTriggerValue;
+        let key: string;
+
+        if (triggerValue.mode === 'percent') {
+          key = `percent:${triggerValue.percentage}`;
+        } else {
+          const offset = triggerValue.offsetPx || 0;
+          key = `element:${triggerValue.selector}:${offset}`;
+        }
+
+        // Check if this scroll trigger has already fired
+        return this.firedScrolledTo.has(key);
       }
 
       default:

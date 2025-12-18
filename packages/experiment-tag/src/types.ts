@@ -45,6 +45,21 @@ export interface ManualTriggerValue {
   name: string;
 }
 
+export interface ScrolledToElementConfig {
+  mode: 'element';
+  selector: string;
+  offsetPx?: number;
+}
+
+export interface ScrolledToPercentConfig {
+  mode: 'percent';
+  percentage: number;
+}
+
+export type ScrolledToTriggerValue =
+  | ScrolledToElementConfig
+  | ScrolledToPercentConfig;
+
 export type PageObject = {
   id: string;
   name: string;
@@ -54,6 +69,7 @@ export type PageObject = {
     | ElementAppearedTriggerValue
     | ElementVisibleTriggerValue
     | ManualTriggerValue
+    | ScrolledToTriggerValue
     | Record<string, unknown>;
 };
 
