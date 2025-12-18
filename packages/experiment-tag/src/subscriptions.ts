@@ -176,6 +176,7 @@ export class SubscriptionManager {
     }
   };
 
+  // TODO: to cleanup and centralize state management
   private setupUrlChangeReset = () => {
     // Reset element state on URL navigation
     this.messageBus.subscribe('url_change', () => {
