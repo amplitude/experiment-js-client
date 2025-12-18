@@ -6,6 +6,7 @@ import {
   MessagePayloads,
   ElementAppearedPayload,
   ManualTriggerPayload,
+  AnalyticsEventPayload,
   MessageType,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
@@ -417,11 +418,28 @@ export class SubscriptionManager {
     page: PageObject,
     message: MessagePayloads[T],
   ): boolean => {
-    // Check conditions
+    let evalContext: Record<string, unknown> = {
+      page: { url: this.globalScope.location.href },
+    };
+
+    if (page.trigger_type === 'analytics_event') {
+      const eventMessage = message as AnalyticsEventPayload;
+
+      evalContext = {
+        ...evalContext,
+        type: 'analytics_event',
+        data: {
+          event: eventMessage.event_type,
+          properties: eventMessage.event_properties,
+        },
+      };
+    }
+
+    // Check conditions with enriched context
     if (page.conditions && page.conditions.length > 0) {
       const matchConditions = evaluationEngine.evaluateConditions(
         {
-          context: { page: { url: this.globalScope.location.href } },
+          context: evalContext,
           result: {},
         },
         page.conditions,
@@ -431,7 +449,7 @@ export class SubscriptionManager {
       }
     }
 
-    // Check if page is active
+    // Check if page is active based on trigger type
     switch (page.trigger_type) {
       case 'url_change':
         return true;
@@ -441,15 +459,10 @@ export class SubscriptionManager {
         return (message as ManualTriggerPayload).name === triggerValue.name;
       }
 
-      // case 'analytics_event': {
-      //   const eventMessage = message as AnalyticsEventPayload;
-      //   return (
-      //     eventMessage.event_type === page.trigger_value.event_type &&
-      //     Object.entries(page.trigger_value.event_properties || {}).every(
-      //       ([key, value]) => eventMessage.event_properties[key] === value,
-      //     )
-      //   );
-      // }
+      case 'analytics_event': {
+        // Event type already matched above, conditions evaluated
+        return true;
+      }
 
       case 'element_appeared': {
         const triggerValue = page.trigger_value as ElementAppearedTriggerValue;

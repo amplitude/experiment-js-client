@@ -1,4 +1,5 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
+import { Event, Plugin } from '@amplitude/analytics-types';
 import {
   EvaluationFlag,
   getGlobalScope,
@@ -536,6 +537,45 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public activate(name: string) {
     this.messageBus.publish('manual', { name });
+  }
+
+  /**
+   * Track an analytics event that can trigger page objects.
+   * @param event_type The event type/name
+   * @param event_properties Optional event properties
+   */
+  public trackEvent(
+    event_type: string,
+    event_properties?: Record<string, unknown>,
+  ) {
+    this.messageBus.publish('analytics_event', {
+      event_type,
+      event_properties: event_properties || {},
+    });
+  }
+
+  /**
+   * Returns an Amplitude plugin that forwards analytics events to trigger page objects.
+   * @returns An Amplitude Plugin that intercepts analytics events
+   */
+  public plugin(): Plugin {
+    return {
+      name: '@amplitude/experiment-tag',
+      type: 'enrichment',
+
+      setup: async (): Promise<void> => {
+        // No setup required
+      },
+
+      execute: async (context: Event): Promise<Event> => {
+        this.trackEvent(
+          context.event_type,
+          context.event_properties as Record<string, unknown>,
+        );
+
+        return context;
+      },
+    };
   }
 
   private async fetchRemoteFlags() {
