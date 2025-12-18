@@ -7,6 +7,7 @@ import {
   ElementAppearedPayload,
   ManualTriggerPayload,
   MessageType,
+  UserInteractionPayload,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
 import {
@@ -15,6 +16,7 @@ import {
   ManualTriggerValue,
   PageObject,
   PageObjects,
+  UserInteractionTriggerValue,
 } from './types';
 
 const evaluationEngine = new EvaluationEngine();
@@ -41,6 +43,10 @@ export class SubscriptionManager {
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Map<string, boolean> = new Map();
   private activeElementSelectors: Set<string> = new Set();
+  private userInteractionListeners: Map<
+    string,
+    { element: Element; handler: EventListener; interactionType: string }[]
+  > = new Map();
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -66,6 +72,7 @@ export class SubscriptionManager {
     }
     this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
+    this.setupUserInteractionPublisher();
     this.setupPageObjectSubscriptions();
     this.setupUrlChangeReset();
     // Initial check for elements that already exist
@@ -186,6 +193,7 @@ export class SubscriptionManager {
         this.activeElementSelectors.add(selector),
       );
       this.setupVisibilityPublisher();
+      this.setupUserInteractionPublisher();
       this.checkInitialElements();
     });
   };
@@ -412,6 +420,110 @@ export class SubscriptionManager {
     wrapHistoryMethods();
   };
 
+  private setupUserInteractionPublisher = () => {
+    // Clear any existing listeners first
+    this.userInteractionListeners.forEach((listeners) => {
+      listeners.forEach(({ element, handler, interactionType }) => {
+        element.removeEventListener(interactionType, handler);
+      });
+    });
+    this.userInteractionListeners.clear();
+
+    for (const pages of Object.values(this.pageObjects)) {
+      for (const page of Object.values(pages)) {
+        if (page.trigger_type === 'user_interaction') {
+          const triggerValue =
+            page.trigger_value as UserInteractionTriggerValue;
+          const { selector, interactionType, minThresholdMs } = triggerValue;
+
+          // Find all elements matching the selector
+          const elements = this.globalScope.document.querySelectorAll(selector);
+
+          elements.forEach((element) => {
+            let interactionStartTime: number | null = null;
+
+            const handler = (event: Event) => {
+              if (interactionType === 'hover') {
+                // For hover, track mouse enter and leave
+                if (event.type === 'mouseenter') {
+                  interactionStartTime = Date.now();
+                } else if (event.type === 'mouseleave') {
+                  if (interactionStartTime !== null) {
+                    const interactionDuration =
+                      Date.now() - interactionStartTime;
+                    if (
+                      !minThresholdMs ||
+                      interactionDuration >= minThresholdMs
+                    ) {
+                      this.messageBus.publish('user_interaction', {
+                        selector,
+                        interactionType,
+                      });
+                    }
+                    interactionStartTime = null;
+                  }
+                }
+              } else if (interactionType === 'focus') {
+                // For focus, track focus and blur
+                if (event.type === 'focus') {
+                  interactionStartTime = Date.now();
+                } else if (event.type === 'blur') {
+                  if (interactionStartTime !== null) {
+                    const interactionDuration =
+                      Date.now() - interactionStartTime;
+                    if (
+                      !minThresholdMs ||
+                      interactionDuration >= minThresholdMs
+                    ) {
+                      this.messageBus.publish('user_interaction', {
+                        selector,
+                        interactionType,
+                      });
+                    }
+                    interactionStartTime = null;
+                  }
+                }
+              } else {
+                this.messageBus.publish('user_interaction', {
+                  selector,
+                  interactionType,
+                });
+              }
+            };
+
+            if (interactionType === 'click') {
+              element.addEventListener('click', handler);
+              const key = `${selector}:${interactionType}`;
+              const listeners = this.userInteractionListeners.get(key) || [];
+              listeners.push({ element, handler, interactionType: 'click' });
+              this.userInteractionListeners.set(key, listeners);
+            } else if (interactionType === 'hover') {
+              element.addEventListener('mouseenter', handler);
+              element.addEventListener('mouseleave', handler);
+              const key = `${selector}:${interactionType}`;
+              const listeners = this.userInteractionListeners.get(key) || [];
+              listeners.push(
+                { element, handler, interactionType: 'mouseenter' },
+                { element, handler, interactionType: 'mouseleave' },
+              );
+              this.userInteractionListeners.set(key, listeners);
+            } else if (interactionType === 'focus') {
+              element.addEventListener('focus', handler);
+              element.addEventListener('blur', handler);
+              const key = `${selector}:${interactionType}`;
+              const listeners = this.userInteractionListeners.get(key) || [];
+              listeners.push(
+                { element, handler, interactionType: 'focus' },
+                { element, handler, interactionType: 'blur' },
+              );
+              this.userInteractionListeners.set(key, listeners);
+            }
+          });
+        }
+      }
+    }
+  };
+
   private isPageObjectActive = <T extends MessageType>(
     page: PageObject,
     message: MessagePayloads[T],
@@ -498,6 +610,15 @@ export class SubscriptionManager {
 
         // Check stored visibility state from IntersectionObserver
         return this.elementVisibilityState.get(observerKey) ?? false;
+      }
+
+      case 'user_interaction': {
+        const triggerValue = page.trigger_value as UserInteractionTriggerValue;
+        const interactionMessage = message as UserInteractionPayload;
+        return (
+          interactionMessage.selector === triggerValue.selector &&
+          interactionMessage.interactionType === triggerValue.interactionType
+        );
       }
 
       default:
