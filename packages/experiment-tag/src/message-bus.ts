@@ -17,6 +17,7 @@ export type ElementVisiblePayload = { mutationList: MutationRecord[] };
 export type AnalyticsEventPayload = AnalyticsEvent;
 export type ManualTriggerPayload = { name: string };
 export type UrlChangePayload = { updateActivePages?: boolean };
+export type ExitIntentPayload = { durationMs: number };
 
 export type MessagePayloads = {
   element_appeared: ElementAppearedPayload;
@@ -24,6 +25,7 @@ export type MessagePayloads = {
   url_change: UrlChangePayload;
   analytics_event: AnalyticsEventPayload;
   manual: ManualTriggerPayload;
+  exit_intent: ExitIntentPayload;
 };
 
 export type MessageType = keyof MessagePayloads;

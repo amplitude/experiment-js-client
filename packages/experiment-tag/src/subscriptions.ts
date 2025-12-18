@@ -6,6 +6,7 @@ import {
   MessagePayloads,
   ElementAppearedPayload,
   ManualTriggerPayload,
+  ExitIntentPayload,
   MessageType,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
@@ -13,6 +14,7 @@ import {
   ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
   ManualTriggerValue,
+  ExitIntentTriggerValue,
   PageObject,
   PageObjects,
 } from './types';
@@ -41,6 +43,7 @@ export class SubscriptionManager {
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Map<string, boolean> = new Map();
   private activeElementSelectors: Set<string> = new Set();
+  private pageLoadTime: number = Date.now();
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -66,6 +69,7 @@ export class SubscriptionManager {
     }
     this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
+    this.setupExitIntentPublisher();
     this.setupPageObjectSubscriptions();
     this.setupUrlChangeReset();
     // Initial check for elements that already exist
@@ -182,6 +186,7 @@ export class SubscriptionManager {
     this.messageBus.subscribe('url_change', () => {
       this.elementAppearedState.clear();
       this.activeElementSelectors.clear();
+      this.pageLoadTime = Date.now();
       const elementSelectors = this.getElementSelectors();
       elementSelectors.forEach((selector) =>
         this.activeElementSelectors.add(selector),
@@ -373,6 +378,62 @@ export class SubscriptionManager {
     });
   };
 
+  private setupExitIntentPublisher = () => {
+    // Check if any page objects use exit_intent trigger
+    const hasExitIntentTriggers = Object.values(this.pageObjects).some(
+      (pages) =>
+        Object.values(pages).some(
+          (page) => page.trigger_type === 'exit_intent',
+        ),
+    );
+
+    if (!hasExitIntentTriggers) {
+      return;
+    }
+
+    // Get minimum time requirement (use lowest value so listener activates earliest)
+    let minTimeOnPageMs = 0;
+    for (const pages of Object.values(this.pageObjects)) {
+      for (const page of Object.values(pages)) {
+        if (page.trigger_type === 'exit_intent') {
+          const triggerValue = page.trigger_value as ExitIntentTriggerValue;
+          if (triggerValue.minTimeOnPageMs !== undefined) {
+            minTimeOnPageMs =
+              minTimeOnPageMs === 0
+                ? triggerValue.minTimeOnPageMs
+                : Math.min(minTimeOnPageMs, triggerValue.minTimeOnPageMs);
+          }
+        }
+      }
+    }
+
+    // Detect exit intent via mouse movement
+    const handleMouseOut = (event: MouseEvent) => {
+      // Only trigger if:
+      // 1. Mouse Y position is near top of viewport (leaving towards browser chrome)
+      // 2. Mouse is leaving the document (relatedTarget is null)
+      // 3. Not already triggered
+      if (
+        event.clientY <= 50 && // 50px from top
+        event.relatedTarget === null
+      ) {
+        this.messageBus.publish('exit_intent', {
+          durationMs: Date.now() - this.pageLoadTime,
+        });
+      }
+    };
+
+    // Install listener after minimum time requirement
+    if (minTimeOnPageMs > 0) {
+      setTimeout(() => {
+        this.globalScope.document.addEventListener('mouseout', handleMouseOut);
+      }, minTimeOnPageMs);
+    } else {
+      // Install immediately if no time requirement
+      this.globalScope.document.addEventListener('mouseout', handleMouseOut);
+    }
+  };
+
   private setupLocationChangePublisher = () => {
     // Add URL change listener for back/forward navigation
     this.globalScope.addEventListener('popstate', () => {
@@ -499,6 +560,15 @@ export class SubscriptionManager {
 
         // Check stored visibility state from IntersectionObserver
         return this.elementVisibilityState.get(observerKey) ?? false;
+      }
+
+      case 'exit_intent': {
+        const durationMs = (message as ExitIntentPayload).durationMs;
+        const triggerValue = page.trigger_value as ExitIntentTriggerValue;
+        return (
+          triggerValue.minTimeOnPageMs === undefined ||
+          durationMs >= triggerValue.minTimeOnPageMs
+        );
       }
 
       default:
