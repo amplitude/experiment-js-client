@@ -2,10 +2,10 @@ import { EvaluationEngine } from '@amplitude/experiment-core';
 
 import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
 import {
-  MessageBus,
-  MessagePayloads,
   ElementAppearedPayload,
   ManualTriggerPayload,
+  MessageBus,
+  MessagePayloads,
   MessageType,
   UserInteractionPayload,
 } from './message-bus';
@@ -47,6 +47,7 @@ export class SubscriptionManager {
     string,
     { element: Element; handler: EventListener; interactionType: string }[]
   > = new Map();
+  private firedUserInteractions: Set<string> = new Set();
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -187,6 +188,7 @@ export class SubscriptionManager {
     // Reset element state on URL navigation
     this.messageBus.subscribe('url_change', () => {
       this.elementAppearedState.clear();
+      this.firedUserInteractions.clear();
       this.activeElementSelectors.clear();
       const elementSelectors = this.getElementSelectors();
       elementSelectors.forEach((selector) =>
@@ -455,6 +457,10 @@ export class SubscriptionManager {
                       !minThresholdMs ||
                       interactionDuration >= minThresholdMs
                     ) {
+                      const interactionKey = `${selector}:${interactionType}:${
+                        minThresholdMs || 0
+                      }`;
+                      this.firedUserInteractions.add(interactionKey);
                       this.messageBus.publish('user_interaction', {
                         selector,
                         interactionType,
@@ -464,26 +470,17 @@ export class SubscriptionManager {
                   }
                 }
               } else if (interactionType === 'focus') {
-                // For focus, track focus and blur
                 if (event.type === 'focus') {
-                  interactionStartTime = Date.now();
-                } else if (event.type === 'blur') {
-                  if (interactionStartTime !== null) {
-                    const interactionDuration =
-                      Date.now() - interactionStartTime;
-                    if (
-                      !minThresholdMs ||
-                      interactionDuration >= minThresholdMs
-                    ) {
-                      this.messageBus.publish('user_interaction', {
-                        selector,
-                        interactionType,
-                      });
-                    }
-                    interactionStartTime = null;
-                  }
+                  const interactionKey = `${selector}:${interactionType}`;
+                  this.firedUserInteractions.add(interactionKey);
+                  this.messageBus.publish('user_interaction', {
+                    selector,
+                    interactionType,
+                  });
                 }
               } else {
+                const interactionKey = `${selector}:${interactionType}`;
+                this.firedUserInteractions.add(interactionKey);
                 this.messageBus.publish('user_interaction', {
                   selector,
                   interactionType,
@@ -509,13 +506,9 @@ export class SubscriptionManager {
               this.userInteractionListeners.set(key, listeners);
             } else if (interactionType === 'focus') {
               element.addEventListener('focus', handler);
-              element.addEventListener('blur', handler);
               const key = `${selector}:${interactionType}`;
               const listeners = this.userInteractionListeners.get(key) || [];
-              listeners.push(
-                { element, handler, interactionType: 'focus' },
-                { element, handler, interactionType: 'blur' },
-              );
+              listeners.push({ element, handler, interactionType: 'focus' });
               this.userInteractionListeners.set(key, listeners);
             }
           });
@@ -614,11 +607,16 @@ export class SubscriptionManager {
 
       case 'user_interaction': {
         const triggerValue = page.trigger_value as UserInteractionTriggerValue;
-        const interactionMessage = message as UserInteractionPayload;
-        return (
-          interactionMessage.selector === triggerValue.selector &&
-          interactionMessage.interactionType === triggerValue.interactionType
-        );
+        // Include minThresholdMs in key for hover to differentiate between different durations
+        const interactionKey =
+          triggerValue.interactionType === 'hover'
+            ? `${triggerValue.selector}:${triggerValue.interactionType}:${
+                triggerValue.minThresholdMs || 0
+              }`
+            : `${triggerValue.selector}:${triggerValue.interactionType}`;
+
+        // Check if this interaction has already fired
+        return this.firedUserInteractions.has(interactionKey);
       }
 
       default:
