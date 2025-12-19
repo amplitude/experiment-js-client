@@ -19,6 +19,7 @@ export type ManualTriggerPayload = { name: string };
 export type UrlChangePayload = { updateActivePages?: boolean };
 export type ScrolledToPayload = {
   scrollPercentage: number;
+  elementAndOffset: Set<string>; // Keys like "selector:offsetPx" for elements in range
 };
 
 export type MessagePayloads = {
