@@ -423,6 +423,90 @@ export class SubscriptionManager {
     wrapHistoryMethods();
   };
 
+  private setupUserInteractionListenersForSelector = (
+    selector: string,
+    interactionType: 'click' | 'hover' | 'focus',
+    minThresholdMs?: number,
+  ): boolean => {
+    try {
+      const elements = this.globalScope.document.querySelectorAll(selector);
+
+      elements.forEach((element) => {
+        let interactionStartTime: number | null = null;
+
+        const handler = (event: Event) => {
+          if (interactionType === 'hover') {
+            if (event.type === 'mouseenter') {
+              interactionStartTime = Date.now();
+            } else if (event.type === 'mouseleave') {
+              if (interactionStartTime !== null) {
+                const interactionDuration = Date.now() - interactionStartTime;
+                if (
+                  !minThresholdMs ||
+                  interactionDuration >= minThresholdMs
+                ) {
+                  const interactionKey = `${selector}:${interactionType}:${
+                    minThresholdMs || 0
+                  }`;
+                  this.firedUserInteractions.add(interactionKey);
+                  this.messageBus.publish('user_interaction', {
+                    selector,
+                    interactionType,
+                  });
+                }
+                interactionStartTime = null;
+              }
+            }
+          } else if (interactionType === 'focus') {
+            if (event.type === 'focus') {
+              const interactionKey = `${selector}:${interactionType}`;
+              this.firedUserInteractions.add(interactionKey);
+              this.messageBus.publish('user_interaction', {
+                selector,
+                interactionType,
+              });
+            }
+          } else {
+            const interactionKey = `${selector}:${interactionType}`;
+            this.firedUserInteractions.add(interactionKey);
+            this.messageBus.publish('user_interaction', {
+              selector,
+              interactionType,
+            });
+          }
+        };
+
+        if (interactionType === 'click') {
+          element.addEventListener('click', handler);
+          const key = `${selector}:${interactionType}`;
+          const listeners = this.userInteractionListeners.get(key) || [];
+          listeners.push({ element, handler, interactionType: 'click' });
+          this.userInteractionListeners.set(key, listeners);
+        } else if (interactionType === 'hover') {
+          element.addEventListener('mouseenter', handler);
+          element.addEventListener('mouseleave', handler);
+          const key = `${selector}:${interactionType}`;
+          const listeners = this.userInteractionListeners.get(key) || [];
+          listeners.push(
+            { element, handler, interactionType: 'mouseenter' },
+            { element, handler, interactionType: 'mouseleave' },
+          );
+          this.userInteractionListeners.set(key, listeners);
+        } else if (interactionType === 'focus') {
+          element.addEventListener('focus', handler);
+          const key = `${selector}:${interactionType}`;
+          const listeners = this.userInteractionListeners.get(key) || [];
+          listeners.push({ element, handler, interactionType: 'focus' });
+          this.userInteractionListeners.set(key, listeners);
+        }
+      });
+
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   private setupUserInteractionPublisher = () => {
     // Clear any existing listeners first
     this.userInteractionListeners.forEach((listeners) => {
@@ -439,80 +523,22 @@ export class SubscriptionManager {
             page.trigger_value as UserInteractionTriggerValue;
           const { selector, interactionType, minThresholdMs } = triggerValue;
 
-          // Find all elements matching the selector
-          const elements = this.globalScope.document.querySelectorAll(selector);
+          const success = this.setupUserInteractionListenersForSelector(
+            selector,
+            interactionType,
+            minThresholdMs,
+          );
 
-          elements.forEach((element) => {
-            let interactionStartTime: number | null = null;
-
-            const handler = (event: Event) => {
-              if (interactionType === 'hover') {
-                // For hover, track mouse enter and leave
-                if (event.type === 'mouseenter') {
-                  interactionStartTime = Date.now();
-                } else if (event.type === 'mouseleave') {
-                  if (interactionStartTime !== null) {
-                    const interactionDuration =
-                      Date.now() - interactionStartTime;
-                    if (
-                      !minThresholdMs ||
-                      interactionDuration >= minThresholdMs
-                    ) {
-                      const interactionKey = `${selector}:${interactionType}:${
-                        minThresholdMs || 0
-                      }`;
-                      this.firedUserInteractions.add(interactionKey);
-                      this.messageBus.publish('user_interaction', {
-                        selector,
-                        interactionType,
-                      });
-                    }
-                    interactionStartTime = null;
-                  }
-                }
-              } else if (interactionType === 'focus') {
-                if (event.type === 'focus') {
-                  const interactionKey = `${selector}:${interactionType}`;
-                  this.firedUserInteractions.add(interactionKey);
-                  this.messageBus.publish('user_interaction', {
-                    selector,
-                    interactionType,
-                  });
-                }
-              } else {
-                const interactionKey = `${selector}:${interactionType}`;
-                this.firedUserInteractions.add(interactionKey);
-                this.messageBus.publish('user_interaction', {
-                  selector,
-                  interactionType,
-                });
-              }
-            };
-
-            if (interactionType === 'click') {
-              element.addEventListener('click', handler);
-              const key = `${selector}:${interactionType}`;
-              const listeners = this.userInteractionListeners.get(key) || [];
-              listeners.push({ element, handler, interactionType: 'click' });
-              this.userInteractionListeners.set(key, listeners);
-            } else if (interactionType === 'hover') {
-              element.addEventListener('mouseenter', handler);
-              element.addEventListener('mouseleave', handler);
-              const key = `${selector}:${interactionType}`;
-              const listeners = this.userInteractionListeners.get(key) || [];
-              listeners.push(
-                { element, handler, interactionType: 'mouseenter' },
-                { element, handler, interactionType: 'mouseleave' },
+          if (!success) {
+            // Invalid selector or elements don't exist yet - wait for element_appeared
+            this.messageBus.subscribe('element_appeared', () => {
+              this.setupUserInteractionListenersForSelector(
+                selector,
+                interactionType,
+                minThresholdMs,
               );
-              this.userInteractionListeners.set(key, listeners);
-            } else if (interactionType === 'focus') {
-              element.addEventListener('focus', handler);
-              const key = `${selector}:${interactionType}`;
-              const listeners = this.userInteractionListeners.get(key) || [];
-              listeners.push({ element, handler, interactionType: 'focus' });
-              this.userInteractionListeners.set(key, listeners);
-            }
-          });
+            });
+          }
         }
       }
     }
