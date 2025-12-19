@@ -418,7 +418,7 @@ export class SubscriptionManager {
 
   private setupScrolledToPublisher = () => {
     // Collect static list of scroll targets from page objects
-    const percentageTargets: number[] = [];
+    let minPercentage: number | undefined = undefined;
     const elementTargets: Array<{ selector: string; offsetPx: number }> = [];
 
     for (const pages of Object.values(this.pageObjects)) {
@@ -427,18 +427,23 @@ export class SubscriptionManager {
           const triggerValue = page.trigger_value as ScrolledToTriggerValue;
 
           if (triggerValue.mode === 'percent') {
-            if (!percentageTargets.includes(triggerValue.percentage)) {
-              percentageTargets.push(triggerValue.percentage);
-            }
+            minPercentage =
+              minPercentage === undefined
+                ? triggerValue.percentage
+                : Math.min(minPercentage, triggerValue.percentage);
           } else if (triggerValue.mode === 'element') {
             const offset = triggerValue.offsetPx || 0;
             // Add if not already present
             if (
               !elementTargets.some(
-                (t) => t.selector === triggerValue.selector && t.offsetPx === offset,
+                (t) =>
+                  t.selector === triggerValue.selector && t.offsetPx === offset,
               )
             ) {
-              elementTargets.push({ selector: triggerValue.selector, offsetPx: offset });
+              elementTargets.push({
+                selector: triggerValue.selector,
+                offsetPx: offset,
+              });
             }
           }
         }
@@ -446,12 +451,12 @@ export class SubscriptionManager {
     }
 
     // Skip setup if no scroll triggers
-    if (percentageTargets.length === 0 && elementTargets.length === 0) {
+    if (minPercentage === undefined && elementTargets.length === 0) {
       return;
     }
 
     const handleScroll = (
-      percentages: number[],
+      minPercent: number | undefined,
       elements: Array<{ selector: string; offsetPx: number }>,
     ) => {
       const scrollPercentage = this.calculateScrollPercentage();
@@ -474,9 +479,9 @@ export class SubscriptionManager {
         }
       }
 
-      // Publish if any percentage or element target is met
+      // Publish if minimum percentage threshold is met or any element is in range
       const shouldPublish =
-        percentages.some((p) => scrollPercentage >= p) ||
+        (minPercent !== undefined && scrollPercentage >= minPercent) ||
         elementAndOffset.size > 0;
 
       if (shouldPublish) {
@@ -489,17 +494,18 @@ export class SubscriptionManager {
 
     this.globalScope.addEventListener(
       'scroll',
-      () => handleScroll(percentageTargets, elementTargets),
+      () => handleScroll(minPercentage, elementTargets),
       { passive: true },
     );
 
     // Check immediately in case user is already scrolled
-    handleScroll(percentageTargets, elementTargets);
+    handleScroll(minPercentage, elementTargets);
   };
 
   private calculateScrollPercentage(): number {
     const windowHeight = this.globalScope.innerHeight;
-    const documentHeight = this.globalScope.document.documentElement.scrollHeight;
+    const documentHeight =
+      this.globalScope.document.documentElement.scrollHeight;
     const scrollTop = this.globalScope.scrollY;
     const scrollableHeight = documentHeight - windowHeight;
 
