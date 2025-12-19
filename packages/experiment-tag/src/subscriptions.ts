@@ -436,7 +436,6 @@ export class SubscriptionManager {
             this.timeOnPage = durationMs;
             this.messageBus.publish('time_on_page');
             this.timeOnPageTimeouts.delete(timeoutId);
-            clearTimeout(timeoutId);
           }, durationMs);
           this.timeOnPageTimeouts.add(timeoutId);
         }
