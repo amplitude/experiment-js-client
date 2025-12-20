@@ -379,36 +379,29 @@ export class SubscriptionManager {
   };
 
   private setupExitIntentPublisher = () => {
-    // Check if any page objects use exit_intent trigger
-    const hasExitIntentTriggers = Object.values(this.pageObjects).some(
-      (pages) =>
-        Object.values(pages).some(
-          (page) => page.trigger_type === 'exit_intent',
-        ),
+    // Get all page objects that use exit_intent trigger
+    const pages = Object.values(this.pageObjects).flatMap((pages) =>
+      Object.values(pages).filter(
+        (page) => page.trigger_type === 'exit_intent',
+      ),
     );
 
-    if (!hasExitIntentTriggers) {
+    if (pages.length === 0) {
       return;
     }
 
     // Get minimum time requirement (use lowest value so listener activates earliest)
     let minTimeOnPageMs = 0;
-    for (const pages of Object.values(this.pageObjects)) {
-      for (const page of Object.values(pages)) {
-        if (page.trigger_type === 'exit_intent') {
-          const triggerValue = page.trigger_value as ExitIntentTriggerValue;
-          if (triggerValue.minTimeOnPageMs !== undefined) {
-            minTimeOnPageMs =
-              minTimeOnPageMs === 0
-                ? triggerValue.minTimeOnPageMs
-                : Math.min(minTimeOnPageMs, triggerValue.minTimeOnPageMs);
-          }
-        }
-      }
+    for (const page of pages) {
+      const triggerValue = page.trigger_value as ExitIntentTriggerValue;
+      minTimeOnPageMs = Math.min(
+        minTimeOnPageMs,
+        triggerValue.minTimeOnPageMs ?? 0,
+      );
     }
 
     // Detect exit intent via mouse movement
-    const handleMouseOut = (event: MouseEvent) => {
+    const handleMouseLeave = (event: MouseEvent) => {
       // Only trigger if:
       // 1. Mouse Y position is near top of viewport (leaving towards browser chrome)
       // 2. Mouse is leaving the document (relatedTarget is null)
@@ -426,11 +419,17 @@ export class SubscriptionManager {
     // Install listener after minimum time requirement
     if (minTimeOnPageMs > 0) {
       setTimeout(() => {
-        this.globalScope.document.addEventListener('mouseout', handleMouseOut);
+        this.globalScope.document.addEventListener(
+          'mouseleave',
+          handleMouseLeave,
+        );
       }, minTimeOnPageMs);
     } else {
       // Install immediately if no time requirement
-      this.globalScope.document.addEventListener('mouseout', handleMouseOut);
+      this.globalScope.document.addEventListener(
+        'mouseleave',
+        handleMouseLeave,
+      );
     }
   };
 
