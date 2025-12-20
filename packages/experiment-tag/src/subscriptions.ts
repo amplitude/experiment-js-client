@@ -44,7 +44,6 @@ export class SubscriptionManager {
   private elementAppearedState: Map<string, boolean> = new Map();
   private activeElementSelectors: Set<string> = new Set();
   private timeOnPageTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
-  private timeOnPage = 0;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -423,7 +422,6 @@ export class SubscriptionManager {
     // Clear any existing timeouts first
     this.timeOnPageTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     this.timeOnPageTimeouts.clear();
-    this.timeOnPage = 0;
     // Publish initial time_on_page event
     this.messageBus.publish('time_on_page');
 
@@ -433,8 +431,7 @@ export class SubscriptionManager {
           const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
           const durationMs = triggerValue.durationMs;
           const timeoutId = setTimeout(() => {
-            this.timeOnPage = durationMs;
-            this.messageBus.publish('time_on_page');
+            this.messageBus.publish('time_on_page', { durationMs });
             this.timeOnPageTimeouts.delete(timeoutId);
           }, durationMs);
           this.timeOnPageTimeouts.add(timeoutId);
@@ -533,7 +530,8 @@ export class SubscriptionManager {
 
       case 'time_on_page': {
         const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
-        return this.timeOnPage >= triggerValue.durationMs;
+        const triggerPayload = message as TimeOnPagePayload;
+        return triggerPayload.durationMs >= triggerValue.durationMs;
       }
 
       default:
