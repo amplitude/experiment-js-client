@@ -17,10 +17,7 @@ export type ElementVisiblePayload = { mutationList: MutationRecord[] };
 export type AnalyticsEventPayload = AnalyticsEvent;
 export type ManualTriggerPayload = { name: string };
 export type UrlChangePayload = { updateActivePages?: boolean };
-export type ScrolledToPayload = {
-  scrollPercentage: number;
-  elementAndOffset: Set<string>; // Keys like "selector:offsetPx" for elements in range
-};
+export type ScrolledToPayload = Record<string, never>;
 
 export type MessagePayloads = {
   element_appeared: ElementAppearedPayload;

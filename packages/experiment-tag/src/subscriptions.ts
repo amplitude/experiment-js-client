@@ -43,6 +43,9 @@ export class SubscriptionManager {
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Map<string, boolean> = new Map();
   private activeElementSelectors: Set<string> = new Set();
+  private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
+  private scrolledToElementState: Map<string, boolean> = new Map();
+  private maxScrollPercentage = 0;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -417,89 +420,138 @@ export class SubscriptionManager {
   };
 
   private setupScrolledToPublisher = () => {
-    // Collect static list of scroll targets from page objects
-    let minPercentage: number | undefined = undefined;
-    const elementTargets: Array<{ selector: string; offsetPx: number }> = [];
+    // Check if we have any scrolled_to triggers
+    let hasPercentTrigger = false;
+    let hasElementTrigger = false;
+    const pages = Object.values(this.pageObjects).flatMap((pages) =>
+      Object.values(pages).filter(
+        (page) => page.trigger_type === 'scrolled_to',
+      ),
+    );
 
-    for (const pages of Object.values(this.pageObjects)) {
-      for (const page of Object.values(pages)) {
+    for (const page of pages) {
+      if (page.trigger_type === 'scrolled_to') {
+        const triggerValue = page.trigger_value as ScrolledToTriggerValue;
+        if (triggerValue.mode === 'percent') {
+          hasPercentTrigger = true;
+        } else if (triggerValue.mode === 'element') {
+          hasElementTrigger = true;
+        }
+      }
+    }
+
+    // Setup percentage-based scroll listener if needed
+    if (hasPercentTrigger) {
+      let rafId: number | null = null;
+
+      const handleScroll = () => {
+        const scrollPercentage = this.calculateScrollPercentage();
+        // Track maximum scroll percentage reached
+        if (scrollPercentage > this.maxScrollPercentage) {
+          this.maxScrollPercentage = scrollPercentage;
+          this.messageBus.publish('scrolled_to', {});
+        }
+      };
+
+      const throttledScroll = () => {
+        // Cancel any pending animation frame
+        if (rafId !== null) {
+          return;
+        }
+
+        // Schedule the handler to run on the next animation frame
+        rafId = this.globalScope.requestAnimationFrame(() => {
+          handleScroll();
+          rafId = null;
+        });
+      };
+
+      this.globalScope.addEventListener('scroll', throttledScroll, {
+        passive: true,
+      });
+
+      // Initial check
+      handleScroll();
+    }
+
+    // Setup IntersectionObserver for element-based triggers
+    if (hasElementTrigger) {
+      for (const page of pages) {
         if (page.trigger_type === 'scrolled_to') {
           const triggerValue = page.trigger_value as ScrolledToTriggerValue;
 
-          if (triggerValue.mode === 'percent') {
-            minPercentage =
-              minPercentage === undefined
-                ? triggerValue.percentage
-                : Math.min(minPercentage, triggerValue.percentage);
-          } else if (triggerValue.mode === 'element') {
-            const offset = triggerValue.offsetPx || 0;
-            // Add if not already present
-            if (
-              !elementTargets.some(
-                (t) =>
-                  t.selector === triggerValue.selector && t.offsetPx === offset,
-              )
-            ) {
-              elementTargets.push({
-                selector: triggerValue.selector,
-                offsetPx: offset,
-              });
+          if (triggerValue.mode === 'element') {
+            const selector = triggerValue.selector;
+            const offsetPx = triggerValue.offsetPx || 0;
+            // Use null byte as delimiter
+            const observerKey = `${selector}\0${offsetPx}`;
+
+            // Skip if we already have an observer for this selector + offset
+            if (this.scrolledToObservers.has(observerKey)) {
+              continue;
             }
+
+            // Create root margin based on offset
+            // Negative bottom margin means trigger when element is offsetPx above viewport bottom
+            const rootMargin = `0px 0px -${offsetPx}px 0px`;
+
+            const observer = new IntersectionObserver(
+              (entries) => {
+                entries.forEach((entry) => {
+                  // Trigger when element enters viewport (considering offset)
+                  if (entry.isIntersecting) {
+                    this.scrolledToElementState.set(observerKey, true);
+                    observer.disconnect();
+                    this.scrolledToObservers.delete(observerKey);
+
+                    // Publish scrolled_to event
+                    this.messageBus.publish('scrolled_to', {});
+                  }
+                });
+              },
+              {
+                rootMargin,
+                threshold: 0,
+              },
+            );
+
+            this.scrolledToObservers.set(observerKey, observer);
+
+            // Observe all elements matching the selector
+            const elements =
+              this.globalScope.document.querySelectorAll(selector);
+            elements.forEach((element) => {
+              observer.observe(element);
+            });
           }
         }
       }
-    }
 
-    // Skip setup if no scroll triggers
-    if (minPercentage === undefined && elementTargets.length === 0) {
-      return;
-    }
+      // Re-check for elements on mutations (in case they appear later)
+      this.messageBus.subscribe('element_appeared', (payload) => {
+        const { mutationList } = payload;
 
-    const handleScroll = (
-      minPercent: number | undefined,
-      elements: Array<{ selector: string; offsetPx: number }>,
-    ) => {
-      const scrollPercentage = this.calculateScrollPercentage();
-      const elementAndOffset = new Set<string>();
+        for (const [
+          observerKey,
+          observer,
+        ] of this.scrolledToObservers.entries()) {
+          const [selector] = observerKey.split('\0');
 
-      // Check which elements are in range
-      for (const { selector, offsetPx } of elements) {
-        const element = this.globalScope.document.querySelector(selector);
-        if (element) {
-          const elementPosition = element.getBoundingClientRect().top;
-          const scrollPosition = this.globalScope.scrollY;
+          // Check if mutation is relevant (or if it's the initial check with empty list)
+          const isRelevant =
+            mutationList.length === 0 ||
+            this.isMutationRelevantToSelector(mutationList, selector);
 
-          if (
-            scrollPosition + this.globalScope.innerHeight >=
-            elementPosition + scrollPosition + offsetPx
-          ) {
-            const key = `${selector}:${offsetPx}`;
-            elementAndOffset.add(key);
+          if (isRelevant) {
+            const elements =
+              this.globalScope.document.querySelectorAll(selector);
+            elements.forEach((element) => {
+              observer.observe(element);
+            });
           }
         }
-      }
-
-      // Publish if minimum percentage threshold is met or any element is in range
-      const shouldPublish =
-        (minPercent !== undefined && scrollPercentage >= minPercent) ||
-        elementAndOffset.size > 0;
-
-      if (shouldPublish) {
-        this.messageBus.publish('scrolled_to', {
-          scrollPercentage,
-          elementAndOffset,
-        });
-      }
-    };
-
-    this.globalScope.addEventListener(
-      'scroll',
-      () => handleScroll(minPercentage, elementTargets),
-      { passive: true },
-    );
-
-    // Check immediately in case user is already scrolled
-    handleScroll(minPercentage, elementTargets);
+      });
+    }
   };
 
   private calculateScrollPercentage(): number {
@@ -606,16 +658,13 @@ export class SubscriptionManager {
 
       case 'scrolled_to': {
         const triggerValue = page.trigger_value as ScrolledToTriggerValue;
-        const scrollPayload = message as ScrolledToPayload;
-        const currentScrollPercentage = scrollPayload.scrollPercentage;
-        const elementAndOffset = scrollPayload.elementAndOffset;
 
         if (triggerValue.mode === 'percent') {
-          return currentScrollPercentage >= triggerValue.percentage;
+          return this.maxScrollPercentage >= triggerValue.percentage;
         } else if (triggerValue.mode === 'element') {
           const offset = triggerValue.offsetPx || 0;
-          const key = `${triggerValue.selector}:${offset}`;
-          return elementAndOffset.has(key);
+          const observerKey = `${triggerValue.selector}\0${offset}`;
+          return this.scrolledToElementState.get(observerKey) ?? false;
         }
 
         return false;
