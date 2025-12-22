@@ -43,7 +43,8 @@ export class SubscriptionManager {
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Map<string, boolean> = new Map();
   private activeElementSelectors: Set<string> = new Set();
-  private timeOnPageTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+  private timeOnPageTimeouts: Record<number, ReturnType<typeof setTimeout>> =
+    {};
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -72,7 +73,8 @@ export class SubscriptionManager {
     this.setupPageObjectSubscriptions();
     // Initial check for elements that already exist
     this.checkInitialElements();
-    this.setUpTimeOnPagePublisher();
+    this.setupTimeOnPagePublisher();
+    this.setupVisibilityChangeHandler();
     this.setupUrlChangeReset();
   };
 
@@ -192,7 +194,10 @@ export class SubscriptionManager {
       );
       this.setupVisibilityPublisher();
       this.checkInitialElements();
-      this.setUpTimeOnPagePublisher();
+
+      // Reset time on page state
+      Object.values(this.timeOnPageTimeouts).forEach(clearTimeout);
+      this.setupTimeOnPagePublisher();
     });
   };
 
@@ -418,26 +423,48 @@ export class SubscriptionManager {
     wrapHistoryMethods();
   };
 
-  setUpTimeOnPagePublisher = () => {
+  private setupTimeOnPagePublisher = () => {
     // Clear any existing timeouts first
-    this.timeOnPageTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
-    this.timeOnPageTimeouts.clear();
-    // Publish initial time_on_page event
-    this.messageBus.publish('time_on_page');
+    Object.values(this.timeOnPageTimeouts).forEach(clearTimeout);
+    this.timeOnPageTimeouts = {};
 
+    // Collect unique duration thresholds
+    const durations = new Set<number>();
     for (const pages of Object.values(this.pageObjects)) {
       for (const page of Object.values(pages)) {
         if (page.trigger_type === 'time_on_page') {
           const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
-          const durationMs = triggerValue.durationMs;
-          const timeoutId = setTimeout(() => {
-            this.messageBus.publish('time_on_page', { durationMs });
-            this.timeOnPageTimeouts.delete(timeoutId);
-          }, durationMs);
-          this.timeOnPageTimeouts.add(timeoutId);
+          durations.add(triggerValue.durationMs);
         }
       }
     }
+
+    // Start timers for each unique duration
+    this.setUpTimeouts(durations);
+  };
+
+  private setUpTimeouts = (durations: Set<number>) => {
+    durations.forEach((durationMs) => {
+      this.timeOnPageTimeouts[durationMs] = this.globalScope.setTimeout(() => {
+        this.messageBus.publish('time_on_page', { durationMs });
+        delete this.timeOnPageTimeouts[durationMs];
+      }, durationMs);
+    });
+  };
+
+  private setupVisibilityChangeHandler = () => {
+    this.globalScope.document.addEventListener('visibilitychange', () => {
+      if (this.globalScope.document.hidden) {
+        // Tab hidden: clear all timeouts
+        Object.values(this.timeOnPageTimeouts).forEach(clearTimeout);
+      } else {
+        // Tab visible: restart timers
+        const durations = new Set(
+          Object.keys(this.timeOnPageTimeouts).map(Number),
+        );
+        this.setUpTimeouts(durations);
+      }
+    });
   };
 
   private isPageObjectActive = <T extends MessageType>(
@@ -529,9 +556,9 @@ export class SubscriptionManager {
       }
 
       case 'time_on_page': {
+        const payload = message as TimeOnPagePayload;
         const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
-        const triggerPayload = message as TimeOnPagePayload;
-        return triggerPayload.durationMs >= triggerValue.durationMs;
+        return payload.durationMs >= triggerValue.durationMs;
       }
 
       default:
