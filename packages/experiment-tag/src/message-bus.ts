@@ -1,10 +1,6 @@
-export interface EventProperties {
-  [k: string]: unknown;
-}
-
 export interface AnalyticsEvent {
   event_type: string;
-  event_properties: EventProperties;
+  event_properties: Record<string, unknown>;
 }
 
 type Subscriber<T extends MessageType> = {
@@ -18,6 +14,11 @@ export type AnalyticsEventPayload = AnalyticsEvent;
 export type ManualTriggerPayload = { name: string };
 export type UrlChangePayload = { updateActivePages?: boolean };
 export type TimeOnPagePayload = { durationMs: number };
+export type ExitIntentPayload = { durationMs: number };
+export type UserInteractionPayload = {
+  selector: string;
+  interactionType: 'click' | 'hover' | 'focus';
+};
 
 export type MessagePayloads = {
   element_appeared: ElementAppearedPayload;
@@ -26,6 +27,8 @@ export type MessagePayloads = {
   analytics_event: AnalyticsEventPayload;
   manual: ManualTriggerPayload;
   time_on_page: TimeOnPagePayload;
+  user_interaction: UserInteractionPayload;
+  exit_intent: ExitIntentPayload;
 };
 
 export type MessageType = keyof MessagePayloads;

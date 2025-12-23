@@ -45,6 +45,18 @@ export interface ManualTriggerValue {
   name: string;
 }
 
+export type UserInteractionType = 'click' | 'hover' | 'focus';
+
+export interface UserInteractionTriggerValue {
+  selector: string;
+  interactionType: UserInteractionType;
+  minThresholdMs?: number;
+}
+
+export interface ExitIntentTriggerValue {
+  minTimeOnPageMs?: number;
+}
+
 export interface TimeOnPageTriggerValue {
   durationMs: number;
 }
@@ -59,6 +71,8 @@ export type PageObject = {
     | ElementVisibleTriggerValue
     | ManualTriggerValue
     | TimeOnPageTriggerValue
+    | UserInteractionTriggerValue
+    | ExitIntentTriggerValue
     | Record<string, unknown>;
 };
 
