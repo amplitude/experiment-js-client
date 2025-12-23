@@ -18,6 +18,10 @@ export type AnalyticsEventPayload = AnalyticsEvent;
 export type ManualTriggerPayload = { name: string };
 export type UrlChangePayload = { updateActivePages?: boolean };
 export type ExitIntentPayload = { durationMs: number };
+export type UserInteractionPayload = {
+  selector: string;
+  interactionType: 'click' | 'hover' | 'focus';
+};
 
 export type MessagePayloads = {
   element_appeared: ElementAppearedPayload;
@@ -25,6 +29,7 @@ export type MessagePayloads = {
   url_change: UrlChangePayload;
   analytics_event: AnalyticsEventPayload;
   manual: ManualTriggerPayload;
+  user_interaction: UserInteractionPayload;
   exit_intent: ExitIntentPayload;
 };
 

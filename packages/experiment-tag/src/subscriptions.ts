@@ -2,11 +2,10 @@ import { EvaluationEngine } from '@amplitude/experiment-core';
 
 import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
 import {
-  MessageBus,
-  MessagePayloads,
-  ElementAppearedPayload,
   ManualTriggerPayload,
   ExitIntentPayload,
+  MessageBus,
+  MessagePayloads,
   MessageType,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
@@ -17,6 +16,7 @@ import {
   ExitIntentTriggerValue,
   PageObject,
   PageObjects,
+  UserInteractionTriggerValue,
 } from './types';
 
 const evaluationEngine = new EvaluationEngine();
@@ -41,8 +41,14 @@ export class SubscriptionManager {
   private lastNotifiedActivePages: PageObjects = {};
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
-  private elementAppearedState: Map<string, boolean> = new Map();
+  private elementAppearedState: Set<string> = new Set();
   private activeElementSelectors: Set<string> = new Set();
+  private firedUserInteractions: Set<string> = new Set();
+  private hoverTimeouts: WeakMap<Element, ReturnType<typeof setTimeout>> =
+    new WeakMap();
+  private focusTimeouts: WeakMap<Element, ReturnType<typeof setTimeout>> =
+    new WeakMap();
+  private userInteractionAbortController: AbortController | null = null;
   private pageLoadTime: number = Date.now();
 
   constructor(
@@ -69,6 +75,7 @@ export class SubscriptionManager {
     }
     this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
+    this.setupUserInteractionPublisher();
     this.setupExitIntentPublisher();
     this.setupPageObjectSubscriptions();
     this.setupUrlChangeReset();
@@ -185,6 +192,7 @@ export class SubscriptionManager {
     // Reset element state on URL navigation
     this.messageBus.subscribe('url_change', () => {
       this.elementAppearedState.clear();
+      this.firedUserInteractions.clear();
       this.activeElementSelectors.clear();
       this.pageLoadTime = Date.now();
       const elementSelectors = this.getElementSelectors();
@@ -192,6 +200,7 @@ export class SubscriptionManager {
         this.activeElementSelectors.add(selector),
       );
       this.setupVisibilityPublisher();
+      this.setupUserInteractionPublisher();
       this.checkInitialElements();
     });
   };
@@ -292,6 +301,34 @@ export class SubscriptionManager {
     const mutationManager = new DebouncedMutationManager(
       this.globalScope.document.documentElement,
       (mutationList) => {
+        // Check each active selector and update state
+        for (const selector of Array.from(this.activeElementSelectors)) {
+          // For initial checks (empty mutationList), check all selectors
+          // For actual mutations, only check if mutation is relevant
+          const isRelevant =
+            mutationList.length === 0 ||
+            this.isMutationRelevantToSelector(mutationList, selector);
+
+          if (isRelevant) {
+            try {
+              const element = this.globalScope.document.querySelector(selector);
+              if (element) {
+                const style = window.getComputedStyle(element);
+                const hasAppeared =
+                  style.display !== 'none' && style.visibility !== 'hidden';
+
+                if (hasAppeared) {
+                  this.elementAppearedState.add(selector);
+                  this.activeElementSelectors.delete(selector);
+                }
+              }
+            } catch (e) {
+              // Invalid selector, skip
+            }
+          }
+        }
+
+        // Publish event with mutationList for other subscribers (e.g., visibility publisher)
         this.messageBus.publish('element_appeared', { mutationList });
       },
       filters,
@@ -331,9 +368,7 @@ export class SubscriptionManager {
                   this.intersectionObservers.delete(observerKey);
 
                   // Publish element_visible event
-                  this.messageBus.publish('element_visible', {
-                    mutationList: [],
-                  });
+                  this.messageBus.publish('element_visible');
                 }
               });
             },
@@ -345,9 +380,13 @@ export class SubscriptionManager {
           this.intersectionObservers.set(observerKey, observer);
 
           // Observe the element if it exists
-          const element = this.globalScope.document.querySelector(selector);
-          if (element) {
-            observer.observe(element);
+          try {
+            const element = this.globalScope.document.querySelector(selector);
+            if (element) {
+              observer.observe(element);
+            }
+          } catch (e) {
+            // Invalid selector, skip
           }
         }
       }
@@ -369,9 +408,13 @@ export class SubscriptionManager {
           this.isMutationRelevantToSelector(mutationList, selector);
 
         if (isRelevant) {
-          const element = this.globalScope.document.querySelector(selector);
-          if (element) {
-            observer.observe(element);
+          try {
+            const element = this.globalScope.document.querySelector(selector);
+            if (element) {
+              observer.observe(element);
+            }
+          } catch (e) {
+            // Invalid selector, skip
           }
         }
       }
@@ -473,6 +516,213 @@ export class SubscriptionManager {
     wrapHistoryMethods();
   };
 
+  private setupUserInteractionPublisher = () => {
+    // Abort all existing listeners at once
+    this.userInteractionAbortController?.abort();
+    this.userInteractionAbortController = new AbortController();
+    const { signal } = this.userInteractionAbortController;
+
+    // Collect all selectors grouped by interaction type
+    const clickSelectors = new Set<string>();
+    const hoverSelectors = new Map<string, number>(); // selector -> minThresholdMs
+    const focusSelectors = new Map<string, number>();
+
+    for (const pages of Object.values(this.pageObjects)) {
+      for (const page of Object.values(pages)) {
+        if (page.trigger_type === 'user_interaction') {
+          const triggerValue =
+            page.trigger_value as UserInteractionTriggerValue;
+          const { selector, interactionType, minThresholdMs } = triggerValue;
+
+          if (interactionType === 'click') {
+            clickSelectors.add(selector);
+          } else if (interactionType === 'hover') {
+            hoverSelectors.set(selector, minThresholdMs || 0);
+          } else if (interactionType === 'focus') {
+            focusSelectors.set(selector, minThresholdMs || 0);
+          }
+        }
+      }
+    }
+
+    // Set up document-level event delegation for each interaction type
+    if (clickSelectors.size > 0) {
+      this.setupClickDelegation(clickSelectors, signal);
+    }
+    if (hoverSelectors.size > 0) {
+      this.setupHoverDelegation(hoverSelectors, signal);
+    }
+    if (focusSelectors.size > 0) {
+      this.setupFocusDelegation(focusSelectors, signal);
+    }
+  };
+
+  private setupClickDelegation = (
+    selectors: Set<string>,
+    signal: AbortSignal,
+  ) => {
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target) return;
+
+      for (const selector of selectors) {
+        try {
+          if (target.matches(selector)) {
+            const interactionKey = `${selector}:click`;
+            if (!this.firedUserInteractions.has(interactionKey)) {
+              this.firedUserInteractions.add(interactionKey);
+              this.messageBus.publish('user_interaction', {
+                selector,
+                interactionType: 'click',
+              });
+            }
+            break;
+          }
+        } catch (e) {
+          // Invalid selector, skip
+        }
+      }
+    };
+
+    this.globalScope.document.addEventListener('click', handler, { signal });
+  };
+
+  private setupHoverDelegation = (
+    selectors: Map<string, number>,
+    signal: AbortSignal,
+  ) => {
+    const mouseoverHandler = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target) return;
+
+      for (const [selector, minThresholdMs] of selectors) {
+        try {
+          if (target.matches(selector)) {
+            const interactionKey = `${selector}:hover:${minThresholdMs}`;
+
+            if (this.firedUserInteractions.has(interactionKey)) {
+              return;
+            }
+
+            // Clear any existing timeout for this element
+            const existingTimeout = this.hoverTimeouts.get(target);
+            if (existingTimeout) {
+              this.globalScope.clearTimeout(existingTimeout);
+            }
+
+            const fireHoverTrigger = () => {
+              this.firedUserInteractions.add(interactionKey);
+              this.messageBus.publish('user_interaction', {
+                selector,
+                interactionType: 'hover',
+              });
+              this.hoverTimeouts.delete(target);
+            };
+
+            if (minThresholdMs) {
+              const timeout = this.globalScope.setTimeout(
+                fireHoverTrigger,
+                minThresholdMs,
+              );
+              this.hoverTimeouts.set(target, timeout);
+            } else {
+              fireHoverTrigger();
+            }
+            break;
+          }
+        } catch (e) {
+          // Invalid selector, skip
+        }
+      }
+    };
+
+    const mouseoutHandler = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target) return;
+
+      const timeout = this.hoverTimeouts.get(target);
+      if (timeout) {
+        this.globalScope.clearTimeout(timeout);
+        this.hoverTimeouts.delete(target);
+      }
+    };
+
+    this.globalScope.document.addEventListener('mouseover', mouseoverHandler, {
+      signal,
+    });
+    this.globalScope.document.addEventListener('mouseout', mouseoutHandler, {
+      signal,
+    });
+  };
+
+  private setupFocusDelegation = (
+    selectors: Map<string, number>,
+    signal: AbortSignal,
+  ) => {
+    const focusinHandler = (event: FocusEvent) => {
+      const target = event.target as Element;
+      if (!target) return;
+
+      for (const [selector, minThresholdMs] of selectors) {
+        try {
+          if (target.matches(selector)) {
+            const interactionKey = `${selector}:focus:${minThresholdMs}`;
+
+            if (this.firedUserInteractions.has(interactionKey)) {
+              return;
+            }
+
+            // Clear any existing timeout for this element
+            const existingTimeout = this.focusTimeouts.get(target);
+            if (existingTimeout) {
+              this.globalScope.clearTimeout(existingTimeout);
+            }
+
+            const fireFocusTrigger = () => {
+              this.firedUserInteractions.add(interactionKey);
+              this.messageBus.publish('user_interaction', {
+                selector,
+                interactionType: 'focus',
+              });
+              this.focusTimeouts.delete(target);
+            };
+
+            if (minThresholdMs) {
+              const timeout = this.globalScope.setTimeout(
+                fireFocusTrigger,
+                minThresholdMs,
+              );
+              this.focusTimeouts.set(target, timeout);
+            } else {
+              fireFocusTrigger();
+            }
+            break;
+          }
+        } catch (e) {
+          // Invalid selector, skip
+        }
+      }
+    };
+
+    const focusoutHandler = (event: FocusEvent) => {
+      const target = event.target as Element;
+      if (!target) return;
+
+      const timeout = this.focusTimeouts.get(target);
+      if (timeout) {
+        this.globalScope.clearTimeout(timeout);
+        this.focusTimeouts.delete(target);
+      }
+    };
+
+    this.globalScope.document.addEventListener('focusin', focusinHandler, {
+      signal,
+    });
+    this.globalScope.document.addEventListener('focusout', focusoutHandler, {
+      signal,
+    });
+  };
+
   private isPageObjectActive = <T extends MessageType>(
     page: PageObject,
     message: MessagePayloads[T],
@@ -515,40 +765,8 @@ export class SubscriptionManager {
         const triggerValue = page.trigger_value as ElementAppearedTriggerValue;
         const selector = triggerValue.selector;
 
-        // Check if we've already marked this element as appeared
-        if (this.elementAppearedState.get(selector)) {
-          return true;
-        }
-
-        // Check if mutation is relevant to this selector before querying DOM
-        // Skip this check if mutationList is empty (initial check)
-        const elementAppearedMessage = message as ElementAppearedPayload;
-        if (
-          elementAppearedMessage.mutationList.length > 0 &&
-          !this.isMutationRelevantToSelector(
-            elementAppearedMessage.mutationList,
-            selector,
-          )
-        ) {
-          return false;
-        }
-
-        // Check if element exists and is not hidden
-        const element = this.globalScope.document.querySelector(selector);
-        if (element) {
-          const style = window.getComputedStyle(element);
-          const hasAppeared =
-            style.display !== 'none' && style.visibility !== 'hidden';
-
-          // Once it appears, remember it and remove from active checking
-          if (hasAppeared) {
-            this.elementAppearedState.set(selector, true);
-            this.activeElementSelectors.delete(selector);
-          }
-
-          return hasAppeared;
-        }
-        return false;
+        // State is managed by mutation callback, just check it
+        return this.elementAppearedState.has(selector);
       }
 
       case 'element_visible': {
@@ -568,6 +786,19 @@ export class SubscriptionManager {
           triggerValue.minTimeOnPageMs === undefined ||
           durationMs >= triggerValue.minTimeOnPageMs
         );
+      }
+
+      case 'user_interaction': {
+        const triggerValue = page.trigger_value as UserInteractionTriggerValue;
+        // Include minThresholdMs in key for hover and focus to differentiate between different durations
+        const interactionKey =
+          triggerValue.interactionType === 'hover' ||
+          triggerValue.interactionType === 'focus'
+            ? `${triggerValue.selector}:${triggerValue.interactionType}:${
+                triggerValue.minThresholdMs || 0
+              }`
+            : `${triggerValue.selector}:${triggerValue.interactionType}`;
+        return this.firedUserInteractions.has(interactionKey);
       }
 
       default:
