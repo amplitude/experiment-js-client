@@ -9,7 +9,6 @@ import {
   AnalyticsEventPayload,
   MessageType,
   TimeOnPagePayload,
-  ScrolledToPayload,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
 import {
@@ -55,9 +54,9 @@ export class SubscriptionManager {
     {};
   private visibilityChangeHandler: (() => void) | null = null;
   private firedUserInteractions: Set<string> = new Set();
-  private hoverTimeouts: WeakMap<Element, ReturnType<typeof setTimeout>> =
+  private hoverTimeouts: WeakMap<Element, Map<string, ReturnType<typeof setTimeout>>> =
     new WeakMap();
-  private focusTimeouts: WeakMap<Element, ReturnType<typeof setTimeout>> =
+  private focusTimeouts: WeakMap<Element, Map<string, ReturnType<typeof setTimeout>>> =
     new WeakMap();
   private userInteractionAbortController: AbortController | null = null;
   private pageLoadTime: number = Date.now();
@@ -331,7 +330,7 @@ export class SubscriptionManager {
             try {
               const element = this.globalScope.document.querySelector(selector);
               if (element) {
-                const style = window.getComputedStyle(element);
+                const style = this.globalScope.getComputedStyle(element);
                 const hasAppeared =
                   style.display !== 'none' && style.visibility !== 'hidden';
 
@@ -452,7 +451,7 @@ export class SubscriptionManager {
     }
 
     // Get minimum time requirement (use lowest value so listener activates earliest)
-    let minTimeOnPageMs = 0;
+    let minTimeOnPageMs = Infinity;
     for (const page of pages) {
       const triggerValue = page.trigger_value as ExitIntentTriggerValue;
       minTimeOnPageMs = Math.min(
@@ -542,8 +541,8 @@ export class SubscriptionManager {
 
     // Collect all selectors grouped by interaction type
     const clickSelectors = new Set<string>();
-    const hoverSelectors = new Map<string, number>(); // selector -> minThresholdMs
-    const focusSelectors = new Map<string, number>();
+    const hoverSelectors = new Map<string, Set<number>>(); // selector -> Set<minThresholdMs>
+    const focusSelectors = new Map<string, Set<number>>();
 
     for (const pages of Object.values(this.pageObjects)) {
       for (const page of Object.values(pages)) {
@@ -555,9 +554,15 @@ export class SubscriptionManager {
           if (interactionType === 'click') {
             clickSelectors.add(selector);
           } else if (interactionType === 'hover') {
-            hoverSelectors.set(selector, minThresholdMs || 0);
+            if (!hoverSelectors.has(selector)) {
+              hoverSelectors.set(selector, new Set());
+            }
+            hoverSelectors.get(selector)!.add(minThresholdMs || 0);
           } else if (interactionType === 'focus') {
-            focusSelectors.set(selector, minThresholdMs || 0);
+            if (!focusSelectors.has(selector)) {
+              focusSelectors.set(selector, new Set());
+            }
+            focusSelectors.get(selector)!.add(minThresholdMs || 0);
           }
         }
       }
@@ -585,7 +590,7 @@ export class SubscriptionManager {
 
       for (const selector of selectors) {
         try {
-          if (target.matches(selector)) {
+          if (target.closest(selector)) {
             const interactionKey = `${selector}:click`;
             if (!this.firedUserInteractions.has(interactionKey)) {
               this.firedUserInteractions.add(interactionKey);
@@ -606,45 +611,56 @@ export class SubscriptionManager {
   };
 
   private setupHoverDelegation = (
-    selectors: Map<string, number>,
+    selectors: Map<string, Set<number>>,
     signal: AbortSignal,
   ) => {
     const mouseoverHandler = (event: MouseEvent) => {
       const target = event.target as Element;
       if (!target) return;
 
-      for (const [selector, minThresholdMs] of selectors) {
+      for (const [selector, thresholds] of selectors) {
         try {
-          if (target.matches(selector)) {
-            const interactionKey = `${selector}:hover:${minThresholdMs}`;
+          if (target.closest(selector)) {
+            // Process all thresholds for this selector
+            for (const minThresholdMs of thresholds) {
+              const interactionKey = `${selector}:hover:${minThresholdMs}`;
 
-            if (this.firedUserInteractions.has(interactionKey)) {
-              return;
-            }
+              if (this.firedUserInteractions.has(interactionKey)) {
+                continue;
+              }
 
-            // Clear any existing timeout for this element
-            const existingTimeout = this.hoverTimeouts.get(target);
-            if (existingTimeout) {
-              this.globalScope.clearTimeout(existingTimeout);
-            }
+              // Get or create timeout map for this element
+              let timeoutMap = this.hoverTimeouts.get(target);
+              if (!timeoutMap) {
+                timeoutMap = new Map();
+                this.hoverTimeouts.set(target, timeoutMap);
+              }
 
-            const fireHoverTrigger = () => {
-              this.firedUserInteractions.add(interactionKey);
-              this.messageBus.publish('user_interaction', {
-                selector,
-                interactionType: 'hover',
-              });
-              this.hoverTimeouts.delete(target);
-            };
+              // Clear any existing timeout for this specific selector+threshold
+              const timeoutKey = `${selector}\0${minThresholdMs}`;
+              const existingTimeout = timeoutMap.get(timeoutKey);
+              if (existingTimeout) {
+                this.globalScope.clearTimeout(existingTimeout);
+              }
 
-            if (minThresholdMs) {
-              const timeout = this.globalScope.setTimeout(
-                fireHoverTrigger,
-                minThresholdMs,
-              );
-              this.hoverTimeouts.set(target, timeout);
-            } else {
-              fireHoverTrigger();
+              const fireHoverTrigger = () => {
+                this.firedUserInteractions.add(interactionKey);
+                this.messageBus.publish('user_interaction', {
+                  selector,
+                  interactionType: 'hover',
+                });
+                timeoutMap?.delete(timeoutKey);
+              };
+
+              if (minThresholdMs) {
+                const timeout = this.globalScope.setTimeout(
+                  fireHoverTrigger,
+                  minThresholdMs,
+                );
+                timeoutMap.set(timeoutKey, timeout);
+              } else {
+                fireHoverTrigger();
+              }
             }
             break;
           }
@@ -658,9 +674,12 @@ export class SubscriptionManager {
       const target = event.target as Element;
       if (!target) return;
 
-      const timeout = this.hoverTimeouts.get(target);
-      if (timeout) {
-        this.globalScope.clearTimeout(timeout);
+      const timeoutMap = this.hoverTimeouts.get(target);
+      if (timeoutMap) {
+        // Clear all timeouts for this element
+        for (const timeout of timeoutMap.values()) {
+          this.globalScope.clearTimeout(timeout);
+        }
         this.hoverTimeouts.delete(target);
       }
     };
@@ -674,45 +693,56 @@ export class SubscriptionManager {
   };
 
   private setupFocusDelegation = (
-    selectors: Map<string, number>,
+    selectors: Map<string, Set<number>>,
     signal: AbortSignal,
   ) => {
     const focusinHandler = (event: FocusEvent) => {
       const target = event.target as Element;
       if (!target) return;
 
-      for (const [selector, minThresholdMs] of selectors) {
+      for (const [selector, thresholds] of selectors) {
         try {
-          if (target.matches(selector)) {
-            const interactionKey = `${selector}:focus:${minThresholdMs}`;
+          if (target.closest(selector)) {
+            // Process all thresholds for this selector
+            for (const minThresholdMs of thresholds) {
+              const interactionKey = `${selector}:focus:${minThresholdMs}`;
 
-            if (this.firedUserInteractions.has(interactionKey)) {
-              return;
-            }
+              if (this.firedUserInteractions.has(interactionKey)) {
+                continue;
+              }
 
-            // Clear any existing timeout for this element
-            const existingTimeout = this.focusTimeouts.get(target);
-            if (existingTimeout) {
-              this.globalScope.clearTimeout(existingTimeout);
-            }
+              // Get or create timeout map for this element
+              let timeoutMap = this.focusTimeouts.get(target);
+              if (!timeoutMap) {
+                timeoutMap = new Map();
+                this.focusTimeouts.set(target, timeoutMap);
+              }
 
-            const fireFocusTrigger = () => {
-              this.firedUserInteractions.add(interactionKey);
-              this.messageBus.publish('user_interaction', {
-                selector,
-                interactionType: 'focus',
-              });
-              this.focusTimeouts.delete(target);
-            };
+              // Clear any existing timeout for this specific selector+threshold
+              const timeoutKey = `${selector}\0${minThresholdMs}`;
+              const existingTimeout = timeoutMap.get(timeoutKey);
+              if (existingTimeout) {
+                this.globalScope.clearTimeout(existingTimeout);
+              }
 
-            if (minThresholdMs) {
-              const timeout = this.globalScope.setTimeout(
-                fireFocusTrigger,
-                minThresholdMs,
-              );
-              this.focusTimeouts.set(target, timeout);
-            } else {
-              fireFocusTrigger();
+              const fireFocusTrigger = () => {
+                this.firedUserInteractions.add(interactionKey);
+                this.messageBus.publish('user_interaction', {
+                  selector,
+                  interactionType: 'focus',
+                });
+                timeoutMap?.delete(timeoutKey);
+              };
+
+              if (minThresholdMs) {
+                const timeout = this.globalScope.setTimeout(
+                  fireFocusTrigger,
+                  minThresholdMs,
+                );
+                timeoutMap.set(timeoutKey, timeout);
+              } else {
+                fireFocusTrigger();
+              }
             }
             break;
           }
@@ -726,9 +756,12 @@ export class SubscriptionManager {
       const target = event.target as Element;
       if (!target) return;
 
-      const timeout = this.focusTimeouts.get(target);
-      if (timeout) {
-        this.globalScope.clearTimeout(timeout);
+      const timeoutMap = this.focusTimeouts.get(target);
+      if (timeoutMap) {
+        // Clear all timeouts for this element
+        for (const timeout of timeoutMap.values()) {
+          this.globalScope.clearTimeout(timeout);
+        }
         this.focusTimeouts.delete(target);
       }
     };
