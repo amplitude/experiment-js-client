@@ -41,7 +41,7 @@ export class SubscriptionManager {
   private lastNotifiedActivePages: PageObjects = {};
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
-  private elementAppearedState: Map<string, boolean> = new Map();
+  private elementAppearedState: Set<string> = new Set();
   private activeElementSelectors: Set<string> = new Set();
   private userInteractionListeners: Map<
     string,
@@ -297,6 +297,34 @@ export class SubscriptionManager {
     const mutationManager = new DebouncedMutationManager(
       this.globalScope.document.documentElement,
       (mutationList) => {
+        // Check each active selector and update state
+        for (const selector of Array.from(this.activeElementSelectors)) {
+          // For initial checks (empty mutationList), check all selectors
+          // For actual mutations, only check if mutation is relevant
+          const isRelevant =
+            mutationList.length === 0 ||
+            this.isMutationRelevantToSelector(mutationList, selector);
+
+          if (isRelevant) {
+            try {
+              const element = this.globalScope.document.querySelector(selector);
+              if (element) {
+                const style = window.getComputedStyle(element);
+                const hasAppeared =
+                  style.display !== 'none' && style.visibility !== 'hidden';
+
+                if (hasAppeared) {
+                  this.elementAppearedState.add(selector);
+                  this.activeElementSelectors.delete(selector);
+                }
+              }
+            } catch (e) {
+              // Invalid selector, skip
+            }
+          }
+        }
+
+        // Publish event with mutationList for other subscribers (e.g., visibility publisher)
         this.messageBus.publish('element_appeared', { mutationList });
       },
       filters,
@@ -336,9 +364,7 @@ export class SubscriptionManager {
                   this.intersectionObservers.delete(observerKey);
 
                   // Publish element_visible event
-                  this.messageBus.publish('element_visible', {
-                    mutationList: [],
-                  });
+                  this.messageBus.publish('element_visible');
                 }
               });
             },
@@ -350,9 +376,13 @@ export class SubscriptionManager {
           this.intersectionObservers.set(observerKey, observer);
 
           // Observe the element if it exists
-          const element = this.globalScope.document.querySelector(selector);
-          if (element) {
-            observer.observe(element);
+          try {
+            const element = this.globalScope.document.querySelector(selector);
+            if (element) {
+              observer.observe(element);
+            }
+          } catch (e) {
+            // Invalid selector, skip
           }
         }
       }
@@ -374,9 +404,13 @@ export class SubscriptionManager {
           this.isMutationRelevantToSelector(mutationList, selector);
 
         if (isRelevant) {
-          const element = this.globalScope.document.querySelector(selector);
-          if (element) {
-            observer.observe(element);
+          try {
+            const element = this.globalScope.document.querySelector(selector);
+            if (element) {
+              observer.observe(element);
+            }
+          } catch (e) {
+            // Invalid selector, skip
           }
         }
       }
@@ -586,40 +620,8 @@ export class SubscriptionManager {
         const triggerValue = page.trigger_value as ElementAppearedTriggerValue;
         const selector = triggerValue.selector;
 
-        // Check if we've already marked this element as appeared
-        if (this.elementAppearedState.get(selector)) {
-          return true;
-        }
-
-        // Check if mutation is relevant to this selector before querying DOM
-        // Skip this check if mutationList is empty (initial check)
-        const elementAppearedMessage = message as ElementAppearedPayload;
-        if (
-          elementAppearedMessage.mutationList.length > 0 &&
-          !this.isMutationRelevantToSelector(
-            elementAppearedMessage.mutationList,
-            selector,
-          )
-        ) {
-          return false;
-        }
-
-        // Check if element exists and is not hidden
-        const element = this.globalScope.document.querySelector(selector);
-        if (element) {
-          const style = window.getComputedStyle(element);
-          const hasAppeared =
-            style.display !== 'none' && style.visibility !== 'hidden';
-
-          // Once it appears, remember it and remove from active checking
-          if (hasAppeared) {
-            this.elementAppearedState.set(selector, true);
-            this.activeElementSelectors.delete(selector);
-          }
-
-          return hasAppeared;
-        }
-        return false;
+        // State is managed by mutation callback, just check it
+        return this.elementAppearedState.has(selector);
       }
 
       case 'element_visible': {
