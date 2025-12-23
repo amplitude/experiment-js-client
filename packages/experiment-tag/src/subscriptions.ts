@@ -2,18 +2,18 @@ import { EvaluationEngine } from '@amplitude/experiment-core';
 
 import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
 import {
-  ElementAppearedPayload,
   ManualTriggerPayload,
+  ExitIntentPayload,
   MessageBus,
   MessagePayloads,
   MessageType,
-  UserInteractionPayload,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
 import {
   ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
   ManualTriggerValue,
+  ExitIntentTriggerValue,
   PageObject,
   PageObjects,
   UserInteractionTriggerValue,
@@ -49,6 +49,7 @@ export class SubscriptionManager {
   private focusTimeouts: WeakMap<Element, ReturnType<typeof setTimeout>> =
     new WeakMap();
   private userInteractionAbortController: AbortController | null = null;
+  private pageLoadTime: number = Date.now();
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -75,6 +76,7 @@ export class SubscriptionManager {
     this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
     this.setupUserInteractionPublisher();
+    this.setupExitIntentPublisher();
     this.setupPageObjectSubscriptions();
     this.setupUrlChangeReset();
     // Initial check for elements that already exist
@@ -192,6 +194,7 @@ export class SubscriptionManager {
       this.elementAppearedState.clear();
       this.firedUserInteractions.clear();
       this.activeElementSelectors.clear();
+      this.pageLoadTime = Date.now();
       const elementSelectors = this.getElementSelectors();
       elementSelectors.forEach((selector) =>
         this.activeElementSelectors.add(selector),
@@ -416,6 +419,61 @@ export class SubscriptionManager {
         }
       }
     });
+  };
+
+  private setupExitIntentPublisher = () => {
+    // Get all page objects that use exit_intent trigger
+    const pages = Object.values(this.pageObjects).flatMap((pages) =>
+      Object.values(pages).filter(
+        (page) => page.trigger_type === 'exit_intent',
+      ),
+    );
+
+    if (pages.length === 0) {
+      return;
+    }
+
+    // Get minimum time requirement (use lowest value so listener activates earliest)
+    let minTimeOnPageMs = 0;
+    for (const page of pages) {
+      const triggerValue = page.trigger_value as ExitIntentTriggerValue;
+      minTimeOnPageMs = Math.min(
+        minTimeOnPageMs,
+        triggerValue.minTimeOnPageMs ?? 0,
+      );
+    }
+
+    // Detect exit intent via mouse movement
+    const handleMouseLeave = (event: MouseEvent) => {
+      // Only trigger if:
+      // 1. Mouse Y position is near top of viewport (leaving towards browser chrome)
+      // 2. Mouse is leaving the document (relatedTarget is null)
+      // 3. Not already triggered
+      if (
+        event.clientY <= 50 && // 50px from top
+        event.relatedTarget === null
+      ) {
+        this.messageBus.publish('exit_intent', {
+          durationMs: Date.now() - this.pageLoadTime,
+        });
+      }
+    };
+
+    // Install listener after minimum time requirement
+    if (minTimeOnPageMs > 0) {
+      setTimeout(() => {
+        this.globalScope.document.addEventListener(
+          'mouseleave',
+          handleMouseLeave,
+        );
+      }, minTimeOnPageMs);
+    } else {
+      // Install immediately if no time requirement
+      this.globalScope.document.addEventListener(
+        'mouseleave',
+        handleMouseLeave,
+      );
+    }
   };
 
   private setupLocationChangePublisher = () => {
@@ -719,6 +777,15 @@ export class SubscriptionManager {
 
         // Check stored visibility state from IntersectionObserver
         return this.elementVisibilityState.get(observerKey) ?? false;
+      }
+
+      case 'exit_intent': {
+        const durationMs = (message as ExitIntentPayload).durationMs;
+        const triggerValue = page.trigger_value as ExitIntentTriggerValue;
+        return (
+          triggerValue.minTimeOnPageMs === undefined ||
+          durationMs >= triggerValue.minTimeOnPageMs
+        );
       }
 
       case 'user_interaction': {

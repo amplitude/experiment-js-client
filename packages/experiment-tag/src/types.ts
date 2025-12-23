@@ -53,6 +53,10 @@ export interface UserInteractionTriggerValue {
   minThresholdMs?: number;
 }
 
+export interface ExitIntentTriggerValue {
+  minTimeOnPageMs?: number;
+}
+
 export type PageObject = {
   id: string;
   name: string;
@@ -63,6 +67,7 @@ export type PageObject = {
     | ElementVisibleTriggerValue
     | ManualTriggerValue
     | UserInteractionTriggerValue
+    | ExitIntentTriggerValue
     | Record<string, unknown>;
 };
 
