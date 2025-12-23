@@ -9,6 +9,7 @@ import {
   AnalyticsEventPayload,
   MessageType,
   TimeOnPagePayload,
+  ScrolledToPayload,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
 import {
@@ -20,6 +21,7 @@ import {
   PageObjects,
   UserInteractionTriggerValue,
   TimeOnPageTriggerValue,
+  ScrolledToTriggerValue,
 } from './types';
 
 const evaluationEngine = new EvaluationEngine();
@@ -46,6 +48,9 @@ export class SubscriptionManager {
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
   private activeElementSelectors: Set<string> = new Set();
+  private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
+  private scrolledToElementState: Map<string, boolean> = new Map();
+  private maxScrollPercentage = 0;
   private timeOnPageTimeouts: Record<number, ReturnType<typeof setTimeout>> =
     {};
   private visibilityChangeHandler: (() => void) | null = null;
@@ -83,6 +88,7 @@ export class SubscriptionManager {
     this.setupVisibilityPublisher();
     this.setupUserInteractionPublisher();
     this.setupExitIntentPublisher();
+    this.setupScrolledToPublisher();
     this.setupPageObjectSubscriptions();
     // Initial check for elements that already exist
     this.checkInitialElements();
@@ -792,6 +798,155 @@ export class SubscriptionManager {
     );
   };
 
+  private setupScrolledToPublisher = () => {
+    // Check if we have any scrolled_to triggers
+    let hasPercentTrigger = false;
+    let hasElementTrigger = false;
+    const pages = Object.values(this.pageObjects).flatMap((pages) =>
+      Object.values(pages).filter(
+        (page) => page.trigger_type === 'scrolled_to',
+      ),
+    );
+
+    for (const page of pages) {
+      if (page.trigger_type === 'scrolled_to') {
+        const triggerValue = page.trigger_value as ScrolledToTriggerValue;
+        if (triggerValue.mode === 'percent') {
+          hasPercentTrigger = true;
+        } else if (triggerValue.mode === 'element') {
+          hasElementTrigger = true;
+        }
+      }
+    }
+
+    // Setup percentage-based scroll listener if needed
+    if (hasPercentTrigger) {
+      let rafId: number | null = null;
+
+      const handleScroll = () => {
+        const scrollPercentage = this.calculateScrollPercentage();
+        // Track maximum scroll percentage reached
+        if (scrollPercentage > this.maxScrollPercentage) {
+          this.maxScrollPercentage = scrollPercentage;
+          this.messageBus.publish('scrolled_to', {});
+        }
+      };
+
+      const throttledScroll = () => {
+        // Cancel any pending animation frame
+        if (rafId !== null) {
+          return;
+        }
+
+        // Schedule the handler to run on the next animation frame
+        rafId = this.globalScope.requestAnimationFrame(() => {
+          handleScroll();
+          rafId = null;
+        });
+      };
+
+      this.globalScope.addEventListener('scroll', throttledScroll, {
+        passive: true,
+      });
+
+      // Initial check
+      handleScroll();
+    }
+
+    // Setup IntersectionObserver for element-based triggers
+    if (hasElementTrigger) {
+      for (const page of pages) {
+        if (page.trigger_type === 'scrolled_to') {
+          const triggerValue = page.trigger_value as ScrolledToTriggerValue;
+
+          if (triggerValue.mode === 'element') {
+            const selector = triggerValue.selector;
+            const offsetPx = triggerValue.offsetPx || 0;
+            // Use null byte as delimiter
+            const observerKey = `${selector}\0${offsetPx}`;
+
+            // Skip if we already have an observer for this selector + offset
+            if (this.scrolledToObservers.has(observerKey)) {
+              continue;
+            }
+
+            // Create root margin based on offset
+            // Negative bottom margin means trigger when element is offsetPx above viewport bottom
+            const rootMargin = `0px 0px -${offsetPx}px 0px`;
+
+            const observer = new IntersectionObserver(
+              (entries) => {
+                entries.forEach((entry) => {
+                  // Trigger when element enters viewport (considering offset)
+                  if (entry.isIntersecting) {
+                    this.scrolledToElementState.set(observerKey, true);
+                    observer.disconnect();
+                    this.scrolledToObservers.delete(observerKey);
+
+                    // Publish scrolled_to event
+                    this.messageBus.publish('scrolled_to', {});
+                  }
+                });
+              },
+              {
+                rootMargin,
+                threshold: 0,
+              },
+            );
+
+            this.scrolledToObservers.set(observerKey, observer);
+
+            // Observe all elements matching the selector
+            const elements =
+              this.globalScope.document.querySelectorAll(selector);
+            elements.forEach((element) => {
+              observer.observe(element);
+            });
+          }
+        }
+      }
+
+      // Re-check for elements on mutations (in case they appear later)
+      this.messageBus.subscribe('element_appeared', (payload) => {
+        const { mutationList } = payload;
+
+        for (const [
+          observerKey,
+          observer,
+        ] of this.scrolledToObservers.entries()) {
+          const [selector] = observerKey.split('\0');
+
+          // Check if mutation is relevant (or if it's the initial check with empty list)
+          const isRelevant =
+            mutationList.length === 0 ||
+            this.isMutationRelevantToSelector(mutationList, selector);
+
+          if (isRelevant) {
+            const elements =
+              this.globalScope.document.querySelectorAll(selector);
+            elements.forEach((element) => {
+              observer.observe(element);
+            });
+          }
+        }
+      });
+    }
+  };
+
+  private calculateScrollPercentage(): number {
+    const windowHeight = this.globalScope.innerHeight;
+    const documentHeight =
+      this.globalScope.document.documentElement.scrollHeight;
+    const scrollTop = this.globalScope.scrollY;
+    const scrollableHeight = documentHeight - windowHeight;
+
+    if (scrollableHeight <= 0) {
+      return 100;
+    }
+
+    return (scrollTop / scrollableHeight) * 100;
+  }
+
   private isPageObjectActive = <T extends MessageType>(
     page: PageObject,
     message: MessagePayloads[T],
@@ -886,6 +1041,20 @@ export class SubscriptionManager {
         const payload = message as TimeOnPagePayload;
         const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
         return payload.durationMs >= triggerValue.durationMs;
+      }
+
+      case 'scrolled_to': {
+        const triggerValue = page.trigger_value as ScrolledToTriggerValue;
+
+        if (triggerValue.mode === 'percent') {
+          return this.maxScrollPercentage >= triggerValue.percentage;
+        } else if (triggerValue.mode === 'element') {
+          const offset = triggerValue.offsetPx || 0;
+          const observerKey = `${triggerValue.selector}\0${offset}`;
+          return this.scrolledToElementState.get(observerKey) ?? false;
+        }
+
+        return false;
       }
 
       default:

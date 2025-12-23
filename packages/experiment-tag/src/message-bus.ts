@@ -19,6 +19,7 @@ export type UserInteractionPayload = {
   selector: string;
   interactionType: 'click' | 'hover' | 'focus';
 };
+export type ScrolledToPayload = Record<string, never>;
 
 export type MessagePayloads = {
   element_appeared: ElementAppearedPayload;
@@ -29,6 +30,7 @@ export type MessagePayloads = {
   time_on_page: TimeOnPagePayload;
   user_interaction: UserInteractionPayload;
   exit_intent: ExitIntentPayload;
+  scrolled_to: ScrolledToPayload;
 };
 
 export type MessageType = keyof MessagePayloads;

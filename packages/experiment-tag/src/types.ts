@@ -61,6 +61,21 @@ export interface TimeOnPageTriggerValue {
   durationMs: number;
 }
 
+export interface ScrolledToElementConfig {
+  mode: 'element';
+  selector: string;
+  offsetPx?: number;
+}
+
+export interface ScrolledToPercentConfig {
+  mode: 'percent';
+  percentage: number;
+}
+
+export type ScrolledToTriggerValue =
+  | ScrolledToElementConfig
+  | ScrolledToPercentConfig;
+
 export type PageObject = {
   id: string;
   name: string;
@@ -73,6 +88,7 @@ export type PageObject = {
     | TimeOnPageTriggerValue
     | UserInteractionTriggerValue
     | ExitIntentTriggerValue
+    | ScrolledToTriggerValue
     | Record<string, unknown>;
 };
 
