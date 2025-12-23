@@ -45,6 +45,7 @@ export class SubscriptionManager {
   private activeElementSelectors: Set<string> = new Set();
   private timeOnPageTimeouts: Record<number, ReturnType<typeof setTimeout>> =
     {};
+  private visibilityChangeHandler: (() => void) | null = null;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -487,7 +488,15 @@ export class SubscriptionManager {
   };
 
   private setupVisibilityChangeHandler = () => {
-    this.globalScope.document.addEventListener('visibilitychange', () => {
+    // Remove existing listener if it exists
+    if (this.visibilityChangeHandler) {
+      this.globalScope.document.removeEventListener(
+        'visibilitychange',
+        this.visibilityChangeHandler,
+      );
+    }
+
+    this.visibilityChangeHandler = () => {
       if (this.globalScope.document.hidden) {
         // Tab hidden: clear all timeouts
         Object.values(this.timeOnPageTimeouts).forEach(clearTimeout);
@@ -498,7 +507,12 @@ export class SubscriptionManager {
         );
         this.setUpTimeouts(durations);
       }
-    });
+    };
+
+    this.globalScope.document.addEventListener(
+      'visibilitychange',
+      this.visibilityChangeHandler,
+    );
   };
 
   private isPageObjectActive = <T extends MessageType>(
