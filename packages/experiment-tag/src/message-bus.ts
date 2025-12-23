@@ -1,10 +1,6 @@
-export interface EventProperties {
-  [k: string]: unknown;
-}
-
 export interface AnalyticsEvent {
   event_type: string;
-  event_properties: EventProperties;
+  event_properties: Record<string, unknown>;
 }
 
 type Subscriber<T extends MessageType> = {
