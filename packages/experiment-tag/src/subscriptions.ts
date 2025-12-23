@@ -6,10 +6,9 @@ import {
   ExitIntentPayload,
   MessageBus,
   MessagePayloads,
-  ElementAppearedPayload,
-  ManualTriggerPayload,
   AnalyticsEventPayload,
   MessageType,
+  TimeOnPagePayload,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
 import {
@@ -20,6 +19,7 @@ import {
   PageObject,
   PageObjects,
   UserInteractionTriggerValue,
+  TimeOnPageTriggerValue,
 } from './types';
 
 const evaluationEngine = new EvaluationEngine();
@@ -46,6 +46,9 @@ export class SubscriptionManager {
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
   private activeElementSelectors: Set<string> = new Set();
+  private timeOnPageTimeouts: Record<number, ReturnType<typeof setTimeout>> =
+    {};
+  private visibilityChangeHandler: (() => void) | null = null;
   private firedUserInteractions: Set<string> = new Set();
   private hoverTimeouts: WeakMap<Element, ReturnType<typeof setTimeout>> =
     new WeakMap();
@@ -81,9 +84,11 @@ export class SubscriptionManager {
     this.setupUserInteractionPublisher();
     this.setupExitIntentPublisher();
     this.setupPageObjectSubscriptions();
-    this.setupUrlChangeReset();
     // Initial check for elements that already exist
     this.checkInitialElements();
+    this.setupTimeOnPagePublisher();
+    this.setupVisibilityChangeHandler();
+    this.setupUrlChangeReset();
   };
 
   /**
@@ -205,6 +210,10 @@ export class SubscriptionManager {
       this.setupVisibilityPublisher();
       this.setupUserInteractionPublisher();
       this.checkInitialElements();
+
+      // Reset time on page state
+      Object.values(this.timeOnPageTimeouts).forEach(clearTimeout);
+      this.setupTimeOnPagePublisher();
     });
   };
 
@@ -726,6 +735,63 @@ export class SubscriptionManager {
     });
   };
 
+  private setupTimeOnPagePublisher = () => {
+    // Clear any existing timeouts first
+    Object.values(this.timeOnPageTimeouts).forEach(clearTimeout);
+    this.timeOnPageTimeouts = {};
+
+    // Collect unique duration thresholds
+    const durations = new Set<number>();
+    for (const pages of Object.values(this.pageObjects)) {
+      for (const page of Object.values(pages)) {
+        if (page.trigger_type === 'time_on_page') {
+          const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
+          durations.add(triggerValue.durationMs);
+        }
+      }
+    }
+
+    // Start timers for each unique duration
+    this.setUpTimeouts(durations);
+  };
+
+  private setUpTimeouts = (durations: Set<number>) => {
+    durations.forEach((durationMs) => {
+      this.timeOnPageTimeouts[durationMs] = this.globalScope.setTimeout(() => {
+        this.messageBus.publish('time_on_page', { durationMs });
+        delete this.timeOnPageTimeouts[durationMs];
+      }, durationMs);
+    });
+  };
+
+  private setupVisibilityChangeHandler = () => {
+    // Remove existing listener if it exists
+    if (this.visibilityChangeHandler) {
+      this.globalScope.document.removeEventListener(
+        'visibilitychange',
+        this.visibilityChangeHandler,
+      );
+    }
+
+    this.visibilityChangeHandler = () => {
+      if (this.globalScope.document.hidden) {
+        // Tab hidden: clear all timeouts
+        Object.values(this.timeOnPageTimeouts).forEach(clearTimeout);
+      } else {
+        // Tab visible: restart timers
+        const durations = new Set(
+          Object.keys(this.timeOnPageTimeouts).map(Number),
+        );
+        this.setUpTimeouts(durations);
+      }
+    };
+
+    this.globalScope.document.addEventListener(
+      'visibilitychange',
+      this.visibilityChangeHandler,
+    );
+  };
+
   private isPageObjectActive = <T extends MessageType>(
     page: PageObject,
     message: MessagePayloads[T],
@@ -814,6 +880,12 @@ export class SubscriptionManager {
               }`
             : `${triggerValue.selector}:${triggerValue.interactionType}`;
         return this.firedUserInteractions.has(interactionKey);
+      }
+
+      case 'time_on_page': {
+        const payload = message as TimeOnPagePayload;
+        const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
+        return payload.durationMs >= triggerValue.durationMs;
       }
 
       default:
