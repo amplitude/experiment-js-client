@@ -1,10 +1,6 @@
-export interface EventProperties {
-  [k: string]: unknown;
-}
-
 export interface AnalyticsEvent {
   event_type: string;
-  event_properties: EventProperties;
+  event_properties: Record<string, unknown>;
 }
 
 type Subscriber<T extends MessageType> = {
@@ -17,6 +13,12 @@ export type ElementVisiblePayload = { mutationList: MutationRecord[] };
 export type AnalyticsEventPayload = AnalyticsEvent;
 export type ManualTriggerPayload = { name: string };
 export type UrlChangePayload = { updateActivePages?: boolean };
+export type TimeOnPagePayload = { durationMs: number };
+export type ExitIntentPayload = { durationMs: number };
+export type UserInteractionPayload = {
+  selector: string;
+  interactionType: 'click' | 'hover' | 'focus';
+};
 export type ScrolledToPayload = Record<string, never>;
 
 export type MessagePayloads = {
@@ -25,6 +27,9 @@ export type MessagePayloads = {
   url_change: UrlChangePayload;
   analytics_event: AnalyticsEventPayload;
   manual: ManualTriggerPayload;
+  time_on_page: TimeOnPagePayload;
+  user_interaction: UserInteractionPayload;
+  exit_intent: ExitIntentPayload;
   scrolled_to: ScrolledToPayload;
 };
 
