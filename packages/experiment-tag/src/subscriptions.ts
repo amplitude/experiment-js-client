@@ -6,8 +6,6 @@ import {
   ExitIntentPayload,
   MessageBus,
   MessagePayloads,
-  ElementAppearedPayload,
-  ManualTriggerPayload,
   AnalyticsEventPayload,
   MessageType,
   TimeOnPagePayload,
