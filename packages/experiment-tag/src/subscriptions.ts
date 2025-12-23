@@ -464,41 +464,74 @@ export class SubscriptionManager {
   ): boolean => {
     try {
       const elements = this.globalScope.document.querySelectorAll(selector);
+      if (elements.length === 0) return false;
 
       elements.forEach((element) => {
-        let interactionStartTime: number | null = null;
+        let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+        let focusTimeout: ReturnType<typeof setTimeout> | null = null;
 
         const handler = (event: Event) => {
           if (interactionType === 'hover') {
+            const interactionKey = `${selector}:${interactionType}:${
+              minThresholdMs || 0
+            }`;
+
             if (event.type === 'mouseenter') {
-              interactionStartTime = Date.now();
+              const fireHoverTrigger = () => {
+                this.firedUserInteractions.add(interactionKey);
+                this.messageBus.publish('user_interaction', {
+                  selector,
+                  interactionType,
+                });
+                hoverTimeout = null;
+              };
+
+              // If there's a threshold, wait for it; otherwise fire immediately
+              if (minThresholdMs) {
+                hoverTimeout = this.globalScope.setTimeout(
+                  fireHoverTrigger,
+                  minThresholdMs,
+                );
+              } else {
+                fireHoverTrigger();
+              }
             } else if (event.type === 'mouseleave') {
-              if (interactionStartTime !== null) {
-                const interactionDuration = Date.now() - interactionStartTime;
-                if (
-                  !minThresholdMs ||
-                  interactionDuration >= minThresholdMs
-                ) {
-                  const interactionKey = `${selector}:${interactionType}:${
-                    minThresholdMs || 0
-                  }`;
-                  this.firedUserInteractions.add(interactionKey);
-                  this.messageBus.publish('user_interaction', {
-                    selector,
-                    interactionType,
-                  });
-                }
-                interactionStartTime = null;
+              // User left before threshold was met - cancel the timeout
+              if (hoverTimeout !== null) {
+                this.globalScope.clearTimeout(hoverTimeout);
+                hoverTimeout = null;
               }
             }
           } else if (interactionType === 'focus') {
+            const interactionKey = `${selector}:${interactionType}:${
+              minThresholdMs || 0
+            }`;
+
             if (event.type === 'focus') {
-              const interactionKey = `${selector}:${interactionType}`;
-              this.firedUserInteractions.add(interactionKey);
-              this.messageBus.publish('user_interaction', {
-                selector,
-                interactionType,
-              });
+              const fireFocusTrigger = () => {
+                this.firedUserInteractions.add(interactionKey);
+                this.messageBus.publish('user_interaction', {
+                  selector,
+                  interactionType,
+                });
+                focusTimeout = null;
+              };
+
+              // If there's a threshold, wait for it; otherwise fire immediately
+              if (minThresholdMs) {
+                focusTimeout = this.globalScope.setTimeout(
+                  fireFocusTrigger,
+                  minThresholdMs,
+                );
+              } else {
+                fireFocusTrigger();
+              }
+            } else if (event.type === 'blur') {
+              // User lost focus before threshold was met - cancel the timeout
+              if (focusTimeout !== null) {
+                this.globalScope.clearTimeout(focusTimeout);
+                focusTimeout = null;
+              }
             }
           } else {
             const interactionKey = `${selector}:${interactionType}`;
@@ -528,9 +561,13 @@ export class SubscriptionManager {
           this.userInteractionListeners.set(key, listeners);
         } else if (interactionType === 'focus') {
           element.addEventListener('focus', handler);
+          element.addEventListener('blur', handler);
           const key = `${selector}:${interactionType}`;
           const listeners = this.userInteractionListeners.get(key) || [];
-          listeners.push({ element, handler, interactionType: 'focus' });
+          listeners.push(
+            { element, handler, interactionType: 'focus' },
+            { element, handler, interactionType: 'blur' },
+          );
           this.userInteractionListeners.set(key, listeners);
         }
       });
@@ -636,15 +673,14 @@ export class SubscriptionManager {
 
       case 'user_interaction': {
         const triggerValue = page.trigger_value as UserInteractionTriggerValue;
-        // Include minThresholdMs in key for hover to differentiate between different durations
+        // Include minThresholdMs in key for hover and focus to differentiate between different durations
         const interactionKey =
-          triggerValue.interactionType === 'hover'
+          triggerValue.interactionType === 'hover' ||
+          triggerValue.interactionType === 'focus'
             ? `${triggerValue.selector}:${triggerValue.interactionType}:${
                 triggerValue.minThresholdMs || 0
               }`
             : `${triggerValue.selector}:${triggerValue.interactionType}`;
-
-        // Check if this interaction has already fired
         return this.firedUserInteractions.has(interactionKey);
       }
 
