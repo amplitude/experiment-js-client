@@ -39,7 +39,7 @@ export class SubscriptionManager {
   private lastNotifiedActivePages: PageObjects = {};
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
-  private elementAppearedState: Map<string, boolean> = new Map();
+  private elementAppearedState: Set<string> = new Set();
   private activeElementSelectors: Set<string> = new Set();
 
   constructor(
@@ -296,16 +296,20 @@ export class SubscriptionManager {
             this.isMutationRelevantToSelector(mutationList, selector);
 
           if (isRelevant) {
-            const element = this.globalScope.document.querySelector(selector);
-            if (element) {
-              const style = window.getComputedStyle(element);
-              const hasAppeared =
-                style.display !== 'none' && style.visibility !== 'hidden';
+            try {
+              const element = this.globalScope.document.querySelector(selector);
+              if (element) {
+                const style = window.getComputedStyle(element);
+                const hasAppeared =
+                  style.display !== 'none' && style.visibility !== 'hidden';
 
-              if (hasAppeared) {
-                this.elementAppearedState.set(selector, true);
-                this.activeElementSelectors.delete(selector);
+                if (hasAppeared) {
+                  this.elementAppearedState.add(selector);
+                  this.activeElementSelectors.delete(selector);
+                }
               }
+            } catch (e) {
+              // Invalid selector, skip
             }
           }
         }
@@ -362,9 +366,13 @@ export class SubscriptionManager {
           this.intersectionObservers.set(observerKey, observer);
 
           // Observe the element if it exists
-          const element = this.globalScope.document.querySelector(selector);
-          if (element) {
-            observer.observe(element);
+          try {
+            const element = this.globalScope.document.querySelector(selector);
+            if (element) {
+              observer.observe(element);
+            }
+          } catch (e) {
+            // Invalid selector, skip
           }
         }
       }
@@ -386,9 +394,13 @@ export class SubscriptionManager {
           this.isMutationRelevantToSelector(mutationList, selector);
 
         if (isRelevant) {
-          const element = this.globalScope.document.querySelector(selector);
-          if (element) {
-            observer.observe(element);
+          try {
+            const element = this.globalScope.document.querySelector(selector);
+            if (element) {
+              observer.observe(element);
+            }
+          } catch (e) {
+            // Invalid selector, skip
           }
         }
       }
@@ -478,7 +490,7 @@ export class SubscriptionManager {
         const selector = triggerValue.selector;
 
         // State is managed by mutation callback, just check it
-        return this.elementAppearedState.get(selector) ?? false;
+        return this.elementAppearedState.has(selector);
       }
 
       case 'element_visible': {
