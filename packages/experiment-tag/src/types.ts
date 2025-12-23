@@ -45,6 +45,14 @@ export interface ManualTriggerValue {
   name: string;
 }
 
+export type UserInteractionType = 'click' | 'hover' | 'focus';
+
+export interface UserInteractionTriggerValue {
+  selector: string;
+  interactionType: UserInteractionType;
+  minThresholdMs?: number;
+}
+
 export type PageObject = {
   id: string;
   name: string;
@@ -54,6 +62,7 @@ export type PageObject = {
     | ElementAppearedTriggerValue
     | ElementVisibleTriggerValue
     | ManualTriggerValue
+    | UserInteractionTriggerValue
     | Record<string, unknown>;
 };
 

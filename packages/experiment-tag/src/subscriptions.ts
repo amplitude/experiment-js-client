@@ -2,11 +2,12 @@ import { EvaluationEngine } from '@amplitude/experiment-core';
 
 import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
 import {
-  MessageBus,
-  MessagePayloads,
   ElementAppearedPayload,
   ManualTriggerPayload,
+  MessageBus,
+  MessagePayloads,
   MessageType,
+  UserInteractionPayload,
 } from './message-bus';
 import { DebouncedMutationManager } from './mutation-manager';
 import {
@@ -15,6 +16,7 @@ import {
   ManualTriggerValue,
   PageObject,
   PageObjects,
+  UserInteractionTriggerValue,
 } from './types';
 
 const evaluationEngine = new EvaluationEngine();
@@ -41,6 +43,12 @@ export class SubscriptionManager {
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
   private activeElementSelectors: Set<string> = new Set();
+  private firedUserInteractions: Set<string> = new Set();
+  private hoverTimeouts: WeakMap<Element, ReturnType<typeof setTimeout>> =
+    new WeakMap();
+  private focusTimeouts: WeakMap<Element, ReturnType<typeof setTimeout>> =
+    new WeakMap();
+  private userInteractionAbortController: AbortController | null = null;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -66,6 +74,7 @@ export class SubscriptionManager {
     }
     this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
+    this.setupUserInteractionPublisher();
     this.setupPageObjectSubscriptions();
     this.setupUrlChangeReset();
     // Initial check for elements that already exist
@@ -181,12 +190,14 @@ export class SubscriptionManager {
     // Reset element state on URL navigation
     this.messageBus.subscribe('url_change', () => {
       this.elementAppearedState.clear();
+      this.firedUserInteractions.clear();
       this.activeElementSelectors.clear();
       const elementSelectors = this.getElementSelectors();
       elementSelectors.forEach((selector) =>
         this.activeElementSelectors.add(selector),
       );
       this.setupVisibilityPublisher();
+      this.setupUserInteractionPublisher();
       this.checkInitialElements();
     });
   };
@@ -447,6 +458,213 @@ export class SubscriptionManager {
     wrapHistoryMethods();
   };
 
+  private setupUserInteractionPublisher = () => {
+    // Abort all existing listeners at once
+    this.userInteractionAbortController?.abort();
+    this.userInteractionAbortController = new AbortController();
+    const { signal } = this.userInteractionAbortController;
+
+    // Collect all selectors grouped by interaction type
+    const clickSelectors = new Set<string>();
+    const hoverSelectors = new Map<string, number>(); // selector -> minThresholdMs
+    const focusSelectors = new Map<string, number>();
+
+    for (const pages of Object.values(this.pageObjects)) {
+      for (const page of Object.values(pages)) {
+        if (page.trigger_type === 'user_interaction') {
+          const triggerValue =
+            page.trigger_value as UserInteractionTriggerValue;
+          const { selector, interactionType, minThresholdMs } = triggerValue;
+
+          if (interactionType === 'click') {
+            clickSelectors.add(selector);
+          } else if (interactionType === 'hover') {
+            hoverSelectors.set(selector, minThresholdMs || 0);
+          } else if (interactionType === 'focus') {
+            focusSelectors.set(selector, minThresholdMs || 0);
+          }
+        }
+      }
+    }
+
+    // Set up document-level event delegation for each interaction type
+    if (clickSelectors.size > 0) {
+      this.setupClickDelegation(clickSelectors, signal);
+    }
+    if (hoverSelectors.size > 0) {
+      this.setupHoverDelegation(hoverSelectors, signal);
+    }
+    if (focusSelectors.size > 0) {
+      this.setupFocusDelegation(focusSelectors, signal);
+    }
+  };
+
+  private setupClickDelegation = (
+    selectors: Set<string>,
+    signal: AbortSignal,
+  ) => {
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target) return;
+
+      for (const selector of selectors) {
+        try {
+          if (target.matches(selector)) {
+            const interactionKey = `${selector}:click`;
+            if (!this.firedUserInteractions.has(interactionKey)) {
+              this.firedUserInteractions.add(interactionKey);
+              this.messageBus.publish('user_interaction', {
+                selector,
+                interactionType: 'click',
+              });
+            }
+            break;
+          }
+        } catch (e) {
+          // Invalid selector, skip
+        }
+      }
+    };
+
+    this.globalScope.document.addEventListener('click', handler, { signal });
+  };
+
+  private setupHoverDelegation = (
+    selectors: Map<string, number>,
+    signal: AbortSignal,
+  ) => {
+    const mouseoverHandler = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target) return;
+
+      for (const [selector, minThresholdMs] of selectors) {
+        try {
+          if (target.matches(selector)) {
+            const interactionKey = `${selector}:hover:${minThresholdMs}`;
+
+            if (this.firedUserInteractions.has(interactionKey)) {
+              return;
+            }
+
+            // Clear any existing timeout for this element
+            const existingTimeout = this.hoverTimeouts.get(target);
+            if (existingTimeout) {
+              this.globalScope.clearTimeout(existingTimeout);
+            }
+
+            const fireHoverTrigger = () => {
+              this.firedUserInteractions.add(interactionKey);
+              this.messageBus.publish('user_interaction', {
+                selector,
+                interactionType: 'hover',
+              });
+              this.hoverTimeouts.delete(target);
+            };
+
+            if (minThresholdMs) {
+              const timeout = this.globalScope.setTimeout(
+                fireHoverTrigger,
+                minThresholdMs,
+              );
+              this.hoverTimeouts.set(target, timeout);
+            } else {
+              fireHoverTrigger();
+            }
+            break;
+          }
+        } catch (e) {
+          // Invalid selector, skip
+        }
+      }
+    };
+
+    const mouseoutHandler = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target) return;
+
+      const timeout = this.hoverTimeouts.get(target);
+      if (timeout) {
+        this.globalScope.clearTimeout(timeout);
+        this.hoverTimeouts.delete(target);
+      }
+    };
+
+    this.globalScope.document.addEventListener('mouseover', mouseoverHandler, {
+      signal,
+    });
+    this.globalScope.document.addEventListener('mouseout', mouseoutHandler, {
+      signal,
+    });
+  };
+
+  private setupFocusDelegation = (
+    selectors: Map<string, number>,
+    signal: AbortSignal,
+  ) => {
+    const focusinHandler = (event: FocusEvent) => {
+      const target = event.target as Element;
+      if (!target) return;
+
+      for (const [selector, minThresholdMs] of selectors) {
+        try {
+          if (target.matches(selector)) {
+            const interactionKey = `${selector}:focus:${minThresholdMs}`;
+
+            if (this.firedUserInteractions.has(interactionKey)) {
+              return;
+            }
+
+            // Clear any existing timeout for this element
+            const existingTimeout = this.focusTimeouts.get(target);
+            if (existingTimeout) {
+              this.globalScope.clearTimeout(existingTimeout);
+            }
+
+            const fireFocusTrigger = () => {
+              this.firedUserInteractions.add(interactionKey);
+              this.messageBus.publish('user_interaction', {
+                selector,
+                interactionType: 'focus',
+              });
+              this.focusTimeouts.delete(target);
+            };
+
+            if (minThresholdMs) {
+              const timeout = this.globalScope.setTimeout(
+                fireFocusTrigger,
+                minThresholdMs,
+              );
+              this.focusTimeouts.set(target, timeout);
+            } else {
+              fireFocusTrigger();
+            }
+            break;
+          }
+        } catch (e) {
+          // Invalid selector, skip
+        }
+      }
+    };
+
+    const focusoutHandler = (event: FocusEvent) => {
+      const target = event.target as Element;
+      if (!target) return;
+
+      const timeout = this.focusTimeouts.get(target);
+      if (timeout) {
+        this.globalScope.clearTimeout(timeout);
+        this.focusTimeouts.delete(target);
+      }
+    };
+
+    this.globalScope.document.addEventListener('focusin', focusinHandler, {
+      signal,
+    });
+    this.globalScope.document.addEventListener('focusout', focusoutHandler, {
+      signal,
+    });
+  };
+
   private isPageObjectActive = <T extends MessageType>(
     page: PageObject,
     message: MessagePayloads[T],
@@ -501,6 +719,19 @@ export class SubscriptionManager {
 
         // Check stored visibility state from IntersectionObserver
         return this.elementVisibilityState.get(observerKey) ?? false;
+      }
+
+      case 'user_interaction': {
+        const triggerValue = page.trigger_value as UserInteractionTriggerValue;
+        // Include minThresholdMs in key for hover and focus to differentiate between different durations
+        const interactionKey =
+          triggerValue.interactionType === 'hover' ||
+          triggerValue.interactionType === 'focus'
+            ? `${triggerValue.selector}:${triggerValue.interactionType}:${
+                triggerValue.minThresholdMs || 0
+              }`
+            : `${triggerValue.selector}:${triggerValue.interactionType}`;
+        return this.firedUserInteractions.has(interactionKey);
       }
 
       default:
