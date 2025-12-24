@@ -46,7 +46,7 @@ export class SubscriptionManager {
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
-  private activeElementSelectors: Set<string> = new Set();
+  private targetedElementSelectors: Set<string> = new Set();
   private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
   private scrolledToElementState: Map<string, boolean> = new Map();
   private maxScrollPercentage = 0;
@@ -90,8 +90,8 @@ export class SubscriptionManager {
     this.setupScrolledToPublisher();
     this.setupPageObjectSubscriptions();
     // Initial check for elements that already exist
-    this.checkInitialElements();
     this.setupTimeOnPagePublisher();
+    this.checkInitialElements();
     this.setupVisibilityChangeHandler();
     this.setupUrlChangeReset();
   };
@@ -206,11 +206,11 @@ export class SubscriptionManager {
     this.messageBus.subscribe('url_change', () => {
       this.elementAppearedState.clear();
       this.firedUserInteractions.clear();
-      this.activeElementSelectors.clear();
+      this.targetedElementSelectors.clear();
       this.pageLoadTime = Date.now();
       const elementSelectors = this.getElementSelectors();
       elementSelectors.forEach((selector) =>
-        this.activeElementSelectors.add(selector),
+        this.targetedElementSelectors.add(selector),
       );
       this.setupVisibilityPublisher();
       this.setupUserInteractionPublisher();
@@ -242,6 +242,11 @@ export class SubscriptionManager {
           const selector = triggerValue.selector;
           if (selector) {
             selectors.add(selector);
+          }
+        } else if (page.trigger_type === 'scrolled_to') {
+          const triggerValue = page.trigger_value as ScrolledToTriggerValue;
+          if (triggerValue.mode === 'element' && triggerValue.selector) {
+            selectors.add(triggerValue.selector);
           }
         }
       }
@@ -298,17 +303,16 @@ export class SubscriptionManager {
   }
 
   private setupMutationObserverPublisher = () => {
-    this.activeElementSelectors = this.getElementSelectors();
+    this.targetedElementSelectors = this.getElementSelectors();
 
-    // Create filter function that checks against active selectors (dynamic)
-    // As elements appear and are removed from activeElementSelectors,
+    // Create filter function that checks against active selectors
     // fewer mutations will pass the filter, improving performance over time
     const filters =
-      this.activeElementSelectors.size > 0
+      this.targetedElementSelectors.size > 0
         ? [
             (mutation: MutationRecord) => {
               // Check against active selectors only (not already appeared)
-              return Array.from(this.activeElementSelectors).some((selector) =>
+              return Array.from(this.targetedElementSelectors).some((selector) =>
                 this.isMutationRelevantToSelector([mutation], selector),
               );
             },
@@ -319,7 +323,7 @@ export class SubscriptionManager {
       this.globalScope.document.documentElement,
       (mutationList) => {
         // Check each active selector and update state
-        for (const selector of Array.from(this.activeElementSelectors)) {
+        for (const selector of Array.from(this.targetedElementSelectors)) {
           // For initial checks (empty mutationList), check all selectors
           // For actual mutations, only check if mutation is relevant
           const isRelevant =
@@ -336,7 +340,6 @@ export class SubscriptionManager {
 
                 if (hasAppeared) {
                   this.elementAppearedState.add(selector);
-                  this.activeElementSelectors.delete(selector);
                 }
               }
             } catch (e) {
@@ -450,7 +453,6 @@ export class SubscriptionManager {
       return;
     }
 
-    // Get minimum time requirement (use lowest value so listener activates earliest)
     let minTimeOnPageMs = Infinity;
     for (const page of pages) {
       const triggerValue = page.trigger_value as ExitIntentTriggerValue;
@@ -591,7 +593,7 @@ export class SubscriptionManager {
       for (const selector of selectors) {
         try {
           if (target.closest(selector)) {
-            const interactionKey = `${selector}:click`;
+            const interactionKey = `${selector}\0click`;
             if (!this.firedUserInteractions.has(interactionKey)) {
               this.firedUserInteractions.add(interactionKey);
               this.messageBus.publish('user_interaction', {
@@ -610,11 +612,17 @@ export class SubscriptionManager {
     this.globalScope.document.addEventListener('click', handler, { signal });
   };
 
-  private setupHoverDelegation = (
+  private setupThresholdBasedDelegation = (
     selectors: Map<string, Set<number>>,
     signal: AbortSignal,
+    config: {
+      interactionType: 'hover' | 'focus';
+      startEvent: string;
+      endEvent: string;
+      timeoutStorage: WeakMap<Element, Map<string, ReturnType<typeof setTimeout>>>;
+    },
   ) => {
-    const mouseoverHandler = (event: MouseEvent) => {
+    const startHandler = (event: Event) => {
       const target = event.target as Element;
       if (!target) return;
 
@@ -623,17 +631,17 @@ export class SubscriptionManager {
           if (target.closest(selector)) {
             // Process all thresholds for this selector
             for (const minThresholdMs of thresholds) {
-              const interactionKey = `${selector}:hover:${minThresholdMs}`;
+              const interactionKey = `${selector}\0${config.interactionType}\0${minThresholdMs}`;
 
               if (this.firedUserInteractions.has(interactionKey)) {
                 continue;
               }
 
               // Get or create timeout map for this element
-              let timeoutMap = this.hoverTimeouts.get(target);
+              let timeoutMap = config.timeoutStorage.get(target);
               if (!timeoutMap) {
                 timeoutMap = new Map();
-                this.hoverTimeouts.set(target, timeoutMap);
+                config.timeoutStorage.set(target, timeoutMap);
               }
 
               // Clear any existing timeout for this specific selector+threshold
@@ -643,23 +651,23 @@ export class SubscriptionManager {
                 this.globalScope.clearTimeout(existingTimeout);
               }
 
-              const fireHoverTrigger = () => {
+              const fireTrigger = () => {
                 this.firedUserInteractions.add(interactionKey);
                 this.messageBus.publish('user_interaction', {
                   selector,
-                  interactionType: 'hover',
+                  interactionType: config.interactionType,
                 });
                 timeoutMap?.delete(timeoutKey);
               };
 
               if (minThresholdMs) {
                 const timeout = this.globalScope.setTimeout(
-                  fireHoverTrigger,
+                  fireTrigger,
                   minThresholdMs,
                 );
                 timeoutMap.set(timeoutKey, timeout);
               } else {
-                fireHoverTrigger();
+                fireTrigger();
               }
             }
             break;
@@ -670,25 +678,37 @@ export class SubscriptionManager {
       }
     };
 
-    const mouseoutHandler = (event: MouseEvent) => {
+    const endHandler = (event: Event) => {
       const target = event.target as Element;
       if (!target) return;
 
-      const timeoutMap = this.hoverTimeouts.get(target);
+      const timeoutMap = config.timeoutStorage.get(target);
       if (timeoutMap) {
         // Clear all timeouts for this element
         for (const timeout of timeoutMap.values()) {
           this.globalScope.clearTimeout(timeout);
         }
-        this.hoverTimeouts.delete(target);
+        config.timeoutStorage.delete(target);
       }
     };
 
-    this.globalScope.document.addEventListener('mouseover', mouseoverHandler, {
+    this.globalScope.document.addEventListener(config.startEvent, startHandler, {
       signal,
     });
-    this.globalScope.document.addEventListener('mouseout', mouseoutHandler, {
+    this.globalScope.document.addEventListener(config.endEvent, endHandler, {
       signal,
+    });
+  };
+
+  private setupHoverDelegation = (
+    selectors: Map<string, Set<number>>,
+    signal: AbortSignal,
+  ) => {
+    this.setupThresholdBasedDelegation(selectors, signal, {
+      interactionType: 'hover',
+      startEvent: 'mouseover',
+      endEvent: 'mouseout',
+      timeoutStorage: this.hoverTimeouts,
     });
   };
 
@@ -696,81 +716,11 @@ export class SubscriptionManager {
     selectors: Map<string, Set<number>>,
     signal: AbortSignal,
   ) => {
-    const focusinHandler = (event: FocusEvent) => {
-      const target = event.target as Element;
-      if (!target) return;
-
-      for (const [selector, thresholds] of selectors) {
-        try {
-          if (target.closest(selector)) {
-            // Process all thresholds for this selector
-            for (const minThresholdMs of thresholds) {
-              const interactionKey = `${selector}:focus:${minThresholdMs}`;
-
-              if (this.firedUserInteractions.has(interactionKey)) {
-                continue;
-              }
-
-              // Get or create timeout map for this element
-              let timeoutMap = this.focusTimeouts.get(target);
-              if (!timeoutMap) {
-                timeoutMap = new Map();
-                this.focusTimeouts.set(target, timeoutMap);
-              }
-
-              // Clear any existing timeout for this specific selector+threshold
-              const timeoutKey = `${selector}\0${minThresholdMs}`;
-              const existingTimeout = timeoutMap.get(timeoutKey);
-              if (existingTimeout) {
-                this.globalScope.clearTimeout(existingTimeout);
-              }
-
-              const fireFocusTrigger = () => {
-                this.firedUserInteractions.add(interactionKey);
-                this.messageBus.publish('user_interaction', {
-                  selector,
-                  interactionType: 'focus',
-                });
-                timeoutMap?.delete(timeoutKey);
-              };
-
-              if (minThresholdMs) {
-                const timeout = this.globalScope.setTimeout(
-                  fireFocusTrigger,
-                  minThresholdMs,
-                );
-                timeoutMap.set(timeoutKey, timeout);
-              } else {
-                fireFocusTrigger();
-              }
-            }
-            break;
-          }
-        } catch (e) {
-          // Invalid selector, skip
-        }
-      }
-    };
-
-    const focusoutHandler = (event: FocusEvent) => {
-      const target = event.target as Element;
-      if (!target) return;
-
-      const timeoutMap = this.focusTimeouts.get(target);
-      if (timeoutMap) {
-        // Clear all timeouts for this element
-        for (const timeout of timeoutMap.values()) {
-          this.globalScope.clearTimeout(timeout);
-        }
-        this.focusTimeouts.delete(target);
-      }
-    };
-
-    this.globalScope.document.addEventListener('focusin', focusinHandler, {
-      signal,
-    });
-    this.globalScope.document.addEventListener('focusout', focusoutHandler, {
-      signal,
+    this.setupThresholdBasedDelegation(selectors, signal, {
+      interactionType: 'focus',
+      startEvent: 'focusin',
+      endEvent: 'focusout',
+      timeoutStorage: this.focusTimeouts,
     });
   };
 
@@ -1063,10 +1013,10 @@ export class SubscriptionManager {
         const interactionKey =
           triggerValue.interactionType === 'hover' ||
           triggerValue.interactionType === 'focus'
-            ? `${triggerValue.selector}:${triggerValue.interactionType}:${
+            ? `${triggerValue.selector}\0${triggerValue.interactionType}\0${
                 triggerValue.minThresholdMs || 0
               }`
-            : `${triggerValue.selector}:${triggerValue.interactionType}`;
+            : `${triggerValue.selector}\0${triggerValue.interactionType}`;
         return this.firedUserInteractions.has(interactionKey);
       }
 
