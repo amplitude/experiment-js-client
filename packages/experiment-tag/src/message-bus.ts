@@ -18,6 +18,7 @@ export type ExitIntentPayload = { durationMs: number };
 export type UserInteractionPayload = {
   selector: string;
   interactionType: 'click' | 'hover' | 'focus';
+  minThresholdMs?: number;
 };
 export type ScrolledToPayload = Record<string, never>;
 

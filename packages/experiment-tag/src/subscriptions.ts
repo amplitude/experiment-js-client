@@ -366,7 +366,7 @@ export class SubscriptionManager {
           const visibilityRatio = triggerValue.visibilityRatio ?? 0;
 
           // Create unique key for this selector + threshold combination
-          const observerKey = `${selector}:${visibilityRatio}`;
+          const observerKey = `${selector}\0${visibilityRatio}`;
 
           // Skip if we already have an observer for this selector + threshold
           if (this.intersectionObservers.has(observerKey)) {
@@ -628,7 +628,8 @@ export class SubscriptionManager {
 
       for (const [selector, thresholds] of selectors) {
         try {
-          if (target.closest(selector)) {
+          const matchedAncestor = target.closest(selector);
+          if (matchedAncestor) {
             // Process all thresholds for this selector
             for (const minThresholdMs of thresholds) {
               const interactionKey = `${selector}\0${config.interactionType}\0${minThresholdMs}`;
@@ -637,11 +638,11 @@ export class SubscriptionManager {
                 continue;
               }
 
-              // Get or create timeout map for this element
-              let timeoutMap = config.timeoutStorage.get(target);
+              // Get or create timeout map for the matched ancestor (not target)
+              let timeoutMap = config.timeoutStorage.get(matchedAncestor);
               if (!timeoutMap) {
                 timeoutMap = new Map();
-                config.timeoutStorage.set(target, timeoutMap);
+                config.timeoutStorage.set(matchedAncestor, timeoutMap);
               }
 
               // Clear any existing timeout for this specific selector+threshold
@@ -682,13 +683,30 @@ export class SubscriptionManager {
       const target = event.target as Element;
       if (!target) return;
 
-      const timeoutMap = config.timeoutStorage.get(target);
-      if (timeoutMap) {
-        // Clear all timeouts for this element
-        for (const timeout of timeoutMap.values()) {
-          this.globalScope.clearTimeout(timeout);
+      // Check relatedTarget to determine if we actually left the ancestor
+      const relatedTarget = (event as MouseEvent | FocusEvent).relatedTarget as Element | null;
+
+      for (const [selector] of selectors) {
+        try {
+          const matchedAncestor = target.closest(selector);
+          if (matchedAncestor) {
+            // Only clear timeouts if we're actually leaving the matched ancestor
+            // (not just moving to a child element)
+            if (!relatedTarget || !matchedAncestor.contains(relatedTarget)) {
+              const timeoutMap = config.timeoutStorage.get(matchedAncestor);
+              if (timeoutMap) {
+                // Clear all timeouts for this ancestor
+                for (const timeout of timeoutMap.values()) {
+                  this.globalScope.clearTimeout(timeout);
+                }
+                config.timeoutStorage.delete(matchedAncestor);
+              }
+            }
+            break;
+          }
+        } catch (e) {
+          // Invalid selector, skip
         }
-        config.timeoutStorage.delete(target);
       }
     };
 
@@ -992,7 +1010,7 @@ export class SubscriptionManager {
         const triggerValue = page.trigger_value as ElementVisibleTriggerValue;
         const selector = triggerValue.selector;
         const visibilityRatio = triggerValue.visibilityRatio ?? 0;
-        const observerKey = `${selector}:${visibilityRatio}`;
+        const observerKey = `${selector}\0${visibilityRatio}`;
 
         // Check stored visibility state from IntersectionObserver
         return this.elementVisibilityState.get(observerKey) ?? false;
