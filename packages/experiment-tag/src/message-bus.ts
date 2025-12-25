@@ -9,17 +9,13 @@ type Subscriber<T extends MessageType> = {
 };
 
 export type ElementAppearedPayload = { mutationList: MutationRecord[] };
-export type ElementVisiblePayload = { mutationList: MutationRecord[] };
+export type ElementVisiblePayload = Record<string, never>;
 export type AnalyticsEventPayload = AnalyticsEvent;
 export type ManualTriggerPayload = { name: string };
 export type UrlChangePayload = { updateActivePages?: boolean };
 export type TimeOnPagePayload = { durationMs: number };
 export type ExitIntentPayload = { durationMs: number };
-export type UserInteractionPayload = {
-  selector: string;
-  interactionType: 'click' | 'hover' | 'focus';
-  minThresholdMs?: number;
-};
+export type UserInteractionPayload = Record<string, never>;
 export type ScrolledToPayload = Record<string, never>;
 
 export type MessagePayloads = {

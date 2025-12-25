@@ -54,10 +54,14 @@ export class SubscriptionManager {
     {};
   private visibilityChangeHandler: (() => void) | null = null;
   private firedUserInteractions: Set<string> = new Set();
-  private hoverTimeouts: WeakMap<Element, Map<string, ReturnType<typeof setTimeout>>> =
-    new WeakMap();
-  private focusTimeouts: WeakMap<Element, Map<string, ReturnType<typeof setTimeout>>> =
-    new WeakMap();
+  private hoverTimeouts: WeakMap<
+    Element,
+    Map<string, ReturnType<typeof setTimeout>>
+  > = new WeakMap();
+  private focusTimeouts: WeakMap<
+    Element,
+    Map<string, ReturnType<typeof setTimeout>>
+  > = new WeakMap();
   private userInteractionAbortController: AbortController | null = null;
   private pageLoadTime: number = Date.now();
 
@@ -80,6 +84,7 @@ export class SubscriptionManager {
   };
 
   public initSubscriptions = () => {
+    this.setupPageObjectSubscriptions();
     if (this.options.useDefaultNavigationHandler) {
       this.setupLocationChangePublisher();
     }
@@ -88,12 +93,10 @@ export class SubscriptionManager {
     this.setupUserInteractionPublisher();
     this.setupExitIntentPublisher();
     this.setupScrolledToPublisher();
-    this.setupPageObjectSubscriptions();
-    // Initial check for elements that already exist
     this.setupTimeOnPagePublisher();
-    this.checkInitialElements();
     this.setupVisibilityChangeHandler();
-    this.setupUrlChangeReset();
+    // Initial check for elements that already exist
+    this.checkInitialElements();
   };
 
   /**
@@ -138,6 +141,7 @@ export class SubscriptionManager {
               !this.options.isVisualEditorMode
             ) {
               if (page.trigger_type === 'url_change') {
+                this.resetTriggerStates();
                 // First revert all inject actions
                 Object.values(
                   this.webExperimentClient.appliedMutations,
@@ -200,26 +204,19 @@ export class SubscriptionManager {
     }
   };
 
-  // TODO: to cleanup and centralize state management
-  private setupUrlChangeReset = () => {
-    // Reset element state on URL navigation
-    this.messageBus.subscribe('url_change', () => {
-      this.elementAppearedState.clear();
-      this.firedUserInteractions.clear();
-      this.targetedElementSelectors.clear();
-      this.pageLoadTime = Date.now();
-      const elementSelectors = this.getElementSelectors();
-      elementSelectors.forEach((selector) =>
-        this.targetedElementSelectors.add(selector),
-      );
-      this.setupVisibilityPublisher();
-      this.setupUserInteractionPublisher();
-      this.checkInitialElements();
+  private resetTriggerStates = () => {
+    // Reset trigger firing state on URL navigation
+    // Clear "has fired" state for all triggers
+    this.elementAppearedState.clear();
+    this.elementVisibilityState.clear();
+    this.firedUserInteractions.clear();
+    this.scrolledToElementState.clear();
+    this.maxScrollPercentage = 0;
+    this.pageLoadTime = Date.now();
+    this.setupTimeOnPagePublisher();
 
-      // Reset time on page state
-      Object.values(this.timeOnPageTimeouts).forEach(clearTimeout);
-      this.setupTimeOnPagePublisher();
-    });
+    // Trigger initial check for elements that already exist on new page
+    this.checkInitialElements();
   };
 
   private checkInitialElements = () => {
@@ -312,8 +309,9 @@ export class SubscriptionManager {
         ? [
             (mutation: MutationRecord) => {
               // Check against active selectors only (not already appeared)
-              return Array.from(this.targetedElementSelectors).some((selector) =>
-                this.isMutationRelevantToSelector([mutation], selector),
+              return Array.from(this.targetedElementSelectors).some(
+                (selector) =>
+                  this.isMutationRelevantToSelector([mutation], selector),
               );
             },
           ]
@@ -382,12 +380,9 @@ export class SubscriptionManager {
                 // Update visibility state
                 this.elementVisibilityState.set(observerKey, isVisible);
 
-                // If element becomes visible, disconnect observer (one-time trigger)
+                // Publish event when element becomes visible
+                // Observer continues running; state check prevents duplicate firing
                 if (isVisible) {
-                  observer.disconnect();
-                  this.intersectionObservers.delete(observerKey);
-
-                  // Publish element_visible event
                   this.messageBus.publish('element_visible');
                 }
               });
@@ -541,9 +536,8 @@ export class SubscriptionManager {
     this.userInteractionAbortController = new AbortController();
     const { signal } = this.userInteractionAbortController;
 
-    // Collect all selectors grouped by interaction type
     const clickSelectors = new Set<string>();
-    const hoverSelectors = new Map<string, Set<number>>(); // selector -> Set<minThresholdMs>
+    const hoverSelectors = new Map<string, Set<number>>();
     const focusSelectors = new Map<string, Set<number>>();
 
     for (const pages of Object.values(this.pageObjects)) {
@@ -596,10 +590,7 @@ export class SubscriptionManager {
             const interactionKey = `${selector}\0click`;
             if (!this.firedUserInteractions.has(interactionKey)) {
               this.firedUserInteractions.add(interactionKey);
-              this.messageBus.publish('user_interaction', {
-                selector,
-                interactionType: 'click',
-              });
+              this.messageBus.publish('user_interaction');
             }
             break;
           }
@@ -619,7 +610,10 @@ export class SubscriptionManager {
       interactionType: 'hover' | 'focus';
       startEvent: string;
       endEvent: string;
-      timeoutStorage: WeakMap<Element, Map<string, ReturnType<typeof setTimeout>>>;
+      timeoutStorage: WeakMap<
+        Element,
+        Map<string, ReturnType<typeof setTimeout>>
+      >;
     },
   ) => {
     const startHandler = (event: Event) => {
@@ -654,10 +648,7 @@ export class SubscriptionManager {
 
               const fireTrigger = () => {
                 this.firedUserInteractions.add(interactionKey);
-                this.messageBus.publish('user_interaction', {
-                  selector,
-                  interactionType: config.interactionType,
-                });
+                this.messageBus.publish('user_interaction');
                 timeoutMap?.delete(timeoutKey);
               };
 
@@ -684,7 +675,8 @@ export class SubscriptionManager {
       if (!target) return;
 
       // Check relatedTarget to determine if we actually left the ancestor
-      const relatedTarget = (event as MouseEvent | FocusEvent).relatedTarget as Element | null;
+      const relatedTarget = (event as MouseEvent | FocusEvent)
+        .relatedTarget as Element | null;
 
       for (const [selector] of selectors) {
         try {
@@ -710,9 +702,13 @@ export class SubscriptionManager {
       }
     };
 
-    this.globalScope.document.addEventListener(config.startEvent, startHandler, {
-      signal,
-    });
+    this.globalScope.document.addEventListener(
+      config.startEvent,
+      startHandler,
+      {
+        signal,
+      },
+    );
     this.globalScope.document.addEventListener(config.endEvent, endHandler, {
       signal,
     });
@@ -863,7 +859,6 @@ export class SubscriptionManager {
           if (triggerValue.mode === 'element') {
             const selector = triggerValue.selector;
             const offsetPx = triggerValue.offsetPx || 0;
-            // Use null byte as delimiter
             const observerKey = `${selector}\0${offsetPx}`;
 
             // Skip if we already have an observer for this selector + offset
@@ -881,10 +876,9 @@ export class SubscriptionManager {
                   // Trigger when element enters viewport (considering offset)
                   if (entry.isIntersecting) {
                     this.scrolledToElementState.set(observerKey, true);
-                    observer.disconnect();
-                    this.scrolledToObservers.delete(observerKey);
 
                     // Publish scrolled_to event
+                    // Observer continues running; state check prevents duplicate firing
                     this.messageBus.publish('scrolled_to', {});
                   }
                 });
