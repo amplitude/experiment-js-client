@@ -122,92 +122,90 @@ export class SubscriptionManager {
           triggerTypeExperimentMap[page.trigger_type] = new Set();
         }
         triggerTypeExperimentMap[page.trigger_type].add(experiment);
-        this.messageBus.subscribe(
-          page.trigger_type,
-          (payload) => {
-            this.webExperimentClient.updateActivePages(
-              experiment,
-              page,
-              this.isPageObjectActive(page, payload),
-            );
-          },
-          undefined,
-          (payload) => {
-            if (
-              (!('updateActivePages' in payload) ||
-                !payload.updateActivePages) &&
-              !this.options.isVisualEditorMode
-            ) {
-              const isUrlChange = page.trigger_type === 'url_change';
-              if (isUrlChange) {
-                this.resetTriggerStates();
-                // First revert all inject actions
-                Object.values(
-                  this.webExperimentClient.appliedMutations,
-                ).forEach((variantMap) => {
-                  Object.values(variantMap).forEach((actionMap) => {
-                    if (actionMap[INJECT_ACTION]) {
-                      Object.values(actionMap[INJECT_ACTION]).forEach(
-                        (action) => {
-                          action.revert?.();
-                        },
-                      );
-                    }
-                  });
-                });
+      }
+    }
 
-                // Then clean up the appliedMutations structure
-                const mutations = this.webExperimentClient.appliedMutations;
-                Object.keys(mutations).forEach((flagKey) => {
-                  const variantMap = mutations[flagKey];
-                  Object.keys(variantMap).forEach((variantKey) => {
-                    if (variantMap[variantKey][INJECT_ACTION]) {
-                      delete variantMap[variantKey][INJECT_ACTION];
+    // Subscribe individual page callbacks
+    for (const [experiment, pages] of Object.entries(this.pageObjects)) {
+      for (const page of Object.values(pages)) {
+        this.messageBus.subscribe(page.trigger_type, (payload) => {
+          this.webExperimentClient.updateActivePages(
+            experiment,
+            page,
+            this.isPageObjectActive(page, payload),
+          );
+        });
+      }
+    }
 
-                      if (Object.keys(variantMap[variantKey]).length === 0) {
-                        delete variantMap[variantKey];
-                      }
-                    }
-                  });
-
-                  if (Object.keys(variantMap).length === 0) {
-                    delete mutations[flagKey];
+    // Set up groupCallbacks (one per trigger type)
+    for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
+      this.messageBus.groupSubscribe(triggerType as MessageType, (payload) => {
+        if (
+          (!('updateActivePages' in payload) || !payload.updateActivePages) &&
+          !this.options.isVisualEditorMode
+        ) {
+          const isUrlChange = triggerType === 'url_change';
+          if (isUrlChange) {
+            this.resetTriggerStates();
+            // First revert all inject actions
+            Object.values(this.webExperimentClient.appliedMutations).forEach(
+              (variantMap) => {
+                Object.values(variantMap).forEach((actionMap) => {
+                  if (actionMap[INJECT_ACTION]) {
+                    Object.values(actionMap[INJECT_ACTION]).forEach(
+                      (action) => {
+                        action.revert?.();
+                      },
+                    );
                   }
                 });
-              }
-              // Apply variants for experiment relevant to this trigger type
-              // url change is relevant to all experiments
-              this.webExperimentClient.applyVariants({
-                flagKeys: isUrlChange
-                  ? undefined
-                  : Array.from(
-                      triggerTypeExperimentMap[page.trigger_type] || [],
-                    ),
+              },
+            );
+
+            // Then clean up the appliedMutations structure
+            const mutations = this.webExperimentClient.appliedMutations;
+            Object.keys(mutations).forEach((flagKey) => {
+              const variantMap = mutations[flagKey];
+              Object.keys(variantMap).forEach((variantKey) => {
+                if (variantMap[variantKey][INJECT_ACTION]) {
+                  delete variantMap[variantKey][INJECT_ACTION];
+
+                  if (Object.keys(variantMap[variantKey]).length === 0) {
+                    delete variantMap[variantKey];
+                  }
+                }
               });
-              if (this.webExperimentClient.isPreviewMode) {
-                this.webExperimentClient.previewVariants({
-                  keyToVariant: this.webExperimentClient.previewFlags,
-                });
-              }
-            }
 
-            const activePages = this.webExperimentClient.getActivePages();
-
-            if (
-              !this.areActivePagesEqual(
-                activePages,
-                this.lastNotifiedActivePages,
-              )
-            ) {
-              this.lastNotifiedActivePages =
-                this.cloneActivePagesMap(activePages);
-              for (const subscriber of this.pageChangeSubscribers) {
-                subscriber({ activePages });
+              if (Object.keys(variantMap).length === 0) {
+                delete mutations[flagKey];
               }
-            }
-          },
-        );
-      }
+            });
+          }
+          // Apply variants for experiments relevant to this trigger type
+          this.webExperimentClient.applyVariants({
+            flagKeys: isUrlChange
+              ? undefined
+              : Array.from(triggerTypeExperimentMap[triggerType] || []),
+          });
+          if (this.webExperimentClient.isPreviewMode) {
+            this.webExperimentClient.previewVariants({
+              keyToVariant: this.webExperimentClient.previewFlags,
+            });
+          }
+        }
+
+        const activePages = this.webExperimentClient.getActivePages();
+
+        if (
+          !this.areActivePagesEqual(activePages, this.lastNotifiedActivePages)
+        ) {
+          this.lastNotifiedActivePages = this.cloneActivePagesMap(activePages);
+          for (const subscriber of this.pageChangeSubscribers) {
+            subscriber({ activePages });
+          }
+        }
+      });
     }
   };
 
@@ -445,7 +443,7 @@ export class SubscriptionManager {
         observerKey,
         observer,
       ] of this.intersectionObservers.entries()) {
-        const [selector] = observerKey.split(':');
+        const [selector] = observerKey.split('\0');
 
         // Check if mutation is relevant (or if it's the initial check with empty list)
         const isRelevant =
