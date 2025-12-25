@@ -114,24 +114,22 @@ export class SubscriptionManager {
   };
 
   public setupPageObjectSubscriptions = () => {
+    const triggerTypeExperimentMap: Record<string, Set<string>> = {};
+
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
       for (const page of Object.values(pages)) {
+        if (!triggerTypeExperimentMap[page.trigger_type]) {
+          triggerTypeExperimentMap[page.trigger_type] = new Set();
+        }
+        triggerTypeExperimentMap[page.trigger_type].add(experiment);
         this.messageBus.subscribe(
           page.trigger_type,
           (payload) => {
-            if (this.isPageObjectActive(page, payload)) {
-              this.webExperimentClient.updateActivePages(
-                experiment,
-                page,
-                true,
-              );
-            } else {
-              this.webExperimentClient.updateActivePages(
-                experiment,
-                page,
-                false,
-              );
-            }
+            this.webExperimentClient.updateActivePages(
+              experiment,
+              page,
+              this.isPageObjectActive(page, payload),
+            );
           },
           undefined,
           (payload) => {
@@ -140,7 +138,8 @@ export class SubscriptionManager {
                 !payload.updateActivePages) &&
               !this.options.isVisualEditorMode
             ) {
-              if (page.trigger_type === 'url_change') {
+              const isUrlChange = page.trigger_type === 'url_change';
+              if (isUrlChange) {
                 this.resetTriggerStates();
                 // First revert all inject actions
                 Object.values(
@@ -176,7 +175,15 @@ export class SubscriptionManager {
                   }
                 });
               }
-              this.webExperimentClient.applyVariants();
+              // Apply variants for experiment relevant to this trigger type
+              // url change is relevant to all experiments
+              this.webExperimentClient.applyVariants({
+                flagKeys: isUrlChange
+                  ? undefined
+                  : Array.from(
+                      triggerTypeExperimentMap[page.trigger_type] || [],
+                    ),
+              });
               if (this.webExperimentClient.isPreviewMode) {
                 this.webExperimentClient.previewVariants({
                   keyToVariant: this.webExperimentClient.previewFlags,
@@ -205,7 +212,6 @@ export class SubscriptionManager {
   };
 
   private resetTriggerStates = () => {
-    // Reset trigger firing state on URL navigation
     // Clear "has fired" state for all triggers
     this.elementAppearedState.clear();
     this.elementVisibilityState.clear();
@@ -213,15 +219,59 @@ export class SubscriptionManager {
     this.scrolledToElementState.clear();
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
+
+    // Deactivate all non-url_change pages since their trigger states were reset
+    for (const [experiment, pages] of Object.entries(this.pageObjects)) {
+      for (const page of Object.values(pages)) {
+        if (page.trigger_type !== 'url_change') {
+          this.webExperimentClient.updateActivePages(experiment, page, false);
+        }
+      }
+    }
+
     this.setupTimeOnPagePublisher();
 
     // Trigger initial check for elements that already exist on new page
     this.checkInitialElements();
   };
 
+  private updateElementAppearedState = (
+    selectors: Iterable<string>,
+    mutationList?: MutationRecord[],
+  ) => {
+    for (const selector of selectors) {
+      // For initial checks (no mutationList), check all selectors
+      // For actual mutations, only check if mutation is relevant
+      const isRelevant =
+        !mutationList ||
+        mutationList.length === 0 ||
+        this.isMutationRelevantToSelector(mutationList, selector);
+
+      if (isRelevant) {
+        try {
+          const element = this.globalScope.document.querySelector(selector);
+          if (element) {
+            const style = this.globalScope.getComputedStyle(element);
+            const hasAppeared =
+              style.display !== 'none' && style.visibility !== 'hidden';
+
+            if (hasAppeared) {
+              this.elementAppearedState.add(selector);
+            }
+          }
+        } catch (e) {
+          // Invalid selector, skip
+        }
+      }
+    }
+  };
+
   private checkInitialElements = () => {
-    // Trigger initial check for element_appeared triggers
-    this.messageBus.publish('element_appeared', { mutationList: [] });
+    // Check for elements that already exist in the DOM and update state
+    this.updateElementAppearedState(this.targetedElementSelectors);
+
+    // Publish event to notify subscribers
+    this.messageBus.publish('element_appeared');
   };
 
   private getElementSelectors(): Set<string> {
@@ -321,30 +371,10 @@ export class SubscriptionManager {
       this.globalScope.document.documentElement,
       (mutationList) => {
         // Check each active selector and update state
-        for (const selector of Array.from(this.targetedElementSelectors)) {
-          // For initial checks (empty mutationList), check all selectors
-          // For actual mutations, only check if mutation is relevant
-          const isRelevant =
-            mutationList.length === 0 ||
-            this.isMutationRelevantToSelector(mutationList, selector);
-
-          if (isRelevant) {
-            try {
-              const element = this.globalScope.document.querySelector(selector);
-              if (element) {
-                const style = this.globalScope.getComputedStyle(element);
-                const hasAppeared =
-                  style.display !== 'none' && style.visibility !== 'hidden';
-
-                if (hasAppeared) {
-                  this.elementAppearedState.add(selector);
-                }
-              }
-            } catch (e) {
-              // Invalid selector, skip
-            }
-          }
-        }
+        this.updateElementAppearedState(
+          this.targetedElementSelectors,
+          mutationList,
+        );
 
         // Publish event with mutationList for other subscribers (e.g., visibility publisher)
         this.messageBus.publish('element_appeared', { mutationList });
