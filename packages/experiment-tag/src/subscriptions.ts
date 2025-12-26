@@ -235,13 +235,12 @@ export class SubscriptionManager {
 
   private updateElementAppearedState = (
     selectors: Iterable<string>,
-    mutationList?: MutationRecord[],
+    mutationList: MutationRecord[],
   ) => {
     for (const selector of selectors) {
       // For initial checks (no mutationList), check all selectors
       // For actual mutations, only check if mutation is relevant
       const isRelevant =
-        !mutationList ||
         mutationList.length === 0 ||
         this.isMutationRelevantToSelector(mutationList, selector);
 
@@ -266,10 +265,10 @@ export class SubscriptionManager {
 
   private checkInitialElements = () => {
     // Check for elements that already exist in the DOM and update state
-    this.updateElementAppearedState(this.targetedElementSelectors);
+    this.updateElementAppearedState(this.targetedElementSelectors, []);
 
     // Publish event to notify subscribers
-    this.messageBus.publish('element_appeared');
+    this.messageBus.publish('element_appeared', { mutationList: [] });
   };
 
   private getElementSelectors(): Set<string> {
@@ -445,7 +444,7 @@ export class SubscriptionManager {
 
         // Check if mutation is relevant (or if it's the initial check with empty list)
         const isRelevant =
-          !mutationList?.length ||
+          mutationList.length === 0 ||
           this.isMutationRelevantToSelector(mutationList, selector);
 
         if (isRelevant) {
