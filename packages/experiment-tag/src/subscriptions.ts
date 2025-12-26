@@ -924,11 +924,15 @@ export class SubscriptionManager {
             this.scrolledToObservers.set(observerKey, observer);
 
             // Observe all elements matching the selector
-            const elements =
-              this.globalScope.document.querySelectorAll(selector);
-            elements.forEach((element) => {
-              observer.observe(element);
-            });
+            try {
+              const elements =
+                this.globalScope.document.querySelectorAll(selector);
+              elements.forEach((element) => {
+                observer.observe(element);
+              });
+            } catch (e) {
+              // Ignore invalid selectors
+            }
           }
         }
       }
@@ -949,11 +953,15 @@ export class SubscriptionManager {
             this.isMutationRelevantToSelector(mutationList, selector);
 
           if (isRelevant) {
-            const elements =
-              this.globalScope.document.querySelectorAll(selector);
-            elements.forEach((element) => {
-              observer.observe(element);
-            });
+            try {
+              const elements =
+                this.globalScope.document.querySelectorAll(selector);
+              elements.forEach((element) => {
+                observer.observe(element);
+              });
+            } catch (e) {
+              // Ignore invalid selectors
+            }
           }
         }
       });
