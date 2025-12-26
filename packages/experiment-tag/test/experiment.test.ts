@@ -90,6 +90,9 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
       head: {
         appendChild: jest.fn(),
       },
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      hidden: false,
     },
     history: { replaceState: jest.fn() },
     addEventListener: jest.fn(),

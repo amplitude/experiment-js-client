@@ -97,6 +97,7 @@ export class SubscriptionManager {
     this.setupVisibilityChangeHandler();
     // Initial check for elements that already exist
     this.checkInitialElements();
+    this.setupLocationChangeStateReset();
   };
 
   /**
@@ -146,42 +147,7 @@ export class SubscriptionManager {
           !this.options.isVisualEditorMode
         ) {
           const isUrlChange = triggerType === 'url_change';
-          if (isUrlChange) {
-            this.resetTriggerStates();
-            // First revert all inject actions
-            Object.values(this.webExperimentClient.appliedMutations).forEach(
-              (variantMap) => {
-                Object.values(variantMap).forEach((actionMap) => {
-                  if (actionMap[INJECT_ACTION]) {
-                    Object.values(actionMap[INJECT_ACTION]).forEach(
-                      (action) => {
-                        action.revert?.();
-                      },
-                    );
-                  }
-                });
-              },
-            );
 
-            // Then clean up the appliedMutations structure
-            const mutations = this.webExperimentClient.appliedMutations;
-            Object.keys(mutations).forEach((flagKey) => {
-              const variantMap = mutations[flagKey];
-              Object.keys(variantMap).forEach((variantKey) => {
-                if (variantMap[variantKey][INJECT_ACTION]) {
-                  delete variantMap[variantKey][INJECT_ACTION];
-
-                  if (Object.keys(variantMap[variantKey]).length === 0) {
-                    delete variantMap[variantKey];
-                  }
-                }
-              });
-
-              if (Object.keys(variantMap).length === 0) {
-                delete mutations[flagKey];
-              }
-            });
-          }
           // Apply variants for experiments relevant to this trigger type
           this.webExperimentClient.applyVariants({
             flagKeys: isUrlChange
@@ -231,6 +197,40 @@ export class SubscriptionManager {
 
     // Trigger initial check for elements that already exist on new page
     this.checkInitialElements();
+  };
+
+  private revertInjections = () => {
+    // First revert all inject actions
+    Object.values(this.webExperimentClient.appliedMutations).forEach(
+      (variantMap) => {
+        Object.values(variantMap).forEach((actionMap) => {
+          if (actionMap[INJECT_ACTION]) {
+            Object.values(actionMap[INJECT_ACTION]).forEach((action) => {
+              action.revert?.();
+            });
+          }
+        });
+      },
+    );
+
+    // Then clean up the appliedMutations structure
+    const mutations = this.webExperimentClient.appliedMutations;
+    Object.keys(mutations).forEach((flagKey) => {
+      const variantMap = mutations[flagKey];
+      Object.keys(variantMap).forEach((variantKey) => {
+        if (variantMap[variantKey][INJECT_ACTION]) {
+          delete variantMap[variantKey][INJECT_ACTION];
+
+          if (Object.keys(variantMap[variantKey]).length === 0) {
+            delete variantMap[variantKey];
+          }
+        }
+      });
+
+      if (Object.keys(variantMap).length === 0) {
+        delete mutations[flagKey];
+      }
+    });
   };
 
   private updateElementAppearedState = (
@@ -320,7 +320,6 @@ export class SubscriptionManager {
               }
             } catch (e) {
               // Invalid selector, skip
-              continue;
             }
           }
         }
@@ -339,7 +338,6 @@ export class SubscriptionManager {
           }
         } catch (e) {
           // Invalid selector, skip
-          continue;
         }
       }
     }
@@ -447,7 +445,7 @@ export class SubscriptionManager {
 
         // Check if mutation is relevant (or if it's the initial check with empty list)
         const isRelevant =
-          mutationList.length === 0 ||
+          !mutationList?.length ||
           this.isMutationRelevantToSelector(mutationList, selector);
 
         if (isRelevant) {
@@ -558,6 +556,13 @@ export class SubscriptionManager {
     wrapHistoryMethods();
   };
 
+  private setupLocationChangeStateReset = () => {
+    this.messageBus.subscribe('url_change', () => {
+      this.resetTriggerStates();
+      this.revertInjections();
+    });
+  };
+
   private setupUserInteractionPublisher = () => {
     // Abort all existing listeners at once
     this.userInteractionAbortController?.abort();
@@ -581,12 +586,12 @@ export class SubscriptionManager {
             if (!hoverSelectors.has(selector)) {
               hoverSelectors.set(selector, new Set());
             }
-            hoverSelectors.get(selector)!.add(minThresholdMs || 0);
+            hoverSelectors.get(selector)?.add(minThresholdMs || 0);
           } else if (interactionType === 'focus') {
             if (!focusSelectors.has(selector)) {
               focusSelectors.set(selector, new Set());
             }
-            focusSelectors.get(selector)!.add(minThresholdMs || 0);
+            focusSelectors.get(selector)?.add(minThresholdMs || 0);
           }
         }
       }
