@@ -116,6 +116,7 @@ export class SubscriptionManager {
 
   public setupPageObjectSubscriptions = () => {
     const triggerTypeExperimentMap: Record<string, Set<string>> = {
+      // should always include url_change to ensure initial state is reset upon navigation
       url_change: new Set(),
     };
 
