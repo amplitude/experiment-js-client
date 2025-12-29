@@ -671,27 +671,27 @@ export class SubscriptionManager {
                 config.timeoutStorage.set(matchedAncestor, timeoutMap);
               }
 
-              // Clear any existing timeout for this specific selector+threshold
+              // Only set a timeout if one doesn't already exist
+              // This prevents the timer from resetting when the mouse moves within the element
               const timeoutKey = `${selector}\0${minThresholdMs}`;
               const existingTimeout = timeoutMap.get(timeoutKey);
-              if (existingTimeout) {
-                this.globalScope.clearTimeout(existingTimeout);
-              }
 
-              const fireTrigger = () => {
-                this.firedUserInteractions.add(interactionKey);
-                this.messageBus.publish('user_interaction');
-                timeoutMap?.delete(timeoutKey);
-              };
+              if (!existingTimeout) {
+                const fireTrigger = () => {
+                  this.firedUserInteractions.add(interactionKey);
+                  this.messageBus.publish('user_interaction');
+                  timeoutMap?.delete(timeoutKey);
+                };
 
-              if (minThresholdMs) {
-                const timeout = this.globalScope.setTimeout(
-                  fireTrigger,
-                  minThresholdMs,
-                );
-                timeoutMap.set(timeoutKey, timeout);
-              } else {
-                fireTrigger();
+                if (minThresholdMs) {
+                  const timeout = this.globalScope.setTimeout(
+                    fireTrigger,
+                    minThresholdMs,
+                  );
+                  timeoutMap.set(timeoutKey, timeout);
+                } else {
+                  fireTrigger();
+                }
               }
             }
             break;
