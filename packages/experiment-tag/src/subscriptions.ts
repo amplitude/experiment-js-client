@@ -899,8 +899,7 @@ export class SubscriptionManager {
             }
 
             // Create root margin based on offset
-            // Negative bottom margin means trigger when element is offsetPx above viewport bottom
-            const rootMargin = `0px 0px -${offsetPx}px 0px`;
+            const rootMargin = `0px 0px ${offsetPx}px 0px`;
 
             const observer = new IntersectionObserver(
               (entries) => {
