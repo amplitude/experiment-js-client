@@ -91,7 +91,7 @@ export type PageObject = {
     | UserInteractionTriggerValue
     | ExitIntentTriggerValue
     | ScrolledToTriggerValue
-    | AnalyticsEventTriggerValue
+    | AnalyticsEventTriggerValue;
 };
 
 export type PageObjects = { [flagKey: string]: { [id: string]: PageObject } };

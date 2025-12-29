@@ -98,7 +98,6 @@ export class SubscriptionManager {
     this.setupVisibilityChangeHandler();
     // Initial check for elements that already exist
     this.checkInitialElements();
-    this.setupLocationChangeStateReset();
   };
 
   /**
@@ -116,7 +115,9 @@ export class SubscriptionManager {
   };
 
   public setupPageObjectSubscriptions = () => {
-    const triggerTypeExperimentMap: Record<string, Set<string>> = {};
+    const triggerTypeExperimentMap: Record<string, Set<string>> = {
+      url_change: new Set(),
+    };
 
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
       for (const page of Object.values(pages)) {
@@ -148,6 +149,11 @@ export class SubscriptionManager {
           !this.options.isVisualEditorMode
         ) {
           const isUrlChange = triggerType === 'url_change';
+
+          if (isUrlChange) {
+            this.resetTriggerStates();
+            this.revertInjections();
+          }
 
           // Apply variants for experiments relevant to this trigger type
           this.webExperimentClient.applyVariants({
@@ -554,13 +560,6 @@ export class SubscriptionManager {
 
     // Initialize the wrapper
     wrapHistoryMethods();
-  };
-
-  private setupLocationChangeStateReset = () => {
-    this.messageBus.subscribe('url_change', () => {
-      this.resetTriggerStates();
-      this.revertInjections();
-    });
   };
 
   private setupUserInteractionPublisher = () => {

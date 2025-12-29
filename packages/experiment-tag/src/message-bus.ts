@@ -90,8 +90,10 @@ export class MessageBus {
     ) as SubscriberGroup<T>;
     if (!entry) return;
 
+    // Ensure payload is initialized before use
+    payload = payload || ({} as MessagePayloads[T]);
+
     entry.subscribers.forEach((subscriber) => {
-      payload = payload || ({} as MessagePayloads[T]);
       subscriber.callback(payload);
     });
     this.subscriberGroupCallback.get(messageType)?.(payload);
