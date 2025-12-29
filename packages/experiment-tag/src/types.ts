@@ -76,6 +76,8 @@ export type ScrolledToTriggerValue =
   | ScrolledToElementConfig
   | ScrolledToPercentConfig;
 
+export type AnalyticsEventTriggerValue = EvaluationCondition[][];
+
 export type PageObject = {
   id: string;
   name: string;
@@ -89,7 +91,7 @@ export type PageObject = {
     | UserInteractionTriggerValue
     | ExitIntentTriggerValue
     | ScrolledToTriggerValue
-    | Record<string, unknown>;
+    | AnalyticsEventTriggerValue
 };
 
 export type PageObjects = { [flagKey: string]: { [id: string]: PageObject } };

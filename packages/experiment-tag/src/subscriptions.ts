@@ -21,6 +21,7 @@ import {
   UserInteractionTriggerValue,
   TimeOnPageTriggerValue,
   ScrolledToTriggerValue,
+  AnalyticsEventTriggerValue,
 } from './types';
 
 const evaluationEngine = new EvaluationEngine();
@@ -986,22 +987,9 @@ export class SubscriptionManager {
     page: PageObject,
     message: MessagePayloads[T],
   ): boolean => {
-    let evalContext: Record<string, unknown> = {
+    const evalContext: Record<string, unknown> = {
       page: { url: this.globalScope.location.href },
     };
-
-    if (page.trigger_type === 'analytics_event') {
-      const eventMessage = message as AnalyticsEventPayload;
-
-      evalContext = {
-        ...evalContext,
-        type: 'analytics_event',
-        data: {
-          event: eventMessage.event_type,
-          properties: eventMessage.event_properties,
-        },
-      };
-    }
 
     // Check conditions with enriched context
     if (page.conditions && page.conditions.length > 0) {
@@ -1028,8 +1016,24 @@ export class SubscriptionManager {
       }
 
       case 'analytics_event': {
-        // Event type already matched above, conditions evaluated
-        return true;
+        const triggerValue = page.trigger_value as AnalyticsEventTriggerValue;
+        const eventMessage = message as AnalyticsEventPayload;
+
+        const eventContext = {
+          type: 'analytics_event',
+          data: {
+            event: eventMessage.event_type,
+            properties: eventMessage.event_properties,
+          },
+        };
+
+        return evaluationEngine.evaluateConditions(
+          {
+            context: eventContext,
+            result: {},
+          },
+          triggerValue,
+        );
       }
 
       case 'element_appeared': {
