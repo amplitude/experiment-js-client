@@ -1021,8 +1021,8 @@ export class SubscriptionManager {
         const eventContext = {
           type: 'analytics_event',
           data: {
-            event: eventMessage.event_type,
-            properties: eventMessage.event_properties,
+            event: eventMessage.event,
+            properties: eventMessage.properties,
           },
         };
 

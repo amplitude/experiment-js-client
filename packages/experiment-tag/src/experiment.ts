@@ -549,8 +549,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     event_properties?: Record<string, unknown>,
   ) {
     this.messageBus.publish('analytics_event', {
-      event_type,
-      event_properties: event_properties || {},
+      event: event_type,
+      properties: event_properties || {},
     });
   }
 
