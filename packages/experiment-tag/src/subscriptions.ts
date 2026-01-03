@@ -47,6 +47,7 @@ export class SubscriptionManager {
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
+  private manuallyActivatedPageObjects: Set<string> = new Set();
   private targetedElementSelectors: Set<string> = new Set();
   private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
   private scrolledToElementState: Map<string, boolean> = new Map();
@@ -183,12 +184,18 @@ export class SubscriptionManager {
     }
   };
 
+  public manuallyActivatePageObject = (page: string): void => {
+    this.manuallyActivatedPageObjects.add(page);
+    this.messageBus.publish('manual');
+  };
+
   private resetTriggerStates = () => {
     // Clear "has fired" state for all triggers
     this.elementAppearedState.clear();
     this.elementVisibilityState.clear();
     this.firedUserInteractions.clear();
     this.scrolledToElementState.clear();
+    this.manuallyActivatedPageObjects.clear();
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
 
@@ -1011,7 +1018,7 @@ export class SubscriptionManager {
 
       case 'manual': {
         const triggerValue = page.trigger_value as ManualTriggerValue;
-        return (message as ManualTriggerPayload).name === triggerValue.name;
+        return this.manuallyActivatedPageObjects.has(triggerValue.name);
       }
 
       case 'analytics_event': {
