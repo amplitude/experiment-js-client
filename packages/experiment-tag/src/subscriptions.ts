@@ -184,8 +184,12 @@ export class SubscriptionManager {
     }
   };
 
-  public manuallyActivatePageObject = (page: string): void => {
-    this.manuallyActivatedPageObjects.add(page);
+  public toggleManualPageObject = (page: string, isActive: boolean): void => {
+    if (isActive) {
+      this.manuallyActivatedPageObjects.add(page);
+    } else {
+      this.manuallyActivatedPageObjects.delete(page);
+    }
     this.messageBus.publish('manual');
   };
 
