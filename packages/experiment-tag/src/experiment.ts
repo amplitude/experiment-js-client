@@ -536,7 +536,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param name The name of the manual trigger to activate
    */
   public activate(name: string) {
-    this.messageBus.publish('manual', { name });
+    this.subscriptionManager?.manuallyActivatePageObject(name);
   }
 
   /**
