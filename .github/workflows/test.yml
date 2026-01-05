@@ -23,7 +23,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: '**/node_modules'
-        key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+        key: ${{ runner.os }}-node-${{ matrix.node-version }}-modules-${{ hashFiles('**/yarn.lock') }}
 
     - name: Setup Node
       uses: actions/setup-node@v4
@@ -32,24 +32,25 @@ jobs:
 
     - name: Set up SSH for deploy key
       run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.DOM_MUTATOR_ACCESS_KEY }}" > ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
-        ssh-keyscan github.com >> ~/.ssh/known_hosts
+         mkdir -p ~/.ssh
+         echo "${{ secrets.DOM_MUTATOR_ACCESS_KEY }}" > ~/.ssh/id_ed25519
+         chmod 600 ~/.ssh/id_ed25519
+         ssh-keyscan github.com >> ~/.ssh/known_hosts
       continue-on-error: true # forked repos don't have access, and this is only for experiment-tag
       shell: bash
 
+    - name: Clear yarn cache
+      run: yarn cache clean --force
+
     - name: Downgrade lerna for Node 18
       if: ${{ matrix.node-version == '18' }}
-      run: |
-        yarn cache clean
-        yarn add lerna@6.6.2 -W --dev
+      run: yarn add lerna@6.6.2 -W --dev
 
     - name: Install
       run: yarn install --frozen-lockfile --force
 
     - name: Build
-      run: npx lerna exec yarn --stream
+      run: yarn build
 
     - name: Test
       run: yarn test
