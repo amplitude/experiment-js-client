@@ -450,7 +450,7 @@ export class SubscriptionManager {
 
                 // Publish event when visibility changes (both directions)
                 // This enables exit condition: when element becomes invisible, page deactivates
-                if (isVisible !== wasVisible) {
+                if (isVisible !== (wasVisible ?? false)) {
                   this.messageBus.publish('element_visible');
                 }
               });
