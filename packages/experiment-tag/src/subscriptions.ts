@@ -193,6 +193,7 @@ export class SubscriptionManager {
     } else {
       this.manuallyActivatedPageObjects.delete(page);
     }
+    this.messageBus.publish('manual');
   };
 
   private resetTriggerStates = () => {
