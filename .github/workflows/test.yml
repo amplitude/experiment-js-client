@@ -40,7 +40,7 @@ jobs:
       shell: bash
 
     - name: Clear yarn cache
-      run: yarn cache clean --force
+      run: yarn cache clean
 
     - name: Downgrade lerna for Node 18
       if: ${{ matrix.node-version == '18' }}
