@@ -977,7 +977,7 @@ export class SubscriptionManager {
     const scrollableHeight = documentHeight - windowHeight;
 
     if (scrollableHeight <= 0) {
-      return 100;
+      return 0;
     }
 
     return (scrollTop / scrollableHeight) * 100;
