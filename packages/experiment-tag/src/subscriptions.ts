@@ -187,9 +187,12 @@ export class SubscriptionManager {
     }
   };
 
-  public manuallyActivatePageObject = (page: string): void => {
-    this.manuallyActivatedPageObjects.add(page);
-    this.messageBus.publish('manual');
+  public toggleManualPageObject = (page: string, isActive: boolean): void => {
+    if (isActive) {
+      this.manuallyActivatedPageObjects.add(page);
+    } else {
+      this.manuallyActivatedPageObjects.delete(page);
+    }
   };
 
   private resetTriggerStates = () => {

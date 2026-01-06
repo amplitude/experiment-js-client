@@ -133,7 +133,7 @@ export interface WebExperimentClient {
 
   setRedirectHandler(handler: (url: string) => void): void;
 
-  activate(name: string): void;
+  toggleManualPageObject(name: string, isActive?: boolean): void;
 }
 
 export type WebExperimentUser = {

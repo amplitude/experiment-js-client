@@ -535,8 +535,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Manually activate a page trigger with the specified name.
    * @param name The name of the manual trigger to activate
    */
-  public activate(name: string) {
-    this.subscriptionManager?.manuallyActivatePageObject(name);
+  public toggleManualPageObject(name: string, isActive = true) {
+    this.subscriptionManager?.toggleManualPageObject(name, isActive);
   }
 
   /**
