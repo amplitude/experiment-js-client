@@ -532,27 +532,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Manually activate or deactivate a page trigger with the specified name.
-   * @param name The name of the manual trigger to activate or deactivate
-   * @param isActive Whether to activate or deactivate the trigger
+   * Manually activate a page trigger with the specified name.
+   * @param name The name of the manual trigger to activate
+   * @param isActive Whether the trigger should be activated or deactivated
    */
   public toggleManualPageObject(name: string, isActive = true) {
     this.subscriptionManager?.toggleManualPageObject(name, isActive);
-  }
-
-  /**
-   * Track an analytics event that can trigger page objects.
-   * @param event_type The event type/name
-   * @param event_properties Optional event properties
-   */
-  public trackEvent(
-    event_type: string,
-    event_properties?: Record<string, unknown>,
-  ) {
-    this.messageBus.publish('analytics_event', {
-      event: event_type,
-      properties: event_properties || {},
-    });
   }
 
   /**
@@ -577,6 +562,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         return context;
       },
     };
+  }
+
+  /**
+   * Track an analytics event that can trigger page objects.
+   * @param event_type The event type/name
+   * @param event_properties Optional event properties
+   */
+  private trackEvent(
+    event_type: string,
+    event_properties?: Record<string, unknown>,
+  ) {
+    this.messageBus.publish('analytics_event', {
+      event: event_type,
+      properties: event_properties || {},
+    });
   }
 
   private async fetchRemoteFlags() {

@@ -329,8 +329,6 @@ export class SubscriptionManager {
   private checkInitialElements = () => {
     // Check for elements that already exist in the DOM and update state
     this.updateElementAppearedState(this.targetedElementSelectors, []);
-
-    // Publish event to notify subscribers
     this.messageBus.publish('element_appeared', { mutationList: [] });
   };
 
@@ -386,11 +384,10 @@ export class SubscriptionManager {
       return;
     }
 
-    // Create filter function that checks against active selectors
-    // fewer mutations will pass the filter, improving performance over time
+    // Create filter function that checks against targeted selectors
+    // Only mutations that might affect our target elements pass through
     const filters = [
       (mutation: MutationRecord) => {
-        // Check against active selectors only (not already appeared)
         return Array.from(this.targetedElementSelectors).some((selector) =>
           this.isMutationRelevantToSelector([mutation], selector),
         );
@@ -834,7 +831,6 @@ export class SubscriptionManager {
       return;
     }
 
-    // Start timers for each unique duration
     this.setUpTimeouts(durations);
   };
 
@@ -853,14 +849,6 @@ export class SubscriptionManager {
     ]);
     if (timeOnPagePages.length === 0) {
       return;
-    }
-
-    // Remove existing listener if it exists
-    if (this.visibilityChangeHandler) {
-      this.globalScope.document.removeEventListener(
-        'visibilitychange',
-        this.visibilityChangeHandler,
-      );
     }
 
     this.visibilityChangeHandler = () => {
@@ -1031,7 +1019,7 @@ export class SubscriptionManager {
     const scrollableHeight = documentHeight - windowHeight;
 
     if (scrollableHeight <= 0) {
-      return 100;
+      return 0;
     }
 
     return (scrollTop / scrollableHeight) * 100;
@@ -1045,7 +1033,6 @@ export class SubscriptionManager {
       page: { url: this.globalScope.location.href },
     };
 
-    // Check conditions with enriched context
     if (page.conditions && page.conditions.length > 0) {
       const matchConditions = evaluationEngine.evaluateConditions(
         {
@@ -1093,8 +1080,6 @@ export class SubscriptionManager {
       case 'element_appeared': {
         const triggerValue = page.trigger_value as ElementAppearedTriggerValue;
         const selector = triggerValue.selector;
-
-        // State is managed by mutation callback, just check it
         return this.elementAppearedState.has(selector);
       }
 
@@ -1103,8 +1088,6 @@ export class SubscriptionManager {
         const selector = triggerValue.selector;
         const visibilityRatio = triggerValue.visibilityRatio ?? 0;
         const observerKey = `${selector}\0${visibilityRatio}`;
-
-        // Check stored visibility state from IntersectionObserver
         return this.elementVisibilityState.get(observerKey) ?? false;
       }
 
@@ -1119,7 +1102,6 @@ export class SubscriptionManager {
 
       case 'user_interaction': {
         const triggerValue = page.trigger_value as UserInteractionTriggerValue;
-        // Include minThresholdMs in key for hover and focus to differentiate between different durations
         const interactionKey =
           triggerValue.interactionType === 'hover' ||
           triggerValue.interactionType === 'focus'

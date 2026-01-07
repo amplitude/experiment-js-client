@@ -60,7 +60,7 @@ export function getElementSelectors(pageObjects: PageObjects): Set<string> {
 }
 
 /**
- * Deep clone a PageObjects map
+ * Clone a PageObjects map
  */
 export function clonePageObjects(map: PageObjects): PageObjects {
   const clone: PageObjects = {};
