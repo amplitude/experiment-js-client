@@ -1,8 +1,10 @@
+import { CampaignParser, CookieStorage } from '@amplitude/analytics-core';
 import * as experimentCore from '@amplitude/experiment-core';
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
 import { DefaultWebExperimentClient } from 'src/experiment';
+import { ConsentStatus } from 'src/types';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
 import * as uuid from 'src/util/uuid';
 import { stringify } from 'ts-jest';
@@ -25,6 +27,20 @@ jest.mock('src/util/messenger', () => {
     },
   };
 });
+
+jest.mock('@amplitude/analytics-core', () => ({
+  ...jest.requireActual('@amplitude/analytics-core'),
+  CampaignParser: jest.fn(),
+  CookieStorage: jest.fn(),
+  MKTG: 'MKTG',
+}));
+
+const MockCampaignParser = CampaignParser as jest.MockedClass<
+  typeof CampaignParser
+>;
+const MockCookieStorage = CookieStorage as jest.MockedClass<
+  typeof CookieStorage
+>;
 
 const newMockGlobal = (overrides?: Record<string, unknown>) => {
   const createStorageMock = () => {
@@ -49,7 +65,7 @@ const newMockGlobal = (overrides?: Record<string, unknown>) => {
   const baseGlobal = {
     localStorage: createStorageMock(),
     sessionStorage: createStorageMock(),
-    document: { referrer: '' },
+    document: { referrer: '', cookie: '' },
     history: { replaceState: jest.fn() },
     addEventListener: jest.fn(),
     experimentIntegration: {
@@ -140,6 +156,17 @@ describe('initializeExperiment', () => {
     antiFlickerSpy = jest
       .spyOn(antiFlickerUtils, 'applyAntiFlickerCss')
       .mockImplementation(jest.fn());
+
+    const mockCampaignParser = {
+      parse: jest.fn().mockResolvedValue({}),
+    };
+    MockCampaignParser.mockImplementation(() => mockCampaignParser as any);
+
+    const mockCookieStorage = {
+      get: jest.fn().mockResolvedValue(undefined),
+      set: jest.fn(),
+    };
+    MockCookieStorage.mockImplementation(() => mockCookieStorage as any);
   });
 
   test('should initialize experiment with empty user', async () => {
@@ -1228,29 +1255,662 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
-  describe('remote evaluation - flag already stored in session storage', () => {
-    const sessionStorageMock = () => {
-      let store = {};
-      return {
-        getItem: jest.fn((key) => store[key] || null),
-        setItem: jest.fn((key, value) => {
-          store[key] = value;
-        }),
-        removeItem: jest.fn((key) => {
-          delete store[key];
-        }),
-        clear: jest.fn(() => {
-          store = {};
+  describe('consent status initialization and storage persistence', () => {
+    it('should initialize experiment with PENDING consent and store data in memory only', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(mockExposure).toHaveBeenCalledWith('test');
+
+      // With PENDING consent, data should be stored in memory only, not in actual localStorage
+      expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should initialize experiment with GRANTED consent and store data directly in actual storage', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(mockExposure).toHaveBeenCalledWith('test');
+      expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
+        'EXP_' + stringify(apiKey),
+        JSON.stringify({ web_exp_id: 'mock' }),
+      );
+    });
+
+    it('should handle consent status change from PENDING to GRANTED during experiment lifecycle', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(mockExposure).toHaveBeenCalledWith('test');
+
+      // Clear any previous localStorage calls from start()
+      jest.clearAllMocks();
+
+      client.setConsentStatus(ConsentStatus.GRANTED);
+
+      // Verify that previously stored data is now persisted to actual storage
+      expect(mockGlobal.localStorage.setItem).toHaveBeenCalled();
+    });
+
+    it('should handle consent status change from PENDING to REJECTED during experiment lifecycle', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+      await client.start();
+
+      expect(mockExposure).toHaveBeenCalledWith('test');
+
+      // Clear any previous localStorage calls from start()
+      jest.clearAllMocks();
+
+      client.setConsentStatus(ConsentStatus.REJECTED);
+
+      const experimentStorageKey = `EXP_${stringify(apiKey).slice(0, 10)}`;
+      expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalledWith(
+        experimentStorageKey,
+        expect.stringContaining('web_exp_id'),
+      );
+
+      expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('marketing cookie with different consent status', () => {
+    let mockCampaignParser: any;
+    let mockCookieStorage: any;
+    const mockCampaign = { utm_source: 'test', utm_medium: 'test' };
+
+    beforeEach(() => {
+      mockCampaignParser = {
+        parse: jest.fn().mockResolvedValue(mockCampaign),
+      };
+
+      mockCookieStorage = {
+        get: jest.fn().mockResolvedValue(undefined),
+        set: jest.fn().mockResolvedValue(undefined),
+      };
+
+      MockCampaignParser.mockImplementation(() => mockCampaignParser as any);
+      MockCookieStorage.mockImplementation(() => mockCookieStorage as any);
+    });
+
+    it('should set marketing cookie directly during redirect when consent is GRANTED', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      mockCookieStorage = {
+        get: jest.fn().mockResolvedValue(undefined),
+        set: jest.fn().mockImplementation((key, value) => {
+          mockGlobal.document.cookie = `${key}=${JSON.stringify(value)}`;
+          return Promise.resolve();
         }),
       };
-    };
+      MockCookieStorage.mockImplementation(() => mockCookieStorage as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/2',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+        'http://test.com/2',
+      );
+      expect(mockGlobal.document.cookie).toContain('AMP_MKTG_ORIGINAL_');
+      expect(mockGlobal.document.cookie).toContain(
+        stringify(apiKey).substring(0, 10),
+      );
+    });
+
+    it('should store marketing cookie in memory during redirect when consent is PENDING', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/2',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+        'http://test.com/2',
+      );
+
+      expect(MockCampaignParser).toHaveBeenCalledTimes(2);
+      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(2);
+      expect(MockCookieStorage).toHaveBeenCalledTimes(1);
+      expect(mockCookieStorage.set).not.toHaveBeenCalled();
+    });
+
+    it('should not set marketing cookie during redirect when consent is REJECTED', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.REJECTED,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/2',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+        'http://test.com/2',
+      );
+
+      expect(MockCampaignParser).toHaveBeenCalledTimes(2);
+      expect(mockCampaignParser.parse).toHaveBeenCalledTimes(2);
+      expect(MockCookieStorage).toHaveBeenCalledTimes(1);
+      expect(mockCookieStorage.set).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('consent aware exposure tracking', () => {
+    let mockExperimentIntegration: any;
+    let originalTrackSpy: jest.SpyInstance;
+
     beforeEach(() => {
-      Object.defineProperty(safeGlobal, 'sessionStorage', {
-        value: sessionStorageMock(),
+      // Create fresh mock experimentIntegration for each test
+      originalTrackSpy = jest.fn().mockReturnValue(true);
+      mockExperimentIntegration = {
+        track: originalTrackSpy,
+        getUser: jest.fn().mockReturnValue({
+          user_id: 'user',
+          device_id: 'device',
+        }),
+        type: 'integration',
+      };
+    });
+
+    afterEach(() => {
+      // Clear experimentIntegration between tests
+      if (mockGlobal?.experimentIntegration) {
+        mockGlobal.experimentIntegration = undefined;
+      }
+      originalTrackSpy.mockClear();
+    });
+
+    it('should track exposures immediately when consent is GRANTED', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(originalTrackSpy).toHaveBeenCalled();
+      expect(originalTrackSpy.mock.calls[0][0]).toMatchObject({
+        eventType: '$impression',
+        eventProperties: expect.objectContaining({
+          flag_key: 'test',
+          variant: 'treatment',
+        }),
       });
     });
-    afterEach(() => {
-      safeGlobal.sessionStorage.clear();
+
+    it('should store exposures in memory when consent is PENDING', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      // Should not track immediately when consent is pending
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not track exposures when consent is REJECTED', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.REJECTED,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+    });
+
+    it('should fire all pending exposures when consent changes from PENDING to GRANTED', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test-1', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+          createMutateFlag('test-2', 'control', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify({
+          'test-1': DEFAULT_PAGE_OBJECTS.test,
+          'test-2': DEFAULT_PAGE_OBJECTS.test,
+        }),
+      );
+
+      await client.start();
+
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      client.setConsentStatus(ConsentStatus.GRANTED);
+
+      expect(originalTrackSpy).toHaveBeenCalled();
+
+      const trackedEvents = originalTrackSpy.mock.calls.map((call) => call[0]);
+      expect(trackedEvents).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            eventType: '$impression',
+            eventProperties: expect.objectContaining({
+              flag_key: 'test-1',
+              variant: 'treatment',
+            }),
+          }),
+          expect.objectContaining({
+            eventType: '$impression',
+            eventProperties: expect.objectContaining({
+              flag_key: 'test-2',
+              variant: 'control',
+            }),
+          }),
+        ]),
+      );
+    });
+
+    it('should delete all pending exposures when consent changes from PENDING to REJECTED', () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      client.start();
+
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      client.setConsentStatus(ConsentStatus.REJECTED);
+
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      client.setConsentStatus(ConsentStatus.GRANTED);
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+    });
+
+    it('should track new exposures immediately after consent becomes GRANTED', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test-1', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      client.setConsentStatus(ConsentStatus.GRANTED);
+
+      originalTrackSpy.mockClear();
+
+      client.getExperimentClient().exposure('test-1');
+
+      expect(originalTrackSpy).toHaveBeenCalledTimes(1);
+      expect(originalTrackSpy.mock.calls[0][0]).toMatchObject({
+        eventType: '$impression',
+        eventProperties: expect.objectContaining({
+          flag_key: 'test-1',
+          variant: 'treatment',
+        }),
+      });
+    });
+
+    it('should handle multiple consent status changes correctly', async () => {
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      client.setConsentStatus(ConsentStatus.REJECTED);
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      client.setConsentStatus(ConsentStatus.PENDING);
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      client.getExperimentClient().exposure('test');
+      expect(originalTrackSpy).not.toHaveBeenCalled();
+
+      client.setConsentStatus(ConsentStatus.GRANTED);
+      expect(originalTrackSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should add timestamp to exposure events', async () => {
+      const mockDate = new Date('2023-01-01T00:00:00.000Z');
+      const mockNow = jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(mockDate.getTime());
+
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+        experimentIntegration: mockExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(originalTrackSpy).toHaveBeenCalled();
+      expect(originalTrackSpy.mock.calls[0][0]).toMatchObject({
+        eventType: '$impression',
+        eventProperties: expect.objectContaining({
+          flag_key: 'test',
+          variant: 'treatment',
+          time: mockDate.getTime(),
+        }),
+      });
+
+      mockNow.mockRestore();
+    });
+
+    it('should handle exposure tracking errors gracefully', async () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const errorExperimentIntegration = {
+        track: jest.fn().mockImplementation(() => {
+          throw new Error('Tracking failed');
+        }),
+        getUser: jest.fn().mockReturnValue({
+          user_id: 'user',
+          device_id: 'device',
+        }),
+        type: 'integration',
+      };
+
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+        experimentIntegration: errorExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await expect(client.start()).resolves.not.toThrow();
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Failed to track event:',
+        expect.any(Error),
+      );
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should handle pending exposure tracking errors gracefully when consent becomes granted', async () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const errorExperimentIntegration = {
+        track: jest.fn().mockImplementation(() => {
+          throw new Error('Tracking failed');
+        }),
+        getUser: jest.fn().mockReturnValue({
+          user_id: 'user',
+          device_id: 'device',
+        }),
+        type: 'integration',
+      };
+
+      const mockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.PENDING,
+          },
+        },
+        experimentIntegration: errorExperimentIntegration,
+      });
+      mockGetGlobalScope.mockReturnValue(mockGlobal as any);
+
+      const client = DefaultWebExperimentClient.getInstance(
+        stringify(apiKey),
+        JSON.stringify([
+          createMutateFlag('test', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+        ]),
+        JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      );
+
+      await client.start();
+
+      expect(() =>
+        client.setConsentStatus(ConsentStatus.GRANTED),
+      ).not.toThrow();
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Failed to track pending event:',
+        expect.any(Error),
+      );
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe('remote evaluation - flag already stored in session storage', () => {
+    let testMockGlobal: any;
+
+    beforeEach(() => {
+      testMockGlobal = newMockGlobal({
+        experimentConfig: {
+          consentOptions: {
+            status: ConsentStatus.GRANTED,
+          },
+        },
+      });
+      mockGetGlobalScope.mockReturnValue(testMockGlobal);
     });
     test('evaluated, applied, and impression tracked, start updates flag in storage, applied, impression deduped', async () => {
       const apiKey = 'api1';
@@ -1267,7 +1927,7 @@ describe('initializeExperiment', () => {
           flagVersion: 2,
         },
       );
-      safeGlobal.sessionStorage.setItem(
+      testMockGlobal.sessionStorage.setItem(
         storageKey,
         JSON.stringify({ test: storedFlag }),
       );
@@ -1314,7 +1974,7 @@ describe('initializeExperiment', () => {
       expect(mockExposure).toHaveBeenCalledTimes(1);
       // Check remote flag store in storage
       const flags = JSON.parse(
-        safeGlobal.sessionStorage.getItem(storageKey) as string,
+        testMockGlobal.sessionStorage.getItem(storageKey) as string,
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
@@ -1341,7 +2001,7 @@ describe('initializeExperiment', () => {
           flagVersion: 2,
         },
       );
-      safeGlobal.sessionStorage.setItem(
+      testMockGlobal.sessionStorage.setItem(
         storageKey,
         JSON.stringify({ test: storedFlag }),
       );
@@ -1396,7 +2056,7 @@ describe('initializeExperiment', () => {
       expect(mockExposure).toHaveBeenCalledTimes(2);
       // Check remote flag store in storage
       const flags = JSON.parse(
-        safeGlobal.sessionStorage.getItem(storageKey) as string,
+        testMockGlobal.sessionStorage.getItem(storageKey) as string,
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
