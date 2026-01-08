@@ -56,6 +56,7 @@ export class SubscriptionManager {
   private targetedElementSelectors: Set<string> = new Set();
   private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
   private scrolledToElementState: Map<string, boolean> = new Map();
+  private analyticsEventState: Set<string> = new Set();
   private maxScrollPercentage = 0;
   private timeOnPageTimeouts: Record<number, ReturnType<typeof setTimeout>> =
     {};
@@ -205,6 +206,7 @@ export class SubscriptionManager {
     this.manuallyActivatedPageObjects.clear();
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
+    this.analyticsEventState.clear();
 
     // Deactivate all non-url_change pages since their trigger states were reset
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
@@ -1015,6 +1017,8 @@ export class SubscriptionManager {
       }
 
       case 'analytics_event': {
+        const id = page.id;
+        if (this.analyticsEventState.has(id)) return true;
         const triggerValue = page.trigger_value as AnalyticsEventTriggerValue;
         const eventMessage = message as AnalyticsEventPayload;
 
@@ -1026,13 +1030,17 @@ export class SubscriptionManager {
           },
         };
 
-        return evaluationEngine.evaluateConditions(
+        const match = evaluationEngine.evaluateConditions(
           {
             context: eventContext,
             result: {},
           },
           triggerValue,
         );
+        if (match) {
+          this.analyticsEventState.add(id);
+        }
+        return match;
       }
 
       case 'element_appeared': {
