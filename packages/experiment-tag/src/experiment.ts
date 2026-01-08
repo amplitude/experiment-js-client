@@ -1,4 +1,5 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
+import { Event, Plugin } from '@amplitude/analytics-types';
 import {
   EvaluationFlag,
   getGlobalScope,
@@ -528,6 +529,54 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public setRedirectHandler(handler: (url: string) => void) {
     this.customRedirectHandler = handler;
+  }
+
+  /**
+   * Manually activate a page trigger with the specified name.
+   * @param name The name of the manual trigger to activate
+   * @param isActive Whether the trigger should be activated or deactivated
+   */
+  public toggleManualPageObject(name: string, isActive = true) {
+    this.subscriptionManager?.toggleManualPageObject(name, isActive);
+  }
+
+  /**
+   * Returns an Amplitude plugin that forwards analytics events to trigger page objects.
+   * @returns An Amplitude Plugin that intercepts analytics events
+   */
+  public plugin(): Plugin {
+    return {
+      name: '@amplitude/experiment-tag',
+      type: 'enrichment',
+
+      setup: async (): Promise<void> => {
+        // No setup required
+      },
+
+      execute: async (context: Event): Promise<Event> => {
+        this.trackEvent(
+          context.event_type,
+          context.event_properties as Record<string, unknown>,
+        );
+
+        return context;
+      },
+    };
+  }
+
+  /**
+   * Track an analytics event that can trigger page objects.
+   * @param event_type The event type/name
+   * @param event_properties Optional event properties
+   */
+  private trackEvent(
+    event_type: string,
+    event_properties?: Record<string, unknown>,
+  ) {
+    this.messageBus.publish('analytics_event', {
+      event: event_type,
+      properties: event_properties || {},
+    });
   }
 
   private async fetchRemoteFlags() {
