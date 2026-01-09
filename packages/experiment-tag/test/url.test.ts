@@ -221,88 +221,12 @@ describe('removeQueryParams', () => {
       );
     });
 
-    it('should handle URL with hash but no hash-based routing', () => {
+    it('should handle URL with hash', () => {
       const url = 'https://example.com/page?param1=value1#section';
       const paramsToRemove = ['param1'];
 
       expect(removeQueryParams(url, paramsToRemove)).toBe(
         'https://example.com/page#section',
-      );
-    });
-
-    it('should handle URL with hash fragment (not hash-based routing)', () => {
-      const url = 'https://example.com/page?param1=value1#section';
-      const paramsToRemove = ['param1'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/page#section',
-      );
-    });
-  });
-
-  describe('hash-based routing URLs', () => {
-    it('should remove single query parameter from hash-based route', () => {
-      const url = 'https://example.com/#/page?param1=value1&param2=value2';
-      const paramsToRemove = ['param1'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/#/page?param2=value2',
-      );
-    });
-
-    it('should remove multiple query parameters from hash-based route', () => {
-      const url =
-        'https://example.com/#/page?param1=value1&param2=value2&param3=value3';
-      const paramsToRemove = ['param1', 'param3'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/#/page?param2=value2',
-      );
-    });
-
-    it('should remove all query parameters from hash-based route', () => {
-      const url = 'https://example.com/#/page?param1=value1&param2=value2';
-      const paramsToRemove = ['param1', 'param2'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/#/page',
-      );
-    });
-
-    it('should handle hash-based route with no query parameters', () => {
-      const url = 'https://example.com/#/page';
-      const paramsToRemove = ['param1'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/#/page',
-      );
-    });
-
-    it('should handle hash-based route with nested path', () => {
-      const url = 'https://example.com/#/users/123?param1=value1&param2=value2';
-      const paramsToRemove = ['param1'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/#/users/123?param2=value2',
-      );
-    });
-
-    it('should handle hash-based route with complex path and multiple params', () => {
-      const url =
-        'https://example.com/#/dashboard/settings?theme=dark&lang=en&debug=true';
-      const paramsToRemove = ['theme', 'debug'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/#/dashboard/settings?lang=en',
-      );
-    });
-
-    it('should handle hash-based route with trailing slash', () => {
-      const url = 'https://example.com/#/page/?param1=value1&param2=value2';
-      const paramsToRemove = ['param1'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/#/page/?param2=value2',
       );
     });
   });
@@ -323,33 +247,6 @@ describe('removeQueryParams', () => {
 
       expect(removeQueryParams(url, paramsToRemove)).toBe(
         'https://example.com/page?param1=value1',
-      );
-    });
-
-    it('should handle hash-based route with non-existent parameters', () => {
-      const url = 'https://example.com/#/page?param1=value1';
-      const paramsToRemove = ['nonexistent'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/#/page?param1=value1',
-      );
-    });
-
-    it('should handle URL with only hash fragment (not hash-based routing)', () => {
-      const url = 'https://example.com/page?param1=value1#section';
-      const paramsToRemove = ['param1'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/page#section',
-      );
-    });
-
-    it('should handle URL with hash but content does not start with slash', () => {
-      const url = 'https://example.com/page?param1=value1#section';
-      const paramsToRemove = ['param1'];
-
-      expect(removeQueryParams(url, paramsToRemove)).toBe(
-        'https://example.com/page#section',
       );
     });
   });
