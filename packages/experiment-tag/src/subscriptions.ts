@@ -60,8 +60,8 @@ export class SubscriptionManager {
   private maxScrollPercentage = 0;
   private timeOnPageTimeouts: Record<number, ReturnType<typeof setTimeout>> =
     {};
-  private visibilityChangeHandler: (() => void) | null = null;
   private firedUserInteractions: Set<string> = new Set();
+  private clickTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private hoverTimeouts: WeakMap<
     Element,
     Map<string, ReturnType<typeof setTimeout>>
@@ -207,6 +207,12 @@ export class SubscriptionManager {
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
     this.analyticsEventState.clear();
+
+    // Clear pending click timeouts
+    for (const timeout of this.clickTimeouts.values()) {
+      this.globalScope.clearTimeout(timeout);
+    }
+    this.clickTimeouts.clear();
 
     // Deactivate all non-url_change pages since their trigger states were reset
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
@@ -561,7 +567,7 @@ export class SubscriptionManager {
     this.userInteractionAbortController = new AbortController();
     const { signal } = this.userInteractionAbortController;
 
-    const clickSelectors = new Set<string>();
+    const clickSelectors = new Map<string, Set<number>>();
     const hoverSelectors = new Map<string, Set<number>>();
     const focusSelectors = new Map<string, Set<number>>();
 
@@ -573,7 +579,10 @@ export class SubscriptionManager {
           const { selector, interactionType, minThresholdMs } = triggerValue;
 
           if (interactionType === 'click') {
-            clickSelectors.add(selector);
+            if (!clickSelectors.has(selector)) {
+              clickSelectors.set(selector, new Set());
+            }
+            clickSelectors.get(selector)?.add(minThresholdMs || 0);
           } else if (interactionType === 'hover') {
             if (!hoverSelectors.has(selector)) {
               hoverSelectors.set(selector, new Set());
@@ -610,20 +619,47 @@ export class SubscriptionManager {
   };
 
   private setupClickDelegation = (
-    selectors: Set<string>,
+    selectors: Map<string, Set<number>>,
     signal: AbortSignal,
   ) => {
     const handler = (event: MouseEvent) => {
       const target = event.target as Element;
       if (!target) return;
 
-      for (const selector of selectors) {
+      for (const [selector, thresholds] of selectors) {
         try {
           if (target.closest(selector)) {
-            const interactionKey = `${selector}\0click`;
-            if (!this.firedUserInteractions.has(interactionKey)) {
-              this.firedUserInteractions.add(interactionKey);
-              this.messageBus.publish('user_interaction');
+            // Process all thresholds for this selector
+            for (const minThresholdMs of thresholds) {
+              const interactionKey = `${selector}\0click\0${minThresholdMs}`;
+
+              // Skip if already fired
+              if (this.firedUserInteractions.has(interactionKey)) {
+                continue;
+              }
+
+              // Skip if timeout is already pending for this interaction
+              if (this.clickTimeouts.has(interactionKey)) {
+                continue;
+              }
+
+              const fireTrigger = () => {
+                this.firedUserInteractions.add(interactionKey);
+                this.messageBus.publish('user_interaction');
+                this.clickTimeouts.delete(interactionKey);
+              };
+
+              if (minThresholdMs > 0) {
+                // Set timeout for delayed firing
+                const timeout = this.globalScope.setTimeout(
+                  fireTrigger,
+                  minThresholdMs,
+                );
+                this.clickTimeouts.set(interactionKey, timeout);
+              } else {
+                // Fire immediately if no threshold
+                fireTrigger();
+              }
             }
             break;
           }
@@ -811,7 +847,7 @@ export class SubscriptionManager {
       return;
     }
 
-    this.visibilityChangeHandler = () => {
+    const visibilityChangeHandler = () => {
       if (this.globalScope.document.hidden) {
         // Tab hidden: clear all timeouts
         Object.values(this.timeOnPageTimeouts).forEach(clearTimeout);
@@ -826,7 +862,7 @@ export class SubscriptionManager {
 
     this.globalScope.document.addEventListener(
       'visibilitychange',
-      this.visibilityChangeHandler,
+      visibilityChangeHandler,
     );
   };
 
@@ -1068,13 +1104,9 @@ export class SubscriptionManager {
 
       case 'user_interaction': {
         const triggerValue = page.trigger_value as UserInteractionTriggerValue;
-        const interactionKey =
-          triggerValue.interactionType === 'hover' ||
-          triggerValue.interactionType === 'focus'
-            ? `${triggerValue.selector}\0${triggerValue.interactionType}\0${
-                triggerValue.minThresholdMs || 0
-              }`
-            : `${triggerValue.selector}\0${triggerValue.interactionType}`;
+        const interactionKey = `${triggerValue.selector}\0${
+          triggerValue.interactionType
+        }\0${triggerValue.minThresholdMs || 0}`;
         return this.firedUserInteractions.has(interactionKey);
       }
 
