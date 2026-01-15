@@ -658,7 +658,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private handleInject(action, flagKey: string, variant: Variant) {
     const variantKey = variant.key || '';
 
-    if (!this.isActionActiveOnPage(flagKey, action?.metadata?.scope)) {
+    if (!this.isActionActiveOnPage(flagKey, action?.data?.scope)) {
       this.appliedMutations[flagKey]?.[variantKey]?.[
         INJECT_ACTION
       ]?.[0]?.revert();
