@@ -71,7 +71,7 @@ export class SubscriptionManager {
     Map<string, ReturnType<typeof setTimeout>>
   > = new WeakMap();
   private userInteractionAbortController: AbortController | null = null;
-  private pageLoadTime: number = Date.now();
+  private pageLoadTime: number = Number.POSITIVE_INFINITY;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -152,14 +152,15 @@ export class SubscriptionManager {
     // Set up groupCallbacks (one per trigger type)
     for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
       this.messageBus.groupSubscribe(triggerType as MessageType, (payload) => {
+        const isUrlChange = triggerType === 'url_change';
+        if (isUrlChange) {
+          this.resetTriggerStates();
+        }
         if (
           (!('updateActivePages' in payload) || !payload.updateActivePages) &&
           !this.options.isVisualEditorMode
         ) {
-          const isUrlChange = triggerType === 'url_change';
-
           if (isUrlChange) {
-            this.resetTriggerStates();
             this.revertInjections();
           }
 
@@ -468,6 +469,7 @@ export class SubscriptionManager {
   };
 
   private setupExitIntentPublisher = () => {
+    this.pageLoadTime = Date.now();
     // Get all page objects that use exit_intent trigger
     const pages = Object.values(this.pageObjects).flatMap((pages) =>
       Object.values(pages).filter(
