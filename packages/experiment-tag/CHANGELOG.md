@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.14.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.14.0...@amplitude/experiment-tag@0.14.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* proper scope checking for handleInject ([#252](https://github.com/amplitude/experiment-js-client/issues/252)) ([a306c9c](https://github.com/amplitude/experiment-js-client/commit/a306c9c468f2032a6459e88c65875bd227b7160d))
+
+
+
+
+
 # [0.14.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.12.0...@amplitude/experiment-tag@0.14.0) (2025-11-24)
 
 
