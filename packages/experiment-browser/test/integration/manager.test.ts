@@ -258,23 +258,34 @@ describe('IntegrationManager', () => {
 
 describe('SessionDedupeCache', () => {
   beforeEach(() => {
+    safeGlobal.sessionStorage.clear();
+  });
+  test('old v1 storage is cleared', () => {
+    const instanceName = '$default_instance';
     safeGlobal.sessionStorage.setItem(
       'EXP_sent_$default_instance',
       `{"flag-key":"variant"}`,
     );
-    safeGlobal.sessionStorage.clear();
-  });
-  test('old storage is cleared', () => {
-    const instanceName = '$default_instance';
     new SessionDedupeCache(instanceName);
     expect(
       safeGlobal.sessionStorage.getItem('EXP_sent_$default_instance'),
     ).toBeNull();
   });
+  test('old v2 storage is cleared', () => {
+    const instanceName = '$default_instance';
+    safeGlobal.sessionStorage.setItem(
+      'EXP_sent_v2_$default_instance',
+      `{"flag-key":{"flag_key":"flag-key","variant":"on"}}`,
+    );
+    new SessionDedupeCache(instanceName);
+    expect(
+      safeGlobal.sessionStorage.getItem('EXP_sent_v2_$default_instance'),
+    ).toBeNull();
+  });
   test('test storage key', () => {
     const instanceName = '$default_instance';
     const cache = new SessionDedupeCache(instanceName);
-    expect(cache['storageKey']).toEqual('EXP_sent_v2_$default_instance');
+    expect(cache['storageKey']).toEqual('EXP_sent_v3_$default_instance');
   });
   test('should track with empty storage returns true, sets storage', () => {
     const instanceName = '$default_instance';
@@ -287,7 +298,7 @@ describe('SessionDedupeCache', () => {
     const storedCache = JSON.parse(
       safeGlobal.sessionStorage.getItem(cache['storageKey']),
     );
-    const expected = { 'flag-key': exposure };
+    const expected = { 'flag-key': 'on' };
     expect(storedCache).toEqual(expected);
     expect(cache['inMemoryCache']).toEqual(expected);
   });
@@ -300,13 +311,13 @@ describe('SessionDedupeCache', () => {
     };
     safeGlobal.sessionStorage.setItem(
       cache['storageKey'],
-      JSON.stringify({ [`${exposure.flag_key}`]: exposure }),
+      JSON.stringify({ 'flag-key': 'on' }),
     );
     expect(cache.shouldTrack(exposure)).toEqual(false);
     const storedCache = JSON.parse(
       safeGlobal.sessionStorage.getItem(cache['storageKey']),
     );
-    const expected = { 'flag-key': exposure };
+    const expected = { 'flag-key': 'on' };
     expect(storedCache).toEqual(expected);
     expect(cache['inMemoryCache']).toEqual(expected);
   });
@@ -317,21 +328,17 @@ describe('SessionDedupeCache', () => {
       flag_key: 'flag-key',
       variant: 'on',
     };
-    const exposure2 = {
-      flag_key: 'flag-key-2',
-      variant: 'on',
-    };
     safeGlobal.sessionStorage.setItem(
       cache['storageKey'],
-      JSON.stringify({ [exposure2.flag_key]: exposure2 }),
+      JSON.stringify({ 'flag-key-2': 'on' }),
     );
     expect(cache.shouldTrack(exposure)).toEqual(true);
     const storedCache = JSON.parse(
       safeGlobal.sessionStorage.getItem(cache['storageKey']),
     );
     const expected = {
-      'flag-key': exposure,
-      'flag-key-2': exposure2,
+      'flag-key': 'on',
+      'flag-key-2': 'on',
     };
     expect(storedCache).toEqual(expected);
     expect(cache['inMemoryCache']).toEqual(expected);
@@ -350,6 +357,48 @@ describe('SessionDedupeCache', () => {
     expect(safeGlobal.sessionStorage.getItem(cache['storageKey'])).toBeNull();
     expect(cache.shouldTrack(exposure)).toEqual(true);
     expect(safeGlobal.sessionStorage.getItem(cache['storageKey'])).toBeNull();
+  });
+  test('should track undefined variant, then dedupe subsequent undefined variants', () => {
+    const instanceName = '$default_instance';
+    const cache = new SessionDedupeCache(instanceName);
+    const exposure = {
+      flag_key: 'flag-key',
+      variant: undefined,
+    };
+    // First call should track
+    expect(cache.shouldTrack(exposure)).toEqual(true);
+    // Subsequent calls should dedupe
+    expect(cache.shouldTrack(exposure)).toEqual(false);
+    expect(cache.shouldTrack(exposure)).toEqual(false);
+    // Changing to a defined variant should track
+    const exposureWithVariant = {
+      flag_key: 'flag-key',
+      variant: 'on',
+    };
+    expect(cache.shouldTrack(exposureWithVariant)).toEqual(true);
+    // Changing back to undefined should track
+    expect(cache.shouldTrack(exposure)).toEqual(true);
+    expect(cache.shouldTrack(exposure)).toEqual(false);
+  });
+  test('should gracefully handle storage quota exceeded error', () => {
+    const instanceName = '$default_instance';
+    const cache = new SessionDedupeCache(instanceName);
+    // Mock sessionStorage.setItem to throw QuotaExceededError
+    const originalSetItem = safeGlobal.sessionStorage.setItem;
+    safeGlobal.sessionStorage.setItem = jest.fn(() => {
+      const error = new Error('QuotaExceededError');
+      error.name = 'QuotaExceededError';
+      throw error;
+    });
+    const exposure = {
+      flag_key: 'flag-key',
+      variant: 'on',
+    };
+    // Should not throw, and should still return true for first call
+    expect(() => cache.shouldTrack(exposure)).not.toThrow();
+    expect(cache.shouldTrack(exposure)).toEqual(false); // In-memory cache still works
+    // Restore original setItem
+    safeGlobal.sessionStorage.setItem = originalSetItem;
   });
 });
 
