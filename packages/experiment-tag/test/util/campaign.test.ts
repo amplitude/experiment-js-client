@@ -4,13 +4,17 @@ import {
   CookieStorage,
   getStorageKey,
 } from '@amplitude/analytics-core';
+import * as coreUtil from '@amplitude/experiment-core';
 import { type ExperimentUser } from '@amplitude/experiment-js-client';
 
+import { ConsentAwareStorage } from '../../src/storage/consent-aware-storage';
+import { ConsentStatus } from '../../src/types';
 import {
   enrichUserWithCampaignData,
   persistUrlParams,
 } from '../../src/util/campaign';
-import * as storageUtils from '../../src/util/storage';
+
+const spyGetGlobalScope = jest.spyOn(coreUtil, 'getGlobalScope');
 
 jest.mock('@amplitude/analytics-core', () => ({
   Campaign: jest.fn(),
@@ -20,24 +24,48 @@ jest.mock('@amplitude/analytics-core', () => ({
   MKTG: 'MKTG',
 }));
 
-jest.mock('../../src/util/storage', () => ({
-  getStorageItem: jest.fn(),
-  setStorageItem: jest.fn(),
-}));
+const MockCampaignParser = CampaignParser as jest.MockedClass<
+  typeof CampaignParser
+>;
+const MockCookieStorage = CookieStorage as jest.MockedClass<
+  typeof CookieStorage
+>;
 
 describe('campaign utilities', () => {
+  let mockGlobal: any;
+  let storage: ConsentAwareStorage;
   let mockCampaignParser: jest.Mocked<CampaignParser>;
   let mockCookieStorage: jest.Mocked<CookieStorage<Campaign>>;
-  let mockGetStorageItem: jest.MockedFunction<
-    typeof storageUtils.getStorageItem
-  >;
-  let mockSetStorageItem: jest.MockedFunction<
-    typeof storageUtils.setStorageItem
-  >;
   let mockGetStorageKey: jest.MockedFunction<typeof getStorageKey>;
+
+  const createStorageMock = () => {
+    let store: Record<string, string> = {};
+    return {
+      getItem: jest.fn((key: string) => store[key] || null),
+      setItem: jest.fn((key: string, value: string) => {
+        store[key] = value;
+      }),
+      removeItem: jest.fn((key: string) => {
+        delete store[key];
+      }),
+      clear: jest.fn(() => {
+        store = {};
+      }),
+      length: jest.fn(() => Object.keys(store).length),
+      key: jest.fn((index: number) => Object.keys(store)[index] || null),
+    };
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockGlobal = {
+      localStorage: createStorageMock(),
+      sessionStorage: createStorageMock(),
+    };
+    spyGetGlobalScope.mockReturnValue(mockGlobal);
+
+    storage = new ConsentAwareStorage(ConsentStatus.GRANTED);
 
     mockCampaignParser = {
       parse: jest.fn(),
@@ -48,20 +76,12 @@ describe('campaign utilities', () => {
       set: jest.fn(),
     } as any;
 
-    mockGetStorageItem = storageUtils.getStorageItem as jest.MockedFunction<
-      typeof storageUtils.getStorageItem
-    >;
-    mockSetStorageItem = storageUtils.setStorageItem as jest.MockedFunction<
-      typeof storageUtils.setStorageItem
-    >;
     mockGetStorageKey = getStorageKey as jest.MockedFunction<
       typeof getStorageKey
     >;
 
-    (CampaignParser as jest.Mock).mockImplementation(() => mockCampaignParser);
-    (CookieStorage as unknown as jest.Mock).mockImplementation(
-      () => mockCookieStorage,
-    );
+    MockCampaignParser.mockImplementation(() => mockCampaignParser);
+    MockCookieStorage.mockImplementation(() => mockCookieStorage);
   });
 
   describe('enrichUserWithCampaignData', () => {
@@ -102,9 +122,17 @@ describe('campaign utilities', () => {
       mockCookieStorage.get.mockResolvedValue(
         persistedAmplitudeCampaign as Campaign,
       );
-      mockGetStorageItem.mockReturnValue(persistedExperimentCampaign);
+      storage.setItem(
+        'localStorage',
+        'EXP_MKTG_test-api-k',
+        persistedExperimentCampaign,
+      );
 
-      const result = await enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(
+        apiKey,
+        baseUser,
+        storage,
+      );
 
       expect(result).toEqual({
         ...baseUser,
@@ -118,22 +146,14 @@ describe('campaign utilities', () => {
         },
       });
 
-      expect(mockGetStorageItem).toHaveBeenCalledWith(
-        'localStorage',
-        'EXP_MKTG_test-api-k',
-      );
-      expect(mockSetStorageItem).toHaveBeenCalledWith(
-        'localStorage',
-        'EXP_MKTG_test-api-k',
-        {
-          utm_source: 'current_source',
-          utm_medium: 'current_medium',
-          utm_campaign: 'current_campaign',
-          utm_term: 'experiment_term',
-          utm_content: 'amplitude_content',
-          utm_id: 'experiment_id',
-        },
-      );
+      expect(storage.getItem('localStorage', 'EXP_MKTG_test-api-k')).toEqual({
+        utm_source: 'current_source',
+        utm_medium: 'current_medium',
+        utm_campaign: 'current_campaign',
+        utm_term: 'experiment_term',
+        utm_content: 'amplitude_content',
+        utm_id: 'experiment_id',
+      });
     });
 
     it('should preserve lower priority values when current campaign has undefined values', async () => {
@@ -158,9 +178,17 @@ describe('campaign utilities', () => {
       mockCookieStorage.get.mockResolvedValue(
         persistedAmplitudeCampaign as Campaign,
       );
-      mockGetStorageItem.mockReturnValue(persistedExperimentCampaign);
+      storage.setItem(
+        'localStorage',
+        'EXP_MKTG_test-api-k',
+        persistedExperimentCampaign,
+      );
 
-      const result = await enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(
+        apiKey,
+        baseUser,
+        storage,
+      );
 
       expect(result.persisted_url_param).toEqual({
         utm_source: 'current_source',
@@ -192,9 +220,17 @@ describe('campaign utilities', () => {
       mockCookieStorage.get.mockResolvedValue(
         persistedAmplitudeCampaign as Campaign,
       );
-      mockGetStorageItem.mockReturnValue(persistedExperimentCampaign);
+      storage.setItem(
+        'localStorage',
+        'EXP_MKTG_test-api-k',
+        persistedExperimentCampaign,
+      );
 
-      const result = await enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(
+        apiKey,
+        baseUser,
+        storage,
+      );
 
       expect(result.persisted_url_param).toEqual({
         utm_source: 'test_source',
@@ -226,9 +262,17 @@ describe('campaign utilities', () => {
       mockCookieStorage.get.mockResolvedValue(
         persistedAmplitudeCampaign as Campaign,
       );
-      mockGetStorageItem.mockReturnValue(persistedExperimentCampaign);
+      storage.setItem(
+        'localStorage',
+        'EXP_MKTG_test-api-k',
+        persistedExperimentCampaign,
+      );
 
-      const result = await enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(
+        apiKey,
+        baseUser,
+        storage,
+      );
 
       expect(result.persisted_url_param).toEqual({
         utm_source: 'current_source',
@@ -241,14 +285,16 @@ describe('campaign utilities', () => {
     it('should handle empty campaign data gracefully', async () => {
       mockCampaignParser.parse.mockResolvedValue({} as Campaign);
       mockCookieStorage.get.mockResolvedValue(undefined);
-      mockGetStorageItem.mockReturnValue(null);
 
-      const result = await enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(
+        apiKey,
+        baseUser,
+        storage,
+      );
 
       expect(result).toEqual({
         ...baseUser,
       });
-      expect(mockSetStorageItem).not.toHaveBeenCalled();
     });
 
     it('should handle all UTM parameter types', async () => {
@@ -263,9 +309,12 @@ describe('campaign utilities', () => {
 
       mockCampaignParser.parse.mockResolvedValue(fullCampaign as Campaign);
       mockCookieStorage.get.mockResolvedValue(undefined);
-      mockGetStorageItem.mockReturnValue(null);
 
-      const result = await enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(
+        apiKey,
+        baseUser,
+        storage,
+      );
 
       expect(result.persisted_url_param).toMatchObject({
         utm_source: 'test_source',
@@ -280,10 +329,9 @@ describe('campaign utilities', () => {
     it('should handle async errors gracefully', async () => {
       mockCampaignParser.parse.mockRejectedValue(new Error('Parse error'));
       mockCookieStorage.get.mockRejectedValue(new Error('Storage error'));
-      mockGetStorageItem.mockReturnValue(null);
 
       await expect(
-        enrichUserWithCampaignData(apiKey, baseUser),
+        enrichUserWithCampaignData(apiKey, baseUser, storage),
       ).rejects.toThrow();
     });
   });
@@ -298,11 +346,9 @@ describe('campaign utilities', () => {
         utm_campaign: 'test_campaign',
       };
 
-      persistUrlParams(apiKey, campaign);
+      persistUrlParams(apiKey, campaign, storage);
 
-      expect(mockSetStorageItem).toHaveBeenCalledWith(
-        'localStorage',
-        'EXP_MKTG_test-api-k',
+      expect(storage.getItem('localStorage', 'EXP_MKTG_test-api-k')).toEqual(
         campaign,
       );
     });
@@ -310,11 +356,9 @@ describe('campaign utilities', () => {
     it('should handle empty campaign object', () => {
       const emptyCampaign = {};
 
-      persistUrlParams(apiKey, emptyCampaign);
+      persistUrlParams(apiKey, emptyCampaign, storage);
 
-      expect(mockSetStorageItem).toHaveBeenCalledWith(
-        'localStorage',
-        'EXP_MKTG_test-api-k',
+      expect(storage.getItem('localStorage', 'EXP_MKTG_test-api-k')).toEqual(
         emptyCampaign,
       );
     });
@@ -334,13 +378,12 @@ describe('campaign utilities', () => {
         expectedPreviousCampaign as Campaign,
       );
       mockGetStorageKey.mockReturnValue('test-storage-key');
-      mockGetStorageItem.mockReturnValue(null);
 
-      await enrichUserWithCampaignData(apiKey, { user_id: 'test' });
+      await enrichUserWithCampaignData(apiKey, { user_id: 'test' }, storage);
 
-      expect(CampaignParser).toHaveBeenCalledWith();
+      expect(MockCampaignParser).toHaveBeenCalledWith();
       expect(mockCampaignParser.parse).toHaveBeenCalledWith();
-      expect(CookieStorage).toHaveBeenCalledWith();
+      expect(MockCookieStorage).toHaveBeenCalledWith();
       expect(getStorageKey).toHaveBeenCalledWith(apiKey, 'MKTG');
       expect(mockCookieStorage.get).toHaveBeenCalledWith('test-storage-key');
     });
@@ -350,11 +393,14 @@ describe('campaign utilities', () => {
 
       mockCampaignParser.parse.mockResolvedValue(expectedCampaign as Campaign);
       mockCookieStorage.get.mockResolvedValue(undefined);
-      mockGetStorageItem.mockReturnValue(null);
 
-      const result = await enrichUserWithCampaignData(apiKey, {
-        user_id: 'test',
-      });
+      const result = await enrichUserWithCampaignData(
+        apiKey,
+        {
+          user_id: 'test',
+        },
+        storage,
+      );
 
       expect(result.persisted_url_param).toMatchObject({
         utm_source: 'test',
