@@ -12,6 +12,11 @@ import { ExperimentUser } from '../types/user';
 
 const MAX_QUEUE_SIZE = 512;
 
+interface Identity {
+  userId?: string;
+  deviceId?: string;
+}
+
 /**
  * Handles integration plugin management, event persistence and deduplication.
  */
@@ -92,9 +97,10 @@ export class IntegrationManager {
    * the event is persisted in local storage.
    *
    * @param exposure
+   * @param user
    */
-  track(exposure: Exposure): void {
-    if (this.cache.shouldTrack(exposure)) {
+  track(exposure: Exposure, user?: ExperimentUser): void {
+    if (this.cache.shouldTrack(exposure, user)) {
       const event = this.getExposureEvent(exposure);
       this.queue.push(event);
     }
@@ -126,6 +132,7 @@ export class SessionDedupeCache {
   private readonly storageKey: string;
   private readonly isSessionStorageAvailable = checkIsSessionStorageAvailable();
   private inMemoryCache: Record<string, string | null> = {};
+  private identity: Identity = {};
 
   constructor(instanceName: string) {
     this.storageKey = `EXP_sent_v3_${instanceName}`;
@@ -136,11 +143,22 @@ export class SessionDedupeCache {
     }
   }
 
-  shouldTrack(exposure: Exposure): boolean {
+  shouldTrack(exposure: Exposure, user?: ExperimentUser): boolean {
     // Always track web impressions.
     if (exposure.metadata?.deliveryMethod === 'web') {
       return true;
     }
+
+    const newIdentity: Identity = {
+      userId: user?.user_id,
+      deviceId: user?.device_id,
+    };
+
+    if (!this.identityEquals(this.identity, newIdentity)) {
+      this.clearCache();
+    }
+    this.identity = newIdentity;
+
     this.loadCache();
     const hasKey = exposure.flag_key in this.inMemoryCache;
     const cachedVariant = this.inMemoryCache[exposure.flag_key];
@@ -155,6 +173,23 @@ export class SessionDedupeCache {
     }
     this.storeCache();
     return shouldTrack;
+  }
+
+  private clearCache(): void {
+    this.inMemoryCache = {};
+    if (this.isSessionStorageAvailable) {
+      safeGlobal.sessionStorage.removeItem(this.storageKey);
+    }
+  }
+
+  private identityEquals(id1: Identity, id2: Identity): boolean {
+    if (id1.userId && id2.userId) {
+      return id1.userId === id2.userId;
+    }
+    if (!id1.userId && !id2.userId) {
+      return id1.deviceId === id2.deviceId;
+    }
+    return false;
   }
 
   private loadCache(): void {

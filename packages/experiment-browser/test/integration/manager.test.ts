@@ -380,6 +380,46 @@ describe('SessionDedupeCache', () => {
     expect(cache.shouldTrack(exposure)).toEqual(true);
     expect(cache.shouldTrack(exposure)).toEqual(false);
   });
+  test('should track null variant, then dedupe subsequent null variants', () => {
+    const instanceName = '$default_instance';
+    const cache = new SessionDedupeCache(instanceName);
+    const exposure = {
+      flag_key: 'flag-key',
+      variant: null as unknown as string,
+    };
+    // First call should track
+    expect(cache.shouldTrack(exposure)).toEqual(true);
+    // Subsequent calls should dedupe
+    expect(cache.shouldTrack(exposure)).toEqual(false);
+    expect(cache.shouldTrack(exposure)).toEqual(false);
+    // Changing to a defined variant should track
+    const exposureWithVariant = {
+      flag_key: 'flag-key',
+      variant: 'on',
+    };
+    expect(cache.shouldTrack(exposureWithVariant)).toEqual(true);
+    // Changing back to null should track
+    expect(cache.shouldTrack(exposure)).toEqual(true);
+    expect(cache.shouldTrack(exposure)).toEqual(false);
+  });
+  test('should treat null and undefined variants as equivalent', () => {
+    const instanceName = '$default_instance';
+    const cache = new SessionDedupeCache(instanceName);
+    const exposureUndefined = {
+      flag_key: 'flag-key',
+      variant: undefined,
+    };
+    const exposureNull = {
+      flag_key: 'flag-key',
+      variant: null as unknown as string,
+    };
+    // First call with undefined should track
+    expect(cache.shouldTrack(exposureUndefined)).toEqual(true);
+    // Subsequent call with null should dedupe (null and undefined are equivalent)
+    expect(cache.shouldTrack(exposureNull)).toEqual(false);
+    // Subsequent call with undefined should also dedupe
+    expect(cache.shouldTrack(exposureUndefined)).toEqual(false);
+  });
   test('should gracefully handle storage quota exceeded error', () => {
     const instanceName = '$default_instance';
     const cache = new SessionDedupeCache(instanceName);
@@ -399,6 +439,130 @@ describe('SessionDedupeCache', () => {
     expect(cache.shouldTrack(exposure)).toEqual(false); // In-memory cache still works
     // Restore original setItem
     safeGlobal.sessionStorage.setItem = originalSetItem;
+  });
+
+  // User-aware deduplication tests
+  describe('user-aware deduplication', () => {
+    test('same user_id, same flag+variant is deduplicated', () => {
+      const cache = new SessionDedupeCache('$default_instance');
+      const exposure = { flag_key: 'flag-key', variant: 'on' };
+      const user = { user_id: 'user-1', device_id: 'device-1' };
+
+      expect(cache.shouldTrack(exposure, user)).toEqual(true);
+      expect(cache.shouldTrack(exposure, user)).toEqual(false);
+      expect(cache.shouldTrack(exposure, user)).toEqual(false);
+    });
+
+    test('same user_id but different device_id is still deduplicated (user_id priority)', () => {
+      const cache = new SessionDedupeCache('$default_instance');
+      const exposure = { flag_key: 'flag-key', variant: 'on' };
+      const user1 = { user_id: 'user-1', device_id: 'device-1' };
+      const user2 = { user_id: 'user-1', device_id: 'device-2' };
+
+      expect(cache.shouldTrack(exposure, user1)).toEqual(true);
+      // Same user_id, different device_id should still dedupe
+      expect(cache.shouldTrack(exposure, user2)).toEqual(false);
+    });
+
+    test('different user_id clears cache and tracks again', () => {
+      const cache = new SessionDedupeCache('$default_instance');
+      const exposure = { flag_key: 'flag-key', variant: 'on' };
+      const user1 = { user_id: 'user-1', device_id: 'device-1' };
+      const user2 = { user_id: 'user-2', device_id: 'device-1' };
+
+      expect(cache.shouldTrack(exposure, user1)).toEqual(true);
+      expect(cache.shouldTrack(exposure, user1)).toEqual(false);
+      // Different user_id should clear cache and track again
+      expect(cache.shouldTrack(exposure, user2)).toEqual(true);
+      expect(cache.shouldTrack(exposure, user2)).toEqual(false);
+    });
+
+    test('no user_id, same device_id is deduplicated', () => {
+      const cache = new SessionDedupeCache('$default_instance');
+      const exposure = { flag_key: 'flag-key', variant: 'on' };
+      const user1 = { device_id: 'device-1' };
+      const user2 = { device_id: 'device-1' };
+
+      expect(cache.shouldTrack(exposure, user1)).toEqual(true);
+      expect(cache.shouldTrack(exposure, user2)).toEqual(false);
+    });
+
+    test('no user_id, different device_id clears cache and tracks again', () => {
+      const cache = new SessionDedupeCache('$default_instance');
+      const exposure = { flag_key: 'flag-key', variant: 'on' };
+      const user1 = { device_id: 'device-1' };
+      const user2 = { device_id: 'device-2' };
+
+      expect(cache.shouldTrack(exposure, user1)).toEqual(true);
+      expect(cache.shouldTrack(exposure, user1)).toEqual(false);
+      // Different device_id should clear cache and track again
+      expect(cache.shouldTrack(exposure, user2)).toEqual(true);
+      expect(cache.shouldTrack(exposure, user2)).toEqual(false);
+    });
+
+    test('user gains user_id clears cache', () => {
+      const cache = new SessionDedupeCache('$default_instance');
+      const exposure = { flag_key: 'flag-key', variant: 'on' };
+      const anonymousUser = { device_id: 'device-1' };
+      const loggedInUser = { user_id: 'user-1', device_id: 'device-1' };
+
+      expect(cache.shouldTrack(exposure, anonymousUser)).toEqual(true);
+      expect(cache.shouldTrack(exposure, anonymousUser)).toEqual(false);
+      // User logs in (gains user_id) - cache should clear
+      expect(cache.shouldTrack(exposure, loggedInUser)).toEqual(true);
+      expect(cache.shouldTrack(exposure, loggedInUser)).toEqual(false);
+    });
+
+    test('user loses user_id clears cache', () => {
+      const cache = new SessionDedupeCache('$default_instance');
+      const exposure = { flag_key: 'flag-key', variant: 'on' };
+      const loggedInUser = { user_id: 'user-1', device_id: 'device-1' };
+      const anonymousUser = { device_id: 'device-1' };
+
+      expect(cache.shouldTrack(exposure, loggedInUser)).toEqual(true);
+      expect(cache.shouldTrack(exposure, loggedInUser)).toEqual(false);
+      // User logs out (loses user_id) - cache should clear
+      expect(cache.shouldTrack(exposure, anonymousUser)).toEqual(true);
+      expect(cache.shouldTrack(exposure, anonymousUser)).toEqual(false);
+    });
+
+    test('identity change clears both in-memory and session storage', () => {
+      const cache = new SessionDedupeCache('$default_instance');
+      const exposure = { flag_key: 'flag-key', variant: 'on' };
+      const user1 = { user_id: 'user-1' };
+      const user2 = { user_id: 'user-2' };
+
+      // Track for user1
+      cache.shouldTrack(exposure, user1);
+      expect(cache['inMemoryCache']).toEqual({ 'flag-key': 'on' });
+      expect(
+        safeGlobal.sessionStorage.getItem(cache['storageKey']),
+      ).not.toBeNull();
+
+      // Switch to user2 - should clear everything
+      cache.shouldTrack(exposure, user2);
+      // After clearing, it should have stored the new exposure
+      expect(cache['inMemoryCache']).toEqual({ 'flag-key': 'on' });
+    });
+
+    test('no user provided deduplicates with other no-user calls', () => {
+      const cache = new SessionDedupeCache('$default_instance');
+      const exposure = { flag_key: 'flag-key', variant: 'on' };
+
+      expect(cache.shouldTrack(exposure)).toEqual(true);
+      expect(cache.shouldTrack(exposure)).toEqual(false);
+      expect(cache.shouldTrack(exposure, undefined)).toEqual(false);
+      expect(cache.shouldTrack(exposure, {})).toEqual(false);
+    });
+
+    test('user with empty object deduplicates with undefined user', () => {
+      const cache = new SessionDedupeCache('$default_instance');
+      const exposure = { flag_key: 'flag-key', variant: 'on' };
+
+      expect(cache.shouldTrack(exposure, {})).toEqual(true);
+      expect(cache.shouldTrack(exposure, undefined)).toEqual(false);
+      expect(cache.shouldTrack(exposure)).toEqual(false);
+    });
   });
 });
 
