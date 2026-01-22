@@ -949,7 +949,7 @@ export class ExperimentClient implements Client {
     }
     const user = this.addContext(this.getUser());
     this.userSessionExposureTracker?.track(exposure, user);
-    this.integrationManager.track(exposure);
+    this.integrationManager.track(exposure, user);
   }
 
   private legacyExposureInternal(

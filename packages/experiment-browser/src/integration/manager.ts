@@ -12,6 +12,11 @@ import { ExperimentUser } from '../types/user';
 
 const MAX_QUEUE_SIZE = 512;
 
+interface Identity {
+  userId?: string;
+  deviceId?: string;
+}
+
 /**
  * Handles integration plugin management, event persistence and deduplication.
  */
@@ -92,9 +97,10 @@ export class IntegrationManager {
    * the event is persisted in local storage.
    *
    * @param exposure
+   * @param user
    */
-  track(exposure: Exposure): void {
-    if (this.cache.shouldTrack(exposure)) {
+  track(exposure: Exposure, user?: ExperimentUser): void {
+    if (this.cache.shouldTrack(exposure, user)) {
       const event = this.getExposureEvent(exposure);
       this.queue.push(event);
     }
@@ -125,30 +131,65 @@ export class IntegrationManager {
 export class SessionDedupeCache {
   private readonly storageKey: string;
   private readonly isSessionStorageAvailable = checkIsSessionStorageAvailable();
-  private inMemoryCache: Record<string, Exposure> = {};
+  private inMemoryCache: Record<string, string | null> = {};
+  private identity: Identity = {};
 
   constructor(instanceName: string) {
-    this.storageKey = `EXP_sent_v2_${instanceName}`;
-    // Remove previous version of storage if it exists.
+    this.storageKey = `EXP_sent_v3_${instanceName}`;
+    // Remove previous versions of storage if they exist.
     if (this.isSessionStorageAvailable) {
       safeGlobal.sessionStorage.removeItem(`EXP_sent_${instanceName}`);
+      safeGlobal.sessionStorage.removeItem(`EXP_sent_v2_${instanceName}`);
     }
   }
 
-  shouldTrack(exposure: Exposure): boolean {
+  shouldTrack(exposure: Exposure, user?: ExperimentUser): boolean {
     // Always track web impressions.
     if (exposure.metadata?.deliveryMethod === 'web') {
       return true;
     }
+
+    const newIdentity: Identity = {
+      userId: user?.user_id,
+      deviceId: user?.device_id,
+    };
+
+    if (!this.identityEquals(this.identity, newIdentity)) {
+      this.clearCache();
+    }
+    this.identity = newIdentity;
+
     this.loadCache();
-    const cachedExposure = this.inMemoryCache[exposure.flag_key];
+    const hasKey = exposure.flag_key in this.inMemoryCache;
+    const cachedVariant = this.inMemoryCache[exposure.flag_key];
+    // Normalize undefined to null for comparison and storage since JSON.stringify
+    // omits keys with undefined values and converts undefined to null
+    const normalizedExposureVariant = exposure.variant ?? null;
+    const normalizedCachedVariant = cachedVariant ?? null;
     let shouldTrack = false;
-    if (!cachedExposure || cachedExposure.variant !== exposure.variant) {
+    if (!hasKey || normalizedCachedVariant !== normalizedExposureVariant) {
       shouldTrack = true;
-      this.inMemoryCache[exposure.flag_key] = exposure;
+      this.inMemoryCache[exposure.flag_key] = normalizedExposureVariant;
     }
     this.storeCache();
     return shouldTrack;
+  }
+
+  private clearCache(): void {
+    this.inMemoryCache = {};
+    if (this.isSessionStorageAvailable) {
+      safeGlobal.sessionStorage.removeItem(this.storageKey);
+    }
+  }
+
+  private identityEquals(id1: Identity, id2: Identity): boolean {
+    if (id1.userId && id2.userId) {
+      return id1.userId === id2.userId;
+    }
+    if (!id1.userId && !id2.userId) {
+      return id1.deviceId === id2.deviceId;
+    }
+    return false;
   }
 
   private loadCache(): void {
@@ -160,10 +201,15 @@ export class SessionDedupeCache {
 
   private storeCache(): void {
     if (this.isSessionStorageAvailable) {
-      safeGlobal.sessionStorage.setItem(
-        this.storageKey,
-        JSON.stringify(this.inMemoryCache),
-      );
+      try {
+        safeGlobal.sessionStorage.setItem(
+          this.storageKey,
+          JSON.stringify(this.inMemoryCache),
+        );
+      } catch (e) {
+        // Gracefully handle QuotaExceededError or other storage errors.
+        // The in-memory cache will still work for deduplication within this session.
+      }
     }
   }
 }
