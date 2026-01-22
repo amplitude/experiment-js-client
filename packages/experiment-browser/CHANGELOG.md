@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.20.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.20.1...@amplitude/experiment-js-client@1.20.2) (2026-01-22)
+
+
+### Bug Fixes
+
+* dont store whole exposure in dedupe cache, handle setItem errors ([#251](https://github.com/amplitude/experiment-js-client/issues/251)) ([3ca23ce](https://github.com/amplitude/experiment-js-client/commit/3ca23ce740d6000be87250199961638420df2bc3))
+
+
+
+
+
 ## [1.20.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.20.0...@amplitude/experiment-js-client@1.20.1) (2025-11-24)
 
 **Note:** Version bump only for package @amplitude/experiment-js-client
