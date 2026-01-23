@@ -247,9 +247,8 @@ export class PersistentTrackingQueue {
     if (this.inMemoryQueue.length === 0) return;
     let i = 0;
     for (; i < this.inMemoryQueue.length; i++) {
-      const event = this.inMemoryQueue[i];
       try {
-        if (!this.tracker(event)) {
+        if (!this.tracker(this.inMemoryQueue[i])) {
           break;
         }
       } catch (e) {

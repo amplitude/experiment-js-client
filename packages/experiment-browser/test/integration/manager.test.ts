@@ -723,12 +723,18 @@ describe('PersistentTrackingQueue', () => {
       }
       return false;
     });
+    // Makes 1 call, returns false.
+    // Event should remain in the queue.
     queue.push({ eventType: 'test' });
     expect(queue['inMemoryQueue'].length).toEqual(1);
     expect(success).toEqual(0);
+    // Makes 2 calls, returns true for first event, false for second event.
+    // Second event should remain in the queue.
     queue.push({ eventType: 'test1' });
     expect(queue['inMemoryQueue'].length).toEqual(1);
     expect(success).toEqual(1);
+    // Makes 2 calls, returns true for both events.
+    // Both events should be removed from the queue.
     queue.push({ eventType: 'test2' });
     expect(queue['inMemoryQueue'].length).toEqual(0);
     expect(success).toEqual(3);
