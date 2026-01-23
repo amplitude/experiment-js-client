@@ -710,7 +710,7 @@ describe('PersistentTrackingQueue', () => {
     ]);
   });
 
-  test('tracker returns false, event is not pushed', () => {
+  test('no duplicate for partial success', () => {
     const instanceName = '$default_instance';
     const queue = new PersistentTrackingQueue(instanceName);
     let count = 0;
