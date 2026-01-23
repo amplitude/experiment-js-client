@@ -245,18 +245,19 @@ export class PersistentTrackingQueue {
   private flush(): void {
     if (!this.tracker) return;
     if (this.inMemoryQueue.length === 0) return;
-    while (this.inMemoryQueue.length > 0) {
-      const event = this.inMemoryQueue[0];
+    let i = 0;
+    for (; i < this.inMemoryQueue.length; i++) {
+      const event = this.inMemoryQueue[i];
       try {
         if (!this.tracker(event)) {
-          return;
+          break;
         }
       } catch (e) {
-        return;
+        break;
       }
-      this.inMemoryQueue.shift();
     }
-    if (this.poller) {
+    this.inMemoryQueue = this.inMemoryQueue.slice(i);
+    if (this.inMemoryQueue.length === 0 && this.poller) {
       safeGlobal.clearInterval(this.poller);
       this.poller = undefined;
     }
