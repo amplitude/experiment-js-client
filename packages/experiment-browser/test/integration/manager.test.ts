@@ -716,7 +716,7 @@ describe('PersistentTrackingQueue', () => {
     let count = 0;
     let success = 0;
     const returnValues = [false, true, false, true, true, true];
-    queue.setTracker((event) => {
+    queue.setTracker(() => {
       if (returnValues[count++]) {
         success++;
         return true;
