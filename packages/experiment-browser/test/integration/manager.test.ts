@@ -709,4 +709,28 @@ describe('PersistentTrackingQueue', () => {
       { eventType: '5' },
     ]);
   });
+
+  test('tracker returns false, event is not pushed', () => {
+    const instanceName = '$default_instance';
+    const queue = new PersistentTrackingQueue(instanceName);
+    let count = 0;
+    let success = 0;
+    const returnValues = [false, true, false, true, true, true];
+    queue.setTracker((event) => {
+      if (returnValues[count++]) {
+        success++;
+        return true;
+      }
+      return false;
+    });
+    queue.push({ eventType: 'test' });
+    expect(queue['inMemoryQueue'].length).toEqual(1);
+    expect(success).toEqual(0);
+    queue.push({ eventType: 'test1' });
+    expect(queue['inMemoryQueue'].length).toEqual(1);
+    expect(success).toEqual(1);
+    queue.push({ eventType: 'test2' });
+    expect(queue['inMemoryQueue'].length).toEqual(0);
+    expect(success).toEqual(3);
+  });
 });
