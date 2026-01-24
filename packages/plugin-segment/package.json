@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-plugin-segment",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "private": true,
   "description": "Experiment integration for segment analytics",
   "author": "Amplitude",
@@ -27,7 +27,7 @@
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
   "dependencies": {
-    "@amplitude/experiment-js-client": "^1.20.2",
+    "@amplitude/experiment-js-client": "^1.20.3",
     "@segment/analytics-next": "^1.73.0"
   },
   "devDependencies": {
