@@ -59,24 +59,22 @@ export class IntegrationManager {
    * @param integration the integration to manage.
    */
   setIntegration(integration: IntegrationPlugin): void {
-    if (this.integration && this.integration.teardown) {
+    if (this.integration?.teardown) {
       void this.integration.teardown();
     }
     this.integration = integration;
-    if (integration.setup) {
-      this.integration.setup(this.config, this.client).then(
-        () => {
-          this.queue.setTracker(this.integration.track.bind(integration));
-          this.resolve();
-        },
-        () => {
-          this.queue.setTracker(this.integration.track.bind(integration));
-          this.resolve();
-        },
-      );
-    } else {
+
+    const finalizeSetup = () => {
       this.queue.setTracker(this.integration.track.bind(integration));
       this.resolve();
+    };
+
+    if (integration.setup) {
+      void this.integration
+        .setup(this.config, this.client)
+        .finally(finalizeSetup);
+    } else {
+      finalizeSetup();
     }
   }
 
@@ -220,7 +218,9 @@ export class PersistentTrackingQueue {
   private readonly isLocalStorageAvailable = isLocalStorageAvailable();
   private inMemoryQueue: ExperimentEvent[] = [];
   private poller: any | undefined;
+  private readyCheckInterval: any | undefined;
   private tracker: ((event: ExperimentEvent) => boolean) | undefined;
+  private isReady = false;
 
   constructor(instanceName: string, maxQueueSize: number = MAX_QUEUE_SIZE) {
     this.storageKey = `EXP_unsent_${instanceName}`;
@@ -230,20 +230,44 @@ export class PersistentTrackingQueue {
   push(event: ExperimentEvent): void {
     this.loadQueue();
     this.inMemoryQueue.push(event);
-    this.flush();
+    if (this.tracker) {
+      this.isReady = true;
+      this.flush();
+    } else {
+      this.startReadyCheck();
+    }
     this.storeQueue();
   }
 
   setTracker(tracker: (event: ExperimentEvent) => boolean): void {
     this.tracker = tracker;
-    this.poller = safeGlobal.setInterval(() => {
-      this.loadFlushStore();
-    }, 1000);
+    this.startPolling();
     this.loadFlushStore();
   }
 
+  private startReadyCheck(): void {
+    if (this.readyCheckInterval || !this.tracker) return;
+
+    this.readyCheckInterval = safeGlobal.setInterval(() => {
+      if (this.tracker) {
+        this.isReady = true;
+        safeGlobal.clearInterval(this.readyCheckInterval);
+        this.readyCheckInterval = undefined;
+        this.flush();
+      }
+    }, 25);
+  }
+
+  private startPolling(): void {
+    if (this.poller) return;
+
+    this.poller = safeGlobal.setInterval(() => {
+      this.loadFlushStore();
+    }, 1000);
+  }
+
   private flush(): void {
-    if (!this.tracker) return;
+    if (!this.tracker || !this.isReady) return;
     if (this.inMemoryQueue.length === 0) return;
     let i = 0;
     for (; i < this.inMemoryQueue.length; i++) {
@@ -271,7 +295,6 @@ export class PersistentTrackingQueue {
 
   private storeQueue(): void {
     if (this.isLocalStorageAvailable) {
-      // Trim the queue if it is too large.
       if (this.inMemoryQueue.length > this.maxQueueSize) {
         this.inMemoryQueue = this.inMemoryQueue.slice(
           this.inMemoryQueue.length - this.maxQueueSize,
