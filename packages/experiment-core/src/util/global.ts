@@ -3,7 +3,8 @@ export const getGlobalScope = (): typeof globalThis | undefined => {
     return globalThis;
   if (typeof window !== 'undefined' && window !== null) return window;
   if (typeof global !== 'undefined' && global !== null) return global;
-  return self;
+  if (typeof self !== 'undefined' && self !== null) return self;
+  return undefined;
 };
 
 export const safeGlobal = getGlobalScope();
