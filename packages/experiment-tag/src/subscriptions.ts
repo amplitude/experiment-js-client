@@ -166,7 +166,6 @@ export class SubscriptionManager {
             (!('updateActivePages' in payload) || !payload.updateActivePages) &&
             !this.options.isVisualEditorMode
           ) {
-
             // Apply variants for experiments relevant to this trigger type
             this.webExperimentClient.applyVariants({
               flagKeys: isUrlChange
