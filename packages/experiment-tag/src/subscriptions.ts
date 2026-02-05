@@ -155,32 +155,30 @@ export class SubscriptionManager {
         const isUrlChange = triggerType === 'url_change';
         if (isUrlChange) {
           this.resetTriggerStates();
-        }
-        if (
-          (!('updateActivePages' in payload) || !payload.updateActivePages) &&
-          !this.options.isVisualEditorMode
-        ) {
-          if (isUrlChange) {
-            this.revertInjections();
-          }
-
-          // Apply variants for experiments relevant to this trigger type
-          this.webExperimentClient.applyVariants({
-            flagKeys: isUrlChange
-              ? undefined
-              : Array.from(triggerTypeExperimentMap[triggerType] || []),
-          });
-          if (this.webExperimentClient.isPreviewMode) {
-            this.webExperimentClient.previewVariants({
-              keyToVariant: this.webExperimentClient.previewFlags,
-            });
-          }
+          this.revertInjections();
         }
 
         const activePages = this.webExperimentClient.getActivePages();
 
         if (!arePageObjectsEqual(activePages, this.lastNotifiedActivePages)) {
           this.lastNotifiedActivePages = clonePageObjects(activePages);
+          if (
+            (!('updateActivePages' in payload) || !payload.updateActivePages) &&
+            !this.options.isVisualEditorMode
+          ) {
+
+            // Apply variants for experiments relevant to this trigger type
+            this.webExperimentClient.applyVariants({
+              flagKeys: isUrlChange
+                ? undefined
+                : Array.from(triggerTypeExperimentMap[triggerType] || []),
+            });
+            if (this.webExperimentClient.isPreviewMode) {
+              this.webExperimentClient.previewVariants({
+                keyToVariant: this.webExperimentClient.previewFlags,
+              });
+            }
+          }
           for (const subscriber of this.pageChangeSubscribers) {
             subscriber({ activePages });
           }
