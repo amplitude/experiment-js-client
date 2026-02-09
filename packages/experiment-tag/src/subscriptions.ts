@@ -153,31 +153,61 @@ export class SubscriptionManager {
     for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
       this.messageBus.groupSubscribe(triggerType as MessageType, (payload) => {
         const isUrlChange = triggerType === 'url_change';
+
+        // Handle URL change: reset state and revert injections
         if (isUrlChange) {
           this.resetTriggerStates();
           this.revertInjections();
         }
 
+        // Get current page state and check if it changed
         const activePages = this.webExperimentClient.getActivePages();
+        const pagesChanged = !arePageObjectsEqual(
+          activePages,
+          this.lastNotifiedActivePages,
+        );
 
-        if (!arePageObjectsEqual(activePages, this.lastNotifiedActivePages)) {
-          this.lastNotifiedActivePages = clonePageObjects(activePages);
-          if (
-            (!('updateActivePages' in payload) || !payload.updateActivePages) &&
-            !this.options.isVisualEditorMode
-          ) {
-            // Apply variants for experiments relevant to this trigger type
-            this.webExperimentClient.applyVariants({
-              flagKeys: isUrlChange
-                ? undefined
-                : Array.from(triggerTypeExperimentMap[triggerType] || []),
+        // Skip processing in visual editor mode or internal updates
+        const isInternalUpdate =
+          'updateActivePages' in payload && payload.updateActivePages;
+        const shouldApplyVariants =
+          !isInternalUpdate &&
+          !this.options.isVisualEditorMode &&
+          (pagesChanged || isUrlChange);
+
+        if (shouldApplyVariants) {
+          // Determine which experiments to apply variants for
+          const relevantFlags = isUrlChange
+            ? undefined // All experiments
+            : Array.from(triggerTypeExperimentMap[triggerType] || []);
+
+          // Apply non-preview variants
+          this.webExperimentClient.applyVariants({
+            flagKeys: relevantFlags?.filter(
+              (flag) => !this.webExperimentClient.previewFlags[flag],
+            ),
+          });
+
+          // Apply preview variants if in preview mode
+          if (this.webExperimentClient.isPreviewMode) {
+            const previewFlags = relevantFlags
+              ? Object.fromEntries(
+                  relevantFlags.map((flag) => [
+                    flag,
+                    this.webExperimentClient.previewFlags[flag],
+                  ]),
+                )
+              : this.webExperimentClient.previewFlags;
+
+            this.webExperimentClient.previewVariants({
+              keyToVariant: previewFlags,
             });
-            if (this.webExperimentClient.isPreviewMode) {
-              this.webExperimentClient.previewVariants({
-                keyToVariant: this.webExperimentClient.previewFlags,
-              });
-            }
           }
+        }
+
+        // Notify subscribers if pages actually changed
+        if (pagesChanged) {
+          this.lastNotifiedActivePages = clonePageObjects(activePages);
           for (const subscriber of this.pageChangeSubscribers) {
             subscriber({ activePages });
           }
