@@ -205,12 +205,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         ]),
       );
       // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
+      this.subscriptionManager.markUrlAsPublished(
+        this.globalScope.location.href,
+      );
       this.messageBus.publish('url_change', { updateActivePages: true });
       this.isRunning = true;
       return;
     }
 
     // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
+    this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;

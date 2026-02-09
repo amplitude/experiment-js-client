@@ -72,6 +72,7 @@ export class SubscriptionManager {
   > = new WeakMap();
   private userInteractionAbortController: AbortController | null = null;
   private pageLoadTime: number = Number.POSITIVE_INFINITY;
+  private lastPublishedUrl: string | null = null;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -89,6 +90,10 @@ export class SubscriptionManager {
 
   public setPageObjects = (pageObjects: PageObjects) => {
     this.pageObjects = pageObjects;
+  };
+
+  public markUrlAsPublished = (url: string) => {
+    this.lastPublishedUrl = url;
   };
 
   public initSubscriptions = () => {
@@ -553,13 +558,24 @@ export class SubscriptionManager {
   private setupLocationChangePublisher = () => {
     // Add URL change listener for back/forward navigation
     this.globalScope.addEventListener('popstate', () => {
+      const currentUrl = this.globalScope.location.href;
+      if (currentUrl === this.lastPublishedUrl) {
+        return;
+      }
+
+      this.lastPublishedUrl = currentUrl;
       this.messageBus.publish('url_change');
     });
 
     const handleUrlChange = () => {
+      const currentUrl = this.globalScope.location.href;
+      if (currentUrl === this.lastPublishedUrl) {
+        return;
+      }
+
+      this.lastPublishedUrl = currentUrl;
       this.messageBus.publish('url_change');
-      this.globalScope.webExperiment.previousUrl =
-        this.globalScope.location.href;
+      this.globalScope.webExperiment.previousUrl = currentUrl;
     };
 
     // Create wrapper functions for pushState and replaceState
