@@ -540,7 +540,7 @@ export class SubscriptionManager {
 
     // Install listener after minimum time requirement
     if (minTimeOnPageMs > 0) {
-      setTimeout(() => {
+      this.globalScope.setTimeout(() => {
         this.globalScope.document.addEventListener(
           'mouseleave',
           handleMouseLeave,
