@@ -2,7 +2,6 @@ import { EvaluationCondition } from '@amplitude/experiment-core';
 import {
   ExperimentConfig,
   ExperimentUser,
-  Variant,
 } from '@amplitude/experiment-js-client';
 import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
@@ -43,14 +42,25 @@ export type PageObject = {
 
 export type PageObjects = { [flagKey: string]: { [id: string]: PageObject } };
 
+export enum ConsentStatus {
+  REJECTED = 0,
+  GRANTED = 1,
+  PENDING = 2,
+}
+
+export type ConsentOptions = {
+  status: ConsentStatus;
+};
+
 export interface WebExperimentConfig extends ExperimentConfig {
   /**
-   * Determines whether the default implementation for handling navigation  will be used
+   * Determines whether the default implementation for handling navigation will be used
    * If this is set to false, for single-page applications:
    * 1. The variant actions applied will be based on the context (user, page URL) when the web experiment script was loaded
    * 2. Custom handling of navigation {@link setRedirectHandler} should be implemented such that variant actions applied on the site reflect the latest context
    */
   useDefaultNavigationHandler?: boolean;
+  consentOptions?: ConsentOptions;
 }
 
 export const Defaults: WebExperimentConfig = {
@@ -79,6 +89,8 @@ export interface WebExperimentClient {
   getActivePages(): PageObjects;
 
   setRedirectHandler(handler: (url: string) => void): void;
+
+  setConsentStatus(consentStatus: ConsentStatus): void;
 }
 
 export type WebExperimentUser = {

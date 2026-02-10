@@ -15,10 +15,29 @@ import {
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 
+import { ConsentAwareExposureHandler } from './exposure/consent-aware-exposure-handler';
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
+import {
+  ConsentAwareLocalStorage,
+  ConsentAwareSessionStorage,
+  ConsentAwareStorage,
+} from './storage/consent-aware-storage';
+import {
+  getExperimentStorageKey,
+  getPreviewModeSessionKey,
+  getRedirectStorageKey,
+  getVisualEditorSessionKey,
+} from './storage/keys';
+import {
+  deletePersistedData,
+  getAndParseStorageItem,
+  setAndStringifyStorageItem,
+} from './storage/storage';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {
+  ConsentOptions,
+  ConsentStatus,
   Defaults,
   WebExperimentClient,
   WebExperimentConfig,
@@ -34,15 +53,9 @@ import {
 } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
-import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
-import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
+import { WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
-import {
-  getStorageItem,
-  setStorageItem,
-  removeStorageItem,
-} from './util/storage';
 import {
   getUrlParams,
   removeQueryParams,
@@ -57,7 +70,6 @@ const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
-export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 
 safeGlobal.Experiment = FeatureExperiment;
@@ -104,6 +116,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, string> = {};
+  private consentOptions: ConsentOptions = {
+    status: ConsentStatus.GRANTED,
+  };
+  private storage: ConsentAwareStorage;
+  private consentAwareExposureHandler: ConsentAwareExposureHandler;
 
   constructor(
     apiKey: string,
@@ -127,6 +144,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ...config,
       ...(this.globalScope.experimentConfig ?? {}),
     };
+
+    if (this.config.consentOptions) {
+      this.consentOptions = this.config.consentOptions;
+    }
+
+    this.storage = new ConsentAwareStorage(this.consentOptions.status);
+
+    this.consentAwareExposureHandler = new ConsentAwareExposureHandler(
+      this.consentOptions.status,
+    );
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
@@ -152,6 +179,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       internalInstanceNameSuffix: 'web',
+      consentAwareStorage: {
+        localStorage: new ConsentAwareLocalStorage(this.storage),
+        sessionStorage: new ConsentAwareSessionStorage(this.storage),
+      },
       initialFlags: initialFlagsString,
       // timeout for fetching remote flags
       fetchTimeoutMillis: 1000,
@@ -179,7 +210,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const urlParams = getUrlParams();
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
-      getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
+      this.storage.getItem('sessionStorage', getVisualEditorSessionKey()) !==
+        null;
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
@@ -212,9 +244,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
     this.messageBus.publish('url_change', { updateActivePages: true });
 
-    const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
+    const experimentStorageName = getExperimentStorageKey(this.apiKey);
     const user =
-      getStorageItem<WebExperimentUser>(
+      this.storage.getItem<WebExperimentUser>(
         'localStorage',
         experimentStorageName,
       ) || {};
@@ -226,10 +258,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (!user.web_exp_id) {
       user.web_exp_id = user.device_id || UUID();
       delete user.device_id;
-      setStorageItem('localStorage', experimentStorageName, user);
+      this.storage.setItem('localStorage', experimentStorageName, user);
     } else if (user.web_exp_id && user.device_id) {
       delete user.device_id;
-      setStorageItem('localStorage', experimentStorageName, user);
+      this.storage.setItem('localStorage', experimentStorageName, user);
     }
 
     // evaluate variants for page targeting
@@ -251,7 +283,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
-    const enrichedUser = await enrichUserWithCampaignData(this.apiKey, user);
+    const enrichedUser = await enrichUserWithCampaignData(
+      this.apiKey,
+      user,
+      this.storage,
+    );
 
     // If no integration has been set, use an Amplitude integration.
     if (!this.globalScope.experimentIntegration) {
@@ -263,6 +299,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     this.globalScope.experimentIntegration.type = 'integration';
+    this.consentAwareExposureHandler.wrapExperimentIntegrationTrack();
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(enrichedUser);
 
@@ -530,6 +567,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.customRedirectHandler = handler;
   }
 
+  public setConsentStatus(consentStatus: ConsentStatus) {
+    if (
+      consentStatus == undefined ||
+      consentStatus === this.consentOptions.status
+    ) {
+      return;
+    }
+    this.consentOptions.status = consentStatus;
+    this.storage.setConsentStatus(consentStatus);
+    if (consentStatus === ConsentStatus.REJECTED) {
+      deletePersistedData(this.apiKey, this.config);
+    }
+    this.consentAwareExposureHandler.setConsentStatus(consentStatus);
+  }
+
   private async fetchRemoteFlags() {
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -584,7 +636,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    setMarketingCookie(this.apiKey).then();
+    this.storage.setMarketingCookie(this.apiKey).then();
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
@@ -804,19 +856,19 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     variant: Variant,
     redirectUrl: string,
   ) {
-    const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+    const redirectStorageKey = getRedirectStorageKey(this.apiKey);
     // Store the current flag and variant for exposure tracking after redirect
     const storedRedirects =
-      getStorageItem('sessionStorage', redirectStorageKey) || {};
+      this.storage.getItem('sessionStorage', redirectStorageKey) || {};
     storedRedirects[flagKey] = { redirectUrl, variant };
-    setStorageItem('sessionStorage', redirectStorageKey, storedRedirects);
+    this.storage.setItem('sessionStorage', redirectStorageKey, storedRedirects);
   }
 
   private fireStoredRedirectImpressions() {
     // Check for stored redirects and process them
-    const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+    const redirectStorageKey = getRedirectStorageKey(this.apiKey);
     const storedRedirects =
-      getStorageItem('sessionStorage', redirectStorageKey) || {};
+      this.storage.getItem('sessionStorage', redirectStorageKey) || {};
 
     // If we have stored redirects, track exposures for them
     if (Object.keys(storedRedirects).length > 0) {
@@ -841,7 +893,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // track exposure with timeout of 500ms
       this.globalScope.setTimeout(() => {
         const redirects =
-          getStorageItem('sessionStorage', redirectStorageKey) || {};
+          this.storage.getItem('sessionStorage', redirectStorageKey) || {};
         for (const storedFlagKey in redirects) {
           this.exposureWithDedupe(
             storedFlagKey,
@@ -849,10 +901,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
             true,
           );
         }
-        removeStorageItem('sessionStorage', redirectStorageKey);
+        this.storage.removeItem('sessionStorage', redirectStorageKey);
       }, 500);
     } else {
-      removeStorageItem('sessionStorage', redirectStorageKey);
+      this.storage.removeItem('sessionStorage', redirectStorageKey);
     }
   }
 
@@ -865,9 +917,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         }
       });
 
-      setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
-        previewFlags: this.previewFlags,
-      });
+      setAndStringifyStorageItem<PreviewState>(
+        'sessionStorage',
+        getPreviewModeSessionKey(),
+        {
+          previewFlags: this.previewFlags,
+        },
+      );
       const previewParamsToRemove = [
         ...Object.keys(this.previewFlags),
         PREVIEW_MODE_PARAM,
@@ -883,9 +939,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // if in preview mode, listen for ForceVariant messages
       WindowMessenger.setup();
     } else {
-      const previewState: PreviewState | null = getStorageItem(
+      const previewState = getAndParseStorageItem<PreviewState>(
         'sessionStorage',
-        PREVIEW_MODE_SESSION_KEY,
+        getPreviewModeSessionKey(),
       );
       if (previewState) {
         this.previewFlags = previewState.previewFlags;
