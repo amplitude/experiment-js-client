@@ -66,7 +66,23 @@ export const showLoadingIndicator = () => {
     </div>
   `;
 
-  document.body.appendChild(loadingContainer);
+  const appendToBody = () => {
+    // Check again in case it was added while waiting or hidden before body was ready
+    if (
+      document.getElementById(LOADING_INDICATOR_ID) ||
+      loadingTimeout === undefined
+    ) {
+      return;
+    }
+    document.body.appendChild(loadingContainer);
+  };
+
+  // Defer if body doesn't exist yet
+  if (document.body) {
+    appendToBody();
+  } else {
+    document.addEventListener('DOMContentLoaded', appendToBody, { once: true });
+  }
 };
 
 export const hideLoadingIndicator = () => {
