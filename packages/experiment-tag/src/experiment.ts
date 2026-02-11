@@ -1,4 +1,5 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
+import { CookieStorage } from '@amplitude/analytics-core';
 import {
   EvaluationFlag,
   getGlobalScope,
@@ -50,6 +51,7 @@ import {
   urlWithoutParamsAndAnchor,
   concatenateQueryParamsOf,
   matchesUrl,
+  getCookieDomain,
 } from './util/url';
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
@@ -278,6 +280,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       keyToVariant: this.previewFlags,
     });
 
+    // fire stored redirect impressions upon startup
+    this.fireStoredRedirectImpressions().catch();
+    // Subscribe directly to url_change events to fire redirect impressions
+    this.messageBus.subscribe('url_change', () => {
+      this.fireStoredRedirectImpressions().catch();
+    });
+
     if (
       // do not fetch remote flags if all remote flags are in preview mode
       this.remoteFlagKeys.every((key) =>
@@ -361,8 +370,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache = {};
       this.urlExposureCache[currentUrl] = {};
     }
-
-    this.fireStoredRedirectImpressions();
 
     for (const key in variants) {
       // preview actions are handled by previewVariants
@@ -589,11 +596,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    this.storeRedirectImpressions(flagKey, variant, redirectUrl);
+    const currentDomain = getCookieDomain(this.globalScope.location.href);
+    this.storeRedirectImpressions(flagKey, variant, currentDomain, redirectUrl);
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    setMarketingCookie(this.apiKey).then();
+    setMarketingCookie(this.apiKey, currentDomain).then();
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
@@ -811,57 +819,102 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private storeRedirectImpressions(
     flagKey: string,
     variant: Variant,
+    currentDomain: string | undefined,
     redirectUrl: string,
   ) {
-    const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
-    // Store the current flag and variant for exposure tracking after redirect
-    const storedRedirects =
-      getStorageItem('sessionStorage', redirectStorageKey) || {};
-    storedRedirects[flagKey] = { redirectUrl, variant };
-    setStorageItem('sessionStorage', redirectStorageKey, storedRedirects);
-  }
+    const redirectDomain = getCookieDomain(redirectUrl);
 
-  private fireStoredRedirectImpressions() {
-    // Check for stored redirects and process them
-    const redirectStorageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
-    const storedRedirects =
-      getStorageItem('sessionStorage', redirectStorageKey) || {};
-
-    // If we have stored redirects, track exposures for them
-    if (Object.keys(storedRedirects).length > 0) {
-      for (const storedFlagKey in storedRedirects) {
-        const { redirectUrl, variant } = storedRedirects[storedFlagKey];
-        const currentUrl = urlWithoutParamsAndAnchor(
-          this.globalScope.location.href,
-        );
-        const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
-        if (matchesUrl([currentUrl], strippedRedirectUrl)) {
-          // Force variant to ensure original evaluation result is tracked
-          this.exposureWithDedupe(storedFlagKey, variant, true);
-
-          // Remove this flag from stored redirects
-          delete storedRedirects[storedFlagKey];
-        }
-      }
+    // Only allow redirects to same root domain for security
+    if (currentDomain !== redirectDomain) {
+      console.warn(
+        `Redirect impressions are only supported for same root domain. Current: ${currentDomain}, Redirect: ${redirectDomain}`,
+      );
+      return;
     }
 
-    // Update or clear the storage
-    if (Object.keys(storedRedirects).length > 0) {
-      // track exposure with timeout of 500ms
-      this.globalScope.setTimeout(() => {
-        const redirects =
-          getStorageItem('sessionStorage', redirectStorageKey) || {};
-        for (const storedFlagKey in redirects) {
-          this.exposureWithDedupe(
-            storedFlagKey,
-            redirects[storedFlagKey].variant,
-            true,
-          );
+    const storage = new CookieStorage<
+      Record<string, { redirectUrl: string; variant: Variant }>
+    >({
+      domain: redirectDomain,
+      sameSite: 'Lax',
+      expirationDays: 1 / 1440, // 1 minute
+    });
+
+    const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+    storage
+      .get(storageKey)
+      .then((storedRedirects) => {
+        const redirects = storedRedirects || {};
+        redirects[flagKey] = { redirectUrl, variant };
+        storage.set(storageKey, redirects).catch();
+      })
+      .catch((error) => {
+        console.error(
+          `Failed to store redirect impression for ${flagKey}:`,
+          error,
+        );
+      });
+  }
+
+  private async fireStoredRedirectImpressions() {
+    const storage = new CookieStorage<
+      Record<string, { redirectUrl: string; variant: Variant }>
+    >({
+      domain: getCookieDomain(this.globalScope.location.href),
+      sameSite: 'Lax',
+    });
+
+    const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+
+    try {
+      const storedRedirects = (await storage.get(storageKey)) || {};
+      if (Object.keys(storedRedirects).length === 0) {
+        return;
+      }
+
+      const currentUrl = urlWithoutParamsAndAnchor(
+        this.globalScope.location.href,
+      );
+
+      // Track exposures for redirects that match current URL
+      for (const flagKey in storedRedirects) {
+        const { redirectUrl, variant } = storedRedirects[flagKey];
+        const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
+
+        if (matchesUrl([currentUrl], strippedRedirectUrl)) {
+          this.exposureWithDedupe(flagKey, variant, true);
+          delete storedRedirects[flagKey];
         }
-        removeStorageItem('sessionStorage', redirectStorageKey);
-      }, 500);
-    } else {
-      removeStorageItem('sessionStorage', redirectStorageKey);
+      }
+
+      // Track remaining redirects after timeout, then cleanup
+      if (Object.keys(storedRedirects).length > 0) {
+        this.globalScope.setTimeout(async () => {
+          try {
+            const redirects = (await storage.get(storageKey)) || {};
+            for (const flagKey in redirects) {
+              this.exposureWithDedupe(
+                flagKey,
+                redirects[flagKey].variant,
+                true,
+              );
+            }
+            await storage.remove(storageKey);
+          } catch (error) {
+            console.error(
+              `Failed to remove redirect impressions from ${storageKey}:`,
+              error,
+            );
+          }
+        }, 500);
+      } else {
+        await storage.remove(storageKey);
+      }
+    } catch (error) {
+      console.error(
+        `Failed to retrieve redirect impressions from ${storageKey}:`,
+        error,
+      );
     }
   }
 

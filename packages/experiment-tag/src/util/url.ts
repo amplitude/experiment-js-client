@@ -84,3 +84,34 @@ export const isPreviewMode = (): boolean => {
   }
   return false;
 };
+
+/**
+ * Extracts the root domain from a URL and returns it with a leading dot for cookie sharing.
+ */
+export const getCookieDomain = (url: string): string | undefined => {
+  try {
+    const hostname = new URL(url).hostname;
+
+    if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+      return '.localhost';
+    }
+    // Special handling for Vercel and other platform domains
+    // These are on the public suffix list and cannot have cookies set at the root
+    const publicSuffixes = ['vercel.app', 'netlify.app', 'pages.dev'];
+
+    for (const suffix of publicSuffixes) {
+      if (hostname.endsWith(`.${suffix}`)) {
+        // Return the full hostname without a leading dot
+        // This sets the cookie for ONLY this specific subdomain
+        return '.' + hostname;
+      }
+    }
+
+    const parts = hostname.split('.');
+    const rootDomain = parts.length <= 2 ? hostname : parts.slice(-2).join('.');
+
+    return `.${rootDomain}`;
+  } catch (error) {
+    return undefined;
+  }
+};
