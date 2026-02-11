@@ -1,5 +1,9 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+import {
+  showLoadingIndicator,
+  hideLoadingIndicator,
+} from './loading-indicator';
 import { getStorageItem } from './storage';
 
 interface VisualEditorSession {
@@ -17,6 +21,7 @@ export class WindowMessenger {
     const existingSession = WindowMessenger.getStoredSession();
     if (existingSession) {
       state = 'opening';
+      showLoadingIndicator();
       asyncLoadScript(existingSession.injectSrc)
         .then(() => {
           state = 'open';
@@ -24,6 +29,7 @@ export class WindowMessenger {
         .catch((error) => {
           console.warn('Failed to load overlay from stored session:', error);
           state = 'closed';
+          hideLoadingIndicator();
         });
       return;
     }
@@ -57,12 +63,14 @@ export class WindowMessenger {
             return;
           }
           state = 'opening';
+          showLoadingIndicator();
           asyncLoadScript(e.data.context.injectSrc)
             .then(() => {
               state = 'open';
             })
             .catch(() => {
               state = 'closed';
+              hideLoadingIndicator();
             });
         }
       },
