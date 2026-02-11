@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.15.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.14.3...@amplitude/experiment-tag@0.15.0) (2026-02-11)
+
+
+### Bug Fixes
+
+* revert hash-based routing logic, VISUAL_EDITOR param will always be appended to base url ([#250](https://github.com/amplitude/experiment-js-client/issues/250)) ([02b34bd](https://github.com/amplitude/experiment-js-client/commit/02b34bd24d4c7c2e6245127bf19e22c90e8e65f1))
+
+
+### Features
+
+* add loading indicator ([#257](https://github.com/amplitude/experiment-js-client/issues/257)) ([a6ab126](https://github.com/amplitude/experiment-js-client/commit/a6ab1266493d987c68b46233794a5ce59bfb417d))
+
+
+
+
+
 ## [0.14.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.14.2...@amplitude/experiment-tag@0.14.3) (2026-01-24)
 
 **Note:** Version bump only for package @amplitude/experiment-tag
