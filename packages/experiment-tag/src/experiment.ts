@@ -37,6 +37,7 @@ import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
+import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
 import {
@@ -337,6 +338,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public getExperimentClient(): ExperimentClient {
     return this.experimentClient;
+  }
+
+  /**
+   * Hide the visual editor loading indicator.
+   * Called by experiment-overlay when it's ready to render.
+   */
+  public hideLoadingIndicator(): void {
+    hideLoadingIndicator();
   }
 
   /**
