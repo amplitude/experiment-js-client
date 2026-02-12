@@ -24,8 +24,11 @@ export const initialize = (
     throw new Error('Global scope not available');
   }
 
-  // Expose plugin factory immediately
-  if (!globalScope.webExperiment) {
+  // Expose plugin factory immediately (only if not already a real client instance)
+  if (
+    !globalScope.webExperiment ||
+    !(globalScope.webExperiment instanceof DefaultWebExperimentClient)
+  ) {
     globalScope.webExperiment = { plugin: createPlugin };
   }
 
