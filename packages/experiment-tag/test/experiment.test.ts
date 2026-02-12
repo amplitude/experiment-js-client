@@ -1250,7 +1250,7 @@ describe('initializeExperiment', () => {
       });
     });
     afterEach(() => {
-      safeGlobal.sessionStorage.clear();
+      safeGlobal?.sessionStorage.clear();
     });
     test('evaluated, applied, and impression tracked, start updates flag in storage, applied, impression deduped', async () => {
       const apiKey = 'api1';
@@ -1267,7 +1267,7 @@ describe('initializeExperiment', () => {
           flagVersion: 2,
         },
       );
-      safeGlobal.sessionStorage.setItem(
+      safeGlobal?.sessionStorage.setItem(
         storageKey,
         JSON.stringify({ test: storedFlag }),
       );
@@ -1314,7 +1314,7 @@ describe('initializeExperiment', () => {
       expect(mockExposure).toHaveBeenCalledTimes(1);
       // Check remote flag store in storage
       const flags = JSON.parse(
-        safeGlobal.sessionStorage.getItem(storageKey) as string,
+        safeGlobal?.sessionStorage.getItem(storageKey) as string,
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
@@ -1341,7 +1341,7 @@ describe('initializeExperiment', () => {
           flagVersion: 2,
         },
       );
-      safeGlobal.sessionStorage.setItem(
+      safeGlobal?.sessionStorage.setItem(
         storageKey,
         JSON.stringify({ test: storedFlag }),
       );
@@ -1396,7 +1396,7 @@ describe('initializeExperiment', () => {
       expect(mockExposure).toHaveBeenCalledTimes(2);
       // Check remote flag store in storage
       const flags = JSON.parse(
-        safeGlobal.sessionStorage.getItem(storageKey) as string,
+        safeGlobal?.sessionStorage.getItem(storageKey) as string,
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
@@ -1422,7 +1422,7 @@ describe('initializeExperiment', () => {
 });
 
 test('feature experiment on global Experiment object', () => {
-  expect(safeGlobal.Experiment).toBeDefined();
+  expect(safeGlobal?.Experiment).toBeDefined();
 });
 
 describe('helper methods', () => {
