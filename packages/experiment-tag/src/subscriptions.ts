@@ -197,10 +197,9 @@ export class SubscriptionManager {
           if (this.webExperimentClient.isPreviewMode) {
             const previewFlags = relevantFlags
               ? Object.fromEntries(
-                  relevantFlags.map((flag) => [
-                    flag,
-                    this.webExperimentClient.previewFlags[flag],
-                  ]),
+                  Object.entries(this.webExperimentClient.previewFlags).filter(
+                    ([flag]) => relevantFlags.includes(flag),
+                  ),
                 )
               : this.webExperimentClient.previewFlags;
 
