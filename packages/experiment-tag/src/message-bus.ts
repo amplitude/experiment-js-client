@@ -1,10 +1,6 @@
-export interface EventProperties {
-  [k: string]: unknown;
-}
-
 export interface AnalyticsEvent {
-  event_type: string;
-  event_properties: EventProperties;
+  event: string;
+  properties: Record<string, unknown>;
 }
 
 type Subscriber<T extends MessageType> = {
@@ -13,15 +9,25 @@ type Subscriber<T extends MessageType> = {
 };
 
 export type ElementAppearedPayload = { mutationList: MutationRecord[] };
+export type ElementVisiblePayload = Record<string, never>;
 export type AnalyticsEventPayload = AnalyticsEvent;
 export type ManualTriggerPayload = { name: string };
 export type UrlChangePayload = { updateActivePages?: boolean };
+export type TimeOnPagePayload = { durationMs: number };
+export type ExitIntentPayload = { durationMs: number };
+export type UserInteractionPayload = Record<string, never>;
+export type ScrolledToPayload = Record<string, never>;
 
 export type MessagePayloads = {
   element_appeared: ElementAppearedPayload;
+  element_visible: ElementVisiblePayload;
   url_change: UrlChangePayload;
   analytics_event: AnalyticsEventPayload;
   manual: ManualTriggerPayload;
+  time_on_page: TimeOnPagePayload;
+  user_interaction: UserInteractionPayload;
+  exit_intent: ExitIntentPayload;
+  scrolled_to: ScrolledToPayload;
 };
 
 export type MessageType = keyof MessagePayloads;
@@ -44,17 +50,14 @@ export class MessageBus {
     messageType: T,
     listener: Subscriber<T>['callback'],
     listenerId: string | undefined = undefined,
-    groupCallback?: (payload: MessagePayloads[T]) => void,
   ): void {
-    // this happens upon init, page objects "listen" to triggers relevant to them
+    // Subscribe individual callback for this message type
     let entry = this.messageToSubscriberGroup.get(
       messageType,
     ) as SubscriberGroup<T>;
     if (!entry) {
       entry = { subscribers: [] };
       this.messageToSubscriberGroup.set(messageType, entry);
-      groupCallback &&
-        this.subscriberGroupCallback.set(messageType, groupCallback);
     }
 
     const subscriber: Subscriber<T> = {
@@ -62,6 +65,20 @@ export class MessageBus {
       callback: listener,
     };
     entry.subscribers.push(subscriber);
+  }
+
+  groupSubscribe<T extends MessageType>(
+    messageType: T,
+    groupCallback: (payload: MessagePayloads[T]) => void,
+  ): void {
+    // Subscribe groupCallback that runs once after all individual subscribers
+    // Only one groupCallback per message type - subsequent calls overwrite
+    this.subscriberGroupCallback.set(messageType, groupCallback);
+
+    // Ensure entry exists for this message type
+    if (!this.messageToSubscriberGroup.has(messageType)) {
+      this.messageToSubscriberGroup.set(messageType, { subscribers: [] });
+    }
   }
 
   publish<T extends MessageType>(
@@ -73,8 +90,10 @@ export class MessageBus {
     ) as SubscriberGroup<T>;
     if (!entry) return;
 
+    // Ensure payload is initialized before use
+    payload = payload || ({} as MessagePayloads[T]);
+
     entry.subscribers.forEach((subscriber) => {
-      payload = payload || ({} as MessagePayloads[T]);
       subscriber.callback(payload);
     });
     this.subscriberGroupCallback.get(messageType)?.(payload);

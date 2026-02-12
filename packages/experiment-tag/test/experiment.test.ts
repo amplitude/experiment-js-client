@@ -10,6 +10,7 @@ import { stringify } from 'ts-jest';
 import { createMutateFlag, createRedirectFlag } from './util/create-flag';
 import { createPageObject } from './util/create-page-object';
 import { MockHttpClient } from './util/mock-http-client';
+import { createMockGlobal, setupGlobalObservers } from './util/mocks';
 
 let apiKey = 0;
 const DEFAULT_PAGE_OBJECTS = {
@@ -26,92 +27,11 @@ jest.mock('src/util/messenger', () => {
   };
 });
 
-const newMockGlobal = (overrides?: Record<string, unknown>) => {
-  const createStorageMock = () => {
-    let store: Record<string, string> = {};
-    return {
-      getItem: jest.fn((key: string) => store[key] || null),
-      setItem: jest.fn((key: string, value: string) => {
-        store[key] = value;
-      }),
-      removeItem: jest.fn((key: string) => {
-        delete store[key];
-      }),
-      clear: jest.fn(() => {
-        store = {};
-      }),
-      length: jest.fn(() => Object.keys(store).length),
-      key: jest.fn((index: number) => Object.keys(store)[index] || null),
-    };
-  };
+// Setup global observers
+setupGlobalObservers();
 
-  // Base global object first
-  const baseGlobal = {
-    localStorage: createStorageMock(),
-    sessionStorage: createStorageMock(),
-    document: { referrer: '' },
-    history: { replaceState: jest.fn() },
-    addEventListener: jest.fn(),
-    experimentIntegration: {
-      track: () => {
-        return true;
-      },
-      getUser: () => {
-        return {
-          user_id: 'user',
-          device_id: 'device',
-        };
-      },
-    },
-    location: {
-      href: 'http://test.com',
-      search: '',
-      hostname: 'test.com',
-      pathname: '/',
-      protocol: 'http:',
-      port: '',
-      host: 'test.com',
-      replace: jest.fn(),
-    },
-  };
-
-  baseGlobal.location.replace = jest.fn((url) => {
-    baseGlobal.location.href = url;
-  });
-
-  if (overrides) {
-    Object.keys(overrides).forEach((key) => {
-      if (key === 'location' && typeof overrides[key] === 'object') {
-        // Merge location properties but preserve the replace function reference
-        const locationOverrides = overrides[key] as any;
-
-        // Store the original replace function
-        const originalReplace = baseGlobal.location.replace;
-
-        // Merge properties
-        baseGlobal.location = {
-          ...baseGlobal.location,
-          ...locationOverrides,
-        };
-
-        if (!locationOverrides.replace) {
-          baseGlobal.location.replace = originalReplace;
-        } else if (typeof locationOverrides.replace === 'function') {
-          // If override provided a replace function, enhance it to update href
-          const customReplace = locationOverrides.replace;
-          baseGlobal.location.replace = jest.fn((url) => {
-            baseGlobal.location.href = url;
-            return customReplace(url);
-          });
-        }
-      } else {
-        baseGlobal[key] = overrides[key];
-      }
-    });
-  }
-
-  return baseGlobal;
-};
+// Alias to the shared mock utility
+const newMockGlobal = createMockGlobal;
 
 describe('initializeExperiment', () => {
   const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');

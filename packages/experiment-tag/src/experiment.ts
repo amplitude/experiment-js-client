@@ -1,4 +1,5 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
+import { Event, Plugin } from '@amplitude/analytics-types';
 import {
   EvaluationFlag,
   getGlobalScope,
@@ -54,6 +55,8 @@ import {
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
 
+import { flushEventBuffer } from './index';
+
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
@@ -96,7 +99,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
-  private isRunning = false;
+  public isRunning = false;
   private readonly messageBus: MessageBus;
   private pageObjects: PageObjects;
   private activePages: PageObjects = {};
@@ -205,12 +208,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         ]),
       );
       // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
+      this.subscriptionManager.markUrlAsPublished(
+        this.globalScope.location.href,
+      );
       this.messageBus.publish('url_change', { updateActivePages: true });
       this.isRunning = true;
+      flushEventBuffer(this);
       return;
     }
 
     // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
+    this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
@@ -285,6 +293,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       )
     ) {
       this.isRunning = true;
+      flushEventBuffer(this);
       return;
     }
 
@@ -292,6 +301,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
     this.applyVariants({ flagKeys: this.remoteFlagKeys });
     this.isRunning = true;
+    flushEventBuffer(this);
   }
 
   /**
@@ -315,8 +325,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     // if the client has already been initialized, return the existing instance
-    if (globalScope?.webExperiment) {
-      return globalScope.webExperiment;
+    if (globalScope.webExperiment instanceof DefaultWebExperimentClient) {
+      const existingClient = globalScope.webExperiment;
+      // Flush any events that may have been buffered since last initialization
+      if (existingClient.isRunning) {
+        flushEventBuffer(existingClient);
+      }
+      return existingClient;
     }
     const webExperiment = new DefaultWebExperimentClient(
       apiKey,
@@ -324,7 +339,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       pageObjects,
       config,
     );
+    // Set the real client instance
     globalScope.webExperiment = webExperiment;
+
+    // Note: Don't flush buffer here - wait until start() completes and isRunning = true
+    // The buffer will be flushed when isRunning becomes true
+
     return webExperiment;
   }
 
@@ -537,6 +557,54 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public setRedirectHandler(handler: (url: string) => void) {
     this.customRedirectHandler = handler;
+  }
+
+  /**
+   * Manually activate a page trigger with the specified name.
+   * @param name The name of the manual trigger to activate
+   * @param isActive Whether the trigger should be activated or deactivated
+   */
+  public toggleManualPageObject(name: string, isActive = true) {
+    this.subscriptionManager?.toggleManualPageObject(name, isActive);
+  }
+
+  /**
+   * Returns an Amplitude plugin that forwards analytics events to trigger page objects.
+   * @returns An Amplitude Plugin that intercepts analytics events
+   */
+  public plugin(): Plugin {
+    return {
+      name: '@amplitude/experiment-tag',
+      type: 'enrichment',
+
+      setup: async (): Promise<void> => {
+        // No setup required
+      },
+
+      execute: async (context: Event): Promise<Event> => {
+        this.trackEvent(
+          context.event_type,
+          context.event_properties as Record<string, unknown>,
+        );
+
+        return context;
+      },
+    };
+  }
+
+  /**
+   * Track an analytics event that can trigger page objects.
+   * @param event_type The event type/name
+   * @param event_properties Optional event properties
+   */
+  public trackEvent(
+    event_type: string,
+    event_properties?: Record<string, unknown>,
+  ) {
+    this.messageBus.publish('analytics_event', {
+      event: event_type,
+      properties: event_properties || {},
+    });
   }
 
   private async fetchRemoteFlags() {
