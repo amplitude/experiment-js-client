@@ -55,6 +55,8 @@ import {
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
 
+import { flushEventBuffer } from './index';
+
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
@@ -97,7 +99,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
-  private isRunning = false;
+  public isRunning = false;
   private readonly messageBus: MessageBus;
   private pageObjects: PageObjects;
   private activePages: PageObjects = {};
@@ -211,6 +213,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
       this.messageBus.publish('url_change', { updateActivePages: true });
       this.isRunning = true;
+      flushEventBuffer(this);
       return;
     }
 
@@ -290,6 +293,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       )
     ) {
       this.isRunning = true;
+      flushEventBuffer(this);
       return;
     }
 
@@ -297,6 +301,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
     this.applyVariants({ flagKeys: this.remoteFlagKeys });
     this.isRunning = true;
+    flushEventBuffer(this);
   }
 
   /**
@@ -320,7 +325,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     // if the client has already been initialized, return the existing instance
-    if (globalScope?.webExperiment) {
+    if (globalScope.webExperiment instanceof DefaultWebExperimentClient) {
       return globalScope.webExperiment;
     }
     const webExperiment = new DefaultWebExperimentClient(
@@ -329,7 +334,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       pageObjects,
       config,
     );
+    // Set the real client instance
     globalScope.webExperiment = webExperiment;
+
+    // Note: Don't flush buffer here - wait until start() completes and isRunning = true
+    // The buffer will be flushed when isRunning becomes true
+
     return webExperiment;
   }
 
@@ -582,7 +592,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param event_type The event type/name
    * @param event_properties Optional event properties
    */
-  private trackEvent(
+  public trackEvent(
     event_type: string,
     event_properties?: Record<string, unknown>,
   ) {
