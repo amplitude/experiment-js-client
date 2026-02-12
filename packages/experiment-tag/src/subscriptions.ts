@@ -299,6 +299,47 @@ export class SubscriptionManager {
     selectors: Iterable<string>,
     mutationList: MutationRecord[],
   ) => {
+    // First, check for removed nodes and update state if all elements are gone
+    if (mutationList.length > 0) {
+      const selectorsArray = Array.from(selectors);
+      const hasRemovals = mutationList.some(
+        (mutation) => mutation.removedNodes.length > 0,
+      );
+
+      if (hasRemovals) {
+        for (const selector of selectorsArray) {
+          // Only check selectors that are currently in appeared state
+          if (!this.elementAppearedState.has(selector)) continue;
+
+          try {
+            // Check if any removed nodes match this selector
+            const removedMatchingNode = mutationList.some((mutation) =>
+              Array.from(mutation.removedNodes).some((node) => {
+                if (node.nodeType !== Node.ELEMENT_NODE) return false;
+                const element = node as Element;
+                return (
+                  element.matches(selector) || element.querySelector(selector)
+                );
+              }),
+            );
+
+            if (removedMatchingNode) {
+              // Double-check: are there still elements matching this selector?
+              const stillExists =
+                this.globalScope.document.querySelector(selector);
+              if (!stillExists) {
+                // All elements removed - update state
+                this.elementAppearedState.delete(selector);
+              }
+            }
+          } catch (e) {
+            // Invalid selector, skip
+          }
+        }
+      }
+    }
+
+    // Then, check for added/changed nodes
     for (const selector of selectors) {
       // For initial checks (no mutationList), check all selectors
       // For actual mutations, only check if mutation is relevant
@@ -396,7 +437,7 @@ export class SubscriptionManager {
     const mutationManager = new DebouncedMutationManager(
       this.globalScope.document.documentElement,
       (mutationList) => {
-        // Check each active selector and update state
+        // Check each active selector and update state (handles both appearance and removal)
         this.updateElementAppearedState(
           this.targetedElementSelectors,
           mutationList,
@@ -439,13 +480,14 @@ export class SubscriptionManager {
             (entries) => {
               entries.forEach((entry) => {
                 const isVisible = entry.intersectionRatio >= visibilityRatio;
+                const wasVisible = this.elementVisibilityState.get(observerKey);
 
                 // Update visibility state
                 this.elementVisibilityState.set(observerKey, isVisible);
 
-                // Publish event when element becomes visible
-                // Observer continues running; state check prevents duplicate firing
-                if (isVisible) {
+                // Publish event when visibility changes (both directions)
+                // This enables exit condition: when element becomes invisible, page deactivates
+                if (isVisible !== (wasVisible ?? false)) {
                   this.messageBus.publish('element_visible');
                 }
               });
