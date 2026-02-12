@@ -124,4 +124,4 @@ export {
   PreviewVariantsOptions,
   WebExperimentClient,
   WebExperimentConfig,
-} from 'types';
+} from './types';
