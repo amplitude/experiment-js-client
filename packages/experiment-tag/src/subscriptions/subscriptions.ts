@@ -140,7 +140,9 @@ export class SubscriptionManager {
     pages: PageObject[],
   ): void {
     const ManagerClass =
-      TRIGGER_MANAGER_REGISTRY[triggerType as keyof typeof TRIGGER_MANAGER_REGISTRY];
+      TRIGGER_MANAGER_REGISTRY[
+        triggerType as keyof typeof TRIGGER_MANAGER_REGISTRY
+      ];
     if (!ManagerClass) {
       console.warn(`No manager found for trigger type: ${triggerType}`);
       return;

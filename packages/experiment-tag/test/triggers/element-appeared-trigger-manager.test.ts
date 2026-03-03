@@ -44,7 +44,7 @@ describe('ElementAppearedTriggerManager', () => {
       manager.initialize();
 
       const snapshot = manager.getSnapshot();
-      expect(snapshot.targetSelectors).toContain('.button');
+      expect(snapshot.elementAppearedSelectors).toContain('.button');
     });
 
     test('should collect selectors from element_visible pages', () => {
@@ -57,7 +57,7 @@ describe('ElementAppearedTriggerManager', () => {
       manager.initialize();
 
       const snapshot = manager.getSnapshot();
-      expect(snapshot.targetSelectors).toContain('.visible-elem');
+      expect(snapshot.internalSelectors).toContain('.visible-elem');
     });
 
     test('should collect selectors from scrolled_to pages with element mode', () => {
@@ -70,7 +70,7 @@ describe('ElementAppearedTriggerManager', () => {
       manager.initialize();
 
       const snapshot = manager.getSnapshot();
-      expect(snapshot.targetSelectors).toContain('.scroll-target');
+      expect(snapshot.internalSelectors).toContain('.scroll-target');
     });
 
     test('should collect selectors from multiple trigger types', () => {
@@ -87,9 +87,9 @@ describe('ElementAppearedTriggerManager', () => {
       manager.initialize();
 
       const snapshot = manager.getSnapshot();
-      expect(snapshot.targetSelectors).toContain('.appeared');
-      expect(snapshot.targetSelectors).toContain('.visible');
-      expect(snapshot.targetSelectors).toContain('.scroll');
+      expect(snapshot.elementAppearedSelectors).toContain('.appeared');
+      expect(snapshot.internalSelectors).toContain('.visible');
+      expect(snapshot.internalSelectors).toContain('.scroll');
     });
 
     test('should not initialize mutation observer if no selectors', () => {
@@ -97,16 +97,42 @@ describe('ElementAppearedTriggerManager', () => {
       manager.initialize();
 
       const snapshot = manager.getSnapshot();
-      expect(snapshot.targetSelectors).toHaveLength(0);
+      expect(snapshot.elementAppearedSelectors).toHaveLength(0);
+      expect(snapshot.internalSelectors).toHaveLength(0);
     });
   });
 
   describe('triggerInitialCheck', () => {
-    test('should publish event with empty mutation list', () => {
+    test('should publish element_appeared event when element_appeared selector is found', () => {
       const publishSpy = jest.fn();
       messageBus.subscribe('element_appeared', publishSpy);
 
+      const mockElement = {
+        style: { display: 'block', visibility: 'visible' },
+      };
+      mockGlobal.document.querySelectorAll = jest.fn(() => [mockElement]);
+      mockGlobal.getComputedStyle = jest.fn(() => ({
+        display: 'block',
+        visibility: 'visible',
+      }));
+
       const pages = [createPageObject('.button')];
+      manager = new ElementAppearedTriggerManager(
+        pages,
+        messageBus,
+        mockGlobal,
+      );
+      manager.initialize();
+      manager.triggerInitialCheck();
+
+      expect(publishSpy).toHaveBeenCalledWith({ mutationList: [] });
+    });
+
+    test('should publish element_appeared_internal event for internal selectors', () => {
+      const publishSpy = jest.fn();
+      messageBus.subscribe('element_appeared_internal', publishSpy);
+
+      const pages = [createPageObject('.visible', 'element_visible')];
       manager = new ElementAppearedTriggerManager(
         pages,
         messageBus,
@@ -122,7 +148,7 @@ describe('ElementAppearedTriggerManager', () => {
       const mockElement = {
         style: { display: 'block', visibility: 'visible' },
       };
-      mockGlobal.document.querySelector = jest.fn(() => mockElement);
+      mockGlobal.document.querySelectorAll = jest.fn(() => [mockElement]);
       mockGlobal.getComputedStyle = jest.fn(() => ({
         display: 'block',
         visibility: 'visible',
@@ -145,7 +171,7 @@ describe('ElementAppearedTriggerManager', () => {
       const mockElement = {
         style: { display: 'none', visibility: 'visible' },
       };
-      mockGlobal.document.querySelector = jest.fn(() => mockElement);
+      mockGlobal.document.querySelectorAll = jest.fn(() => [mockElement]);
       mockGlobal.getComputedStyle = jest.fn(() => ({
         display: 'none',
         visibility: 'visible',
@@ -163,6 +189,35 @@ describe('ElementAppearedTriggerManager', () => {
       const snapshot = manager.getSnapshot();
       expect(snapshot.appearedElements).not.toContain('.hidden');
     });
+
+    test('should handle multiple matching elements and mark selector as appeared if any visible', () => {
+      const hiddenElement = {
+        style: { display: 'none', visibility: 'visible' },
+      };
+      const visibleElement = {
+        style: { display: 'block', visibility: 'visible' },
+      };
+      mockGlobal.document.querySelectorAll = jest.fn(() => [
+        hiddenElement,
+        visibleElement,
+      ]);
+      mockGlobal.getComputedStyle = jest
+        .fn()
+        .mockReturnValueOnce({ display: 'none', visibility: 'visible' })
+        .mockReturnValueOnce({ display: 'block', visibility: 'visible' });
+
+      const pages = [createPageObject('.multi')];
+      manager = new ElementAppearedTriggerManager(
+        pages,
+        messageBus,
+        mockGlobal,
+      );
+      manager.initialize();
+      manager.triggerInitialCheck();
+
+      const snapshot = manager.getSnapshot();
+      expect(snapshot.appearedElements).toContain('.multi');
+    });
   });
 
   describe('isActive', () => {
@@ -170,7 +225,7 @@ describe('ElementAppearedTriggerManager', () => {
       const mockElement = {
         style: { display: 'block', visibility: 'visible' },
       };
-      mockGlobal.document.querySelector = jest.fn(() => mockElement);
+      mockGlobal.document.querySelectorAll = jest.fn(() => [mockElement]);
       mockGlobal.getComputedStyle = jest.fn(() => ({
         display: 'block',
         visibility: 'visible',
@@ -189,7 +244,7 @@ describe('ElementAppearedTriggerManager', () => {
     });
 
     test('should return false if element has not appeared', () => {
-      mockGlobal.document.querySelector = jest.fn(() => null);
+      mockGlobal.document.querySelectorAll = jest.fn(() => []);
 
       const pages = [createPageObject('.button')];
       manager = new ElementAppearedTriggerManager(
@@ -209,7 +264,7 @@ describe('ElementAppearedTriggerManager', () => {
       const mockElement = {
         style: { display: 'block', visibility: 'visible' },
       };
-      mockGlobal.document.querySelector = jest.fn(() => mockElement);
+      mockGlobal.document.querySelectorAll = jest.fn(() => [mockElement]);
       mockGlobal.getComputedStyle = jest.fn(() => ({
         display: 'block',
         visibility: 'visible',
@@ -236,7 +291,7 @@ describe('ElementAppearedTriggerManager', () => {
   });
 
   describe('getSnapshot', () => {
-    test('should return current state', () => {
+    test('should return current state with separated selectors', () => {
       const pages = [
         createPageObject('.button'),
         createPageObject('.link', 'element_visible'),
@@ -250,8 +305,10 @@ describe('ElementAppearedTriggerManager', () => {
 
       const snapshot = manager.getSnapshot();
       expect(snapshot).toHaveProperty('appearedElements');
-      expect(snapshot).toHaveProperty('targetSelectors');
-      expect(snapshot.targetSelectors).toEqual(['.button', '.link']);
+      expect(snapshot).toHaveProperty('elementAppearedSelectors');
+      expect(snapshot).toHaveProperty('internalSelectors');
+      expect(snapshot.elementAppearedSelectors).toEqual(['.button']);
+      expect(snapshot.internalSelectors).toEqual(['.link']);
     });
   });
 });
