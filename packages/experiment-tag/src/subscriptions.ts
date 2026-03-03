@@ -308,14 +308,15 @@ export class SubscriptionManager {
 
       if (isRelevant) {
         try {
-          const element = this.globalScope.document.querySelector(selector);
-          if (element) {
+          const elements = this.globalScope.document.querySelectorAll(selector);
+          for (const element of Array.from(elements)) {
             const style = this.globalScope.getComputedStyle(element);
             const hasAppeared =
               style.display !== 'none' && style.visibility !== 'hidden';
 
             if (hasAppeared) {
               this.elementAppearedState.add(selector);
+              break; // Only need to find one visible element
             }
           }
         } catch (e) {
@@ -459,10 +460,11 @@ export class SubscriptionManager {
 
           // Observe the element if it exists
           try {
-            const element = this.globalScope.document.querySelector(selector);
-            if (element) {
+            const elements =
+              this.globalScope.document.querySelectorAll(selector);
+            elements.forEach((element) => {
               observer.observe(element);
-            }
+            });
           } catch (e) {
             // Invalid selector, skip
           }
@@ -487,10 +489,11 @@ export class SubscriptionManager {
 
         if (isRelevant) {
           try {
-            const element = this.globalScope.document.querySelector(selector);
-            if (element) {
+            const elements =
+              this.globalScope.document.querySelectorAll(selector);
+            elements.forEach((element) => {
               observer.observe(element);
-            }
+            });
           } catch (e) {
             // Invalid selector, skip
           }
