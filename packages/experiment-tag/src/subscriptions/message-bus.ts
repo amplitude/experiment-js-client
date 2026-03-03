@@ -9,6 +9,7 @@ type Subscriber<T extends MessageType> = {
 };
 
 export type ElementAppearedPayload = { mutationList: MutationRecord[] };
+export type ElementAppearedInternalPayload = { mutationList: MutationRecord[] };
 export type ElementVisiblePayload = Record<string, never>;
 export type AnalyticsEventPayload = AnalyticsEvent;
 export type ManualTriggerPayload = { name: string };
@@ -20,6 +21,7 @@ export type ScrolledToPayload = Record<string, never>;
 
 export type MessagePayloads = {
   element_appeared: ElementAppearedPayload;
+  element_appeared_internal: ElementAppearedInternalPayload;
   element_visible: ElementVisiblePayload;
   url_change: UrlChangePayload;
   analytics_event: AnalyticsEventPayload;
