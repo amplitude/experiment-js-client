@@ -56,9 +56,11 @@ export class WindowMessenger {
           return;
         }
         if (e.data.type === 'OpenOverlay') {
+          const injectSrc = new URL(e.data.context.injectSrc);
           if (
             state !== 'closed' ||
-            !match.test(new URL(e.data.context.injectSrc).hostname)
+            injectSrc.protocol !== 'https:' ||
+            !match.test(injectSrc.hostname)
           ) {
             return;
           }
@@ -92,7 +94,8 @@ export class WindowMessenger {
     // Validate injectSrc is still from amplitude.com
     const match = /^.*\.amplitude\.com$/;
     try {
-      if (!match.test(new URL(sessionData.injectSrc).hostname)) {
+      const injectSrc = new URL(sessionData.injectSrc);
+      if (injectSrc.protocol !== 'https:' || !match.test(injectSrc.hostname)) {
         return null;
       }
     } catch {
