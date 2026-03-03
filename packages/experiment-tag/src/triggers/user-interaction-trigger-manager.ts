@@ -33,10 +33,10 @@ export class UserInteractionTriggerManager extends BaseTriggerManager<UserIntera
       abortController: new AbortController(),
     };
 
-    // Group selectors by interaction type
-    const clickSelectors = this.getSelectorsForType('click');
-    const hoverSelectors = this.getSelectorsForType('hover');
-    const focusSelectors = this.getSelectorsForType('focus');
+    // Group selectors by interaction type: Map<selector, Set<thresholds>>
+    const clickSelectors = this.collectSelectors('click');
+    const hoverSelectors = this.collectSelectors('hover');
+    const focusSelectors = this.collectSelectors('focus');
 
     if (
       clickSelectors.size === 0 &&
@@ -48,32 +48,30 @@ export class UserInteractionTriggerManager extends BaseTriggerManager<UserIntera
 
     // Set up document-level event delegation for each interaction type
     const { signal } = this.state.abortController!;
-    if (clickSelectors.size > 0) {
+    if (clickSelectors.size > 0)
       this.setupClickDelegation(clickSelectors, signal);
-    }
-    if (hoverSelectors.size > 0) {
+    if (hoverSelectors.size > 0)
       this.setupHoverDelegation(hoverSelectors, signal);
-    }
-    if (focusSelectors.size > 0) {
+    if (focusSelectors.size > 0)
       this.setupFocusDelegation(focusSelectors, signal);
-    }
   }
 
   isActive(page: PageObject): boolean {
-    const triggerValue =
-      this.getTriggerValue<UserInteractionTriggerValue>(page);
+    const {
+      selector,
+      interactionType,
+      minThresholdMs = 0,
+    } = this.getTriggerValue<UserInteractionTriggerValue>(page);
     const key = TriggerStateKeys.userInteraction(
-      triggerValue.selector,
-      triggerValue.interactionType,
-      triggerValue.minThresholdMs || 0,
+      selector,
+      interactionType,
+      minThresholdMs,
     );
     return this.state.firedInteractions.has(key);
   }
 
   reset(): void {
-    // Clear fired interactions
     this.state.firedInteractions.clear();
-    // Clear pending click timeouts
     this.clearTimeouts(this.state.clickTimeouts.values());
     this.state.clickTimeouts.clear();
   }
@@ -85,24 +83,21 @@ export class UserInteractionTriggerManager extends BaseTriggerManager<UserIntera
     };
   }
 
-  private getSelectorsForType(
+  private collectSelectors(
     type: UserInteractionType,
   ): Map<string, Set<number>> {
     const selectors = new Map<string, Set<number>>();
-
     for (const page of this.pageObjects) {
-      const triggerValue =
-        this.getTriggerValue<UserInteractionTriggerValue>(page);
-      if (triggerValue.interactionType === type) {
-        if (!selectors.has(triggerValue.selector)) {
-          selectors.set(triggerValue.selector, new Set());
-        }
-        selectors
-          .get(triggerValue.selector)!
-          .add(triggerValue.minThresholdMs || 0);
+      const {
+        selector,
+        interactionType,
+        minThresholdMs = 0,
+      } = this.getTriggerValue<UserInteractionTriggerValue>(page);
+      if (interactionType === type) {
+        if (!selectors.has(selector)) selectors.set(selector, new Set());
+        selectors.get(selector)!.add(minThresholdMs);
       }
     }
-
     return selectors;
   }
 
@@ -116,52 +111,40 @@ export class UserInteractionTriggerManager extends BaseTriggerManager<UserIntera
 
       for (const [selector, thresholds] of selectors) {
         try {
-          if (target.closest(selector)) {
-            // Process all thresholds for this selector
-            for (const minThresholdMs of thresholds) {
-              // Skip if already fired
-              if (
-                this.state.firedInteractions.has(
-                  TriggerStateKeys.userInteraction(
-                    selector,
-                    'click',
-                    minThresholdMs,
-                  ),
-                )
-              ) {
-                continue;
-              }
+          if (!target.closest(selector)) continue;
 
-              // Skip if timeout is already pending for this interaction
-              const interactionKey = TriggerStateKeys.userInteraction(
-                selector,
-                'click',
+          for (const minThresholdMs of thresholds) {
+            const key = TriggerStateKeys.userInteraction(
+              selector,
+              'click',
+              minThresholdMs,
+            );
+
+            // Skip if already fired or timeout pending
+            if (
+              this.state.firedInteractions.has(key) ||
+              this.state.clickTimeouts.has(key)
+            ) {
+              continue;
+            }
+
+            const fireTrigger = () => {
+              this.state.firedInteractions.add(key);
+              this.publish();
+              this.state.clickTimeouts.delete(key);
+            };
+
+            if (minThresholdMs > 0) {
+              const timeout = this.globalScope.setTimeout(
+                fireTrigger,
                 minThresholdMs,
               );
-              if (this.state.clickTimeouts.has(interactionKey)) {
-                continue;
-              }
-
-              const fireTrigger = () => {
-                this.state.firedInteractions.add(interactionKey);
-                this.publish();
-                this.state.clickTimeouts.delete(interactionKey);
-              };
-
-              if (minThresholdMs > 0) {
-                // Set timeout for delayed firing
-                const timeout = this.globalScope.setTimeout(
-                  fireTrigger,
-                  minThresholdMs,
-                );
-                this.state.clickTimeouts.set(interactionKey, timeout);
-              } else {
-                // Fire immediately if no threshold
-                fireTrigger();
-              }
+              this.state.clickTimeouts.set(key, timeout);
+            } else {
+              fireTrigger();
             }
-            break;
           }
+          break;
         } catch (e) {
           // Invalid selector, skip
         }
@@ -215,61 +198,47 @@ export class UserInteractionTriggerManager extends BaseTriggerManager<UserIntera
       for (const [selector, thresholds] of selectors) {
         try {
           const matchedAncestor = target.closest(selector);
-          if (matchedAncestor) {
-            // Process all thresholds for this selector
-            for (const minThresholdMs of thresholds) {
-              if (
-                this.state.firedInteractions.has(
-                  TriggerStateKeys.userInteraction(
-                    selector,
-                    config.interactionType,
-                    minThresholdMs,
-                  ),
-                )
-              ) {
-                continue;
-              }
+          if (!matchedAncestor) continue;
 
-              // Get or create timeout map for the matched ancestor (not target)
-              let timeoutMap = config.timeoutStorage.get(matchedAncestor);
-              if (!timeoutMap) {
-                timeoutMap = new Map();
-                config.timeoutStorage.set(matchedAncestor, timeoutMap);
-              }
+          for (const minThresholdMs of thresholds) {
+            const interactionKey = TriggerStateKeys.userInteraction(
+              selector,
+              config.interactionType,
+              minThresholdMs,
+            );
 
-              // Only set a timeout if one doesn't already exist
-              const timeoutKey = TriggerStateKeys.timeout(
-                selector,
+            if (this.state.firedInteractions.has(interactionKey)) continue;
+
+            // Get or create timeout map for the matched ancestor
+            let timeoutMap = config.timeoutStorage.get(matchedAncestor);
+            if (!timeoutMap) {
+              timeoutMap = new Map();
+              config.timeoutStorage.set(matchedAncestor, timeoutMap);
+            }
+
+            const timeoutKey = TriggerStateKeys.timeout(
+              selector,
+              minThresholdMs,
+            );
+            if (timeoutMap.has(timeoutKey)) continue;
+
+            const fireTrigger = () => {
+              this.state.firedInteractions.add(interactionKey);
+              this.publish();
+              timeoutMap?.delete(timeoutKey);
+            };
+
+            if (minThresholdMs > 0) {
+              const timeout = this.globalScope.setTimeout(
+                fireTrigger,
                 minThresholdMs,
               );
-              const existingTimeout = timeoutMap.get(timeoutKey);
-
-              if (!existingTimeout) {
-                const fireTrigger = () => {
-                  this.state.firedInteractions.add(
-                    TriggerStateKeys.userInteraction(
-                      selector,
-                      config.interactionType,
-                      minThresholdMs,
-                    ),
-                  );
-                  this.publish();
-                  timeoutMap?.delete(timeoutKey);
-                };
-
-                if (minThresholdMs) {
-                  const timeout = this.globalScope.setTimeout(
-                    fireTrigger,
-                    minThresholdMs,
-                  );
-                  timeoutMap.set(timeoutKey, timeout);
-                } else {
-                  fireTrigger();
-                }
-              }
+              timeoutMap.set(timeoutKey, timeout);
+            } else {
+              fireTrigger();
             }
-            break;
           }
+          break;
         } catch (e) {
           // Invalid selector, skip
         }
@@ -280,27 +249,26 @@ export class UserInteractionTriggerManager extends BaseTriggerManager<UserIntera
       const target = event.target as Element;
       if (!target) return;
 
-      // Check relatedTarget to determine if we actually left the ancestor
       const relatedTarget = (event as MouseEvent | FocusEvent)
         .relatedTarget as Element | null;
 
       for (const [selector] of selectors) {
         try {
           const matchedAncestor = target.closest(selector);
-          if (matchedAncestor) {
-            // Only clear timeouts if we're actually leaving the matched ancestor
-            if (!relatedTarget || !matchedAncestor.contains(relatedTarget)) {
-              const timeoutMap = config.timeoutStorage.get(matchedAncestor);
-              if (timeoutMap) {
-                // Clear all timeouts for this ancestor
-                for (const timeout of timeoutMap.values()) {
-                  this.clearTimeout(timeout);
-                }
-                config.timeoutStorage.delete(matchedAncestor);
-              }
+          if (!matchedAncestor) continue;
+
+          // Only clear timeouts if we're actually leaving the matched ancestor
+          if (relatedTarget && matchedAncestor.contains(relatedTarget))
+            continue;
+
+          const timeoutMap = config.timeoutStorage.get(matchedAncestor);
+          if (timeoutMap) {
+            for (const timeout of timeoutMap.values()) {
+              this.clearTimeout(timeout);
             }
-            break;
+            config.timeoutStorage.delete(matchedAncestor);
           }
+          break;
         } catch (e) {
           // Invalid selector, skip
         }
@@ -310,9 +278,7 @@ export class UserInteractionTriggerManager extends BaseTriggerManager<UserIntera
     this.globalScope.document.addEventListener(
       config.startEvent,
       startHandler,
-      {
-        signal,
-      },
+      { signal },
     );
     this.globalScope.document.addEventListener(config.endEvent, endHandler, {
       signal,

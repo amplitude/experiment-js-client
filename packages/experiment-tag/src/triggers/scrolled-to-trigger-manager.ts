@@ -29,25 +29,15 @@ export class ScrolledToTriggerManager extends BaseTriggerManager<ScrolledToPaylo
     let hasPercentTrigger = false;
     let hasElementTrigger = false;
 
-    // Check which types of triggers we have
+    // Determine which types of triggers we have
     for (const page of this.pageObjects) {
-      const triggerValue = this.getTriggerValue<ScrolledToTriggerValue>(page);
-      if (triggerValue.mode === 'percent') {
-        hasPercentTrigger = true;
-      } else if (triggerValue.mode === 'element') {
-        hasElementTrigger = true;
-      }
+      const { mode } = this.getTriggerValue<ScrolledToTriggerValue>(page);
+      if (mode === 'percent') hasPercentTrigger = true;
+      if (mode === 'element') hasElementTrigger = true;
     }
 
-    // Setup percentage-based scroll listener if needed
-    if (hasPercentTrigger) {
-      this.setupPercentageListener();
-    }
-
-    // Setup IntersectionObserver for element-based triggers
-    if (hasElementTrigger) {
-      this.setupElementObservers();
-    }
+    if (hasPercentTrigger) this.setupPercentageListener();
+    if (hasElementTrigger) this.setupElementObservers();
   }
 
   isActive(page: PageObject): boolean {
@@ -67,10 +57,8 @@ export class ScrolledToTriggerManager extends BaseTriggerManager<ScrolledToPaylo
   }
 
   reset(): void {
-    // Reset scroll state
     this.state.maxScrollPercentage = 0;
     this.state.elementScrollState.clear();
-    // Keep observers active - elements might still be present
   }
 
   getSnapshot(): Record<string, any> {
@@ -83,8 +71,16 @@ export class ScrolledToTriggerManager extends BaseTriggerManager<ScrolledToPaylo
 
   private setupPercentageListener(): void {
     const handleScroll = () => {
-      const scrollPercentage = this.calculateScrollPercentage();
-      // Track maximum scroll percentage reached
+      const windowHeight = this.globalScope.innerHeight;
+      const documentHeight =
+        this.globalScope.document.documentElement.scrollHeight;
+      const scrollTop = this.globalScope.scrollY;
+      const scrollableHeight = documentHeight - windowHeight;
+
+      if (scrollableHeight <= 0) return;
+
+      const scrollPercentage = (scrollTop / scrollableHeight) * 100;
+
       if (scrollPercentage > this.state.maxScrollPercentage) {
         this.state.maxScrollPercentage = scrollPercentage;
         this.publish({});
@@ -92,12 +88,8 @@ export class ScrolledToTriggerManager extends BaseTriggerManager<ScrolledToPaylo
     };
 
     const throttledScroll = () => {
-      // Cancel any pending animation frame
-      if (this.rafId !== null) {
-        return;
-      }
+      if (this.rafId !== null) return;
 
-      // Schedule the handler to run on the next animation frame
       this.rafId = this.globalScope.requestAnimationFrame(() => {
         handleScroll();
         this.rafId = null;
@@ -107,64 +99,46 @@ export class ScrolledToTriggerManager extends BaseTriggerManager<ScrolledToPaylo
     this.globalScope.addEventListener('scroll', throttledScroll, {
       passive: true,
     });
-
-    // Initial check
-    handleScroll();
+    handleScroll(); // Initial check
   }
 
   private setupElementObservers(): void {
     for (const page of this.pageObjects) {
       const triggerValue = this.getTriggerValue<ScrolledToTriggerValue>(page);
+      if (triggerValue.mode !== 'element') continue;
 
-      if (triggerValue.mode === 'element') {
-        const selector = triggerValue.selector;
-        const offsetPx = triggerValue.offsetPx || 0;
-        const observerKey = TriggerStateKeys.scrolledTo(selector, offsetPx);
+      const { selector, offsetPx = 0 } = triggerValue;
+      const key = TriggerStateKeys.scrolledTo(selector, offsetPx);
 
-        // Skip if we already have an observer for this selector + offset
-        if (this.state.observers.has(observerKey)) {
-          continue;
-        }
+      if (this.state.observers.has(key)) continue;
 
-        // Create root margin based on offset
-        const rootMargin = `0px 0px ${offsetPx}px 0px`;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              this.state.elementScrollState.set(key, true);
+              this.publish({});
+            }
+          }
+        },
+        {
+          rootMargin: `0px 0px ${offsetPx}px 0px`,
+          threshold: 0,
+        },
+      );
 
-        const observer = new IntersectionObserver(
-          (entries) => {
-            entries.forEach((entry) => {
-              // Trigger when element enters viewport (considering offset)
-              if (entry.isIntersecting) {
-                this.state.elementScrollState.set(observerKey, true);
-                this.publish({});
-              }
-            });
-          },
-          {
-            rootMargin,
-            threshold: 0,
-          },
-        );
-
-        this.state.observers.set(observerKey, observer);
-
-        // Observe all elements matching the selector
-        this.observeElements(selector, observer);
-      }
+      this.state.observers.set(key, observer);
+      this.observeElements(selector, observer);
     }
 
-    // Re-check for elements on mutations (in case they appear later)
-    this.messageBus.subscribe('element_appeared', (payload) => {
-      const { mutationList } = payload;
-
-      for (const [observerKey, observer] of this.state.observers.entries()) {
-        const { selector } = TriggerStateKeys.parseScrolledTo(observerKey);
-
-        // Check if mutation is relevant
-        const isRelevant =
-          mutationList.length === 0 ||
-          isMutationRelevantToSelector(mutationList, selector);
-
-        if (isRelevant) {
+    // Re-observe elements when they appear in the DOM
+    this.messageBus.subscribe('element_appeared_internal', (payload) => {
+      for (const [key, observer] of this.state.observers) {
+        const { selector } = TriggerStateKeys.parseScrolledTo(key);
+        if (
+          payload.mutationList.length === 0 ||
+          isMutationRelevantToSelector(payload.mutationList, selector)
+        ) {
           this.observeElements(selector, observer);
         }
       }
@@ -177,25 +151,9 @@ export class ScrolledToTriggerManager extends BaseTriggerManager<ScrolledToPaylo
   ): void {
     try {
       const elements = this.globalScope.document.querySelectorAll(selector);
-      elements.forEach((element) => {
-        observer.observe(element);
-      });
+      elements.forEach((el) => observer.observe(el));
     } catch (e) {
-      // Ignore invalid selectors
+      // Invalid selector, skip
     }
-  }
-
-  private calculateScrollPercentage(): number {
-    const windowHeight = this.globalScope.innerHeight;
-    const documentHeight =
-      this.globalScope.document.documentElement.scrollHeight;
-    const scrollTop = this.globalScope.scrollY;
-    const scrollableHeight = documentHeight - windowHeight;
-
-    if (scrollableHeight <= 0) {
-      return 0;
-    }
-
-    return (scrollTop / scrollableHeight) * 100;
   }
 }

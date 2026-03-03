@@ -26,53 +26,51 @@ export class ElementVisibleTriggerManager extends BaseTriggerManager<ElementVisi
 
     // Set up IntersectionObservers for each unique selector + ratio combination
     for (const page of this.pageObjects) {
-      const triggerValue =
+      const { selector, visibilityRatio = 0 } =
         this.getTriggerValue<ElementVisibleTriggerValue>(page);
-      const selector = triggerValue.selector;
-      const visibilityRatio = triggerValue.visibilityRatio ?? 0;
-      const observerKey = TriggerStateKeys.visibility(
-        selector,
-        visibilityRatio,
-      );
+      const key = TriggerStateKeys.visibility(selector, visibilityRatio);
 
       // Skip if we already have an observer for this combination
-      if (this.state.observers.has(observerKey)) {
-        continue;
-      }
+      if (this.state.observers.has(key)) continue;
 
-      // Create IntersectionObserver for this threshold
+      // Create IntersectionObserver
       const observer = new IntersectionObserver(
         (entries) => {
-          this.handleIntersection(entries, selector, visibilityRatio);
+          for (const entry of entries) {
+            const isVisible = entry.intersectionRatio >= visibilityRatio;
+            this.state.visibilityState.set(key, isVisible);
+            if (isVisible) this.publish();
+          }
         },
-        {
-          threshold: visibilityRatio,
-        },
+        { threshold: visibilityRatio },
       );
 
-      this.state.observers.set(observerKey, observer);
-
-      // Observe all matching elements
+      this.state.observers.set(key, observer);
       this.observeElements(selector, observer);
     }
 
     // Re-check for elements when they appear in the DOM
-    this.messageBus.subscribe('element_appeared', (payload) => {
-      this.reobserveElements(payload.mutationList);
+    this.messageBus.subscribe('element_appeared_internal', (payload) => {
+      for (const [key, observer] of this.state.observers) {
+        const { selector } = TriggerStateKeys.parseVisibility(key);
+        if (
+          payload.mutationList.length === 0 ||
+          isMutationRelevantToSelector(payload.mutationList, selector)
+        ) {
+          this.observeElements(selector, observer);
+        }
+      }
     });
   }
 
   isActive(page: PageObject): boolean {
-    const triggerValue = this.getTriggerValue<ElementVisibleTriggerValue>(page);
-    const selector = triggerValue.selector;
-    const visibilityRatio = triggerValue.visibilityRatio ?? 0;
+    const { selector, visibilityRatio = 0 } =
+      this.getTriggerValue<ElementVisibleTriggerValue>(page);
     const key = TriggerStateKeys.visibility(selector, visibilityRatio);
     return this.state.visibilityState.get(key) ?? false;
   }
 
   reset(): void {
-    // Clear visibility state but keep observers active
-    // (elements might still be present on new page)
     this.state.visibilityState.clear();
   }
 
@@ -83,53 +81,15 @@ export class ElementVisibleTriggerManager extends BaseTriggerManager<ElementVisi
     };
   }
 
-  private handleIntersection(
-    entries: IntersectionObserverEntry[],
-    selector: string,
-    visibilityRatio: number,
-  ): void {
-    const key = TriggerStateKeys.visibility(selector, visibilityRatio);
-
-    entries.forEach((entry) => {
-      const isVisible = entry.intersectionRatio >= visibilityRatio;
-
-      // Update visibility state
-      this.state.visibilityState.set(key, isVisible);
-
-      // Publish event when element becomes visible
-      // Observer continues running; state check prevents duplicate firing
-      if (isVisible) {
-        this.publish();
-      }
-    });
-  }
-
   private observeElements(
     selector: string,
     observer: IntersectionObserver,
   ): void {
     try {
       const elements = this.globalScope.document.querySelectorAll(selector);
-      elements.forEach((element) => {
-        observer.observe(element);
-      });
+      elements.forEach((el) => observer.observe(el));
     } catch (e) {
       // Invalid selector, skip
-    }
-  }
-
-  private reobserveElements(mutationList: MutationRecord[]): void {
-    for (const [observerKey, observer] of this.state.observers.entries()) {
-      const { selector } = TriggerStateKeys.parseVisibility(observerKey);
-
-      // Check if mutation is relevant (or if it's the initial check with empty list)
-      const isRelevant =
-        mutationList.length === 0 ||
-        isMutationRelevantToSelector(mutationList, selector);
-
-      if (isRelevant) {
-        this.observeElements(selector, observer);
-      }
     }
   }
 }

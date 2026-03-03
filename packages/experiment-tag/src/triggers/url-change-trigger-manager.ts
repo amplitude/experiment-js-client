@@ -26,44 +26,30 @@ export class UrlChangeTriggerManager extends BaseTriggerManager<UrlChangePayload
   }
 
   initialize(): void {
-    if (!this.useDefaultNavigationHandler) {
-      return;
-    }
-
-    // Add URL change listener for back/forward navigation
-    this.globalScope.addEventListener('popstate', () => {
-      const currentUrl = this.globalScope.location.href;
-      if (currentUrl === this.lastPublishedUrl) {
-        return;
-      }
-
-      this.lastPublishedUrl = currentUrl;
-      this.publish();
-    });
+    if (!this.useDefaultNavigationHandler) return;
 
     const handleUrlChange = () => {
       const currentUrl = this.globalScope.location.href;
-      if (currentUrl === this.lastPublishedUrl) {
-        return;
-      }
+      if (currentUrl === this.lastPublishedUrl) return;
 
       this.lastPublishedUrl = currentUrl;
       this.publish();
       this.globalScope.webExperiment.previousUrl = currentUrl;
     };
 
+    // Listen for back/forward navigation
+    this.globalScope.addEventListener('popstate', handleUrlChange);
+
     // Wrap history methods to detect navigation
     const originalPushState = history.pushState;
     const originalReplaceState = history.replaceState;
 
-    // Wrapper for pushState
     history.pushState = function (...args) {
       const result = originalPushState.apply(this, args);
       handleUrlChange();
       return result;
     };
 
-    // Wrapper for replaceState
     history.replaceState = function (...args) {
       const result = originalReplaceState.apply(this, args);
       handleUrlChange();
@@ -72,8 +58,7 @@ export class UrlChangeTriggerManager extends BaseTriggerManager<UrlChangePayload
   }
 
   isActive(_page: PageObject): boolean {
-    // url_change pages are always considered active
-    // (their conditions are evaluated separately)
+    // url_change pages are always considered active (conditions evaluated separately)
     return true;
   }
 

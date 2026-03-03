@@ -1,19 +1,21 @@
 import { ElementAppearedPayload } from '../subscriptions/message-bus';
-import { DebouncedMutationManager } from '../util/triggers/mutation-manager';
 import { ElementAppearedTriggerValue, PageObject } from '../types';
 import { isMutationRelevantToSelector } from '../util/triggers/mutation';
+import { DebouncedMutationManager } from '../util/triggers/mutation-manager';
 
 import { BaseTriggerManager } from './base-trigger-manager';
 
 interface ElementAppearedState {
   appearedElements: Set<string>;
-  targetSelectors: Set<string>;
+  elementAppearedSelectors: Set<string>; // Selectors from element_appeared pages
+  internalSelectors: Set<string>; // Selectors from element_visible, scrolled_to
   mutationCleanup: (() => void) | null;
 }
 
 /**
  * Manages element_appeared triggers using MutationObserver.
  * Tracks when elements appear in the DOM and become visible.
+ * Publishes element_appeared for actual page triggers and element_appeared_internal for infrastructure.
  */
 export class ElementAppearedTriggerManager extends BaseTriggerManager<ElementAppearedPayload> {
   readonly triggerType = 'element_appeared' as const;
@@ -22,47 +24,52 @@ export class ElementAppearedTriggerManager extends BaseTriggerManager<ElementApp
   initialize(): void {
     this.state = {
       appearedElements: new Set(),
-      targetSelectors: new Set(),
+      elementAppearedSelectors: new Set(),
+      internalSelectors: new Set(),
       mutationCleanup: null,
     };
 
-    // Collect all target selectors from element_appeared, element_visible, and scrolled_to page objects
+    // Collect selectors by page trigger type
     for (const page of this.pageObjects) {
       if (page.trigger_type === 'element_appeared') {
-        const triggerValue =
+        const { selector } =
           this.getTriggerValue<ElementAppearedTriggerValue>(page);
-        this.state.targetSelectors.add(triggerValue.selector);
+        this.state.elementAppearedSelectors.add(selector);
       } else if (page.trigger_type === 'element_visible') {
-        const triggerValue = page.trigger_value as any;
-        this.state.targetSelectors.add(triggerValue.selector);
+        const { selector } = page.trigger_value as any;
+        this.state.internalSelectors.add(selector);
       } else if (page.trigger_type === 'scrolled_to') {
         const triggerValue = page.trigger_value as any;
         if (triggerValue.mode === 'element' && triggerValue.selector) {
-          this.state.targetSelectors.add(triggerValue.selector);
+          this.state.internalSelectors.add(triggerValue.selector);
         }
       }
     }
 
-    if (this.state.targetSelectors.size === 0) {
+    // Skip if no selectors to track
+    if (
+      this.state.elementAppearedSelectors.size === 0 &&
+      this.state.internalSelectors.size === 0
+    ) {
       return;
     }
 
-    // Create filter function that checks against targeted selectors
-    const filters = [
-      (mutation: MutationRecord) => {
-        return Array.from(this.state.targetSelectors).some((selector) =>
-          isMutationRelevantToSelector([mutation], selector),
-        );
-      },
-    ];
-
-    // Set up debounced mutation observer
+    // Set up mutation observer with filter
     const mutationManager = new DebouncedMutationManager(
       this.globalScope.document.documentElement,
-      (mutationList) => {
-        this.handleMutations(mutationList);
-      },
-      filters,
+      (mutationList) => this.handleMutations(mutationList),
+      [
+        (mutation: MutationRecord) => {
+          // Check if mutation affects any tracked selector
+          for (const selector of this.state.elementAppearedSelectors) {
+            if (isMutationRelevantToSelector([mutation], selector)) return true;
+          }
+          for (const selector of this.state.internalSelectors) {
+            if (isMutationRelevantToSelector([mutation], selector)) return true;
+          }
+          return false;
+        },
+      ],
     );
     this.state.mutationCleanup = mutationManager.observe();
   }
@@ -76,63 +83,97 @@ export class ElementAppearedTriggerManager extends BaseTriggerManager<ElementApp
   }
 
   isActive(page: PageObject): boolean {
-    const triggerValue =
+    const { selector } =
       this.getTriggerValue<ElementAppearedTriggerValue>(page);
-    return this.state.appearedElements.has(triggerValue.selector);
+    return this.state.appearedElements.has(selector);
   }
 
   reset(): void {
-    // Clear appeared state
     this.state.appearedElements.clear();
-    // Re-check for elements on the new page
     this.checkInitialElements();
   }
 
   getSnapshot(): Record<string, any> {
     return {
       appearedElements: Array.from(this.state.appearedElements),
-      targetSelectors: Array.from(this.state.targetSelectors),
+      elementAppearedSelectors: Array.from(this.state.elementAppearedSelectors),
+      internalSelectors: Array.from(this.state.internalSelectors),
     };
   }
 
   private checkInitialElements(): void {
-    // Check for elements that already exist in the DOM
-    for (const selector of this.state.targetSelectors) {
+    const payload = { mutationList: [] };
+    let hasElementAppearedChange = false;
+
+    // Check element_appeared selectors
+    for (const selector of this.state.elementAppearedSelectors) {
+      if (this.checkElement(selector)) {
+        hasElementAppearedChange = true;
+      }
+    }
+
+    // Check internal selectors
+    for (const selector of this.state.internalSelectors) {
       this.checkElement(selector);
     }
-    // Publish with empty mutation list to trigger initial visibility checks
-    this.publish({ mutationList: [] });
+
+    // Always notify internal subscribers on initial check
+    this.messageBus.publish('element_appeared_internal', payload);
+    if (hasElementAppearedChange) {
+      this.publish(payload);
+    }
   }
 
-  private checkElement(selector: string): void {
+  private handleMutations(mutationList: MutationRecord[]): void {
+    const payload = { mutationList };
+    let hasElementAppearedChange = false;
+    let hasInternalChange = false;
+
+    // Check element_appeared selectors for relevant mutations
+    for (const selector of this.state.elementAppearedSelectors) {
+      if (
+        !this.state.appearedElements.has(selector) &&
+        isMutationRelevantToSelector(mutationList, selector) &&
+        this.checkElement(selector)
+      ) {
+        hasElementAppearedChange = true;
+      }
+    }
+
+    // Check internal selectors for relevant mutations
+    for (const selector of this.state.internalSelectors) {
+      if (
+        !this.state.appearedElements.has(selector) &&
+        isMutationRelevantToSelector(mutationList, selector) &&
+        this.checkElement(selector)
+      ) {
+        hasInternalChange = true;
+      }
+    }
+
+    if (hasElementAppearedChange) this.publish(payload);
+    if (hasInternalChange) {
+      this.messageBus.publish('element_appeared_internal', payload);
+    }
+  }
+
+  /**
+   * Check if element matching selector is visible in DOM.
+   * If found, adds to appearedElements and returns true.
+   */
+  private checkElement(selector: string): boolean {
     try {
       const elements = this.globalScope.document.querySelectorAll(selector);
       for (const element of Array.from(elements)) {
         const style = this.globalScope.getComputedStyle(element);
-        const hasAppeared =
-          style.display !== 'none' && style.visibility !== 'hidden';
-
-        if (hasAppeared) {
+        if (style.display !== 'none' && style.visibility !== 'hidden') {
           this.state.appearedElements.add(selector);
-          break; // Only need to find one visible element
+          return true;
         }
       }
     } catch (e) {
       // Invalid selector, skip
     }
-  }
-
-  private handleMutations(mutationList: MutationRecord[]): void {
-    // Check each active selector and update state
-    for (const selector of this.state.targetSelectors) {
-      const isRelevant = isMutationRelevantToSelector(mutationList, selector);
-
-      if (isRelevant) {
-        this.checkElement(selector);
-      }
-    }
-
-    // Publish event with mutationList for other subscribers (e.g., visibility publisher)
-    this.publish({ mutationList });
+    return false;
   }
 }

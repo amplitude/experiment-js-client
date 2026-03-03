@@ -32,11 +32,17 @@ export interface TriggerManagerOptions {
 }
 
 /**
+ * Trigger types that have dedicated managers.
+ * Note: element_appeared_internal is a message type but not a trigger type.
+ */
+type TriggerType = Exclude<MessageType, 'element_appeared_internal'>;
+
+/**
  * Registry of all available trigger manager types.
  * Maps trigger type to manager class constructor.
  */
 export const TRIGGER_MANAGER_REGISTRY: Record<
-  MessageType,
+  TriggerType,
   new (
     pageObjects: PageObject[],
     messageBus: MessageBus,
