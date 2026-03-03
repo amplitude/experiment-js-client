@@ -106,14 +106,15 @@ export class ElementAppearedTriggerManager extends BaseTriggerManager<ElementApp
 
   private checkElement(selector: string): void {
     try {
-      const element = this.globalScope.document.querySelector(selector);
-      if (element) {
+      const elements = this.globalScope.document.querySelectorAll(selector);
+      for (const element of Array.from(elements)) {
         const style = this.globalScope.getComputedStyle(element);
         const hasAppeared =
           style.display !== 'none' && style.visibility !== 'hidden';
 
         if (hasAppeared) {
           this.state.appearedElements.add(selector);
+          break; // Only need to find one visible element
         }
       }
     } catch (e) {
