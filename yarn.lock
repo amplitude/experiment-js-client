@@ -3788,9 +3788,9 @@ dom-accessibility-api@^0.5.1:
   resolved "https://registry.yarnpkg.com/dom-accessibility-api/-/dom-accessibility-api-0.5.16.tgz#5a7429e6066eb3664d911e33fb0e45de8eb08453"
   integrity sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==
 
-"dom-mutator@git+ssh://git@github.com:amplitude/dom-mutator#ef95c531a822bce55c197a6bf5e1d86d03bc086c":
+"dom-mutator@git+ssh://git@github.com:amplitude/dom-mutator#0294e723c6a8f85d448bdfa59999591f2ae9e476":
   version "0.7.1"
-  resolved "git+ssh://git@github.com:amplitude/dom-mutator#ef95c531a822bce55c197a6bf5e1d86d03bc086c"
+  resolved "git+ssh://git@github.com:amplitude/dom-mutator#0294e723c6a8f85d448bdfa59999591f2ae9e476"
 
 domexception@^4.0.0:
   version "4.0.0"
