@@ -60,7 +60,7 @@ const DEFAULT_OPTIONS = {
     attributes: true,
     attributeFilter: ['style', 'class'],
   },
-  debounceMs: 150,
+  debounceMs: 100,
 } satisfies DebouncedMutationManagerOptions;
 
 export class DebouncedMutationManager {
