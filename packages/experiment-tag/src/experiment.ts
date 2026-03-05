@@ -13,7 +13,11 @@ import {
   Variants,
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
-import mutate, { MutationController } from 'dom-mutator';
+import mutate, {
+  MutationController,
+  pauseGlobalObserver,
+  resumeGlobalObserver,
+} from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
@@ -60,6 +64,8 @@ const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
+const VISUAL_EDITOR_SHELL_PARAM = 'VISUAL_EDITOR_SHELL';
+const VISUAL_EDITOR_SHELL_SESSION_KEY = 'amp-visual-editor-shell';
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -178,6 +184,37 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     patchRemoveChild();
     const urlParams = getUrlParams();
+
+    const isShellMode =
+      urlParams[VISUAL_EDITOR_SHELL_PARAM] === 'true' ||
+      getStorageItem('sessionStorage', VISUAL_EDITOR_SHELL_SESSION_KEY) !==
+        null;
+
+    // Inside the editor's iframe — render the page normally, skip overlay.
+    // Expose dom-mutator so the overlay in the parent frame can apply mutations
+    // against this document via getCustomerWindow().ampDomMutator.
+    if (isShellMode && this.globalScope.self !== this.globalScope.top) {
+      (this.globalScope as any).ampDomMutator = {
+        ...mutate,
+        pauseGlobalObserver,
+        resumeGlobalObserver,
+      };
+      this.isRunning = true;
+      return;
+    }
+
+    // Persist shell flag so the overlay knows which mode to use.
+    if (isShellMode) {
+      setStorageItem('sessionStorage', VISUAL_EDITOR_SHELL_SESSION_KEY, true);
+      this.globalScope.history.replaceState(
+        {},
+        '',
+        removeQueryParams(this.globalScope.location.href, [
+          VISUAL_EDITOR_SHELL_PARAM,
+        ]),
+      );
+    }
+
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
       getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
