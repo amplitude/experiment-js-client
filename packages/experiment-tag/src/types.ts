@@ -2,7 +2,6 @@ import { EvaluationCondition } from '@amplitude/experiment-core';
 import {
   ExperimentConfig,
   ExperimentUser,
-  Variant,
 } from '@amplitude/experiment-js-client';
 import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
@@ -33,12 +32,66 @@ export type PreviewState = {
   previewFlags: Record<string, string>;
 };
 
+export interface ElementAppearedTriggerValue {
+  selector: string;
+}
+
+export interface ElementVisibleTriggerValue {
+  selector: string;
+  visibilityRatio?: number;
+}
+
+export interface ManualTriggerValue {
+  name: string;
+}
+
+export type UserInteractionType = 'click' | 'hover' | 'focus';
+
+export interface UserInteractionTriggerValue {
+  selector: string;
+  interactionType: UserInteractionType;
+  minThresholdMs?: number;
+}
+
+export interface ExitIntentTriggerValue {
+  minTimeOnPageMs?: number;
+}
+
+export interface TimeOnPageTriggerValue {
+  durationMs: number;
+}
+
+export interface ScrolledToElementConfig {
+  mode: 'element';
+  selector: string;
+  offsetPx?: number;
+}
+
+export interface ScrolledToPercentConfig {
+  mode: 'percent';
+  percentage: number;
+}
+
+export type ScrolledToTriggerValue =
+  | ScrolledToElementConfig
+  | ScrolledToPercentConfig;
+
+export type AnalyticsEventTriggerValue = EvaluationCondition[][];
+
 export type PageObject = {
   id: string;
   name: string;
   conditions?: EvaluationCondition[][];
   trigger_type: MessageType;
-  trigger_value: Record<string, unknown>;
+  trigger_value:
+    | ElementAppearedTriggerValue
+    | ElementVisibleTriggerValue
+    | ManualTriggerValue
+    | TimeOnPageTriggerValue
+    | UserInteractionTriggerValue
+    | ExitIntentTriggerValue
+    | ScrolledToTriggerValue
+    | AnalyticsEventTriggerValue;
 };
 
 export type PageObjects = { [flagKey: string]: { [id: string]: PageObject } };
@@ -79,6 +132,8 @@ export interface WebExperimentClient {
   getActivePages(): PageObjects;
 
   setRedirectHandler(handler: (url: string) => void): void;
+
+  toggleManualPageObject(name: string, isActive?: boolean): void;
 }
 
 export type WebExperimentUser = {
