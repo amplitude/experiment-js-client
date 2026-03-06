@@ -76,18 +76,18 @@ describe('EventStorageManager', () => {
       expect(events[0].properties).toEqual({});
     });
 
-    test('should apply FIFO limit of 5000 events', () => {
-      // Add 5001 events
-      for (let i = 0; i < 5001; i++) {
+    test('should apply FIFO limit of 500 events', () => {
+      // Add 501 events
+      for (let i = 0; i < 501; i++) {
         eventStorage.addEvent('test', { index: i });
       }
 
       const events = eventStorage.getAllEvents();
-      expect(events).toHaveLength(5000);
+      expect(events).toHaveLength(500);
 
       // First event should be removed (FIFO)
       expect(events[0].properties.index).toBe(1);
-      expect(events[4999].properties.index).toBe(5000);
+      expect(events[499].properties.index).toBe(500);
     });
 
     test('should handle invalid JSON in localStorage', () => {
