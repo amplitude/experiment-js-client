@@ -524,14 +524,14 @@ describe('Behavioral Targeting Integration', () => {
 
   describe('FIFO event limit integration', () => {
     test('should maintain targeting accuracy with FIFO limit', () => {
-      // Add 5001 events to trigger FIFO
-      for (let i = 0; i < 5001; i++) {
+      // Add 501 events to trigger FIFO
+      for (let i = 0; i < 501; i++) {
         eventStorage.addEvent('click', { index: i });
       }
 
       // First event (index: 0) should be removed
       const events = eventStorage.getAllEvents();
-      expect(events).toHaveLength(5000);
+      expect(events).toHaveLength(500);
       expect(events[0].properties.index).toBe(1);
 
       // Targeting should still work correctly
@@ -542,7 +542,7 @@ describe('Behavioral Targeting Integration', () => {
               type: 'event',
               type_value: 'click',
               operator: '>=',
-              operator_value: 5000,
+              operator_value: 500,
               time_type: 'current_session',
               time_value: 0,
             },

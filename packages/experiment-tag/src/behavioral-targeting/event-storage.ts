@@ -24,7 +24,7 @@ interface EventStorage {
  */
 export class EventStorageManager {
   private static readonly STORAGE_KEY = 'amplitude_rtbt_events';
-  private static readonly MAX_EVENTS = 5000;
+  private static readonly MAX_EVENTS = 500;
 
   private sessionManager: SessionManager;
 
