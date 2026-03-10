@@ -43,6 +43,7 @@ import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
+import { buildShell, isMobileModeActive } from './util/shell';
 import {
   getStorageItem,
   setStorageItem,
@@ -64,8 +65,6 @@ const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
-const VISUAL_EDITOR_SHELL_PARAM = 'VISUAL_EDITOR_SHELL';
-const VISUAL_EDITOR_SHELL_SESSION_KEY = 'amp-visual-editor-shell';
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -185,15 +184,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     patchRemoveChild();
     const urlParams = getUrlParams();
 
-    const isShellMode =
-      urlParams[VISUAL_EDITOR_SHELL_PARAM] === 'true' ||
-      getStorageItem('sessionStorage', VISUAL_EDITOR_SHELL_SESSION_KEY) !==
-        null;
-
     // Inside the editor's iframe — render the page normally, skip overlay.
     // Expose dom-mutator so the overlay in the parent frame can apply mutations
     // against this document via getCustomerWindow().ampDomMutator.
-    if (isShellMode && this.globalScope.self !== this.globalScope.top) {
+    if (this.globalScope.self !== this.globalScope.top) {
       (this.globalScope as any).ampDomMutator = {
         ...mutate,
         pauseGlobalObserver,
@@ -201,18 +195,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       };
       this.isRunning = true;
       return;
-    }
-
-    // Persist shell flag so the overlay knows which mode to use.
-    if (isShellMode) {
-      setStorageItem('sessionStorage', VISUAL_EDITOR_SHELL_SESSION_KEY, true);
-      this.globalScope.history.replaceState(
-        {},
-        '',
-        removeQueryParams(this.globalScope.location.href, [
-          VISUAL_EDITOR_SHELL_PARAM,
-        ]),
-      );
     }
 
     this.isVisualEditorMode =
@@ -234,6 +216,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
       WindowMessenger.setup();
+
+      if (isMobileModeActive()) {
+        buildShell(this.globalScope);
+      }
+
       this.globalScope.history.replaceState(
         {},
         '',
