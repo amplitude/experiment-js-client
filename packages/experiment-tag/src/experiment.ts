@@ -36,7 +36,13 @@ import {
   PreviewVariantsOptions,
   PreviewState,
   RevertVariantsOptions,
+  BehavioralObject,
+  BehavioralObjects,
 } from './types';
+import { SessionManager } from './behavioral-targeting/session-manager';
+import { EventStorageManager } from './behavioral-targeting/event-storage';
+import { BehavioralTargetingEvaluator } from './behavioral-targeting/evaluator';
+import { areBehavioralObjectsEqual } from './util/behavioral-object';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
@@ -108,6 +114,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly messageBus: MessageBus;
   private pageObjects: PageObjects;
   private activePages: PageObjects = {};
+  private behavioralObjects: BehavioralObjects = {};
+  private activeBehaviors: BehavioralObjects = {};
+  private sessionManager: SessionManager | undefined;
+  private eventStorage: EventStorageManager | undefined;
+  private behavioralEvaluator: BehavioralTargetingEvaluator | undefined;
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
@@ -119,6 +130,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     initialFlags: string,
     pageObjects: string,
     config: WebExperimentConfig = {},
+    behavioralObjects: string = '{}',
   ) {
     const globalScope = getGlobalScope();
     if (!globalScope || !isLocalStorageAvailable()) {
@@ -130,6 +142,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.apiKey = apiKey;
     this.initialFlags = JSON.parse(initialFlags);
     this.pageObjects = JSON.parse(pageObjects);
+    this.behavioralObjects = JSON.parse(behavioralObjects);
+
+    // Initialize behavioral targeting infrastructure
+    this.sessionManager = new SessionManager();
+    this.eventStorage = new EventStorageManager(this.sessionManager);
+    this.behavioralEvaluator = new BehavioralTargetingEvaluator(
+      this.eventStorage,
+    );
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
@@ -215,6 +235,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     );
     this.setupPreviewMode(urlParams);
     this.subscriptionManager.initSubscriptions();
+
+    // Subscribe to analytics events for behavioral targeting
+    this.messageBus.subscribe('analytics_event', (data) => {
+      this.handleAnalyticsEvent(data.event, data.properties);
+    });
 
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
@@ -303,6 +328,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
+
+    // Evaluate initial behaviors (from events already in storage) before applying variants
+    this.evaluateAllBehaviors(true);
 
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
@@ -545,6 +573,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
+   * Get a map of active behavioral targeting objects.
+   */
+  public getActiveBehaviors(): BehavioralObjects {
+    return this.activeBehaviors;
+  }
+
+  /**
    * Add a subscriber to the page change event.
    * @param callback
    * @returns An unsubscribe function to remove the subscriber.
@@ -617,7 +652,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Track an analytics event that can trigger page objects.
+   * Track an analytics event that can trigger page objects and behavioral targeting.
    * @param event_type The event type/name
    * @param event_properties Optional event properties
    */
@@ -625,10 +660,129 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     event_type: string,
     event_properties?: Record<string, unknown>,
   ) {
+    // Store event in behavioral targeting storage
+    this.eventStorage?.addEvent(event_type, event_properties || {});
+
+    // Publish to message bus for page object triggers
     this.messageBus.publish('analytics_event', {
       event: event_type,
       properties: event_properties || {},
     });
+  }
+
+  /**
+   * Handle analytics events for behavioral targeting evaluation.
+   * @param event_type The event type/name
+   * @param event_properties Optional event properties
+   */
+  private handleAnalyticsEvent(
+    event_type: string,
+    event_properties: Record<string, unknown>,
+  ) {
+    // Evaluate all behavioral targeting rules
+    this.evaluateAllBehaviors();
+  }
+
+  /**
+   * Evaluate all behavioral targeting rules and apply variants if new behaviors match.
+   * @param skipApplyVariants If true, only update activeBehaviors without applying variants (for initialization)
+   */
+  private evaluateAllBehaviors(skipApplyVariants = false): void {
+    if (!this.behavioralEvaluator) {
+      return;
+    }
+
+    const previousActiveBehaviors = { ...this.activeBehaviors };
+
+    // For each experiment with behavioral targeting
+    for (const flagKey in this.behavioralObjects) {
+      const behaviors = this.behavioralObjects[flagKey];
+
+      if (!this.activeBehaviors[flagKey]) {
+        this.activeBehaviors[flagKey] = {};
+      }
+
+      // Evaluate each behavior for this flag
+      for (const behaviorId in behaviors) {
+        const behavior = behaviors[behaviorId];
+        const isMatched = this.behavioralEvaluator.evaluate(behavior.rules);
+
+        this.updateActiveBehaviors(flagKey, behavior, isMatched);
+      }
+    }
+
+    // Skip applyVariants during initialization
+    if (skipApplyVariants) {
+      return;
+    }
+
+    // Check if any NEW behaviors matched
+    if (
+      !areBehavioralObjectsEqual(
+        previousActiveBehaviors,
+        this.activeBehaviors,
+      )
+    ) {
+      // NEW behaviors matched! Apply variants
+      this.applyVariantsForBehavioralChanges(
+        previousActiveBehaviors,
+        this.activeBehaviors,
+      );
+    }
+  }
+
+  /**
+   * Update active behaviors tracking (similar to updateActivePages).
+   */
+  private updateActiveBehaviors(
+    flagKey: string,
+    behavior: BehavioralObject,
+    isActive: boolean,
+  ): void {
+    if (!this.activeBehaviors[flagKey]) {
+      this.activeBehaviors[flagKey] = {};
+    }
+
+    if (isActive) {
+      this.activeBehaviors[flagKey][behavior.id] = behavior;
+    } else {
+      delete this.activeBehaviors[flagKey][behavior.id];
+      if (Object.keys(this.activeBehaviors[flagKey]).length === 0) {
+        delete this.activeBehaviors[flagKey];
+      }
+    }
+  }
+
+  /**
+   * Apply variants for experiments with newly matched behaviors.
+   */
+  private applyVariantsForBehavioralChanges(
+    previousBehaviors: BehavioralObjects,
+    currentBehaviors: BehavioralObjects,
+  ): void {
+    // Find flags with newly matched behaviors
+    const flagsToApply: string[] = [];
+
+    for (const flagKey in currentBehaviors) {
+      const currentBehaviorIds = Object.keys(currentBehaviors[flagKey]);
+      const previousBehaviorIds = Object.keys(
+        previousBehaviors[flagKey] || {},
+      );
+
+      // Check if any NEW behaviors matched
+      const hasNewBehavior = currentBehaviorIds.some(
+        (id) => !previousBehaviorIds.includes(id),
+      );
+
+      if (hasNewBehavior) {
+        flagsToApply.push(flagKey);
+      }
+    }
+
+    // Apply variants for affected experiments
+    if (flagsToApply.length > 0) {
+      this.applyVariants({ flagKeys: flagsToApply });
+    }
   }
 
   private async fetchRemoteFlags() {
@@ -890,14 +1044,39 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     scope: string[] | undefined,
   ): boolean {
     const flagPages = this.activePages[flagKey];
+    const flagBehaviors = this.activeBehaviors[flagKey];
+    const hasBehavioralTargeting =
+      !!this.behavioralObjects[flagKey] &&
+      Object.keys(this.behavioralObjects[flagKey]).length > 0;
 
-    // If no scope is provided, assume variant is active if the flag has any active pages
+    // Check if pages or behaviors are active
+    const hasPagesActive =
+      !!flagPages && Object.values(flagPages).some(Boolean);
+    const hasBehaviorsActive =
+      !!flagBehaviors && Object.values(flagBehaviors).some(Boolean);
+
+    // If no scope is provided:
+    // - If experiment has behavioral targeting: BOTH pages AND behaviors must be active
+    // - If experiment has no behavioral targeting: only pages must be active
     if (!scope) {
-      return !!flagPages && Object.values(flagPages).some(Boolean);
+      if (hasBehavioralTargeting) {
+        return hasPagesActive && hasBehaviorsActive;
+      }
+      return hasPagesActive;
     }
 
-    // If scope is provided, check if any scoped page is active
-    return scope.some((pageId) => flagPages?.[pageId] ?? false);
+    // If scope is provided, check if scoped items are active
+    const pageMatch = scope.some((pageId) => flagPages?.[pageId] ?? false);
+    const behaviorMatch = scope.some(
+      (behaviorId) => flagBehaviors?.[behaviorId] ?? false,
+    );
+
+    // If experiment has behavioral targeting: BOTH must match scope
+    // If no behavioral targeting: only pages must match scope
+    if (hasBehavioralTargeting) {
+      return pageMatch && behaviorMatch;
+    }
+    return pageMatch;
   }
 
   private storeRedirectImpressions(
