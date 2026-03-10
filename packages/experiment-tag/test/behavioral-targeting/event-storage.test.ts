@@ -45,6 +45,7 @@ describe('EventStorageManager', () => {
 
     test('should persist events to localStorage', () => {
       eventStorage.addEvent('click', { button: 'submit' });
+      eventStorage.flush(); // Flush debounced write for testing
 
       const stored = localStorage.getItem('amplitude_rtbt_events');
       expect(stored).toBeDefined();
@@ -57,6 +58,7 @@ describe('EventStorageManager', () => {
 
     test('should load existing events from localStorage', () => {
       eventStorage.addEvent('click');
+      eventStorage.flush(); // Flush to localStorage before creating new instance
 
       // Create new manager instance (simulates page reload)
       const newEventStorage = new EventStorageManager(sessionManager);
@@ -373,6 +375,7 @@ describe('EventStorageManager', () => {
     test('should maintain same session across manager instances', () => {
       const sessionId = sessionManager.getOrCreateSessionId();
       eventStorage.addEvent('click');
+      eventStorage.flush(); // Flush to localStorage before creating new instance
 
       // Create new instances (simulates page navigation)
       const newSessionManager = new SessionManager();

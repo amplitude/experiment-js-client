@@ -18,8 +18,7 @@ export interface BehavioralConditionSet {
 }
 
 /**
- * A behavioral condition (translated from backend schema).
- * Backend translates PR #95512 schema to this format.
+ * A behavioral condition
  */
 export interface BehavioralCondition {
   type: 'event';
