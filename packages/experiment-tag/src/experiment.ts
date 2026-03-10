@@ -20,6 +20,9 @@ import mutate, {
   resumeGlobalObserver,
 } from 'dom-mutator';
 
+import { BehavioralTargetingEvaluator } from './behavioral-targeting/evaluator';
+import { EventStorageManager } from './behavioral-targeting/event-storage';
+import { SessionManager } from './behavioral-targeting/session-manager';
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
@@ -39,11 +42,8 @@ import {
   BehavioralObject,
   BehavioralObjects,
 } from './types';
-import { SessionManager } from './behavioral-targeting/session-manager';
-import { EventStorageManager } from './behavioral-targeting/event-storage';
-import { BehavioralTargetingEvaluator } from './behavioral-targeting/evaluator';
-import { areBehavioralObjectsEqual } from './util/behavioral-object';
 import { applyAntiFlickerCss } from './util/anti-flicker';
+import { areBehavioralObjectsEqual } from './util/behavioral-object';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
@@ -130,7 +130,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     initialFlags: string,
     pageObjects: string,
     config: WebExperimentConfig = {},
-    behavioralObjects: string = '{}',
+    behavioralObjects = '{}',
   ) {
     const globalScope = getGlobalScope();
     if (!globalScope || !isLocalStorageAvailable()) {
@@ -237,8 +237,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.initSubscriptions();
 
     // Subscribe to analytics events for behavioral targeting
-    this.messageBus.subscribe('analytics_event', (data) => {
-      this.handleAnalyticsEvent(data.event, data.properties);
+    this.messageBus.subscribe('analytics_event', () => {
+      this.handleAnalyticsEvent();
     });
 
     // if in visual edit mode, remove the query param
@@ -672,13 +672,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   /**
    * Handle analytics events for behavioral targeting evaluation.
-   * @param event_type The event type/name
-   * @param event_properties Optional event properties
    */
-  private handleAnalyticsEvent(
-    event_type: string,
-    event_properties: Record<string, unknown>,
-  ) {
+  private handleAnalyticsEvent() {
     // Evaluate all behavioral targeting rules
     this.evaluateAllBehaviors();
   }
@@ -718,10 +713,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // Check if any NEW behaviors matched
     if (
-      !areBehavioralObjectsEqual(
-        previousActiveBehaviors,
-        this.activeBehaviors,
-      )
+      !areBehavioralObjectsEqual(previousActiveBehaviors, this.activeBehaviors)
     ) {
       // NEW behaviors matched! Apply variants
       this.applyVariantsForBehavioralChanges(
@@ -765,9 +757,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     for (const flagKey in currentBehaviors) {
       const currentBehaviorIds = Object.keys(currentBehaviors[flagKey]);
-      const previousBehaviorIds = Object.keys(
-        previousBehaviors[flagKey] || {},
-      );
+      const previousBehaviorIds = Object.keys(previousBehaviors[flagKey] || {});
 
       // Check if any NEW behaviors matched
       const hasNewBehavior = currentBehaviorIds.some(

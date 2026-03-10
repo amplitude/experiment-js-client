@@ -5,6 +5,7 @@ import {
 } from '@amplitude/experiment-js-client';
 import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
+import { BehavioralTargeting } from './behavioral-targeting/types';
 import { MessageType } from './message-bus';
 
 export type ApplyVariantsOptions = {
@@ -95,11 +96,6 @@ export type PageObject = {
 };
 
 export type PageObjects = { [flagKey: string]: { [id: string]: PageObject } };
-
-/**
- * Import behavioral targeting types
- */
-import { BehavioralTargeting } from './behavioral-targeting/types';
 
 /**
  * Represents a behavioral targeting rule set for an experiment.
