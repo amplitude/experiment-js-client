@@ -140,6 +140,7 @@ describe('Behavioral Targeting Integration', () => {
       // Page 1: User views product
       eventStorage.addEvent('page_view', { page: 'product' });
       const sessionId1 = sessionManager.getOrCreateSessionId();
+      eventStorage.flush(); // Flush to localStorage before "page reload"
 
       // Simulate page reload (new manager instances)
       const sessionManager2 = new SessionManager();
