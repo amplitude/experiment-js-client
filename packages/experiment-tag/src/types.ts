@@ -5,6 +5,7 @@ import {
 } from '@amplitude/experiment-js-client';
 import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
+import { BehavioralTargeting } from './behavioral-targeting/types';
 import { MessageType } from './subscriptions/message-bus';
 
 export type ApplyVariantsOptions = {
@@ -96,6 +97,24 @@ export type PageObject = {
 
 export type PageObjects = { [flagKey: string]: { [id: string]: PageObject } };
 
+/**
+ * Represents a behavioral targeting rule set for an experiment.
+ * Similar to PageObject but uses event-based rules instead of DOM triggers.
+ */
+export type BehavioralObject = {
+  id: string;
+  name: string;
+  rules: BehavioralTargeting;
+};
+
+/**
+ * Map of behavioral objects per flag key.
+ * Structure: { [flagKey]: { [behaviorId]: BehavioralObject } }
+ */
+export type BehavioralObjects = {
+  [flagKey: string]: { [id: string]: BehavioralObject };
+};
+
 export interface WebExperimentConfig extends ExperimentConfig {
   /**
    * Determines whether the default implementation for handling navigation  will be used
@@ -130,6 +149,8 @@ export interface WebExperimentClient {
   getActiveExperiments(): string[];
 
   getActivePages(): PageObjects;
+
+  getActiveBehaviors(): BehavioralObjects;
 
   setRedirectHandler(handler: (url: string) => void): void;
 
