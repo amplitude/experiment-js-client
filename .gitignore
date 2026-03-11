@@ -30,3 +30,6 @@ packages/experiment-tag/example/
 
 # dotenv files
 .env*
+.claude/
+_bmad/
+design-docs/
