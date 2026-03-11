@@ -1,3 +1,5 @@
+import { pauseGlobalObserver, resumeGlobalObserver } from 'dom-mutator';
+
 export interface InjectUtils {
   /**
    * Returns a promise that is resolved when an element matching the selector
@@ -119,7 +121,9 @@ export const getInjectUtils = (state: { cancelled: boolean }): InjectUtils =>
             return;
           }
 
+          pauseGlobalObserver();
           parent.insertBefore(element, sibling);
+          resumeGlobalObserver();
           callback?.();
           resolve();
         };

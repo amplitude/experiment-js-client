@@ -3,6 +3,36 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.16.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.15.3...@amplitude/experiment-tag@0.16.0) (2026-03-11)
+
+
+### Features
+
+* support new page triggers ([#241](https://github.com/amplitude/experiment-js-client/issues/241)) ([5f77967](https://github.com/amplitude/experiment-js-client/commit/5f7796718577d885532ff3e822c85e4cd29cfafb))
+
+
+
+
+
+## [0.15.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.15.2...@amplitude/experiment-tag@0.15.3) (2026-03-10)
+
+
+### Bug Fixes
+
+* handle inserting widgets into html mutations ([#263](https://github.com/amplitude/experiment-js-client/issues/263)) ([c8390d1](https://github.com/amplitude/experiment-js-client/commit/c8390d17f39b283120181f9845d54403987294d4))
+
+
+
+
+
+## [0.15.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.15.1...@amplitude/experiment-tag@0.15.2) (2026-03-06)
+
+**Note:** Version bump only for package @amplitude/experiment-tag
+
+
+
+
+
 ## [0.15.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.15.0...@amplitude/experiment-tag@0.15.1) (2026-03-03)
 
 **Note:** Version bump only for package @amplitude/experiment-tag

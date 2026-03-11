@@ -35,20 +35,11 @@ jobs:
       - name: Fetch
         run: git fetch --prune --unshallow --tags
 
-      - name: Cache Node Modules
-        uses: actions/cache@v4
-        with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-
-      - name: Update npm
-        run: npm install -g npm@latest
 
       - name: Set up SSH for deploy key
         run: |
@@ -63,7 +54,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Build
-        run: npx lerna exec yarn
+        run: yarn build
 
       - name: Test
         run: yarn test
@@ -118,9 +109,6 @@ jobs:
             echo "UPLOAD_PACKAGES=${UPLOAD_PACKAGES:+$UPLOAD_PACKAGES,}browser" >> $GITHUB_ENV
           fi
 
-      - name: Install AWS SDK dependencies
-        run: cd scripts && yarn install
-
       # Configure AWS credentials for S3 upload
       - name: Configure AWS Credentials
         if: ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != '' }}
@@ -129,10 +117,13 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-west-2
 
-      # Upload experiment packages to S3 after version and docs are updated
-      - name: Upload experiment packages to S3
+      # Install dependencies and upload experiment packages to S3
+      - name: Upload packages to S3
         if: ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != '' }}
         env:
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
           PACKAGES: ${{ env.UPLOAD_PACKAGES }}
-        run: node scripts/upload-to-s3.js
+        run: |
+          cd scripts
+          yarn install
+          node upload-to-s3.js
