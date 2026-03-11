@@ -1,7 +1,8 @@
 const MOBILE_MODE_SESSION_KEY = 'amp-visual-editor-mobile-mode';
-const DEVICE_IFRAME_ID = 'device-iframe';
-const DEVICE_CONTAINER_ID = 'overlay-device-iframe-container';
+const DEVICE_IFRAME_ID = 'amp-device-iframe';
+const DEVICE_CONTAINER_ID = 'amp-overlay-device-iframe-container';
 
+// TODO: Replace with the default device from the device presets list.
 const DEFAULT_MOBILE_WIDTH = 375;
 const DEFAULT_MOBILE_HEIGHT = 667;
 
@@ -34,7 +35,7 @@ export function buildShell(globalScope: typeof globalThis): void {
       display: flex;
       align-items: center;
       justify-content: center;
-      background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABZSURBVHgB7dG7DYBADANQJxexAiXSTXw9uyExBih34SOxQhr83Li2ASIiIiIiIpo7QbLW1tms1zijq9puSDaGLxhhuBPaqyKZTFK+/r6 AZOJlg8shqv5ccAGZWRnaKiSy9QAAAABJRU5ErkJggg==");
+      background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABZSURBVHgB7dG7DYBADANQJxexAiXSTXw9uyExBih34SOxQhr83Li2ASIiIiIiIpo7QbLW1tms1zijq9puSDaGLxhhuBPaqyKZTFK+/r6AZOJlg8shqv5ccAGZWRnaKiSy9QAAAABJRU5ErkJggg==");
     `;
 
     const container = doc.createElement('div');
