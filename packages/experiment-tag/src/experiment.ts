@@ -14,7 +14,11 @@ import {
   Variants,
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
-import mutate, { MutationController } from 'dom-mutator';
+import mutate, {
+  MutationController,
+  pauseGlobalObserver,
+  resumeGlobalObserver,
+} from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
@@ -40,6 +44,7 @@ import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
+import { buildShell, isMobileModeActive } from './util/shell';
 import {
   getStorageItem,
   setStorageItem,
@@ -181,6 +186,20 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     patchRemoveChild();
     const urlParams = getUrlParams();
+
+    // When running inside an iframe (mobile shell), skip overlay loading and
+    // expose dom-mutator on the window so the overlay in the parent frame can
+    // apply and control mutations against this document.
+    if (this.globalScope.self !== this.globalScope.top) {
+      (this.globalScope as any).ampDomMutator = {
+        ...mutate,
+        pauseGlobalObserver,
+        resumeGlobalObserver,
+      };
+      this.isRunning = true;
+      return;
+    }
+
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
       getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
@@ -200,6 +219,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
       WindowMessenger.setup();
+
+      if (isMobileModeActive()) {
+        buildShell(this.globalScope);
+      }
+
       this.globalScope.history.replaceState(
         {},
         '',
