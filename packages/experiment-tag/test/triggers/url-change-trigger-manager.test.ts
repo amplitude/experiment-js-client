@@ -7,7 +7,7 @@ import { createMockGlobal, setupGlobalObservers } from '../util/mocks';
 setupGlobalObservers();
 
 describe('UrlChangeTriggerManager', () => {
-  let mockGlobal: ReturnType<typeof createMockGlobal>;
+  let mockGlobal: ReturnType<typeof createMockGlobal> & typeof globalThis;
   let messageBus: MessageBus;
   let manager: UrlChangeTriggerManager;
   let originalPushState: typeof history.pushState;
@@ -34,7 +34,7 @@ describe('UrlChangeTriggerManager', () => {
       webExperiment: {
         previousUrl: '',
       },
-    });
+    }) as ReturnType<typeof createMockGlobal> & typeof globalThis;
     messageBus = new MessageBus();
   });
 
