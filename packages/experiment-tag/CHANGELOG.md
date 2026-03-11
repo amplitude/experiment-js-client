@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.16.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.15.3...@amplitude/experiment-tag@0.16.0) (2026-03-11)
+
+
+### Features
+
+* support new page triggers ([#241](https://github.com/amplitude/experiment-js-client/issues/241)) ([5f77967](https://github.com/amplitude/experiment-js-client/commit/5f7796718577d885532ff3e822c85e4cd29cfafb))
+
+
+
+
+
 ## [0.15.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.15.2...@amplitude/experiment-tag@0.15.3) (2026-03-10)
 
 
