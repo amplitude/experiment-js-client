@@ -35,12 +35,6 @@ jobs:
       - name: Fetch
         run: git fetch --prune --unshallow --tags
 
-      - name: Cache Node Modules
-        uses: actions/cache@v4
-        with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -58,6 +52,9 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
         continue-on-error: true # forked repos don't have access, and this is only for experiment-tag
         shell: bash
+
+      - name: Clear Yarn Cache
+        run: yarn cache clean
 
       - name: Install
         run: yarn install --frozen-lockfile
