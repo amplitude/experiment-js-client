@@ -7,11 +7,11 @@ import { createMockGlobal, setupGlobalObservers } from '../util/mocks';
 setupGlobalObservers();
 
 describe('UrlChangeTriggerManager', () => {
-  let mockGlobal: any;
+  let mockGlobal: ReturnType<typeof createMockGlobal>;
   let messageBus: MessageBus;
   let manager: UrlChangeTriggerManager;
-  let originalPushState: any;
-  let originalReplaceState: any;
+  let originalPushState: typeof history.pushState;
+  let originalReplaceState: typeof history.replaceState;
   let popstateListener: EventListener;
 
   beforeEach(() => {

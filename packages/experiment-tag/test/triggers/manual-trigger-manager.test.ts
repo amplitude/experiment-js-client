@@ -7,7 +7,7 @@ import { createMockGlobal, setupGlobalObservers } from '../util/mocks';
 setupGlobalObservers();
 
 describe('ManualTriggerManager', () => {
-  let mockGlobal: any;
+  let mockGlobal: ReturnType<typeof createMockGlobal>;
   let messageBus: MessageBus;
   let manager: ManualTriggerManager;
 
