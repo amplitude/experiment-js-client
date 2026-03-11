@@ -50,9 +50,6 @@ jobs:
         continue-on-error: true # forked repos don't have access, and this is only for experiment-tag
         shell: bash
 
-      - name: Clear Yarn Cache
-        run: yarn cache clean
-
       - name: Install
         run: yarn install --frozen-lockfile
 
@@ -112,9 +109,6 @@ jobs:
             echo "UPLOAD_PACKAGES=${UPLOAD_PACKAGES:+$UPLOAD_PACKAGES,}browser" >> $GITHUB_ENV
           fi
 
-      - name: Install AWS SDK dependencies
-        run: cd scripts && yarn install
-
       # Configure AWS credentials for S3 upload
       - name: Configure AWS Credentials
         if: ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != '' }}
@@ -123,10 +117,13 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-west-2
 
-      # Upload experiment packages to S3 after version and docs are updated
-      - name: Upload experiment packages to S3
+      # Install dependencies and upload experiment packages to S3
+      - name: Upload packages to S3
         if: ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != '' }}
         env:
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
           PACKAGES: ${{ env.UPLOAD_PACKAGES }}
-        run: node scripts/upload-to-s3.js
+        run: |
+          cd scripts
+          yarn install
+          node upload-to-s3.js
