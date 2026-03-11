@@ -44,7 +44,7 @@ jobs:
 
     - name: Downgrade lerna for Node 18
       if: ${{ matrix.node-version == '18' }}
-      run: yarn add lerna@6.6.2 -W --dev
+      run: yarn add lerna@6.6.2 -W --dev --network-concurrency 1
 
     - name: Install
       run: yarn install --frozen-lockfile --force
