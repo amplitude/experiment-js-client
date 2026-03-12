@@ -3,10 +3,12 @@ import { PageObject } from '../types';
 
 import { TriggerManager } from './base-trigger-manager';
 import { ManualTriggerManager } from './manual-trigger-manager';
+import { UrlChangeTriggerManager } from './url-change-trigger-manager';
 
 // Export all managers
 export * from './base-trigger-manager';
 export * from './manual-trigger-manager';
+export * from './url-change-trigger-manager';
 
 /**
  * Options that can be passed to trigger managers during initialization.
@@ -37,4 +39,5 @@ export const TRIGGER_MANAGER_REGISTRY: Partial<
   >
 > = {
   manual: ManualTriggerManager,
+  url_change: UrlChangeTriggerManager,
 };

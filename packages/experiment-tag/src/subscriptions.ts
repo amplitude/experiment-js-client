@@ -73,7 +73,8 @@ export class SubscriptionManager {
   > = new WeakMap();
   private userInteractionAbortController: AbortController | null = null;
   private pageLoadTime: number = Number.POSITIVE_INFINITY;
-  private lastPublishedUrl: string | null = null;
+  // MOVED to UrlChangeTriggerManager (url-change-trigger-manager.ts)
+  // private lastPublishedUrl: string | null = null;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -93,15 +94,17 @@ export class SubscriptionManager {
     this.pageObjects = pageObjects;
   };
 
-  public markUrlAsPublished = (url: string) => {
-    this.lastPublishedUrl = url;
-  };
+  // MOVED to UrlChangeTriggerManager.markUrlAsPublished (url-change-trigger-manager.ts)
+  // public markUrlAsPublished = (url: string) => {
+  //   this.lastPublishedUrl = url;
+  // };
 
   public initSubscriptions = () => {
     this.setupPageObjectSubscriptions();
-    if (this.options.useDefaultNavigationHandler) {
-      this.setupLocationChangePublisher();
-    }
+    // MOVED to UrlChangeTriggerManager
+    // if (this.options.useDefaultNavigationHandler) {
+    //   this.setupLocationChangePublisher();
+    // }
     this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
     this.setupUserInteractionPublisher();
@@ -560,56 +563,57 @@ export class SubscriptionManager {
     }
   };
 
-  private setupLocationChangePublisher = () => {
-    // Add URL change listener for back/forward navigation
-    this.globalScope.addEventListener('popstate', () => {
-      const currentUrl = this.globalScope.location.href;
-      if (currentUrl === this.lastPublishedUrl) {
-        return;
-      }
-
-      this.lastPublishedUrl = currentUrl;
-      this.messageBus.publish('url_change');
-    });
-
-    const handleUrlChange = () => {
-      const currentUrl = this.globalScope.location.href;
-      if (currentUrl === this.lastPublishedUrl) {
-        return;
-      }
-
-      this.lastPublishedUrl = currentUrl;
-      this.messageBus.publish('url_change');
-      this.globalScope.webExperiment.previousUrl = currentUrl;
-    };
-
-    // Create wrapper functions for pushState and replaceState
-    const wrapHistoryMethods = () => {
-      const originalPushState = history.pushState;
-      const originalReplaceState = history.replaceState;
-
-      // Wrapper for pushState
-      history.pushState = function (...args) {
-        // Call the original pushState
-        const result = originalPushState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
-        return result;
-      };
-
-      // Wrapper for replaceState
-      history.replaceState = function (...args) {
-        // Call the original replaceState
-        const result = originalReplaceState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
-        return result;
-      };
-    };
-
-    // Initialize the wrapper
-    wrapHistoryMethods();
-  };
+  // MOVED to UrlChangeTriggerManager.initialize (url-change-trigger-manager.ts)
+  // private setupLocationChangePublisher = () => {
+  //   // Add URL change listener for back/forward navigation
+  //   this.globalScope.addEventListener('popstate', () => {
+  //     const currentUrl = this.globalScope.location.href;
+  //     if (currentUrl === this.lastPublishedUrl) {
+  //       return;
+  //     }
+  //
+  //     this.lastPublishedUrl = currentUrl;
+  //     this.messageBus.publish('url_change');
+  //   });
+  //
+  //   const handleUrlChange = () => {
+  //     const currentUrl = this.globalScope.location.href;
+  //     if (currentUrl === this.lastPublishedUrl) {
+  //       return;
+  //     }
+  //
+  //     this.lastPublishedUrl = currentUrl;
+  //     this.messageBus.publish('url_change');
+  //     this.globalScope.webExperiment.previousUrl = currentUrl;
+  //   };
+  //
+  //   // Create wrapper functions for pushState and replaceState
+  //   const wrapHistoryMethods = () => {
+  //     const originalPushState = history.pushState;
+  //     const originalReplaceState = history.replaceState;
+  //
+  //     // Wrapper for pushState
+  //     history.pushState = function (...args) {
+  //       // Call the original pushState
+  //       const result = originalPushState.apply(this, args);
+  //       // Revert mutations and apply variants
+  //       handleUrlChange();
+  //       return result;
+  //     };
+  //
+  //     // Wrapper for replaceState
+  //     history.replaceState = function (...args) {
+  //       // Call the original replaceState
+  //       const result = originalReplaceState.apply(this, args);
+  //       // Revert mutations and apply variants
+  //       handleUrlChange();
+  //       return result;
+  //     };
+  //   };
+  //
+  //   // Initialize the wrapper
+  //   wrapHistoryMethods();
+  // };
 
   private setupUserInteractionPublisher = () => {
     // Abort all existing listeners at once
@@ -1094,8 +1098,9 @@ export class SubscriptionManager {
 
     // Check if page is active based on trigger type
     switch (page.trigger_type) {
-      case 'url_change':
-        return true;
+      // MOVED to UrlChangeTriggerManager.isActive (url-change-trigger-manager.ts)
+      // case 'url_change':
+      //   return true;
 
       // MOVED to ManualTriggerManager.isActive (manual-trigger-manager.ts)
       // case 'manual': {
