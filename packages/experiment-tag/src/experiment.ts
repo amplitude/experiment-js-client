@@ -20,7 +20,7 @@ import mutate, {
   resumeGlobalObserver,
 } from 'dom-mutator';
 
-import { MessageBus } from './message-bus';
+import { MessageBus } from './subscriptions/message-bus';
 import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import {

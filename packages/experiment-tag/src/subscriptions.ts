@@ -8,8 +8,8 @@ import {
   AnalyticsEventPayload,
   MessageType,
   TimeOnPagePayload,
-} from './message-bus';
-import { DebouncedMutationManager } from './mutation-manager';
+} from './subscriptions/message-bus';
+import { DebouncedMutationManager } from './util/triggers/mutation-manager';
 import {
   ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,

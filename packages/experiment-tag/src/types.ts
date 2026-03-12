@@ -5,7 +5,7 @@ import {
 } from '@amplitude/experiment-js-client';
 import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
-import { MessageType } from './message-bus';
+import { MessageType } from './subscriptions/message-bus';
 
 export type ApplyVariantsOptions = {
   /**
