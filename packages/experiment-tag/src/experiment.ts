@@ -22,7 +22,7 @@ import mutate, {
 
 import { MessageBus } from './subscriptions/message-bus';
 import { showPreviewModeModal } from './preview/preview';
-import { PageChangeEvent, SubscriptionManager } from './subscriptions';
+import { PageChangeEvent, SubscriptionManager } from './subscriptions/subscriptions';
 import {
   Defaults,
   WebExperimentClient,
