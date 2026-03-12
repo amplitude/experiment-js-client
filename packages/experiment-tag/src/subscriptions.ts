@@ -52,7 +52,7 @@ export class SubscriptionManager {
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
-  private manuallyActivatedPageObjects: Set<string> = new Set();
+  // MOVED: manuallyActivatedPageObjects -> ManualTriggerManager
   private targetedElementSelectors: Set<string> = new Set();
   private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
   private scrolledToElementState: Map<string, boolean> = new Map();
@@ -220,14 +220,7 @@ export class SubscriptionManager {
     }
   };
 
-  public toggleManualPageObject = (page: string, isActive: boolean): void => {
-    if (isActive) {
-      this.manuallyActivatedPageObjects.add(page);
-    } else {
-      this.manuallyActivatedPageObjects.delete(page);
-    }
-    this.messageBus.publish('manual');
-  };
+  // MOVED: toggleManualPageObject -> ManualTriggerManager.trigger/untrigger
 
   private resetTriggerStates = () => {
     // Clear "has fired" state for all triggers
@@ -235,7 +228,7 @@ export class SubscriptionManager {
     this.elementVisibilityState.clear();
     this.firedUserInteractions.clear();
     this.scrolledToElementState.clear();
-    this.manuallyActivatedPageObjects.clear();
+    // MOVED: manuallyActivatedPageObjects.clear() -> ManualTriggerManager.reset()
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
     this.analyticsEventState.clear();
@@ -1094,10 +1087,7 @@ export class SubscriptionManager {
       case 'url_change':
         return true;
 
-      case 'manual': {
-        const triggerValue = page.trigger_value as ManualTriggerValue;
-        return this.manuallyActivatedPageObjects.has(triggerValue.name);
-      }
+      // MOVED: case 'manual' -> ManualTriggerManager.isActive()
 
       case 'analytics_event': {
         const id = page.id;
