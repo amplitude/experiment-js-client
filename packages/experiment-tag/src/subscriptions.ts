@@ -52,6 +52,7 @@ export class SubscriptionManager {
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
+  // MOVED to ManualTriggerManager (manual-trigger-manager.ts)
   private manuallyActivatedPageObjects: Set<string> = new Set();
   private targetedElementSelectors: Set<string> = new Set();
   private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
@@ -220,6 +221,7 @@ export class SubscriptionManager {
     }
   };
 
+  // MOVED to ManualTriggerManager.trigger/untrigger (manual-trigger-manager.ts)
   public toggleManualPageObject = (page: string, isActive: boolean): void => {
     if (isActive) {
       this.manuallyActivatedPageObjects.add(page);
@@ -235,6 +237,7 @@ export class SubscriptionManager {
     this.elementVisibilityState.clear();
     this.firedUserInteractions.clear();
     this.scrolledToElementState.clear();
+    // MOVED to ManualTriggerManager.reset (manual-trigger-manager.ts)
     this.manuallyActivatedPageObjects.clear();
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
@@ -1094,6 +1097,7 @@ export class SubscriptionManager {
       case 'url_change':
         return true;
 
+      // MOVED to ManualTriggerManager.isActive (manual-trigger-manager.ts)
       case 'manual': {
         const triggerValue = page.trigger_value as ManualTriggerValue;
         return this.manuallyActivatedPageObjects.has(triggerValue.name);
