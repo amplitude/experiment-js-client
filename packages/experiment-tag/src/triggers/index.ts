@@ -2,9 +2,11 @@ import { MessageBus, MessageType } from '../subscriptions/message-bus';
 import { PageObject } from '../types';
 
 import { TriggerManager } from './base-trigger-manager';
+import { ManualTriggerManager } from './manual-trigger-manager';
 
 // Export all managers
 export * from './base-trigger-manager';
+export * from './manual-trigger-manager';
 
 /**
  * Options that can be passed to trigger managers during initialization.
@@ -34,5 +36,5 @@ export const TRIGGER_MANAGER_REGISTRY: Partial<
     ) => TriggerManager
   >
 > = {
-  // Trigger managers will be registered here in subsequent PRs
+  manual: ManualTriggerManager,
 };
