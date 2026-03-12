@@ -9,7 +9,6 @@ import {
   MessageType,
   TimeOnPagePayload,
 } from './subscriptions/message-bus';
-import { DebouncedMutationManager } from './util/triggers/mutation-manager';
 import {
   ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
@@ -28,6 +27,7 @@ import {
   getElementSelectors,
   getPageObjectsByTriggerType,
 } from './util/page-object';
+import { DebouncedMutationManager } from './util/triggers/mutation-manager';
 
 const evaluationEngine = new EvaluationEngine();
 
