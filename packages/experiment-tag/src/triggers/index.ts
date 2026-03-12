@@ -5,10 +5,11 @@ import { TriggerManager } from './base-trigger-manager';
 import { ManualTriggerManager } from './manual-trigger-manager';
 import { UrlChangeTriggerManager } from './url-change-trigger-manager';
 
-// Export all managers
+// Export all managers and orchestrator
 export * from './base-trigger-manager';
 export * from './manual-trigger-manager';
 export * from './url-change-trigger-manager';
+export * from './trigger-orchestrator';
 
 /**
  * Options that can be passed to trigger managers during initialization.
