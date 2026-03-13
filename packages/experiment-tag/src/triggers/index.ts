@@ -2,9 +2,11 @@ import { MessageBus, MessageType } from '../subscriptions/message-bus';
 import { PageObject } from '../types';
 
 import { TriggerManager } from './base-trigger-manager';
+import { ElementVisibleTriggerManager } from './element-visible-trigger-manager';
 
 // Export all managers
 export * from './base-trigger-manager';
+export * from './element-visible-trigger-manager';
 
 /**
  * Options that can be passed to trigger managers during initialization.
@@ -34,5 +36,5 @@ export const TRIGGER_MANAGER_REGISTRY: Partial<
     ) => TriggerManager
   >
 > = {
-  // Triggers will be registered here as they are extracted
+  element_visible: ElementVisibleTriggerManager,
 };
