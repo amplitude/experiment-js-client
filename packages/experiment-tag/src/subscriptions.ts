@@ -51,7 +51,8 @@ export class SubscriptionManager {
   private lastNotifiedActivePages: PageObjects = {};
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
-  private elementAppearedState: Set<string> = new Set();
+  // MOVED to ElementAppearedTriggerManager (element-appeared-trigger-manager.ts)
+  // private elementAppearedState: Set<string> = new Set();
   private manuallyActivatedPageObjects: Set<string> = new Set();
   private targetedElementSelectors: Set<string> = new Set();
   private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
@@ -231,7 +232,8 @@ export class SubscriptionManager {
 
   private resetTriggerStates = () => {
     // Clear "has fired" state for all triggers
-    this.elementAppearedState.clear();
+    // MOVED to ElementAppearedTriggerManager.reset (element-appeared-trigger-manager.ts)
+    // this.elementAppearedState.clear();
     this.elementVisibilityState.clear();
     this.firedUserInteractions.clear();
     this.scrolledToElementState.clear();
@@ -295,6 +297,7 @@ export class SubscriptionManager {
     });
   };
 
+  // MOVED to ElementAppearedTriggerManager.updateElementAppearedState (element-appeared-trigger-manager.ts)
   private updateElementAppearedState = (
     selectors: Iterable<string>,
     mutationList: MutationRecord[],
@@ -326,6 +329,7 @@ export class SubscriptionManager {
     }
   };
 
+  // MOVED to ElementAppearedTriggerManager.checkInitialElements (element-appeared-trigger-manager.ts)
   private checkInitialElements = () => {
     // Check for elements that already exist in the DOM and update state
     this.updateElementAppearedState(this.targetedElementSelectors, []);
@@ -1126,11 +1130,12 @@ export class SubscriptionManager {
         return match;
       }
 
-      case 'element_appeared': {
-        const triggerValue = page.trigger_value as ElementAppearedTriggerValue;
-        const selector = triggerValue.selector;
-        return this.elementAppearedState.has(selector);
-      }
+      // MOVED to ElementAppearedTriggerManager.isActive (element-appeared-trigger-manager.ts)
+      // case 'element_appeared': {
+      //   const triggerValue = page.trigger_value as ElementAppearedTriggerValue;
+      //   const selector = triggerValue.selector;
+      //   return this.elementAppearedState.has(selector);
+      // }
 
       case 'element_visible': {
         const triggerValue = page.trigger_value as ElementVisibleTriggerValue;
