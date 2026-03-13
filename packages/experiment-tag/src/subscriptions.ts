@@ -71,7 +71,8 @@ export class SubscriptionManager {
     Map<string, ReturnType<typeof setTimeout>>
   > = new WeakMap();
   private userInteractionAbortController: AbortController | null = null;
-  private pageLoadTime: number = Number.POSITIVE_INFINITY;
+  // MOVED to TimeOnPageTriggerManager (time-on-page-trigger-manager.ts)
+  // private pageLoadTime: number = Number.POSITIVE_INFINITY;
   private lastPublishedUrl: string | null = null;
 
   constructor(
@@ -237,7 +238,8 @@ export class SubscriptionManager {
     this.scrolledToElementState.clear();
     this.manuallyActivatedPageObjects.clear();
     this.maxScrollPercentage = 0;
-    this.pageLoadTime = Date.now();
+    // MOVED to TimeOnPageTriggerManager.reset (time-on-page-trigger-manager.ts)
+    // this.pageLoadTime = Date.now();
     this.analyticsEventState.clear();
 
     // Clear pending click timeouts
@@ -1157,11 +1159,12 @@ export class SubscriptionManager {
         return this.firedUserInteractions.has(interactionKey);
       }
 
-      case 'time_on_page': {
-        const payload = message as TimeOnPagePayload;
-        const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
-        return payload.durationMs >= triggerValue.durationMs;
-      }
+      // MOVED to TimeOnPageTriggerManager.isActive (time-on-page-trigger-manager.ts)
+      // case 'time_on_page': {
+      //   const payload = message as TimeOnPagePayload;
+      //   const triggerValue = page.trigger_value as TimeOnPageTriggerValue;
+      //   return payload.durationMs >= triggerValue.durationMs;
+      // }
 
       case 'scrolled_to': {
         const triggerValue = page.trigger_value as ScrolledToTriggerValue;
