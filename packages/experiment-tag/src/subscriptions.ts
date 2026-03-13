@@ -54,8 +54,9 @@ export class SubscriptionManager {
   private elementAppearedState: Set<string> = new Set();
   private manuallyActivatedPageObjects: Set<string> = new Set();
   private targetedElementSelectors: Set<string> = new Set();
-  private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
-  private scrolledToElementState: Map<string, boolean> = new Map();
+  // MOVED to ScrolledToTriggerManager (scrolled-to-trigger-manager.ts)
+  // private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
+  // private scrolledToElementState: Map<string, boolean> = new Map();
   private analyticsEventState: Set<string> = new Set();
   private maxScrollPercentage = 0;
   private timeOnPageTimeouts: Record<number, ReturnType<typeof setTimeout>> =
@@ -234,7 +235,8 @@ export class SubscriptionManager {
     this.elementAppearedState.clear();
     this.elementVisibilityState.clear();
     this.firedUserInteractions.clear();
-    this.scrolledToElementState.clear();
+    // MOVED to ScrolledToTriggerManager.reset (scrolled-to-trigger-manager.ts)
+    // this.scrolledToElementState.clear();
     this.manuallyActivatedPageObjects.clear();
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
@@ -1163,19 +1165,20 @@ export class SubscriptionManager {
         return payload.durationMs >= triggerValue.durationMs;
       }
 
-      case 'scrolled_to': {
-        const triggerValue = page.trigger_value as ScrolledToTriggerValue;
-
-        if (triggerValue.mode === 'percent') {
-          return this.maxScrollPercentage >= triggerValue.percentage;
-        } else if (triggerValue.mode === 'element') {
-          const offset = triggerValue.offsetPx || 0;
-          const observerKey = `${triggerValue.selector}\0${offset}`;
-          return this.scrolledToElementState.get(observerKey) ?? false;
-        }
-
-        return false;
-      }
+      // MOVED to ScrolledToTriggerManager.isActive (scrolled-to-trigger-manager.ts)
+      // case 'scrolled_to': {
+      //   const triggerValue = page.trigger_value as ScrolledToTriggerValue;
+      //
+      //   if (triggerValue.mode === 'percent') {
+      //     return this.maxScrollPercentage >= triggerValue.percentage;
+      //   } else if (triggerValue.mode === 'element') {
+      //     const offset = triggerValue.offsetPx || 0;
+      //     const observerKey = `${triggerValue.selector}\0${offset}`;
+      //     return this.scrolledToElementState.get(observerKey) ?? false;
+      //   }
+      //
+      //   return false;
+      // }
 
       default:
         return false;
