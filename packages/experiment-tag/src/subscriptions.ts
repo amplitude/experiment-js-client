@@ -104,7 +104,8 @@ export class SubscriptionManager {
     this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
     this.setupUserInteractionPublisher();
-    this.setupExitIntentPublisher();
+    // MOVED to ExitIntentTriggerManager.initialize (exit-intent-trigger-manager.ts)
+    // this.setupExitIntentPublisher();
     this.setupScrolledToPublisher();
     this.setupTimeOnPagePublisher();
     this.setupVisibilityChangeHandler();
@@ -502,6 +503,7 @@ export class SubscriptionManager {
     });
   };
 
+  // MOVED to ExitIntentTriggerManager.initialize (exit-intent-trigger-manager.ts)
   private setupExitIntentPublisher = () => {
     this.pageLoadTime = Date.now();
     // Get all page objects that use exit_intent trigger
@@ -1140,14 +1142,15 @@ export class SubscriptionManager {
         return this.elementVisibilityState.get(observerKey) ?? false;
       }
 
-      case 'exit_intent': {
-        const durationMs = (message as ExitIntentPayload).durationMs;
-        const triggerValue = page.trigger_value as ExitIntentTriggerValue;
-        return (
-          triggerValue.minTimeOnPageMs === undefined ||
-          durationMs >= triggerValue.minTimeOnPageMs
-        );
-      }
+      // MOVED to ExitIntentTriggerManager.isActive (exit-intent-trigger-manager.ts)
+      // case 'exit_intent': {
+      //   const durationMs = (message as ExitIntentPayload).durationMs;
+      //   const triggerValue = page.trigger_value as ExitIntentTriggerValue;
+      //   return (
+      //     triggerValue.minTimeOnPageMs === undefined ||
+      //     durationMs >= triggerValue.minTimeOnPageMs
+      //   );
+      // }
 
       case 'user_interaction': {
         const triggerValue = page.trigger_value as UserInteractionTriggerValue;

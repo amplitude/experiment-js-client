@@ -2,9 +2,11 @@ import { MessageBus, MessageType } from '../subscriptions/message-bus';
 import { PageObject } from '../types';
 
 import { TriggerManager } from './base-trigger-manager';
+import { ExitIntentTriggerManager } from './exit-intent-trigger-manager';
 
 // Export all managers
 export * from './base-trigger-manager';
+export * from './exit-intent-trigger-manager';
 
 /**
  * Options that can be passed to trigger managers during initialization.
@@ -34,5 +36,5 @@ export const TRIGGER_MANAGER_REGISTRY: Partial<
     ) => TriggerManager
   >
 > = {
-  // Triggers will be registered here as they are extracted
+  exit_intent: ExitIntentTriggerManager,
 };
