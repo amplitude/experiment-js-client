@@ -349,8 +349,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     // if the client has already been initialized, return the existing instance
-    if (globalScope.webExperiment instanceof DefaultWebExperimentClient) {
-      const existingClient = globalScope.webExperiment;
+    if (globalScope.webExperiment) {
+      const existingClient =
+        globalScope.webExperiment as DefaultWebExperimentClient;
       // Flush any events that may have been buffered since last initialization
       if (existingClient.isRunning) {
         flushEventBuffer(existingClient);

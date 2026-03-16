@@ -25,10 +25,7 @@ export const initialize = (
   }
 
   // Expose plugin factory immediately (only if not already a real client instance)
-  if (
-    !globalScope.webExperiment ||
-    !(globalScope.webExperiment instanceof DefaultWebExperimentClient)
-  ) {
+  if (!globalScope.webExperiment) {
     globalScope.webExperiment = { plugin: createPlugin };
   }
 
@@ -87,13 +84,11 @@ export const createPlugin = (): Plugin => ({
   type: 'enrichment',
   execute: async (context: Event): Promise<Event> => {
     const globalScope = getGlobalScope();
-    const client = globalScope?.webExperiment;
-
+    const client = globalScope?.webExperiment as DefaultWebExperimentClient;
     if (
       client &&
-      client instanceof DefaultWebExperimentClient &&
       typeof client.trackEvent === 'function' &&
-      (client as any).isRunning === true // Check if client is fully started
+      client.isRunning // Check if client is fully started
     ) {
       // Client ready - forward event directly
       client.trackEvent(
