@@ -26,7 +26,7 @@ export const initialize = (
 
   // Expose plugin factory immediately (only if not already a real client instance)
   if (!globalScope.webExperiment) {
-    globalScope.webExperiment = { plugin: createPlugin };
+    globalScope.webExperiment = { plugin: createPlugin, isStub: true };
   }
 
   const shouldFetchConfigs =

@@ -348,8 +348,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         'Amplitude Web Experiment Client could not be initialized.',
       );
     }
-    // if the client has already been initialized, return the existing instance
-    if (globalScope.webExperiment) {
+    // if the client has already been initialized not a stub, return the
+    // existing instance
+    if (globalScope.webExperiment && !globalScope.webExperiment.isStub) {
       const existingClient =
         globalScope.webExperiment as DefaultWebExperimentClient;
       // Flush any events that may have been buffered since last initialization
