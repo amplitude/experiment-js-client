@@ -101,7 +101,9 @@ export type PageObjects = { [flagKey: string]: { [id: string]: PageObject } };
  * Map of behavioral targeting rules per flag key.
  * Each flag has ONE outer OR array for behavioral targeting.
  */
-export type BehavioralTargetingRules = { [flagKey: string]: BehavioralTargeting };
+export type BehavioralTargetingRules = {
+  [flagKey: string]: BehavioralTargeting;
+};
 
 export interface WebExperimentConfig extends ExperimentConfig {
   /**
