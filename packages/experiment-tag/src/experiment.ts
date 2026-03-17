@@ -14,11 +14,8 @@ import {
   Variants,
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
-import mutate, {
-  MutationController,
-  pauseGlobalObserver,
-  resumeGlobalObserver,
-} from 'dom-mutator';
+import mutate, { MutationController } from 'dom-mutator';
+import * as domMutatorExports from 'dom-mutator';
 
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
@@ -191,11 +188,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // expose dom-mutator on the window so the overlay in the parent frame can
     // apply and control mutations against this document.
     if (this.globalScope.self !== this.globalScope.top) {
-      (this.globalScope as any).ampDomMutator = {
-        ...mutate,
-        pauseGlobalObserver,
-        resumeGlobalObserver,
-      };
+      (this.globalScope as any).ampDomMutator = domMutatorExports;
       this.isRunning = true;
       return;
     }
