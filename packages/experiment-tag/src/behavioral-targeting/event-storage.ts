@@ -32,9 +32,11 @@ export class EventStorageManager {
   private memoryCache: EventStorage; // In-memory cache for fast reads
   private debouncedWriteTimeout: ReturnType<typeof setTimeout> | null = null;
   private isDirty = false; // Track if cache has unsaved changes
+  private persistedEvents?: Set<string>; // Optional set of event types to persist
 
-  constructor(sessionManager: SessionManager) {
+  constructor(sessionManager: SessionManager, persistedEvents?: Set<string>) {
     this.sessionManager = sessionManager;
+    this.persistedEvents = persistedEvents;
 
     // Load from localStorage into memory on initialization
     this.memoryCache = this.loadFromLocalStorage();
@@ -46,14 +48,24 @@ export class EventStorageManager {
   /**
    * Adds an event to in-memory cache with automatic session tracking.
    * Triggers debounced write to localStorage.
+   * If persistedEvents is set, only events with matching event types will be stored.
    */
-  addEvent(eventType: string, properties: Record<string, unknown> = {}): void {
+  addEvent(
+    eventType: string,
+    properties: Record<string, unknown> = {},
+    eventTime?: number,
+  ): void {
+    // Skip if persistedEvents is set and this event type is not in the set
+    if (this.persistedEvents && !this.persistedEvents.has(eventType)) {
+      return;
+    }
+
     const sessionId = this.sessionManager.getOrCreateSessionId();
 
     const event: EventRecord = {
       id: this.memoryCache.nextId++,
       event_type: eventType,
-      timestamp: Date.now(),
+      timestamp: eventTime ?? Date.now(),
       session_id: sessionId,
       properties,
     };
