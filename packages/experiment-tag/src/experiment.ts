@@ -220,6 +220,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this,
       this.messageBus,
       this.pageObjects,
+      this.behavioralObjects,
+      this.behavioralTargetingManager,
       {
         ...this.config,
         isVisualEditorMode: this.isVisualEditorMode,
@@ -318,7 +320,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     // Evaluate initial behaviors (from events already in storage) before applying variants
-    this.evaluateAllBehaviors();
+    this.subscriptionManager?.evaluateAllBehaviors();
 
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
@@ -662,41 +664,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Handle analytics events for behavioral targeting evaluation.
-   */
-  /**
-   * Evaluate all behavioral targeting rules and update activeBehaviors.
-   * Does not apply variants - variant application is handled by SubscriptionManager.
-   */
-  public evaluateAllBehaviors(): void {
-    if (!this.behavioralTargetingManager) {
-      return;
-    }
-
-    // For each experiment with behavioral targeting
-    for (const flagKey in this.behavioralObjects) {
-      const behaviors = this.behavioralObjects[flagKey];
-
-      if (!this.activeBehaviors[flagKey]) {
-        this.activeBehaviors[flagKey] = {};
-      }
-
-      // Evaluate each behavior for this flag
-      for (const behaviorId in behaviors) {
-        const behavior = behaviors[behaviorId];
-        const isMatched = this.behavioralTargetingManager.evaluate(
-          behavior.rules,
-        );
-
-        this.updateActiveBehaviors(flagKey, behavior, isMatched);
-      }
-    }
-  }
-
-  /**
    * Update active behaviors tracking (similar to updateActivePages).
    */
-  private updateActiveBehaviors(
+  updateActiveBehaviors(
     flagKey: string,
     behavior: BehavioralObject,
     isActive: boolean,
@@ -979,7 +949,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       !!this.behavioralObjects[flagKey] &&
       Object.keys(this.behavioralObjects[flagKey]).length > 0;
 
-    // Check if pages or behaviors are active
+    // Check if pages or behaviors are active at flag level
     const hasPagesActive =
       !!flagPages && Object.values(flagPages).some(Boolean);
     const hasBehaviorsActive =
@@ -995,16 +965,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return hasPagesActive;
     }
 
-    // If scope is provided, check if scoped items are active
+    // If scope is provided, check if scoped pages are active
+    // Behavioral targeting is always evaluated at flag level, not scope level
     const pageMatch = scope.some((pageId) => flagPages?.[pageId] ?? false);
-    const behaviorMatch = scope.some(
-      (behaviorId) => flagBehaviors?.[behaviorId] ?? false,
-    );
 
-    // If experiment has behavioral targeting: BOTH must match scope
-    // If no behavioral targeting: only pages must match scope
+    // If experiment has behavioral targeting: both page scope AND flag-level behaviors must be active
+    // If no behavioral targeting: only page scope must be active
     if (hasBehavioralTargeting) {
-      return pageMatch && behaviorMatch;
+      return pageMatch && hasBehaviorsActive;
     }
     return pageMatch;
   }

@@ -1,5 +1,6 @@
 import { EvaluationEngine } from '@amplitude/experiment-core';
 
+import { BehavioralTargetingManager } from './behavioral-targeting';
 import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
 import {
   ExitIntentPayload,
@@ -22,6 +23,7 @@ import {
   TimeOnPageTriggerValue,
   ScrolledToTriggerValue,
   AnalyticsEventTriggerValue,
+  BehavioralObject,
 } from './types';
 import { areNestedObjectsEqual, deepCloneObject } from './util/object';
 import {
@@ -44,6 +46,8 @@ export class SubscriptionManager {
   private webExperimentClient: DefaultWebExperimentClient;
   private messageBus: MessageBus;
   private pageObjects: PageObjects;
+  private behavioralObjects: BehavioralObjects;
+  private behavioralTargetingManager: BehavioralTargetingManager | undefined;
   private options: initOptions;
   private readonly globalScope: typeof globalThis;
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
@@ -79,12 +83,16 @@ export class SubscriptionManager {
     webExperimentClient: DefaultWebExperimentClient,
     messageBus: MessageBus,
     pageObjects: PageObjects,
+    behavioralObjects: BehavioralObjects,
+    behavioralTargetingManager: BehavioralTargetingManager | undefined,
     options: initOptions,
     globalScope: typeof globalThis,
   ) {
     this.webExperimentClient = webExperimentClient;
     this.messageBus = messageBus;
     this.pageObjects = pageObjects;
+    this.behavioralObjects = behavioralObjects;
+    this.behavioralTargetingManager = behavioralTargetingManager;
     this.options = options;
     this.globalScope = globalScope;
   }
@@ -95,6 +103,34 @@ export class SubscriptionManager {
 
   public markUrlAsPublished = (url: string) => {
     this.lastPublishedUrl = url;
+  };
+
+  /**
+   * Evaluate all behavioral targeting rules and update activeBehaviors.
+   */
+  public evaluateAllBehaviors = (): void => {
+    if (!this.behavioralTargetingManager) {
+      return;
+    }
+
+    // For each experiment with behavioral targeting
+    for (const flagKey in this.behavioralObjects) {
+      const behaviors = this.behavioralObjects[flagKey];
+
+      // Evaluate each behavior for this flag
+      for (const behaviorId in behaviors) {
+        const behavior = behaviors[behaviorId];
+        const isMatched = this.behavioralTargetingManager.evaluate(
+          behavior.rules,
+        );
+
+        this.webExperimentClient.updateActiveBehaviors(
+          flagKey,
+          behavior,
+          isMatched,
+        );
+      }
+    }
   };
 
   public initSubscriptions = () => {
@@ -169,7 +205,7 @@ export class SubscriptionManager {
 
         // Evaluate behavioral targeting for analytics events
         if (isAnalyticsEvent) {
-          this.webExperimentClient.evaluateAllBehaviors();
+          this.evaluateAllBehaviors();
         }
 
         // Get current page state and check if it changed
