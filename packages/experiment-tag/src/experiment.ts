@@ -43,7 +43,7 @@ import {
   BehavioralObjects,
 } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
-import { areBehavioralObjectsEqual } from './util/behavioral-object';
+import { areNestedObjectsEqual } from './util/object';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
@@ -236,11 +236,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.setupPreviewMode(urlParams);
     this.subscriptionManager.initSubscriptions();
 
-    // Subscribe to analytics events for behavioral targeting
-    this.messageBus.subscribe('analytics_event', () => {
-      this.handleAnalyticsEvent();
-    });
-
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
       WindowMessenger.setup();
@@ -330,7 +325,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     // Evaluate initial behaviors (from events already in storage) before applying variants
-    this.evaluateAllBehaviors(true);
+    this.evaluateAllBehaviors();
 
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
@@ -673,21 +668,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   /**
    * Handle analytics events for behavioral targeting evaluation.
    */
-  private handleAnalyticsEvent() {
-    // Evaluate all behavioral targeting rules
-    this.evaluateAllBehaviors();
-  }
-
   /**
-   * Evaluate all behavioral targeting rules and apply variants if new behaviors match.
-   * @param skipApplyVariants If true, only update activeBehaviors without applying variants (for initialization)
+   * Evaluate all behavioral targeting rules and update activeBehaviors.
+   * Does not apply variants - variant application is handled by SubscriptionManager.
    */
-  private evaluateAllBehaviors(skipApplyVariants = false): void {
+  public evaluateAllBehaviors(): void {
     if (!this.behavioralEvaluator) {
       return;
     }
-
-    const previousActiveBehaviors = { ...this.activeBehaviors };
 
     // For each experiment with behavioral targeting
     for (const flagKey in this.behavioralObjects) {
@@ -704,22 +692,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
         this.updateActiveBehaviors(flagKey, behavior, isMatched);
       }
-    }
-
-    // Skip applyVariants during initialization
-    if (skipApplyVariants) {
-      return;
-    }
-
-    // Check if any NEW behaviors matched
-    if (
-      !areBehavioralObjectsEqual(previousActiveBehaviors, this.activeBehaviors)
-    ) {
-      // NEW behaviors matched! Apply variants
-      this.applyVariantsForBehavioralChanges(
-        previousActiveBehaviors,
-        this.activeBehaviors,
-      );
     }
   }
 
@@ -742,36 +714,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (Object.keys(this.activeBehaviors[flagKey]).length === 0) {
         delete this.activeBehaviors[flagKey];
       }
-    }
-  }
-
-  /**
-   * Apply variants for experiments with newly matched behaviors.
-   */
-  private applyVariantsForBehavioralChanges(
-    previousBehaviors: BehavioralObjects,
-    currentBehaviors: BehavioralObjects,
-  ): void {
-    // Find flags with newly matched behaviors
-    const flagsToApply: string[] = [];
-
-    for (const flagKey in currentBehaviors) {
-      const currentBehaviorIds = Object.keys(currentBehaviors[flagKey]);
-      const previousBehaviorIds = Object.keys(previousBehaviors[flagKey] || {});
-
-      // Check if any NEW behaviors matched
-      const hasNewBehavior = currentBehaviorIds.some(
-        (id) => !previousBehaviorIds.includes(id),
-      );
-
-      if (hasNewBehavior) {
-        flagsToApply.push(flagKey);
-      }
-    }
-
-    // Apply variants for affected experiments
-    if (flagsToApply.length > 0) {
-      this.applyVariants({ flagKeys: flagsToApply });
     }
   }
 

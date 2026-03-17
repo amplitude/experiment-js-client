@@ -17,14 +17,17 @@ import {
   ExitIntentTriggerValue,
   PageObject,
   PageObjects,
+  BehavioralObjects,
   UserInteractionTriggerValue,
   TimeOnPageTriggerValue,
   ScrolledToTriggerValue,
   AnalyticsEventTriggerValue,
 } from './types';
 import {
-  arePageObjectsEqual,
-  clonePageObjects,
+  areNestedObjectsEqual,
+  deepCloneObject,
+} from './util/object';
+import {
   getElementSelectors,
   getPageObjectsByTriggerType,
 } from './util/page-object';
@@ -49,6 +52,7 @@ export class SubscriptionManager {
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
     new Set();
   private lastNotifiedActivePages: PageObjects = {};
+  private lastNotifiedActiveBehaviors: BehavioralObjects = {};
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
@@ -158,6 +162,7 @@ export class SubscriptionManager {
     for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
       this.messageBus.groupSubscribe(triggerType as MessageType, (payload) => {
         const isUrlChange = triggerType === 'url_change';
+        const isAnalyticsEvent = triggerType === 'analytics_event';
 
         // Handle URL change: reset state and revert injections
         if (isUrlChange) {
@@ -165,12 +170,26 @@ export class SubscriptionManager {
           this.revertInjections();
         }
 
+        // Evaluate behavioral targeting for analytics events
+        if (isAnalyticsEvent) {
+          this.webExperimentClient.evaluateAllBehaviors();
+        }
+
         // Get current page state and check if it changed
         const activePages = this.webExperimentClient.getActivePages();
-        const pagesChanged = !arePageObjectsEqual(
+        const pagesChanged = !areNestedObjectsEqual(
           activePages,
           this.lastNotifiedActivePages,
         );
+
+        // Get current behavioral state and check if it changed
+        const activeBehaviors = this.webExperimentClient.getActiveBehaviors();
+        const behaviorsChanged =
+          isAnalyticsEvent &&
+          !areNestedObjectsEqual(
+            activeBehaviors,
+            this.lastNotifiedActiveBehaviors,
+          );
 
         // Skip processing in visual editor mode or internal updates
         const isInternalUpdate =
@@ -178,13 +197,26 @@ export class SubscriptionManager {
         const shouldApplyVariants =
           !isInternalUpdate &&
           !this.options.isVisualEditorMode &&
-          (pagesChanged || isUrlChange);
+          (pagesChanged || behaviorsChanged || isUrlChange);
 
         if (shouldApplyVariants) {
           // Determine which experiments to apply variants for
-          const relevantFlags = isUrlChange
-            ? undefined // All experiments
-            : Array.from(triggerTypeExperimentMap[triggerType] || []);
+          let relevantFlags: string[] | undefined;
+
+          if (isUrlChange) {
+            relevantFlags = undefined; // All experiments
+          } else {
+            // Combine flags from both page triggers and behavioral changes
+            const pageTriggerFlags = Array.from(
+              triggerTypeExperimentMap[triggerType] || [],
+            );
+            const behaviorFlags = behaviorsChanged
+              ? Object.keys(activeBehaviors)
+              : [];
+            relevantFlags = Array.from(
+              new Set([...pageTriggerFlags, ...behaviorFlags]),
+            );
+          }
 
           // Apply non-preview variants
           this.webExperimentClient.applyVariants({
@@ -211,10 +243,15 @@ export class SubscriptionManager {
 
         // Notify subscribers if pages actually changed
         if (pagesChanged) {
-          this.lastNotifiedActivePages = clonePageObjects(activePages);
+          this.lastNotifiedActivePages = deepCloneObject(activePages);
           for (const subscriber of this.pageChangeSubscribers) {
             subscriber({ activePages });
           }
+        }
+
+        // Update last notified behaviors if they changed
+        if (behaviorsChanged) {
+          this.lastNotifiedActiveBehaviors = deepCloneObject(activeBehaviors);
         }
       });
     }
@@ -239,6 +276,7 @@ export class SubscriptionManager {
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
     this.analyticsEventState.clear();
+    this.lastNotifiedActiveBehaviors = {};
 
     // Clear pending click timeouts
     for (const timeout of this.clickTimeouts.values()) {
