@@ -1,6 +1,4 @@
-export { SessionManager } from './session-manager';
-export { EventStorageManager, EventRecord } from './event-storage';
-export { BehavioralTargetingEvaluator } from './evaluator';
+export { BehavioralTargetingManager } from './behavioral-targeting-manager';
 export {
   BehavioralTargeting,
   BehavioralCondition,
