@@ -58,4 +58,3 @@ export function getElementSelectors(pageObjects: PageObjects): Set<string> {
 
   return selectors;
 }
-

@@ -6,9 +6,9 @@
  * Deep clone a nested map structure by shallow cloning inner objects.
  * Structure: { [outerKey]: { [innerKey]: T } }
  */
-export function deepCloneObject<T>(
-  map: { [outerKey: string]: { [innerKey: string]: T } },
-): { [outerKey: string]: { [innerKey: string]: T } } {
+export function deepCloneObject<T>(map: {
+  [outerKey: string]: { [innerKey: string]: T };
+}): { [outerKey: string]: { [innerKey: string]: T } } {
   const clone: { [outerKey: string]: { [innerKey: string]: T } } = {};
   for (const outerKey in map) {
     clone[outerKey] = {};

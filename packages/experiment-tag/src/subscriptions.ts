@@ -23,10 +23,7 @@ import {
   ScrolledToTriggerValue,
   AnalyticsEventTriggerValue,
 } from './types';
-import {
-  areNestedObjectsEqual,
-  deepCloneObject,
-} from './util/object';
+import { areNestedObjectsEqual, deepCloneObject } from './util/object';
 import {
   getElementSelectors,
   getPageObjectsByTriggerType,

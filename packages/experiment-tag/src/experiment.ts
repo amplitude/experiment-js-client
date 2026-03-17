@@ -20,9 +20,7 @@ import mutate, {
   resumeGlobalObserver,
 } from 'dom-mutator';
 
-import { BehavioralTargetingEvaluator } from './behavioral-targeting/evaluator';
-import { EventStorageManager } from './behavioral-targeting/event-storage';
-import { SessionManager } from './behavioral-targeting/session-manager';
+import { BehavioralTargetingManager } from './behavioral-targeting';
 import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
@@ -43,7 +41,6 @@ import {
   BehavioralObjects,
 } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
-import { areNestedObjectsEqual } from './util/object';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
 import { getInjectUtils } from './util/inject-utils';
@@ -116,9 +113,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private behavioralObjects: BehavioralObjects = {};
   private activeBehaviors: BehavioralObjects = {};
-  private sessionManager: SessionManager | undefined;
-  private eventStorage: EventStorageManager | undefined;
-  private behavioralEvaluator: BehavioralTargetingEvaluator | undefined;
+  private behavioralTargetingManager: BehavioralTargetingManager | undefined;
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
@@ -145,10 +140,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.behavioralObjects = JSON.parse(behavioralObjects);
 
     // Initialize behavioral targeting infrastructure
-    this.sessionManager = new SessionManager();
-    this.eventStorage = new EventStorageManager(this.sessionManager);
-    this.behavioralEvaluator = new BehavioralTargetingEvaluator(
-      this.eventStorage,
+    this.behavioralTargetingManager = new BehavioralTargetingManager(
+      this.apiKey,
     );
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
@@ -656,7 +649,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     event_properties?: Record<string, unknown>,
   ) {
     // Store event in behavioral targeting storage
-    this.eventStorage?.addEvent(event_type, event_properties || {});
+    this.behavioralTargetingManager?.trackEvent(
+      event_type,
+      event_properties || {},
+    );
 
     // Publish to message bus for page object triggers
     this.messageBus.publish('analytics_event', {
@@ -673,7 +669,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Does not apply variants - variant application is handled by SubscriptionManager.
    */
   public evaluateAllBehaviors(): void {
-    if (!this.behavioralEvaluator) {
+    if (!this.behavioralTargetingManager) {
       return;
     }
 
@@ -688,7 +684,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // Evaluate each behavior for this flag
       for (const behaviorId in behaviors) {
         const behavior = behaviors[behaviorId];
-        const isMatched = this.behavioralEvaluator.evaluate(behavior.rules);
+        const isMatched = this.behavioralTargetingManager.evaluate(
+          behavior.rules,
+        );
 
         this.updateActiveBehaviors(flagKey, behavior, isMatched);
       }
