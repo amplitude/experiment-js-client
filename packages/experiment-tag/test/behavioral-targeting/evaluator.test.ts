@@ -10,12 +10,13 @@ describe('BehavioralTargetingEvaluator', () => {
   let evaluator: BehavioralTargetingEvaluator;
   let eventStorage: EventStorageManager;
   let sessionManager: SessionManager;
+  const testApiKey = 'test-api-key';
 
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
-    sessionManager = new SessionManager();
-    eventStorage = new EventStorageManager(sessionManager);
+    sessionManager = new SessionManager(testApiKey);
+    eventStorage = new EventStorageManager(testApiKey, sessionManager);
     evaluator = new BehavioralTargetingEvaluator(eventStorage);
   });
 

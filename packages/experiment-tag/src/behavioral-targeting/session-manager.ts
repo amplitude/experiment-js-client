@@ -3,9 +3,13 @@
  * Session ID is unique per browser tab and cleared when tab closes.
  */
 export class SessionManager {
-  private static readonly STORAGE_KEY = 'amplitude_rtbt_session';
+  private storageKey: string;
   private sessionId?: string;
   private sessionStartTime?: number;
+
+  constructor(apiKey: string) {
+    this.storageKey = `EXP_${apiKey}_rtbt_session`;
+  }
 
   /**
    * Gets the current session ID, creating one if it doesn't exist.
@@ -17,7 +21,7 @@ export class SessionManager {
     }
 
     // Try to load from sessionStorage
-    const stored = sessionStorage.getItem(SessionManager.STORAGE_KEY);
+    const stored = sessionStorage.getItem(this.storageKey);
 
     if (stored) {
       try {
@@ -37,7 +41,7 @@ export class SessionManager {
     this.sessionStartTime = Date.now();
 
     sessionStorage.setItem(
-      SessionManager.STORAGE_KEY,
+      this.storageKey,
       JSON.stringify({
         sessionId: this.sessionId,
         sessionStartTime: this.sessionStartTime,
@@ -70,6 +74,6 @@ export class SessionManager {
   clearSession(): void {
     this.sessionId = undefined;
     this.sessionStartTime = undefined;
-    sessionStorage.removeItem(SessionManager.STORAGE_KEY);
+    sessionStorage.removeItem(this.storageKey);
   }
 }

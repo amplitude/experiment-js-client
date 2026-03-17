@@ -4,13 +4,14 @@ import { SessionManager } from 'src/behavioral-targeting/session-manager';
 describe('EventStorageManager', () => {
   let eventStorage: EventStorageManager;
   let sessionManager: SessionManager;
+  const testApiKey = 'test-api-key';
 
   beforeEach(() => {
     // Clear storage before each test
     localStorage.clear();
     sessionStorage.clear();
-    sessionManager = new SessionManager();
-    eventStorage = new EventStorageManager(sessionManager);
+    sessionManager = new SessionManager(testApiKey);
+    eventStorage = new EventStorageManager(testApiKey, sessionManager);
   });
 
   afterEach(() => {
@@ -47,7 +48,7 @@ describe('EventStorageManager', () => {
       eventStorage.addEvent('click', { button: 'submit' });
       eventStorage.flush(); // Flush debounced write for testing
 
-      const stored = localStorage.getItem('amplitude_rtbt_events');
+      const stored = localStorage.getItem('EXP_test-api-key_rtbt_events');
       expect(stored).toBeDefined();
 
       const data = JSON.parse(stored!);
@@ -61,7 +62,10 @@ describe('EventStorageManager', () => {
       eventStorage.flush(); // Flush to localStorage before creating new instance
 
       // Create new manager instance (simulates page reload)
-      const newEventStorage = new EventStorageManager(sessionManager);
+      const newEventStorage = new EventStorageManager(
+        testApiKey,
+        sessionManager,
+      );
       newEventStorage.addEvent('view');
 
       const events = newEventStorage.getAllEvents();
@@ -93,7 +97,7 @@ describe('EventStorageManager', () => {
     });
 
     test('should handle invalid JSON in localStorage', () => {
-      localStorage.setItem('amplitude_rtbt_events', 'invalid json');
+      localStorage.setItem('EXP_test-api-key_rtbt_events', 'invalid json');
 
       eventStorage.addEvent('click');
 
@@ -352,7 +356,7 @@ describe('EventStorageManager', () => {
       eventStorage.addEvent('click');
       eventStorage.clearEvents();
 
-      const stored = localStorage.getItem('amplitude_rtbt_events');
+      const stored = localStorage.getItem('EXP_test-api-key_rtbt_events');
       expect(stored).toBeDefined();
 
       const data = JSON.parse(stored!);
@@ -378,8 +382,11 @@ describe('EventStorageManager', () => {
       eventStorage.flush(); // Flush to localStorage before creating new instance
 
       // Create new instances (simulates page navigation)
-      const newSessionManager = new SessionManager();
-      const newEventStorage = new EventStorageManager(newSessionManager);
+      const newSessionManager = new SessionManager(testApiKey);
+      const newEventStorage = new EventStorageManager(
+        testApiKey,
+        newSessionManager,
+      );
       newEventStorage.addEvent('view');
 
       const events = newEventStorage.getAllEvents();
