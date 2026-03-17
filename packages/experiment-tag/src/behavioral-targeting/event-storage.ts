@@ -24,7 +24,6 @@ interface EventStorage {
  * All reads are from memory for performance, writes are debounced to localStorage.
  */
 export class EventStorageManager {
-  private static readonly STORAGE_KEY = 'amplitude_rtbt_events';
   private static readonly MAX_EVENTS = 500;
   private static readonly DEBOUNCE_MS = 500; // 500ms debounce
 
@@ -33,8 +32,14 @@ export class EventStorageManager {
   private debouncedWriteTimeout: ReturnType<typeof setTimeout> | null = null;
   private isDirty = false; // Track if cache has unsaved changes
   private persistedEvents?: Set<string>; // Optional set of event types to persist
+  private storageKey: string;
 
-  constructor(sessionManager: SessionManager, persistedEvents?: Set<string>) {
+  constructor(
+    apiKey: string,
+    sessionManager: SessionManager,
+    persistedEvents?: Set<string>,
+  ) {
+    this.storageKey = `EXP_${apiKey}_rtbt_events`;
     this.sessionManager = sessionManager;
     this.persistedEvents = persistedEvents;
 
@@ -168,7 +173,7 @@ export class EventStorageManager {
    * Loads data from localStorage into memory on initialization.
    */
   private loadFromLocalStorage(): EventStorage {
-    const stored = localStorage.getItem(EventStorageManager.STORAGE_KEY);
+    const stored = localStorage.getItem(this.storageKey);
     if (stored) {
       try {
         return JSON.parse(stored);
@@ -207,10 +212,7 @@ export class EventStorageManager {
     }
 
     try {
-      localStorage.setItem(
-        EventStorageManager.STORAGE_KEY,
-        JSON.stringify(this.memoryCache),
-      );
+      localStorage.setItem(this.storageKey, JSON.stringify(this.memoryCache));
       this.isDirty = false;
 
       // Clear debounce timeout since we just flushed

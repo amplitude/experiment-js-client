@@ -7,12 +7,13 @@ describe('Behavioral Targeting Integration', () => {
   let sessionManager: SessionManager;
   let eventStorage: EventStorageManager;
   let evaluator: BehavioralTargetingEvaluator;
+  const testApiKey = 'test-api-key';
 
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
-    sessionManager = new SessionManager();
-    eventStorage = new EventStorageManager(sessionManager);
+    sessionManager = new SessionManager(testApiKey);
+    eventStorage = new EventStorageManager(testApiKey, sessionManager);
     evaluator = new BehavioralTargetingEvaluator(eventStorage);
   });
 
@@ -143,8 +144,11 @@ describe('Behavioral Targeting Integration', () => {
       eventStorage.flush(); // Flush to localStorage before "page reload"
 
       // Simulate page reload (new manager instances)
-      const sessionManager2 = new SessionManager();
-      const eventStorage2 = new EventStorageManager(sessionManager2);
+      const sessionManager2 = new SessionManager(testApiKey);
+      const eventStorage2 = new EventStorageManager(
+        testApiKey,
+        sessionManager2,
+      );
       const evaluator2 = new BehavioralTargetingEvaluator(eventStorage2);
 
       // Page 2: User adds to cart
@@ -561,11 +565,14 @@ describe('Behavioral Targeting Integration', () => {
       eventStorage.addEvent('click');
 
       // Corrupt localStorage
-      localStorage.setItem('amplitude_rtbt_events', 'invalid json');
+      localStorage.setItem('EXP_test-api-key_rtbt_events', 'invalid json');
 
       // Create new instances (simulates page reload)
-      const newSessionManager = new SessionManager();
-      const newEventStorage = new EventStorageManager(newSessionManager);
+      const newSessionManager = new SessionManager(testApiKey);
+      const newEventStorage = new EventStorageManager(
+        testApiKey,
+        newSessionManager,
+      );
       const newEvaluator = new BehavioralTargetingEvaluator(newEventStorage);
 
       // Should start fresh without errors

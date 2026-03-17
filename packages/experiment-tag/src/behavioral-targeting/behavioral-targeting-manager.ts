@@ -12,9 +12,10 @@ export class BehavioralTargetingManager {
   private readonly eventStorage: EventStorageManager;
   private evaluator: BehavioralTargetingEvaluator;
 
-  constructor(persistedEvents?: Set<string>) {
-    this.sessionManager = new SessionManager();
+  constructor(apiKey: string, persistedEvents?: Set<string>) {
+    this.sessionManager = new SessionManager(apiKey);
     this.eventStorage = new EventStorageManager(
+      apiKey,
       this.sessionManager,
       persistedEvents,
     );

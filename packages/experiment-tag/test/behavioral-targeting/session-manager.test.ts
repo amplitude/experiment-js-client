@@ -2,11 +2,12 @@ import { SessionManager } from 'src/behavioral-targeting/session-manager';
 
 describe('SessionManager', () => {
   let sessionManager: SessionManager;
+  const testApiKey = 'test-api-key';
 
   beforeEach(() => {
     // Clear sessionStorage before each test
     sessionStorage.clear();
-    sessionManager = new SessionManager();
+    sessionManager = new SessionManager(testApiKey);
   });
 
   afterEach(() => {
@@ -32,7 +33,7 @@ describe('SessionManager', () => {
     test('should persist session ID in sessionStorage', () => {
       const sessionId = sessionManager.getOrCreateSessionId();
 
-      const stored = sessionStorage.getItem('amplitude_rtbt_session');
+      const stored = sessionStorage.getItem('EXP_test-api-key_rtbt_session');
       expect(stored).toBeDefined();
 
       const data = JSON.parse(stored!);
@@ -45,7 +46,7 @@ describe('SessionManager', () => {
       const sessionId1 = sessionManager.getOrCreateSessionId();
 
       // Create new manager instance (simulates page reload)
-      const newManager = new SessionManager();
+      const newManager = new SessionManager(testApiKey);
       const sessionId2 = newManager.getOrCreateSessionId();
 
       expect(sessionId2).toBe(sessionId1);
@@ -62,7 +63,7 @@ describe('SessionManager', () => {
     });
 
     test('should handle invalid JSON in sessionStorage', () => {
-      sessionStorage.setItem('amplitude_rtbt_session', 'invalid json');
+      sessionStorage.setItem('EXP_test-api-key_rtbt_session', 'invalid json');
 
       const sessionId = sessionManager.getOrCreateSessionId();
 
@@ -96,7 +97,7 @@ describe('SessionManager', () => {
       const startTime1 = sessionManager.getSessionStartTime();
 
       // Create new manager instance
-      const newManager = new SessionManager();
+      const newManager = new SessionManager(testApiKey);
       const startTime2 = newManager.getSessionStartTime();
 
       expect(startTime2).toBe(startTime1);
@@ -116,7 +117,7 @@ describe('SessionManager', () => {
       sessionManager.getOrCreateSessionId();
       sessionManager.clearSession();
 
-      const stored = sessionStorage.getItem('amplitude_rtbt_session');
+      const stored = sessionStorage.getItem('EXP_test-api-key_rtbt_session');
       expect(stored).toBeNull();
     });
 
