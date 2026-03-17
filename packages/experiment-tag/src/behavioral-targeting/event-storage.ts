@@ -47,13 +47,17 @@ export class EventStorageManager {
    * Adds an event to in-memory cache with automatic session tracking.
    * Triggers debounced write to localStorage.
    */
-  addEvent(eventType: string, properties: Record<string, unknown> = {}): void {
+  addEvent(
+    eventType: string,
+    properties: Record<string, unknown> = {},
+    eventTime?: number,
+  ): void {
     const sessionId = this.sessionManager.getOrCreateSessionId();
 
     const event: EventRecord = {
       id: this.memoryCache.nextId++,
       event_type: eventType,
-      timestamp: Date.now(),
+      timestamp: eventTime ?? Date.now(), // Use Amplitude's time if available, fallback to Date.now()
       session_id: sessionId,
       properties,
     };
