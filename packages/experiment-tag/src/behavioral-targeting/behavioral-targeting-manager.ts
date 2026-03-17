@@ -8,8 +8,8 @@ import { BehavioralTargeting } from './types';
  * session management, and rule evaluation.
  */
 export class BehavioralTargetingManager {
-  private sessionManager: SessionManager;
-  private eventStorage: EventStorageManager;
+  private readonly sessionManager: SessionManager;
+  private readonly eventStorage: EventStorageManager;
   private evaluator: BehavioralTargetingEvaluator;
 
   constructor(persistedEvents?: Set<string>) {
