@@ -51,8 +51,6 @@ export class SubscriptionManager {
   private lastNotifiedActivePages: PageObjects = {};
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
-  // MOVED to ElementAppearedTriggerManager (element-appeared-trigger-manager.ts)
-  // private elementAppearedState: Set<string> = new Set();
   private manuallyActivatedPageObjects: Set<string> = new Set();
   private targetedElementSelectors: Set<string> = new Set();
   private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
@@ -102,7 +100,7 @@ export class SubscriptionManager {
     if (this.options.useDefaultNavigationHandler) {
       this.setupLocationChangePublisher();
     }
-    this.setupMutationObserverPublisher();
+    // this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
     this.setupUserInteractionPublisher();
     this.setupExitIntentPublisher();
@@ -110,7 +108,7 @@ export class SubscriptionManager {
     this.setupTimeOnPagePublisher();
     this.setupVisibilityChangeHandler();
     // Initial check for elements that already exist
-    this.checkInitialElements();
+    // this.checkInitialElements();
   };
 
   /**
@@ -232,8 +230,6 @@ export class SubscriptionManager {
 
   private resetTriggerStates = () => {
     // Clear "has fired" state for all triggers
-    // MOVED to ElementAppearedTriggerManager.reset (element-appeared-trigger-manager.ts)
-    // this.elementAppearedState.clear();
     this.elementVisibilityState.clear();
     this.firedUserInteractions.clear();
     this.scrolledToElementState.clear();
@@ -260,7 +256,7 @@ export class SubscriptionManager {
     this.setupTimeOnPagePublisher();
 
     // Trigger initial check for elements that already exist on new page
-    this.checkInitialElements();
+    // this.checkInitialElements();
   };
 
   private revertInjections = () => {
@@ -295,45 +291,6 @@ export class SubscriptionManager {
         delete mutations[flagKey];
       }
     });
-  };
-
-  // MOVED to ElementAppearedTriggerManager.updateElementAppearedState (element-appeared-trigger-manager.ts)
-  private updateElementAppearedState = (
-    selectors: Iterable<string>,
-    mutationList: MutationRecord[],
-  ) => {
-    for (const selector of selectors) {
-      // For initial checks (no mutationList), check all selectors
-      // For actual mutations, only check if mutation is relevant
-      const isRelevant =
-        mutationList.length === 0 ||
-        this.isMutationRelevantToSelector(mutationList, selector);
-
-      if (isRelevant) {
-        try {
-          const elements = this.globalScope.document.querySelectorAll(selector);
-          for (const element of Array.from(elements)) {
-            const style = this.globalScope.getComputedStyle(element);
-            const hasAppeared =
-              style.display !== 'none' && style.visibility !== 'hidden';
-
-            if (hasAppeared) {
-              this.elementAppearedState.add(selector);
-              break; // Only need to find one visible element
-            }
-          }
-        } catch (e) {
-          // Invalid selector, skip
-        }
-      }
-    }
-  };
-
-  // MOVED to ElementAppearedTriggerManager.checkInitialElements (element-appeared-trigger-manager.ts)
-  private checkInitialElements = () => {
-    // Check for elements that already exist in the DOM and update state
-    this.updateElementAppearedState(this.targetedElementSelectors, []);
-    this.messageBus.publish('element_appeared', { mutationList: [] });
   };
 
   private isMutationRelevantToSelector(
@@ -402,13 +359,13 @@ export class SubscriptionManager {
       this.globalScope.document.documentElement,
       (mutationList) => {
         // Check each active selector and update state
-        this.updateElementAppearedState(
-          this.targetedElementSelectors,
-          mutationList,
-        );
+        // this.updateElementAppearedState(
+        //   this.targetedElementSelectors,
+        //   mutationList,
+        // );
 
         // Publish event with mutationList for other subscribers (e.g., visibility publisher)
-        this.messageBus.publish('element_appeared', { mutationList });
+        // this.messageBus.publish('element_appeared', { mutationList });
       },
       filters,
     );
@@ -1129,13 +1086,6 @@ export class SubscriptionManager {
         }
         return match;
       }
-
-      // MOVED to ElementAppearedTriggerManager.isActive (element-appeared-trigger-manager.ts)
-      // case 'element_appeared': {
-      //   const triggerValue = page.trigger_value as ElementAppearedTriggerValue;
-      //   const selector = triggerValue.selector;
-      //   return this.elementAppearedState.has(selector);
-      // }
 
       case 'element_visible': {
         const triggerValue = page.trigger_value as ElementVisibleTriggerValue;
