@@ -34,35 +34,68 @@ describe('BehavioralTargetingEvaluator', () => {
     });
 
     describe.each([
-      { operator: '>=', passingValue: 3, failingValue: 4, description: 'greater than or equal' },
-      { operator: '>', passingValue: 2, failingValue: 3, description: 'greater than' },
-      { operator: '=', passingValue: 3, failingValue: 2, description: 'equal to' },
-      { operator: '<', passingValue: 4, failingValue: 3, description: 'less than' },
-      { operator: '<=', passingValue: 3, failingValue: 2, description: 'less than or equal' },
-      { operator: '!=', passingValue: 5, failingValue: 3, description: 'not equal' },
-    ])('$operator operator ($description)', ({ operator, passingValue, failingValue }) => {
-      test(`should evaluate ${operator} operator correctly`, () => {
-        const rules: BehavioralTargeting = [
-          [
-            {
-              condition: {
-                type: 'event',
-                type_value: 'click',
-                operator: operator as any,
-                operator_value: passingValue,
-                time_type: 'current_session',
-                time_value: 0,
+      {
+        operator: '>=',
+        passingValue: 3,
+        failingValue: 4,
+        description: 'greater than or equal',
+      },
+      {
+        operator: '>',
+        passingValue: 2,
+        failingValue: 3,
+        description: 'greater than',
+      },
+      {
+        operator: '=',
+        passingValue: 3,
+        failingValue: 2,
+        description: 'equal to',
+      },
+      {
+        operator: '<',
+        passingValue: 4,
+        failingValue: 3,
+        description: 'less than',
+      },
+      {
+        operator: '<=',
+        passingValue: 3,
+        failingValue: 2,
+        description: 'less than or equal',
+      },
+      {
+        operator: '!=',
+        passingValue: 5,
+        failingValue: 3,
+        description: 'not equal',
+      },
+    ])(
+      '$operator operator ($description)',
+      ({ operator, passingValue, failingValue }) => {
+        test(`should evaluate ${operator} operator correctly`, () => {
+          const rules: BehavioralTargeting = [
+            [
+              {
+                condition: {
+                  type: 'event',
+                  type_value: 'click',
+                  operator: operator as any,
+                  operator_value: passingValue,
+                  time_type: 'current_session',
+                  time_value: 0,
+                },
               },
-            },
-          ],
-        ];
+            ],
+          ];
 
-        expect(evaluator.evaluate(rules)).toBe(true);
+          expect(evaluator.evaluate(rules)).toBe(true);
 
-        rules[0][0].condition.operator_value = failingValue;
-        expect(evaluator.evaluate(rules)).toBe(false);
-      });
-    });
+          rules[0][0].condition.operator_value = failingValue;
+          expect(evaluator.evaluate(rules)).toBe(false);
+        });
+      },
+    );
 
     test('should evaluate "is set" operator', () => {
       const rules: BehavioralTargeting = [
