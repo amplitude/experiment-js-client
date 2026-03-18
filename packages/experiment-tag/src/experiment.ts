@@ -17,9 +17,9 @@ import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 import * as domMutatorExports from 'dom-mutator';
 
-import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
+import { MessageBus } from './subscriptions/message-bus';
 import {
   Defaults,
   WebExperimentClient,

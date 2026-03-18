@@ -1,4 +1,4 @@
-import { MessageType } from '../message-bus';
+import { MessageType } from '../subscriptions/message-bus';
 import {
   ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
