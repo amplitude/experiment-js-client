@@ -252,9 +252,6 @@ export class SubscriptionManager {
     }
 
     this.setupTimeOnPagePublisher();
-
-    // Trigger initial check for elements that already exist on new page
-    // this.checkInitialElements();
   };
 
   private revertInjections = () => {
