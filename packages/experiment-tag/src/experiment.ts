@@ -21,7 +21,7 @@ import mutate, {
 } from 'dom-mutator';
 
 import { showPreviewModeModal } from './preview/preview';
-import { PageChangeEvent, SubscriptionManager } from './subscriptions';
+import { PageChangeEvent, SubscriptionManager } from './subscriptions/subscriptions';
 import { MessageBus } from './subscriptions/message-bus';
 import {
   Defaults,
