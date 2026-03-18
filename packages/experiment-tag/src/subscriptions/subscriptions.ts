@@ -98,15 +98,12 @@ export class SubscriptionManager {
     if (this.options.useDefaultNavigationHandler) {
       this.setupLocationChangePublisher();
     }
-    // this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
     this.setupUserInteractionPublisher();
     this.setupExitIntentPublisher();
     this.setupScrolledToPublisher();
     this.setupTimeOnPagePublisher();
     this.setupVisibilityChangeHandler();
-    // Initial check for elements that already exist
-    // this.checkInitialElements();
   };
 
   /**
