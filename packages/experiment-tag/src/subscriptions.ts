@@ -18,18 +18,18 @@ import {
   ExitIntentTriggerValue,
   PageObject,
   PageObjects,
-  BehavioralObjects,
   UserInteractionTriggerValue,
   TimeOnPageTriggerValue,
   ScrolledToTriggerValue,
   AnalyticsEventTriggerValue,
-  BehavioralObject,
 } from './types';
-import { areNestedObjectsEqual, deepCloneObject } from './util/object';
 import {
+  arePageObjectsEqual,
+  clonePageObjects,
   getElementSelectors,
   getPageObjectsByTriggerType,
 } from './util/page-object';
+import { symmetricDifference } from './util/set';
 
 const evaluationEngine = new EvaluationEngine();
 
@@ -46,14 +46,13 @@ export class SubscriptionManager {
   private webExperimentClient: DefaultWebExperimentClient;
   private messageBus: MessageBus;
   private pageObjects: PageObjects;
-  private behavioralObjects: BehavioralObjects;
   private behavioralTargetingManager: BehavioralTargetingManager | undefined;
   private options: initOptions;
   private readonly globalScope: typeof globalThis;
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
     new Set();
   private lastNotifiedActivePages: PageObjects = {};
-  private lastNotifiedActiveBehaviors: BehavioralObjects = {};
+  private lastNotifiedActiveBehavioralFlags: Set<string> = new Set();
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
@@ -83,7 +82,6 @@ export class SubscriptionManager {
     webExperimentClient: DefaultWebExperimentClient,
     messageBus: MessageBus,
     pageObjects: PageObjects,
-    behavioralObjects: BehavioralObjects,
     behavioralTargetingManager: BehavioralTargetingManager | undefined,
     options: initOptions,
     globalScope: typeof globalThis,
@@ -91,7 +89,6 @@ export class SubscriptionManager {
     this.webExperimentClient = webExperimentClient;
     this.messageBus = messageBus;
     this.pageObjects = pageObjects;
-    this.behavioralObjects = behavioralObjects;
     this.behavioralTargetingManager = behavioralTargetingManager;
     this.options = options;
     this.globalScope = globalScope;
@@ -106,31 +103,18 @@ export class SubscriptionManager {
   };
 
   /**
-   * Evaluate all behavioral targeting rules and update activeBehaviors.
+   * Evaluate all behavioral targeting rules and update active behavioral flags.
    */
   public evaluateAllBehaviors = (): void => {
     if (!this.behavioralTargetingManager) {
       return;
     }
 
-    // For each experiment with behavioral targeting
-    for (const flagKey in this.behavioralObjects) {
-      const behaviors = this.behavioralObjects[flagKey];
+    // Evaluate all rules and get active flags
+    const activeFlags = this.behavioralTargetingManager.evaluateAll();
 
-      // Evaluate each behavior for this flag
-      for (const behaviorId in behaviors) {
-        const behavior = behaviors[behaviorId];
-        const isMatched = this.behavioralTargetingManager.evaluate(
-          behavior.rules,
-        );
-
-        this.webExperimentClient.updateActiveBehaviors(
-          flagKey,
-          behavior,
-          isMatched,
-        );
-      }
-    }
+    // Update the experiment client with the active flags
+    this.webExperimentClient.updateActiveBehavioralFlags(activeFlags);
   };
 
   public initSubscriptions = () => {
@@ -168,6 +152,12 @@ export class SubscriptionManager {
       // should always include url_change to ensure initial state is reset upon navigation
       url_change: new Set(),
     };
+
+    // Ensure analytics_event subscription is set up if behavioral targeting exists
+    // This ensures behavioral targeting evaluation runs even without analytics_event page objects
+    if (this.behavioralTargetingManager) {
+      triggerTypeExperimentMap.analytics_event = new Set();
+    }
 
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
       for (const page of Object.values(pages)) {
@@ -210,19 +200,20 @@ export class SubscriptionManager {
 
         // Get current page state and check if it changed
         const activePages = this.webExperimentClient.getActivePages();
-        const pagesChanged = !areNestedObjectsEqual(
+        const pagesChanged = !arePageObjectsEqual(
           activePages,
           this.lastNotifiedActivePages,
         );
 
         // Get current behavioral state and check if it changed
-        const activeBehaviors = this.webExperimentClient.getActiveBehaviors();
+        const activeBehavioralFlags =
+          this.webExperimentClient.getActiveBehaviors();
         const behaviorsChanged =
           isAnalyticsEvent &&
-          !areNestedObjectsEqual(
-            activeBehaviors,
-            this.lastNotifiedActiveBehaviors,
-          );
+          symmetricDifference(
+            activeBehavioralFlags,
+            this.lastNotifiedActiveBehavioralFlags,
+          ).size > 0;
 
         // Skip processing in visual editor mode or internal updates
         const isInternalUpdate =
@@ -244,7 +235,7 @@ export class SubscriptionManager {
               triggerTypeExperimentMap[triggerType] || [],
             );
             const behaviorFlags = behaviorsChanged
-              ? Object.keys(activeBehaviors)
+              ? Array.from(activeBehavioralFlags)
               : [];
             relevantFlags = Array.from(
               new Set([...pageTriggerFlags, ...behaviorFlags]),
@@ -276,7 +267,7 @@ export class SubscriptionManager {
 
         // Notify subscribers if pages actually changed
         if (pagesChanged) {
-          this.lastNotifiedActivePages = deepCloneObject(activePages);
+          this.lastNotifiedActivePages = clonePageObjects(activePages);
           for (const subscriber of this.pageChangeSubscribers) {
             subscriber({ activePages });
           }
@@ -284,7 +275,9 @@ export class SubscriptionManager {
 
         // Update last notified behaviors if they changed
         if (behaviorsChanged) {
-          this.lastNotifiedActiveBehaviors = deepCloneObject(activeBehaviors);
+          this.lastNotifiedActiveBehavioralFlags = new Set(
+            activeBehavioralFlags,
+          );
         }
       });
     }
@@ -309,7 +302,7 @@ export class SubscriptionManager {
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
     this.analyticsEventState.clear();
-    this.lastNotifiedActiveBehaviors = {};
+    this.lastNotifiedActiveBehavioralFlags = new Set();
 
     // Clear pending click timeouts
     for (const timeout of this.clickTimeouts.values()) {

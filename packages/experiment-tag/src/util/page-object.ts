@@ -58,3 +58,46 @@ export function getElementSelectors(pageObjects: PageObjects): Set<string> {
 
   return selectors;
 }
+
+/**
+ * Deep clone PageObjects by shallow cloning inner objects.
+ */
+export function clonePageObjects(pageObjects: PageObjects): PageObjects {
+  const clone: PageObjects = {};
+  for (const flagKey in pageObjects) {
+    clone[flagKey] = {};
+    for (const pageId in pageObjects[flagKey]) {
+      clone[flagKey][pageId] = { ...pageObjects[flagKey][pageId] };
+    }
+  }
+  return clone;
+}
+
+/**
+ * Check if two PageObjects are equal by comparing their structure.
+ * Compares only the keys (structure), not the object values themselves.
+ */
+export function arePageObjectsEqual(
+  a: PageObjects,
+  b: PageObjects,
+): boolean {
+  const aFlagKeys = Object.keys(a);
+  const bFlagKeys = Object.keys(b);
+  if (aFlagKeys.length !== bFlagKeys.length) return false;
+
+  for (const flagKey of aFlagKeys) {
+    const aPages = a[flagKey];
+    const bPages = b[flagKey];
+    if (!bPages) return false;
+
+    const aPageIds = Object.keys(aPages);
+    const bPageIds = Object.keys(bPages);
+    if (aPageIds.length !== bPageIds.length) return false;
+
+    for (const pageId of aPageIds) {
+      if (!bPages[pageId]) return false;
+    }
+  }
+
+  return true;
+}

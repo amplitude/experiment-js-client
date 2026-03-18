@@ -37,8 +37,7 @@ import {
   PreviewVariantsOptions,
   PreviewState,
   RevertVariantsOptions,
-  BehavioralObject,
-  BehavioralObjects,
+  BehavioralTargetingRules,
 } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
@@ -111,8 +110,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly messageBus: MessageBus;
   private pageObjects: PageObjects;
   private activePages: PageObjects = {};
-  private behavioralObjects: BehavioralObjects = {};
-  private activeBehaviors: BehavioralObjects = {};
+  private behavioralTargetingRules: BehavioralTargetingRules = {};
+  private activeBehavioralFlags: Set<string> = new Set();
   private behavioralTargetingManager: BehavioralTargetingManager | undefined;
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
@@ -137,12 +136,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.apiKey = apiKey;
     this.initialFlags = JSON.parse(initialFlags);
     this.pageObjects = JSON.parse(pageObjects);
-    this.behavioralObjects = JSON.parse(behavioralObjects);
+    this.behavioralTargetingRules = JSON.parse(behavioralObjects);
 
-    // Initialize behavioral targeting infrastructure
-    this.behavioralTargetingManager = new BehavioralTargetingManager(
-      this.apiKey,
-    );
+    // Initialize behavioral targeting infrastructure only if there are rules
+    if (Object.keys(this.behavioralTargetingRules).length > 0) {
+      this.behavioralTargetingManager = new BehavioralTargetingManager(
+        this.apiKey,
+        this.behavioralTargetingRules,
+      );
+    }
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
@@ -220,7 +222,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this,
       this.messageBus,
       this.pageObjects,
-      this.behavioralObjects,
       this.behavioralTargetingManager,
       {
         ...this.config,
@@ -563,10 +564,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Get a map of active behavioral targeting objects.
+   * Get the set of active behavioral targeting flags.
    */
-  public getActiveBehaviors(): BehavioralObjects {
-    return this.activeBehaviors;
+  public getActiveBehaviors(): Set<string> {
+    return this.activeBehavioralFlags;
   }
 
   /**
@@ -664,25 +665,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Update active behaviors tracking (similar to updateActivePages).
+   * Update active behavioral flags tracking.
    */
-  updateActiveBehaviors(
-    flagKey: string,
-    behavior: BehavioralObject,
-    isActive: boolean,
-  ): void {
-    if (!this.activeBehaviors[flagKey]) {
-      this.activeBehaviors[flagKey] = {};
-    }
-
-    if (isActive) {
-      this.activeBehaviors[flagKey][behavior.id] = behavior;
-    } else {
-      delete this.activeBehaviors[flagKey][behavior.id];
-      if (Object.keys(this.activeBehaviors[flagKey]).length === 0) {
-        delete this.activeBehaviors[flagKey];
-      }
-    }
+  updateActiveBehavioralFlags(activeFlags: Set<string>): void {
+    this.activeBehavioralFlags = activeFlags;
   }
 
   private async fetchRemoteFlags() {
@@ -944,16 +930,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     scope: string[] | undefined,
   ): boolean {
     const flagPages = this.activePages[flagKey];
-    const flagBehaviors = this.activeBehaviors[flagKey];
-    const hasBehavioralTargeting =
-      !!this.behavioralObjects[flagKey] &&
-      Object.keys(this.behavioralObjects[flagKey]).length > 0;
+    const hasBehavioralTargeting = this.behavioralTargetingManager?.hasRules(flagKey);
 
     // Check if pages or behaviors are active at flag level
     const hasPagesActive =
       !!flagPages && Object.values(flagPages).some(Boolean);
-    const hasBehaviorsActive =
-      !!flagBehaviors && Object.values(flagBehaviors).some(Boolean);
+    const hasBehaviorsActive = this.activeBehavioralFlags.has(flagKey);
 
     // If no scope is provided:
     // - If experiment has behavioral targeting: BOTH pages AND behaviors must be active

@@ -98,21 +98,11 @@ export type PageObject = {
 export type PageObjects = { [flagKey: string]: { [id: string]: PageObject } };
 
 /**
- * Represents a behavioral targeting rule set for an experiment.
- * Similar to PageObject but uses event-based rules instead of DOM triggers.
+ * Map of behavioral targeting rules per flag key.
+ * Each flag has ONE outer OR array for behavioral targeting.
  */
-export type BehavioralObject = {
-  id: string;
-  name: string;
-  rules: BehavioralTargeting;
-};
-
-/**
- * Map of behavioral objects per flag key.
- * Structure: { [flagKey]: { [behaviorId]: BehavioralObject } }
- */
-export type BehavioralObjects = {
-  [flagKey: string]: { [id: string]: BehavioralObject };
+export type BehavioralTargetingRules = {
+  [flagKey: string]: BehavioralTargeting;
 };
 
 export interface WebExperimentConfig extends ExperimentConfig {
@@ -150,7 +140,7 @@ export interface WebExperimentClient {
 
   getActivePages(): PageObjects;
 
-  getActiveBehaviors(): BehavioralObjects;
+  getActiveBehaviors(): Set<string>;
 
   setRedirectHandler(handler: (url: string) => void): void;
 
