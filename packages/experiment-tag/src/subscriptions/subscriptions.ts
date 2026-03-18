@@ -2,15 +2,6 @@ import { EvaluationEngine } from '@amplitude/experiment-core';
 
 import { DefaultWebExperimentClient, INJECT_ACTION } from '../experiment';
 import {
-  ExitIntentPayload,
-  MessageBus,
-  MessagePayloads,
-  AnalyticsEventPayload,
-  MessageType,
-  TimeOnPagePayload,
-} from './message-bus';
-import {
-  ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
   ManualTriggerValue,
   ExitIntentTriggerValue,
@@ -24,10 +15,17 @@ import {
 import {
   arePageObjectsEqual,
   clonePageObjects,
-  getElementSelectors,
   getPageObjectsByTriggerType,
 } from '../util/page-object';
-import { DebouncedMutationManager } from '../util/triggers/mutation-manager';
+
+import {
+  ExitIntentPayload,
+  MessageBus,
+  MessagePayloads,
+  AnalyticsEventPayload,
+  MessageType,
+  TimeOnPagePayload,
+} from './message-bus';
 
 const evaluationEngine = new EvaluationEngine();
 
@@ -337,40 +335,6 @@ export class SubscriptionManager {
 
     return false;
   }
-
-  private setupMutationObserverPublisher = () => {
-    this.targetedElementSelectors = getElementSelectors(this.pageObjects);
-
-    if (this.targetedElementSelectors.size === 0) {
-      return;
-    }
-
-    // Create filter function that checks against targeted selectors
-    // Only mutations that might affect our target elements pass through
-    const filters = [
-      (mutation: MutationRecord) => {
-        return Array.from(this.targetedElementSelectors).some((selector) =>
-          this.isMutationRelevantToSelector([mutation], selector),
-        );
-      },
-    ];
-
-    const mutationManager = new DebouncedMutationManager(
-      this.globalScope.document.documentElement,
-      (mutationList) => {
-        // Check each active selector and update state
-        // this.updateElementAppearedState(
-        //   this.targetedElementSelectors,
-        //   mutationList,
-        // );
-
-        // Publish event with mutationList for other subscribers (e.g., visibility publisher)
-        // this.messageBus.publish('element_appeared', { mutationList });
-      },
-      filters,
-    );
-    return mutationManager.observe();
-  };
 
   private setupVisibilityPublisher = () => {
     const visibilityPages = getPageObjectsByTriggerType(this.pageObjects, [
