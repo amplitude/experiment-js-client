@@ -1,6 +1,6 @@
 import { EvaluationEngine } from '@amplitude/experiment-core';
 
-import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
+import { DefaultWebExperimentClient, INJECT_ACTION } from '../experiment';
 import {
   ExitIntentPayload,
   MessageBus,
@@ -8,7 +8,7 @@ import {
   AnalyticsEventPayload,
   MessageType,
   TimeOnPagePayload,
-} from './subscriptions/message-bus';
+} from './message-bus';
 import {
   ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
@@ -20,14 +20,14 @@ import {
   TimeOnPageTriggerValue,
   ScrolledToTriggerValue,
   AnalyticsEventTriggerValue,
-} from './types';
+} from '../types';
 import {
   arePageObjectsEqual,
   clonePageObjects,
   getElementSelectors,
   getPageObjectsByTriggerType,
-} from './util/page-object';
-import { DebouncedMutationManager } from './util/triggers/mutation-manager';
+} from '../util/page-object';
+import { DebouncedMutationManager } from '../util/triggers/mutation-manager';
 
 const evaluationEngine = new EvaluationEngine();
 
