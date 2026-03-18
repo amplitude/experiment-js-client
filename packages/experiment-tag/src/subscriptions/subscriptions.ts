@@ -2,15 +2,6 @@ import { EvaluationEngine } from '@amplitude/experiment-core';
 
 import { DefaultWebExperimentClient, INJECT_ACTION } from '../experiment';
 import {
-  ExitIntentPayload,
-  MessageBus,
-  MessagePayloads,
-  AnalyticsEventPayload,
-  MessageType,
-  TimeOnPagePayload,
-} from './message-bus';
-import {
-  ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
   ManualTriggerValue,
   ExitIntentTriggerValue,
@@ -24,10 +15,17 @@ import {
 import {
   arePageObjectsEqual,
   clonePageObjects,
-  getElementSelectors,
   getPageObjectsByTriggerType,
 } from '../util/page-object';
-import { DebouncedMutationManager } from '../util/triggers/mutation-manager';
+
+import {
+  ExitIntentPayload,
+  MessageBus,
+  MessagePayloads,
+  AnalyticsEventPayload,
+  MessageType,
+  TimeOnPagePayload,
+} from './message-bus';
 
 const evaluationEngine = new EvaluationEngine();
 
@@ -51,7 +49,6 @@ export class SubscriptionManager {
   private lastNotifiedActivePages: PageObjects = {};
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
-  private elementAppearedState: Set<string> = new Set();
   private manuallyActivatedPageObjects: Set<string> = new Set();
   private targetedElementSelectors: Set<string> = new Set();
   private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
@@ -101,15 +98,12 @@ export class SubscriptionManager {
     if (this.options.useDefaultNavigationHandler) {
       this.setupLocationChangePublisher();
     }
-    this.setupMutationObserverPublisher();
     this.setupVisibilityPublisher();
     this.setupUserInteractionPublisher();
     this.setupExitIntentPublisher();
     this.setupScrolledToPublisher();
     this.setupTimeOnPagePublisher();
     this.setupVisibilityChangeHandler();
-    // Initial check for elements that already exist
-    this.checkInitialElements();
   };
 
   /**
@@ -231,7 +225,6 @@ export class SubscriptionManager {
 
   private resetTriggerStates = () => {
     // Clear "has fired" state for all triggers
-    this.elementAppearedState.clear();
     this.elementVisibilityState.clear();
     this.firedUserInteractions.clear();
     this.scrolledToElementState.clear();
@@ -256,9 +249,6 @@ export class SubscriptionManager {
     }
 
     this.setupTimeOnPagePublisher();
-
-    // Trigger initial check for elements that already exist on new page
-    this.checkInitialElements();
   };
 
   private revertInjections = () => {
@@ -293,43 +283,6 @@ export class SubscriptionManager {
         delete mutations[flagKey];
       }
     });
-  };
-
-  private updateElementAppearedState = (
-    selectors: Iterable<string>,
-    mutationList: MutationRecord[],
-  ) => {
-    for (const selector of selectors) {
-      // For initial checks (no mutationList), check all selectors
-      // For actual mutations, only check if mutation is relevant
-      const isRelevant =
-        mutationList.length === 0 ||
-        this.isMutationRelevantToSelector(mutationList, selector);
-
-      if (isRelevant) {
-        try {
-          const elements = this.globalScope.document.querySelectorAll(selector);
-          for (const element of Array.from(elements)) {
-            const style = this.globalScope.getComputedStyle(element);
-            const hasAppeared =
-              style.display !== 'none' && style.visibility !== 'hidden';
-
-            if (hasAppeared) {
-              this.elementAppearedState.add(selector);
-              break; // Only need to find one visible element
-            }
-          }
-        } catch (e) {
-          // Invalid selector, skip
-        }
-      }
-    }
-  };
-
-  private checkInitialElements = () => {
-    // Check for elements that already exist in the DOM and update state
-    this.updateElementAppearedState(this.targetedElementSelectors, []);
-    this.messageBus.publish('element_appeared', { mutationList: [] });
   };
 
   private isMutationRelevantToSelector(
@@ -376,40 +329,6 @@ export class SubscriptionManager {
 
     return false;
   }
-
-  private setupMutationObserverPublisher = () => {
-    this.targetedElementSelectors = getElementSelectors(this.pageObjects);
-
-    if (this.targetedElementSelectors.size === 0) {
-      return;
-    }
-
-    // Create filter function that checks against targeted selectors
-    // Only mutations that might affect our target elements pass through
-    const filters = [
-      (mutation: MutationRecord) => {
-        return Array.from(this.targetedElementSelectors).some((selector) =>
-          this.isMutationRelevantToSelector([mutation], selector),
-        );
-      },
-    ];
-
-    const mutationManager = new DebouncedMutationManager(
-      this.globalScope.document.documentElement,
-      (mutationList) => {
-        // Check each active selector and update state
-        this.updateElementAppearedState(
-          this.targetedElementSelectors,
-          mutationList,
-        );
-
-        // Publish event with mutationList for other subscribers (e.g., visibility publisher)
-        this.messageBus.publish('element_appeared', { mutationList });
-      },
-      filters,
-    );
-    return mutationManager.observe();
-  };
 
   private setupVisibilityPublisher = () => {
     const visibilityPages = getPageObjectsByTriggerType(this.pageObjects, [
@@ -1124,12 +1043,6 @@ export class SubscriptionManager {
           this.analyticsEventState.add(id);
         }
         return match;
-      }
-
-      case 'element_appeared': {
-        const triggerValue = page.trigger_value as ElementAppearedTriggerValue;
-        const selector = triggerValue.selector;
-        return this.elementAppearedState.has(selector);
       }
 
       case 'element_visible': {

@@ -20,6 +20,7 @@ export type ScrolledToPayload = Record<string, never>;
 
 export type MessagePayloads = {
   element_appeared: ElementAppearedPayload;
+  element_appeared_internal: ElementAppearedPayload;
   element_visible: ElementVisiblePayload;
   url_change: UrlChangePayload;
   analytics_event: AnalyticsEventPayload;
