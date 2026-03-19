@@ -105,8 +105,13 @@ export class SubscriptionManager {
   /**
    * Evaluate all behavioral targeting rules and update active behavioral flags.
    */
-  public evaluateAllBehaviors = (): void => {
+  public evaluateAllBehaviors = (event: string): void => {
     if (!this.behavioralTargetingManager) {
+      return;
+    }
+
+    // Skip evaluation if event is not tracked
+    if (!this.behavioralTargetingManager.getTrackedEvents()?.has(event)) {
       return;
     }
 
@@ -195,7 +200,7 @@ export class SubscriptionManager {
 
         // Evaluate behavioral targeting for analytics events
         if (isAnalyticsEvent) {
-          this.evaluateAllBehaviors();
+          this.evaluateAllBehaviors((payload as AnalyticsEventPayload).event);
         }
 
         // Get current page state and check if it changed
