@@ -5,7 +5,7 @@ import {
 } from '@amplitude/experiment-js-client';
 import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
-import { BehavioralTargeting } from './behavioral-targeting/types';
+import { BehavioralTargeting } from './behavioral-targeting';
 import { MessageType } from './subscriptions/message-bus';
 
 export type ApplyVariantsOptions = {

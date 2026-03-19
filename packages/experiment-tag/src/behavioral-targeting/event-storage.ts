@@ -134,7 +134,7 @@ export class EventStorageManager {
   }
 
   /**
-   * Clears all events from memory and localStorage (for testing).
+   * Clears all events from memory and localStorage.
    */
   clearEvents(): void {
     this.memoryCache = { events: [], nextId: 1 };
