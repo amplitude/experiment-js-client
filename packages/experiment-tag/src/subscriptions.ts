@@ -210,11 +210,9 @@ export class SubscriptionManager {
         }
 
         // Notify subscribers if pages actually changed
-        if (pagesChanged) {
-          this.lastNotifiedActivePages = clonePageObjects(activePages);
-          for (const subscriber of this.pageChangeSubscribers) {
-            subscriber({ activePages });
-          }
+        this.lastNotifiedActivePages = clonePageObjects(activePages);
+        for (const subscriber of this.pageChangeSubscribers) {
+          subscriber({ activePages });
         }
       });
     }
