@@ -28,8 +28,8 @@ import {
   getElementSelectors,
   getPageObjectsByTriggerType,
 } from './util/page-object';
-import { DebouncedMutationManager } from './util/triggers/mutation-manager';
 import { symmetricDifference } from './util/set';
+import { DebouncedMutationManager } from './util/triggers/mutation-manager';
 
 const evaluationEngine = new EvaluationEngine();
 

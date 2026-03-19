@@ -923,7 +923,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     scope: string[] | undefined,
   ): boolean {
     const flagPages = this.activePages[flagKey];
-    const hasBehavioralTargeting = this.behavioralTargetingManager?.hasRules(flagKey);
+    const hasBehavioralTargeting =
+      this.behavioralTargetingManager?.hasRules(flagKey);
 
     // Check if pages or behaviors are active at flag level
     const hasPagesActive =
