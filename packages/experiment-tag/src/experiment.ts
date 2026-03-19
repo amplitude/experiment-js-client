@@ -34,6 +34,7 @@ import {
   PreviewState,
   RevertVariantsOptions,
 } from './types';
+import type { DebugState } from './types/debug';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
@@ -107,6 +108,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
+  private isDebugActive = false;
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, string> = {};
@@ -196,6 +198,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
       getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
+    this.isDebugActive = this.evaluateDebugActivation();
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
@@ -203,6 +206,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       {
         ...this.config,
         isVisualEditorMode: this.isVisualEditorMode,
+        isDebugActive: this.isDebugActive,
       },
       this.globalScope,
     );
@@ -583,6 +587,70 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public toggleManualPageObject(name: string, isActive = true) {
     this.subscriptionManager?.toggleManualPageObject(name, isActive);
+  }
+
+  /**
+   * Returns a snapshot of the current debug state for all flags.
+   * Populated with richer page-object and trigger detail in later stories.
+   */
+  public getDebugState(): DebugState {
+    const flags: DebugState['flags'] = {};
+    const variants = this.getVariants();
+
+    for (const flagKey of [...this.localFlagKeys, ...this.remoteFlagKeys]) {
+      const variant = variants[flagKey];
+      const activePagesForFlag = this.activePages[flagKey];
+
+      flags[flagKey] = {
+        flagKey,
+        variant: variant?.key
+          ? { key: variant.key, value: variant.value }
+          : null,
+        isActive:
+          !!activePagesForFlag && Object.keys(activePagesForFlag).length > 0,
+        pageObjects: [],
+      };
+    }
+
+    return {
+      flags,
+      visualEditor: { isActive: this.isVisualEditorMode },
+      currentUrl: this.globalScope.location.href,
+      timestamp: Date.now(),
+    };
+  }
+
+  /**
+   * Subscribe to debug state changes. Fires debounced (~100 ms) on page change events.
+   * @returns An unsubscribe function, or undefined if subscriptions are not initialized.
+   */
+  public addDebugStateSubscriber(
+    callback: (state: DebugState) => void,
+  ): (() => void) | undefined {
+    if (this.subscriptionManager) {
+      return this.subscriptionManager.addDebugStateSubscriber(callback);
+    }
+  }
+
+  /**
+   * Debug activation check, evaluated once at init time and cached.
+   * Debug recording is always an explicit opt-in — NOT auto-enabled in
+   * visual editor mode. Two signals are checked:
+   * 1. Global flag: `window.__AMP_DEBUG`
+   * 2. localStorage key: `amp-ve-debug`
+   */
+  private evaluateDebugActivation(): boolean {
+    if ((this.globalScope as Record<string, unknown>).__AMP_DEBUG === true) {
+      return true;
+    }
+    try {
+      if (this.globalScope.localStorage?.getItem('amp-ve-debug') !== null) {
+        return true;
+      }
+    } catch {
+      // localStorage may throw in restricted contexts
+    }
+    return false;
   }
 
   /**

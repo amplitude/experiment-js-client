@@ -21,6 +21,7 @@ import {
   ScrolledToTriggerValue,
   AnalyticsEventTriggerValue,
 } from './types';
+import type { DebugState } from './types/debug';
 import {
   arePageObjectsEqual,
   clonePageObjects,
@@ -31,9 +32,12 @@ import { DebouncedMutationManager } from './util/triggers/mutation-manager';
 
 const evaluationEngine = new EvaluationEngine();
 
+const DEBUG_DEBOUNCE_MS = 100;
+
 type initOptions = {
   useDefaultNavigationHandler?: boolean;
   isVisualEditorMode?: boolean;
+  isDebugActive?: boolean;
 };
 
 export type PageChangeEvent = {
@@ -73,6 +77,8 @@ export class SubscriptionManager {
   private userInteractionAbortController: AbortController | null = null;
   private pageLoadTime: number = Number.POSITIVE_INFINITY;
   private lastPublishedUrl: string | null = null;
+  private debugStateSubscribers: Set<(state: DebugState) => void> = new Set();
+  private debugDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -124,6 +130,33 @@ export class SubscriptionManager {
     return () => {
       this.pageChangeSubscribers.delete(callback);
     };
+  };
+
+  public addDebugStateSubscriber = (
+    callback: (state: DebugState) => void,
+  ): (() => void) => {
+    this.debugStateSubscribers.add(callback);
+    return () => {
+      this.debugStateSubscribers.delete(callback);
+    };
+  };
+
+  private scheduleDebugNotification = () => {
+    if (!this.options.isDebugActive || this.debugStateSubscribers.size === 0) {
+      return;
+    }
+
+    if (this.debugDebounceTimer !== null) {
+      this.globalScope.clearTimeout(this.debugDebounceTimer);
+    }
+
+    this.debugDebounceTimer = this.globalScope.setTimeout(() => {
+      this.debugDebounceTimer = null;
+      const state = this.webExperimentClient.getDebugState();
+      for (const subscriber of this.debugStateSubscribers) {
+        subscriber(state);
+      }
+    }, DEBUG_DEBOUNCE_MS);
   };
 
   public setupPageObjectSubscriptions = () => {
@@ -215,6 +248,12 @@ export class SubscriptionManager {
           for (const subscriber of this.pageChangeSubscribers) {
             subscriber({ activePages });
           }
+        }
+
+        // Debug subscribers fire on any URL change or page change,
+        // since the debugger cares about currentUrl and trigger state too.
+        if (pagesChanged || isUrlChange) {
+          this.scheduleDebugNotification();
         }
       });
     }
