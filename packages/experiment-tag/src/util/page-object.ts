@@ -60,42 +60,40 @@ export function getElementSelectors(pageObjects: PageObjects): Set<string> {
 }
 
 /**
- * Deep clone PageObjects by shallow cloning inner objects.
+ * Clone a PageObjects map
  */
-export function clonePageObjects(pageObjects: PageObjects): PageObjects {
+export function clonePageObjects(map: PageObjects): PageObjects {
   const clone: PageObjects = {};
-  for (const flagKey in pageObjects) {
-    clone[flagKey] = {};
-    for (const pageId in pageObjects[flagKey]) {
-      clone[flagKey][pageId] = { ...pageObjects[flagKey][pageId] };
+  for (const outerKey in map) {
+    clone[outerKey] = {};
+    for (const innerKey in map[outerKey]) {
+      clone[outerKey][innerKey] = { ...map[outerKey][innerKey] };
     }
   }
   return clone;
 }
 
 /**
- * Check if two PageObjects are equal by comparing their structure.
- * Compares only the keys (structure), not the object values themselves.
+ * Check if two PageObjects maps are equal (by structure and page IDs)
  */
-export function arePageObjectsEqual(
-  a: PageObjects,
-  b: PageObjects,
-): boolean {
-  const aFlagKeys = Object.keys(a);
-  const bFlagKeys = Object.keys(b);
-  if (aFlagKeys.length !== bFlagKeys.length) return false;
+export function arePageObjectsEqual(a: PageObjects, b: PageObjects): boolean {
+  const aOuterKeys = Object.keys(a);
+  const bOuterKeys = Object.keys(b);
+  if (aOuterKeys.length !== bOuterKeys.length) return false;
 
-  for (const flagKey of aFlagKeys) {
-    const aPages = a[flagKey];
-    const bPages = b[flagKey];
-    if (!bPages) return false;
+  for (const outerKey of aOuterKeys) {
+    const aInner = a[outerKey];
+    const bInner = b[outerKey];
+    if (!bInner) return false;
 
-    const aPageIds = Object.keys(aPages);
-    const bPageIds = Object.keys(bPages);
-    if (aPageIds.length !== bPageIds.length) return false;
+    const aInnerKeys = Object.keys(aInner);
+    const bInnerKeys = Object.keys(bInner);
+    if (aInnerKeys.length !== bInnerKeys.length) return false;
 
-    for (const pageId of aPageIds) {
-      if (!bPages[pageId]) return false;
+    for (const innerKey of aInnerKeys) {
+      const aPage = aInner[innerKey];
+      const bPage = bInner[innerKey];
+      if (!bPage || aPage.id !== bPage.id) return false;
     }
   }
 
