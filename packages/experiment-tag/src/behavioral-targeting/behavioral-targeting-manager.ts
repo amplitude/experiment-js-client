@@ -12,12 +12,12 @@ export class BehavioralTargetingManager {
   private readonly eventStorage: EventStorageManager;
   private evaluator: BehavioralTargetingEvaluator;
   private readonly rules: { [flagKey: string]: BehavioralTargeting };
-  private readonly trackedEvents?: Set<string>;
+  private readonly trackedEvents: Set<string>;
 
   constructor(
     apiKey: string,
     initialRules: { [flagKey: string]: BehavioralTargeting } = {},
-    trackedEvents?: Set<string>,
+    trackedEvents: Set<string>,
   ) {
     this.rules = initialRules;
     this.trackedEvents = trackedEvents;
@@ -91,7 +91,7 @@ export class BehavioralTargetingManager {
    * Get the set of tracked events.
    * @returns Set of tracked events or undefined if not set
    */
-  public getTrackedEvents(): Set<string> | undefined {
+  public getTrackedEvents(): Set<string> {
     return this.trackedEvents;
   }
 
