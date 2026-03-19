@@ -2,7 +2,6 @@ import { BehavioralTargetingEvaluator } from './evaluator';
 import { EventStorageManager } from './event-storage';
 import { SessionManager } from './session-manager';
 import { BehavioralTargeting } from './types';
-import { extractEventNames } from './util';
 
 /**
  * Manages all behavioral targeting functionality including event storage,
@@ -13,21 +12,20 @@ export class BehavioralTargetingManager {
   private readonly eventStorage: EventStorageManager;
   private evaluator: BehavioralTargetingEvaluator;
   private readonly rules: { [flagKey: string]: BehavioralTargeting };
+  private readonly trackedEvents: Set<string>;
 
   constructor(
     apiKey: string,
     initialRules: { [flagKey: string]: BehavioralTargeting } = {},
+    trackedEvents: Set<string>,
   ) {
     this.rules = initialRules;
+    this.trackedEvents = trackedEvents;
     this.sessionManager = new SessionManager(apiKey);
-
-    // Extract event names from rules to optimize event storage
-    const persistedEvents = extractEventNames(initialRules);
-
     this.eventStorage = new EventStorageManager(
       apiKey,
       this.sessionManager,
-      persistedEvents,
+      trackedEvents,
     );
     this.evaluator = new BehavioralTargetingEvaluator(this.eventStorage);
   }
@@ -87,6 +85,14 @@ export class BehavioralTargetingManager {
    */
   public hasRules(flagKey: string): boolean {
     return !!this.rules[flagKey];
+  }
+
+  /**
+   * Get the set of tracked events.
+   * @returns Set of tracked events or undefined if not set
+   */
+  public getTrackedEvents(): Set<string> {
+    return this.trackedEvents;
   }
 
   /**
