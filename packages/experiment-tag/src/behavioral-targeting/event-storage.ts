@@ -30,7 +30,7 @@ export class EventStorageManager {
   private sessionManager: SessionManager;
   private memoryCache: EventStorage; // In-memory cache for fast reads
   private debouncedWriteTimeout: ReturnType<typeof setTimeout> | null = null;
-  private isDirty = false; // Track if cache has unsaved changes
+  private hasPendingWrites = false; // Track if cache has unsaved changes
   private persistedEvents?: Set<string>; // Optional set of event types to persist
   private storageKey: string;
 
@@ -134,10 +134,11 @@ export class EventStorageManager {
   }
 
   /**
-   * Clears all events from memory and localStorage (for testing).
+   * Clears all events from memory and localStorage.
    */
   clearEvents(): void {
     this.memoryCache = { events: [], nextId: 1 };
+    this.hasPendingWrites = true; // Force flush to persist clear operation
     this.flushToLocalStorage(); // Immediate write for clear
   }
 
@@ -190,7 +191,7 @@ export class EventStorageManager {
    * Resets the timer on each call to batch multiple writes together.
    */
   private scheduleDebouncedWrite(): void {
-    this.isDirty = true;
+    this.hasPendingWrites = true;
 
     // Clear existing timeout if any
     if (this.debouncedWriteTimeout) {
@@ -207,13 +208,13 @@ export class EventStorageManager {
    * Immediately writes in-memory cache to localStorage.
    */
   private flushToLocalStorage(): void {
-    if (!this.isDirty) {
+    if (!this.hasPendingWrites) {
       return; // No changes to persist
     }
 
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(this.memoryCache));
-      this.isDirty = false;
+      this.hasPendingWrites = false;
 
       // Clear debounce timeout since we just flushed
       if (this.debouncedWriteTimeout) {

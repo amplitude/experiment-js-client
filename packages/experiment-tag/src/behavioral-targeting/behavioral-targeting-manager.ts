@@ -88,4 +88,12 @@ export class BehavioralTargetingManager {
   public hasRules(flagKey: string): boolean {
     return !!this.rules[flagKey];
   }
+
+  /**
+   * Cleanup method to remove event listeners and flush pending writes.
+   * Should be called when BehavioralTargetingManager is no longer needed.
+   */
+  public cleanup(): void {
+    this.eventStorage.cleanup();
+  }
 }

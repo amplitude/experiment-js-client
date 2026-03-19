@@ -9,8 +9,7 @@ import {
   AnalyticsEventPayload,
   MessageType,
   TimeOnPagePayload,
-} from './message-bus';
-import { DebouncedMutationManager } from './mutation-manager';
+} from './subscriptions/message-bus';
 import {
   ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
@@ -29,6 +28,7 @@ import {
   getElementSelectors,
   getPageObjectsByTriggerType,
 } from './util/page-object';
+import { DebouncedMutationManager } from './util/triggers/mutation-manager';
 import { symmetricDifference } from './util/set';
 
 const evaluationEngine = new EvaluationEngine();
