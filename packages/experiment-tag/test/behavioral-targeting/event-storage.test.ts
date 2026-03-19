@@ -49,12 +49,14 @@ describe('EventStorageManager', () => {
       eventStorage.flush(); // Flush debounced write for testing
 
       const stored = localStorage.getItem('EXP_test-api-key_rtbt_events');
-      expect(stored).toBeDefined();
+      expect(stored).not.toBeNull();
 
-      const data = JSON.parse(stored!);
-      expect(data.events).toHaveLength(1);
-      expect(data.events[0].event_type).toBe('click');
-      expect(data.nextId).toBe(2);
+      if (stored) {
+        const data = JSON.parse(stored);
+        expect(data.events).toHaveLength(1);
+        expect(data.events[0].event_type).toBe('click');
+        expect(data.nextId).toBe(2);
+      }
     });
 
     test('should load existing events from localStorage', () => {
@@ -147,7 +149,6 @@ describe('EventStorageManager', () => {
   describe('getEventsInTimeWindow', () => {
     describe('current_session mode', () => {
       test('should return only events from current session', () => {
-        const sessionId1 = sessionManager.getOrCreateSessionId();
         eventStorage.addEvent('click');
         eventStorage.addEvent('view');
 
@@ -357,11 +358,13 @@ describe('EventStorageManager', () => {
       eventStorage.clearEvents();
 
       const stored = localStorage.getItem('EXP_test-api-key_rtbt_events');
-      expect(stored).toBeDefined();
+      expect(stored).not.toBeNull();
 
-      const data = JSON.parse(stored!);
-      expect(data.events).toEqual([]);
-      expect(data.nextId).toBe(1);
+      if (stored) {
+        const data = JSON.parse(stored);
+        expect(data.events).toEqual([]);
+        expect(data.nextId).toBe(1);
+      }
     });
 
     test('should reset ID counter', () => {
