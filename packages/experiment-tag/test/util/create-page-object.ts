@@ -1,4 +1,4 @@
-import { MessageType } from 'src/message-bus';
+import { MessageType } from 'src/subscriptions/message-bus';
 import { PageObject } from 'src/types';
 
 const DUMMY_TRUE_CONDITION = [

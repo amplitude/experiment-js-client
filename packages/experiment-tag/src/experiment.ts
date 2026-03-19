@@ -16,10 +16,11 @@ import {
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
+import * as domMutatorExports from 'dom-mutator';
 
-import { MessageBus } from './message-bus';
 import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
+import { MessageBus } from './subscriptions/message-bus';
 import {
   Defaults,
   WebExperimentClient,
@@ -41,6 +42,7 @@ import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
+import { buildShell, isMobileModeActive } from './util/shell';
 import {
   getStorageItem,
   setStorageItem,
@@ -183,6 +185,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     patchRemoveChild();
     const urlParams = getUrlParams();
+
+    // When running inside an iframe (mobile shell), skip overlay loading and
+    // expose dom-mutator on the window so the overlay in the parent frame can
+    // apply and control mutations against this document.
+    if (this.globalScope.self !== this.globalScope.top) {
+      (this.globalScope as any).ampDomMutator = domMutatorExports;
+      this.isRunning = true;
+      return;
+    }
+
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
       getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
@@ -202,6 +214,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
       WindowMessenger.setup();
+
+      if (isMobileModeActive()) {
+        buildShell(this.globalScope);
+      }
+
       this.globalScope.history.replaceState(
         {},
         '',
@@ -333,9 +350,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         'Amplitude Web Experiment Client could not be initialized.',
       );
     }
-    // if the client has already been initialized, return the existing instance
-    if (globalScope.webExperiment instanceof DefaultWebExperimentClient) {
-      const existingClient = globalScope.webExperiment;
+    // if the client has already been initialized not a stub, return the
+    // existing instance
+    if (globalScope.webExperiment && !globalScope.webExperiment.isStub) {
+      const existingClient =
+        globalScope.webExperiment as DefaultWebExperimentClient;
       // Flush any events that may have been buffered since last initialization
       if (existingClient.isRunning) {
         flushEventBuffer(existingClient);

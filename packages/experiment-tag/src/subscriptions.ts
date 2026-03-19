@@ -8,8 +8,7 @@ import {
   AnalyticsEventPayload,
   MessageType,
   TimeOnPagePayload,
-} from './message-bus';
-import { DebouncedMutationManager } from './mutation-manager';
+} from './subscriptions/message-bus';
 import {
   ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
@@ -28,6 +27,7 @@ import {
   getElementSelectors,
   getPageObjectsByTriggerType,
 } from './util/page-object';
+import { DebouncedMutationManager } from './util/triggers/mutation-manager';
 
 const evaluationEngine = new EvaluationEngine();
 
@@ -210,11 +210,9 @@ export class SubscriptionManager {
         }
 
         // Notify subscribers if pages actually changed
-        if (pagesChanged) {
-          this.lastNotifiedActivePages = clonePageObjects(activePages);
-          for (const subscriber of this.pageChangeSubscribers) {
-            subscriber({ activePages });
-          }
+        this.lastNotifiedActivePages = clonePageObjects(activePages);
+        for (const subscriber of this.pageChangeSubscribers) {
+          subscriber({ activePages });
         }
       });
     }
