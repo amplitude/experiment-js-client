@@ -124,6 +124,5 @@ jobs:
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
           PACKAGES: ${{ env.UPLOAD_PACKAGES }}
         run: |
-          cd scripts
-          yarn install
-          node upload-to-s3.js
+          cd scripts && yarn install && cd ..
+          node scripts/upload-to-s3.js
