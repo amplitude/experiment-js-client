@@ -5,6 +5,7 @@ import type { MessageType } from '../subscriptions/message-bus';
 export interface DebugState {
   flags: Record<string, FlagDebugInfo>;
   visualEditor: VisualEditorDebugInfo;
+  events: DebugEvent[];
   currentUrl: string;
   timestamp: number;
 }
@@ -106,6 +107,21 @@ export interface ScrolledToTriggerDebugInfo extends TriggerDebugInfoBase {
 
 // --- Visual editor debug info ---
 
+export type VEMessengerState =
+  | 'not_started'
+  | 'waiting'
+  | 'loading'
+  | 'loaded'
+  | 'error';
+
+export interface DebugEvent {
+  timestamp: number;
+  event: string;
+  detail?: string;
+}
+
 export interface VisualEditorDebugInfo {
   isActive: boolean;
+  source?: 'url_param' | 'session_storage' | null;
+  messengerState?: VEMessengerState;
 }

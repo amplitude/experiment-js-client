@@ -38,6 +38,7 @@ import type { DebugState } from './types/debug';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
+import { DebugRecorder } from './util/debug-recorder';
 import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
@@ -201,7 +202,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
       getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
-    this.isDebugActive = this.evaluateDebugActivation();
+    DebugRecorder.init(this.globalScope);
+    this.isDebugActive = DebugRecorder.isActive();
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
@@ -216,6 +218,20 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.setupPreviewMode(urlParams);
     this.subscriptionManager.initSubscriptions();
 
+    // Register debug state provider so DebugRecorder can assemble full snapshots
+    DebugRecorder.registerStateProvider(() => ({
+      flags: this.buildFlagDebugInfo(),
+      visualEditor: {
+        isActive: this.isVisualEditorMode,
+        source: this.isVisualEditorMode
+          ? getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null
+            ? ('session_storage' as const)
+            : ('url_param' as const)
+          : null,
+      },
+      currentUrl: this.globalScope.location.href,
+    }));
+
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
       WindowMessenger.setup();
@@ -224,12 +240,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         buildShell(this.globalScope);
       }
 
+      const veSource =
+        urlParams[VISUAL_EDITOR_PARAM] === 'true'
+          ? 'url_param'
+          : 'session_storage';
+      DebugRecorder.push('ve_mode_detected', `source=${veSource}`);
       this.globalScope.history.replaceState(
         {},
         '',
         removeQueryParams(this.globalScope.location.href, [
           VISUAL_EDITOR_PARAM,
         ]),
+      );
+      DebugRecorder.push(
+        'url_param_removed',
+        `cleaned URL: ${this.globalScope.location.href}`,
       );
       // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
       this.subscriptionManager.markUrlAsPublished(
@@ -599,6 +624,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * including per-page-object trigger introspection.
    */
   public getDebugState(): DebugState {
+    return DebugRecorder.getDebugState();
+  }
+
+  private buildFlagDebugInfo(): DebugState['flags'] {
     const flags: DebugState['flags'] = {};
     const variants = this.getVariants();
     const debugPageObjects =
@@ -619,12 +648,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       };
     }
 
-    return {
-      flags,
-      visualEditor: { isActive: this.isVisualEditorMode },
-      currentUrl: this.globalScope.location.href,
-      timestamp: Date.now(),
-    };
+    return flags;
   }
 
   /**
@@ -637,27 +661,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.subscriptionManager) {
       return this.subscriptionManager.addDebugStateSubscriber(callback);
     }
-  }
-
-  /**
-   * Debug activation check, evaluated once at init time and cached.
-   * Debug recording is always an explicit opt-in — NOT auto-enabled in
-   * visual editor mode. Two signals are checked:
-   * 1. Global flag: `window.__AMP_DEBUG`
-   * 2. localStorage key: `amp-ve-debug`
-   */
-  private evaluateDebugActivation(): boolean {
-    if ((this.globalScope as Record<string, unknown>).__AMP_DEBUG === true) {
-      return true;
-    }
-    try {
-      if (this.globalScope.localStorage?.getItem('amp-ve-debug') === 'true') {
-        return true;
-      }
-    } catch {
-      // localStorage may throw in restricted contexts
-    }
-    return false;
   }
 
   /**

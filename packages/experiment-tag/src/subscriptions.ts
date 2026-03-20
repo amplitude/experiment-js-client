@@ -26,6 +26,7 @@ import type {
   PageObjectDebugInfo,
   TriggerDebugInfo,
 } from './types/debug';
+import { DebugRecorder } from './util/debug-recorder';
 import {
   arePageObjectsEqual,
   clonePageObjects,
@@ -327,11 +328,21 @@ export class SubscriptionManager {
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
       for (const page of Object.values(pages)) {
         this.messageBus.subscribe(page.trigger_type, (payload) => {
+          const wasActive =
+            !!this.webExperimentClient.getActivePages()[experiment]?.[page.id];
+          const isActive = this.isPageObjectActive(page, payload);
           this.webExperimentClient.updateActivePages(
             experiment,
             page,
-            this.isPageObjectActive(page, payload),
+            isActive,
           );
+          if (isActive && !wasActive) {
+            DebugRecorder.push(
+              'trigger_fired',
+              `flag=${experiment}, page=${page.name || page.id}, ` +
+                `type=${page.trigger_type}`,
+            );
+          }
         });
       }
     }
@@ -343,6 +354,10 @@ export class SubscriptionManager {
 
         // Handle URL change: reset state and revert injections
         if (isUrlChange) {
+          DebugRecorder.push(
+            'url_change',
+            `navigated to ${this.globalScope.location.href}`,
+          );
           this.resetTriggerStates();
           this.revertInjections();
         }
@@ -422,6 +437,7 @@ export class SubscriptionManager {
   };
 
   private resetTriggerStates = () => {
+    DebugRecorder.push('trigger_reset', 'all non-url_change triggers cleared');
     // Clear "has fired" state for all triggers
     this.elementAppearedState.clear();
     this.elementVisibilityState.clear();
