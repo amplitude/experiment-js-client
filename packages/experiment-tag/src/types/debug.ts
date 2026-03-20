@@ -93,6 +93,7 @@ export interface ExitIntentTriggerDebugInfo extends TriggerDebugInfoBase {
 export interface TimeOnPageTriggerDebugInfo extends TriggerDebugInfoBase {
   type: 'time_on_page';
   config: { durationMs: number };
+  elapsedMs: number;
 }
 
 export interface ScrolledToTriggerDebugInfo extends TriggerDebugInfoBase {
@@ -100,6 +101,7 @@ export interface ScrolledToTriggerDebugInfo extends TriggerDebugInfoBase {
   config:
     | { mode: 'percent'; percentage: number }
     | { mode: 'element'; selector: string; offsetPx?: number };
+  currentPercentage?: number;
 }
 
 // --- Visual editor debug info ---

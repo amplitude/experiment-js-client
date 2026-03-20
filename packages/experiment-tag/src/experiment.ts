@@ -595,12 +595,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Returns a snapshot of the current debug state for all flags.
-   * Populated with richer page-object and trigger detail in later stories.
+   * Returns a snapshot of the current debug state for all flags,
+   * including per-page-object trigger introspection.
    */
   public getDebugState(): DebugState {
     const flags: DebugState['flags'] = {};
     const variants = this.getVariants();
+    const debugPageObjects =
+      this.subscriptionManager?.getDebugPageObjects() ?? {};
 
     for (const flagKey of [...this.localFlagKeys, ...this.remoteFlagKeys]) {
       const variant = variants[flagKey];
@@ -613,7 +615,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           : null,
         isActive:
           !!activePagesForFlag && Object.keys(activePagesForFlag).length > 0,
-        pageObjects: [],
+        pageObjects: debugPageObjects[flagKey] ?? [],
       };
     }
 

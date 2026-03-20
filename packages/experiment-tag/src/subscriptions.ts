@@ -21,7 +21,11 @@ import {
   ScrolledToTriggerValue,
   AnalyticsEventTriggerValue,
 } from './types';
-import type { DebugState } from './types/debug';
+import type {
+  DebugState,
+  PageObjectDebugInfo,
+  TriggerDebugInfo,
+} from './types/debug';
 import {
   arePageObjectsEqual,
   clonePageObjects,
@@ -140,6 +144,151 @@ export class SubscriptionManager {
       this.debugStateSubscribers.delete(callback);
     };
   };
+
+  public getDebugPageObjects(): Record<string, PageObjectDebugInfo[]> {
+    const result: Record<string, PageObjectDebugInfo[]> = {};
+    const activePages = this.webExperimentClient.getActivePages();
+
+    for (const [flagKey, pages] of Object.entries(this.pageObjects)) {
+      result[flagKey] = Object.values(pages).map((page) => {
+        const urlConditionsPassed = this.evaluateUrlConditions(page);
+        const trigger = this.buildTriggerDebugInfo(page, flagKey, activePages);
+
+        return {
+          id: page.id,
+          name: page.name,
+          urlConditionsPassed,
+          triggerPassed: trigger.passed,
+          trigger,
+          overallStatus:
+            urlConditionsPassed && trigger.passed ? 'pass' : 'fail',
+        };
+      });
+    }
+
+    return result;
+  }
+
+  private evaluateUrlConditions(page: PageObject): boolean {
+    if (!page.conditions || page.conditions.length === 0) {
+      return true;
+    }
+    return evaluationEngine.evaluateConditions(
+      {
+        context: { page: { url: this.globalScope.location.href } },
+        result: {},
+      },
+      page.conditions,
+    );
+  }
+
+  private buildTriggerDebugInfo(
+    page: PageObject,
+    flagKey: string,
+    activePages: PageObjects,
+  ): TriggerDebugInfo {
+    switch (page.trigger_type) {
+      case 'url_change':
+        return { type: 'url_change', passed: true };
+
+      case 'element_appeared': {
+        const { selector } = page.trigger_value as ElementAppearedTriggerValue;
+        return {
+          type: 'element_appeared',
+          passed: this.elementAppearedState.has(selector),
+          config: { selector },
+        };
+      }
+
+      case 'element_visible': {
+        const { selector, visibilityRatio: rawRatio } =
+          page.trigger_value as ElementVisibleTriggerValue;
+        const visibilityRatio = rawRatio ?? 0;
+        const key = `${selector}\0${visibilityRatio}`;
+        return {
+          type: 'element_visible',
+          passed: this.elementVisibilityState.get(key) ?? false,
+          config: { selector, visibilityRatio },
+        };
+      }
+
+      case 'manual': {
+        const { name } = page.trigger_value as ManualTriggerValue;
+        return {
+          type: 'manual',
+          passed: this.manuallyActivatedPageObjects.has(name),
+          config: { name },
+        };
+      }
+
+      case 'analytics_event':
+        return {
+          type: 'analytics_event',
+          passed: this.analyticsEventState.has(page.id),
+          config: { conditions: page.trigger_value },
+        };
+
+      case 'user_interaction': {
+        const {
+          selector,
+          interactionType,
+          minThresholdMs: rawMs,
+        } = page.trigger_value as UserInteractionTriggerValue;
+        const minThresholdMs = rawMs || 0;
+        const key = `${selector}\0${interactionType}\0${minThresholdMs}`;
+        return {
+          type: 'user_interaction',
+          passed: this.firedUserInteractions.has(key),
+          config: { selector, interactionType, minThresholdMs },
+        };
+      }
+
+      case 'exit_intent': {
+        const { minTimeOnPageMs } =
+          page.trigger_value as ExitIntentTriggerValue;
+        return {
+          type: 'exit_intent',
+          passed: !!activePages[flagKey]?.[page.id],
+          config: { minTimeOnPageMs },
+        };
+      }
+
+      case 'time_on_page': {
+        const { durationMs } = page.trigger_value as TimeOnPageTriggerValue;
+        const elapsedMs = Math.max(0, Date.now() - this.pageLoadTime);
+        return {
+          type: 'time_on_page',
+          passed: !(durationMs in this.timeOnPageTimeouts),
+          config: { durationMs },
+          elapsedMs,
+        };
+      }
+
+      case 'scrolled_to': {
+        const tv = page.trigger_value as ScrolledToTriggerValue;
+        if (tv.mode === 'percent') {
+          const { percentage } = tv;
+          return {
+            type: 'scrolled_to',
+            passed: this.maxScrollPercentage >= percentage,
+            config: { mode: 'percent' as const, percentage },
+            currentPercentage: Math.round(this.maxScrollPercentage),
+          };
+        }
+        const { selector, offsetPx } = tv;
+        const offset = offsetPx || 0;
+        const key = `${selector}\0${offset}`;
+        return {
+          type: 'scrolled_to',
+          passed: this.scrolledToElementState.get(key) ?? false,
+          config: { mode: 'element' as const, selector, offsetPx },
+        };
+      }
+
+      default:
+        return { type: 'url_change', passed: false };
+    }
+  }
 
   private scheduleDebugNotification = () => {
     if (!this.options.isDebugActive || this.debugStateSubscribers.size === 0) {
