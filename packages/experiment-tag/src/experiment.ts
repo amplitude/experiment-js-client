@@ -189,7 +189,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // When running inside an iframe (mobile shell), skip overlay loading and
     // expose dom-mutator on the window so the overlay in the parent frame can
     // apply and control mutations against this document.
-    if (this.globalScope.self !== this.globalScope.top) {
+    if (
+      this.globalScope.self !== this.globalScope.top &&
+      isMobileModeActive()
+    ) {
       (this.globalScope as any).ampDomMutator = domMutatorExports;
       this.isRunning = true;
       return;

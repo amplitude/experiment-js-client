@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.17.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.17.0...@amplitude/experiment-tag@0.17.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* stricter check for mobile mode ([#293](https://github.com/amplitude/experiment-js-client/issues/293)) ([ee87833](https://github.com/amplitude/experiment-js-client/commit/ee87833ddfc7839a2196d6706d1a5e6eb6ee51cb))
+
+
+
+
+
 # [0.17.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.16.0...@amplitude/experiment-tag@0.17.0) (2026-03-19)
 
 
