@@ -644,7 +644,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return true;
     }
     try {
-      if (this.globalScope.localStorage?.getItem('amp-ve-debug') !== null) {
+      if (this.globalScope.localStorage?.getItem('amp-ve-debug') === 'true') {
         return true;
       }
     } catch {
