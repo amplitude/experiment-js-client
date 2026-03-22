@@ -18,6 +18,7 @@ import mutate, { MutationController } from 'dom-mutator';
 import * as domMutatorExports from 'dom-mutator';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
+import { extractEventNames } from './behavioral-targeting/util';
 import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import { MessageBus } from './subscriptions/message-bus';
@@ -134,12 +135,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.initialFlags = JSON.parse(initialFlags);
     this.pageObjects = JSON.parse(pageObjects);
     this.behavioralTargetingRules = JSON.parse(behavioralObjects);
+    const trackedEvents = extractEventNames(this.behavioralTargetingRules);
 
     // Initialize behavioral targeting infrastructure only if there are rules
     if (Object.keys(this.behavioralTargetingRules).length > 0) {
       this.behavioralTargetingManager = new BehavioralTargetingManager(
         this.apiKey,
         this.behavioralTargetingRules,
+        trackedEvents,
       );
     }
     // merge config with defaults and experimentConfig (if provided)
@@ -314,7 +317,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     // Evaluate initial behaviors (from events already in storage) before applying variants
-    this.subscriptionManager?.evaluateAllBehaviors();
+    this.behavioralTargetingManager?.evaluateAll();
 
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });

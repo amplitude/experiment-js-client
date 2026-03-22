@@ -28,3 +28,28 @@ export function extractEventNames(rules: {
 
   return eventNames;
 }
+
+/**
+ * Creates a map of event names to flag keys for behavioral targeting rules.
+ * @param rules Map of flag keys to behavioral targeting rule arrays
+ * @returns Map of event names to sets of flag keys
+ */
+export function getEventToFlagMap(rules: {
+  [flagKey: string]: BehavioralTargeting;
+}): Map<string, Set<string>> {
+  const eventToFlagMap = new Map<string, Set<string>>();
+
+  for (const flagKey in rules) {
+    const behavioralTargeting = rules[flagKey];
+    const eventNames = extractEventNames({ [flagKey]: behavioralTargeting });
+
+    for (const eventName of eventNames) {
+      if (!eventToFlagMap.has(eventName)) {
+        eventToFlagMap.set(eventName, new Set());
+      }
+      eventToFlagMap.get(eventName)?.add(flagKey);
+    }
+  }
+
+  return eventToFlagMap;
+}
