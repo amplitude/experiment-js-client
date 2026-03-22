@@ -1,10 +1,7 @@
 import { BehavioralTargetingEvaluator } from 'src/behavioral-targeting/evaluator';
 import { EventStorageManager } from 'src/behavioral-targeting/event-storage';
 import { SessionManager } from 'src/behavioral-targeting/session-manager';
-import {
-  BehavioralTargeting,
-  BehavioralCondition,
-} from 'src/behavioral-targeting/types';
+import { BehavioralTargeting } from 'src/behavioral-targeting/types';
 
 describe('BehavioralTargetingEvaluator', () => {
   let evaluator: BehavioralTargetingEvaluator;
@@ -150,7 +147,6 @@ describe('BehavioralTargetingEvaluator', () => {
 
         // Clear and create new session
         sessionManager.clearSession();
-        sessionManager.getOrCreateSessionId();
         eventStorage.addEvent('click');
 
         const rules: BehavioralTargeting = [

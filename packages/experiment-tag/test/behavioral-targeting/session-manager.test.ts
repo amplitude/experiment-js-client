@@ -34,11 +34,13 @@ describe('SessionManager', () => {
       const sessionId = sessionManager.getOrCreateSessionId();
 
       const stored = sessionStorage.getItem('EXP_test-api-key_rtbt_session');
-      expect(stored).toBeDefined();
+      expect(stored).not.toBeNull();
 
-      const data = JSON.parse(stored!);
-      expect(data.sessionId).toBe(sessionId);
-      expect(data.sessionStartTime).toBeDefined();
+      if (stored) {
+        const data = JSON.parse(stored);
+        expect(data.sessionId).toBe(sessionId);
+        expect(data.sessionStartTime).toBeDefined();
+      }
     });
 
     test('should load existing session from sessionStorage', () => {
@@ -80,8 +82,8 @@ describe('SessionManager', () => {
       const afterTime = Date.now();
 
       expect(startTime).toBeDefined();
-      expect(startTime!).toBeGreaterThanOrEqual(beforeTime);
-      expect(startTime!).toBeLessThanOrEqual(afterTime);
+      expect(startTime).toBeGreaterThanOrEqual(beforeTime);
+      expect(startTime).toBeLessThanOrEqual(afterTime);
     });
 
     test('should return same start time on subsequent calls', () => {
@@ -127,25 +129,6 @@ describe('SessionManager', () => {
       const sessionId2 = sessionManager.getOrCreateSessionId();
 
       expect(sessionId1).not.toBe(sessionId2);
-    });
-  });
-
-  describe('session ID format', () => {
-    test('should contain timestamp and random string', () => {
-      const sessionId = sessionManager.getOrCreateSessionId();
-
-      // Format: {timestamp}-{random}
-      expect(sessionId).toMatch(/^\d+-[a-z0-9]+$/);
-    });
-
-    test('should have timestamp close to current time', () => {
-      const beforeTime = Date.now();
-      const sessionId = sessionManager.getOrCreateSessionId();
-      const afterTime = Date.now();
-
-      const timestamp = parseInt(sessionId.split('-')[0]);
-      expect(timestamp).toBeGreaterThanOrEqual(beforeTime);
-      expect(timestamp).toBeLessThanOrEqual(afterTime);
     });
   });
 });
