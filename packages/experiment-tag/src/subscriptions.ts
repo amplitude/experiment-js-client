@@ -110,16 +110,11 @@ export class SubscriptionManager {
       return;
     }
 
-    // Skip evaluation if event is not tracked
-    if (!this.behavioralTargetingManager.getTrackedEvents()?.has(event)) {
-      return;
-    }
-
     // Evaluate all rules and get active flags
-    const activeFlags = this.behavioralTargetingManager.evaluateAll();
+    const flagState = this.behavioralTargetingManager.evaluateAll();
 
     // Update the experiment client with the active flags
-    this.webExperimentClient.updateActiveBehavioralFlags(activeFlags);
+    this.webExperimentClient.updateActiveBehavioralFlags(flagState);
   };
 
   public initSubscriptions = () => {

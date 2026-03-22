@@ -18,7 +18,7 @@ import mutate, { MutationController } from 'dom-mutator';
 import * as domMutatorExports from 'dom-mutator';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
-import { extractEventNames } from './behavioral-targeting/util';
+import { getEventToFlagMap } from './behavioral-targeting/util';
 import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import { MessageBus } from './subscriptions/message-bus';
@@ -108,9 +108,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly messageBus: MessageBus;
   private pageObjects: PageObjects;
   private activePages: PageObjects = {};
-  private behavioralTargetingRules: BehavioralTargetingRules = {};
+  private readonly behavioralTargetingRules: BehavioralTargetingRules = {};
   private activeBehavioralFlags: Set<string> = new Set();
-  private behavioralTargetingManager: BehavioralTargetingManager | undefined;
+  private readonly behavioralTargetingManager:
+    | BehavioralTargetingManager
+    | undefined;
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
@@ -135,7 +137,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.initialFlags = JSON.parse(initialFlags);
     this.pageObjects = JSON.parse(pageObjects);
     this.behavioralTargetingRules = JSON.parse(behavioralObjects);
-    const trackedEvents = extractEventNames(this.behavioralTargetingRules);
+    const trackedEvents = getEventToFlagMap(this.behavioralTargetingRules);
 
     // Initialize behavioral targeting infrastructure only if there are rules
     if (Object.keys(this.behavioralTargetingRules).length > 0) {
@@ -663,8 +665,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   /**
    * Update active behavioral flags tracking.
    */
-  updateActiveBehavioralFlags(activeFlags: Set<string>): void {
-    this.activeBehavioralFlags = activeFlags;
+  updateActiveBehavioralFlags(flagState: { [flagKey: string]: boolean }): void {
+    this.activeBehavioralFlags = {
+      ...this.activeBehavioralFlags,
+      ...flagState,
+    };
   }
 
   private async fetchRemoteFlags() {
