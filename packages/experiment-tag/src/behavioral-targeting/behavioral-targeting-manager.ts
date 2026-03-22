@@ -12,14 +12,12 @@ export class BehavioralTargetingManager {
   private readonly eventStorage: EventStorageManager;
   private evaluator: BehavioralTargetingEvaluator;
   private readonly rules: { [flagKey: string]: BehavioralTargeting };
-  private readonly trackedEventsToFlagKeys: {
-    [eventType: string]: Set<string>;
-  };
+  private readonly trackedEventsToFlagKeys: Map<string, Set<string>>;
 
   constructor(
     apiKey: string,
     initialRules: { [flagKey: string]: BehavioralTargeting } = {},
-    trackedEventsToFlagKeys: { [eventType: string]: Set<string> },
+    trackedEventsToFlagKeys: Map<string, Set<string>> = new Map(),
   ) {
     this.rules = initialRules;
     this.trackedEventsToFlagKeys = trackedEventsToFlagKeys;
