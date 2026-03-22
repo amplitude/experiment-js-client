@@ -12,20 +12,22 @@ export class BehavioralTargetingManager {
   private readonly eventStorage: EventStorageManager;
   private evaluator: BehavioralTargetingEvaluator;
   private readonly rules: { [flagKey: string]: BehavioralTargeting };
-  private readonly trackedEvents: Set<string>;
+  private readonly trackedEventsToFlagKeys: {
+    [eventType: string]: string[];
+  };
 
   constructor(
     apiKey: string,
     initialRules: { [flagKey: string]: BehavioralTargeting } = {},
-    trackedEvents: Set<string>,
+    trackedEventsToFlagKeys: { [eventType: string]: string[] },
   ) {
     this.rules = initialRules;
-    this.trackedEvents = trackedEvents;
+    this.trackedEventsToFlagKeys = trackedEventsToFlagKeys;
     this.sessionManager = new SessionManager(apiKey);
     this.eventStorage = new EventStorageManager(
       apiKey,
       this.sessionManager,
-      trackedEvents,
+      new Set(Object.keys(trackedEventsToFlagKeys)),
     );
     this.evaluator = new BehavioralTargetingEvaluator(this.eventStorage);
   }
@@ -59,14 +61,29 @@ export class BehavioralTargetingManager {
    * Evaluate all behavioral targeting rules.
    * @returns Set of flag keys that match their behavioral targeting rules
    */
-  public evaluateAll(): Set<string> {
-    const activeFlags = new Set<string>();
+  public evaluateAll(): { [flagKey: string]: boolean } {
+    const result: { [flagKey: string]: boolean } = {};
     for (const flagKey in this.rules) {
-      if (this.evaluateFlag(flagKey)) {
-        activeFlags.add(flagKey);
-      }
+      result[flagKey] = this.evaluateFlag(flagKey);
     }
-    return activeFlags;
+    return result;
+  }
+
+  /**
+   * Evaluate behavioral targeting rules for a specific event type.
+   * @param eventType The event type/name
+   * @returns Object with flag keys as keys and boolean values indicating if the rules match
+   */
+  public evaluateEvent(eventType: string): { [flagKey: string]: boolean } {
+    if (!this.trackedEventsToFlagKeys[eventType]) {
+      return {};
+    }
+    const flagKeys = this.trackedEventsToFlagKeys[eventType];
+    const result: { [flagKey: string]: boolean } = {};
+    for (const flagKey of flagKeys) {
+      result[flagKey] = this.evaluateFlag(flagKey);
+    }
+    return result;
   }
 
   /**
@@ -85,14 +102,6 @@ export class BehavioralTargetingManager {
    */
   public hasRules(flagKey: string): boolean {
     return !!this.rules[flagKey];
-  }
-
-  /**
-   * Get the set of tracked events.
-   * @returns Set of tracked events or undefined if not set
-   */
-  public getTrackedEvents(): Set<string> {
-    return this.trackedEvents;
   }
 
   /**
