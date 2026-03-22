@@ -46,7 +46,9 @@ export class SubscriptionManager {
   private webExperimentClient: DefaultWebExperimentClient;
   private messageBus: MessageBus;
   private pageObjects: PageObjects;
-  private behavioralTargetingManager: BehavioralTargetingManager | undefined;
+  private readonly behavioralTargetingManager:
+    | BehavioralTargetingManager
+    | undefined;
   private options: initOptions;
   private readonly globalScope: typeof globalThis;
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
@@ -111,7 +113,7 @@ export class SubscriptionManager {
     }
 
     // Evaluate all rules and get active flags
-    const flagState = this.behavioralTargetingManager.evaluateAll();
+    const flagState = this.behavioralTargetingManager.evaluateEvent(event);
 
     // Update the experiment client with the active flags
     this.webExperimentClient.updateActiveBehavioralFlags(flagState);
