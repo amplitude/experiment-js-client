@@ -13,6 +13,7 @@ import {
   ScrolledToTriggerValue,
   AnalyticsEventTriggerValue,
 } from '../types';
+import { DebugState } from '../types/debug';
 import {
   arePageObjectsEqual,
   clonePageObjects,
