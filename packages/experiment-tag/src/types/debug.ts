@@ -5,6 +5,7 @@ import type { MessageType } from '../subscriptions/message-bus';
 export interface DebugState {
   flags: Record<string, FlagDebugInfo>;
   visualEditor: VisualEditorDebugInfo;
+  events: DebugEvent[];
   currentUrl: string;
   timestamp: number;
 }
@@ -93,6 +94,7 @@ export interface ExitIntentTriggerDebugInfo extends TriggerDebugInfoBase {
 export interface TimeOnPageTriggerDebugInfo extends TriggerDebugInfoBase {
   type: 'time_on_page';
   config: { durationMs: number };
+  elapsedMs: number;
 }
 
 export interface ScrolledToTriggerDebugInfo extends TriggerDebugInfoBase {
@@ -100,10 +102,26 @@ export interface ScrolledToTriggerDebugInfo extends TriggerDebugInfoBase {
   config:
     | { mode: 'percent'; percentage: number }
     | { mode: 'element'; selector: string; offsetPx?: number };
+  currentPercentage?: number;
 }
 
 // --- Visual editor debug info ---
 
+export type VEMessengerState =
+  | 'not_started'
+  | 'waiting'
+  | 'loading'
+  | 'loaded'
+  | 'error';
+
+export interface DebugEvent {
+  timestamp: number;
+  event: string;
+  detail?: string;
+}
+
 export interface VisualEditorDebugInfo {
   isActive: boolean;
+  source?: 'url_param' | 'session_storage' | null;
+  messengerState?: VEMessengerState;
 }
