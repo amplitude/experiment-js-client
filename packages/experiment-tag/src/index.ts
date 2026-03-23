@@ -17,8 +17,8 @@ export const initialize = (
   apiKey: string,
   initialFlags: string,
   pageObjects: string,
-  config: WebExperimentConfig,
   behavioralRules: string,
+  config: WebExperimentConfig,
 ): void => {
   const globalScope = getGlobalScope();
   if (!globalScope) {
@@ -44,18 +44,18 @@ export const initialize = (
       .then((previewState) => {
         const flags = JSON.stringify(previewState.flags);
         const objects = JSON.stringify(previewState.pageViewObjects);
-        startClient(apiKey, flags, objects, config, behavioralRules);
+        startClient(apiKey, flags, objects, behavioralRules, config);
       })
       .catch((error) => {
         console.warn('Failed to fetch latest configs for preview:', error);
-        startClient(apiKey, initialFlags, pageObjects, config, behavioralRules);
+        startClient(apiKey, initialFlags, pageObjects, behavioralRules, config);
       })
       .finally(() => {
         // Remove anti-flicker css if it exists
         document.getElementById('amp-exp-css')?.remove();
       });
   } else {
-    startClient(apiKey, initialFlags, pageObjects, config, behavioralRules);
+    startClient(apiKey, initialFlags, pageObjects, behavioralRules, config);
   }
 };
 
@@ -63,15 +63,15 @@ const startClient = (
   apiKey: string,
   flags: string,
   objects: string,
-  config: WebExperimentConfig,
   behavioralRules: string,
+  config: WebExperimentConfig,
 ): void => {
   DefaultWebExperimentClient.getInstance(
     apiKey,
     flags,
     objects,
-    config,
     behavioralRules,
+    config,
   )
     .start()
     .finally(() => {

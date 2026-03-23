@@ -123,8 +123,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     apiKey: string,
     initialFlags: string,
     pageObjects: string,
+    behavioralRules: string,
     config: WebExperimentConfig = {},
-    behavioralObjects = '{}',
   ) {
     const globalScope = getGlobalScope();
     if (!globalScope || !isLocalStorageAvailable()) {
@@ -136,7 +136,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.apiKey = apiKey;
     this.initialFlags = JSON.parse(initialFlags);
     this.pageObjects = JSON.parse(pageObjects);
-    this.behavioralTargetingRules = JSON.parse(behavioralObjects);
+    this.behavioralTargetingRules = JSON.parse(behavioralRules);
     const trackedEvents = getEventToFlagMap(this.behavioralTargetingRules);
 
     // Initialize behavioral targeting infrastructure only if there are rules
@@ -358,8 +358,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     apiKey: string,
     initialFlags: string,
     pageObjects: string,
-    config: WebExperimentConfig = {},
     behavioralRules: string,
+    config: WebExperimentConfig = {},
   ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
     if (!globalScope) {
@@ -380,8 +380,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       apiKey,
       initialFlags,
       pageObjects,
-      config,
       behavioralRules,
+      config,
     );
     // Set the real client instance
     globalScope.webExperiment = webExperiment;
