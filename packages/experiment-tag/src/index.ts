@@ -17,6 +17,7 @@ export const initialize = (
   apiKey: string,
   initialFlags: string,
   pageObjects: string,
+  behavioralRules: string,
   config: WebExperimentConfig,
 ): void => {
   const globalScope = getGlobalScope();
@@ -43,18 +44,18 @@ export const initialize = (
       .then((previewState) => {
         const flags = JSON.stringify(previewState.flags);
         const objects = JSON.stringify(previewState.pageViewObjects);
-        startClient(apiKey, flags, objects, config);
+        startClient(apiKey, flags, objects, behavioralRules, config);
       })
       .catch((error) => {
         console.warn('Failed to fetch latest configs for preview:', error);
-        startClient(apiKey, initialFlags, pageObjects, config);
+        startClient(apiKey, initialFlags, pageObjects, behavioralRules, config);
       })
       .finally(() => {
         // Remove anti-flicker css if it exists
         document.getElementById('amp-exp-css')?.remove();
       });
   } else {
-    startClient(apiKey, initialFlags, pageObjects, config);
+    startClient(apiKey, initialFlags, pageObjects, behavioralRules, config);
   }
 };
 
@@ -62,9 +63,16 @@ const startClient = (
   apiKey: string,
   flags: string,
   objects: string,
+  behavioralRules: string,
   config: WebExperimentConfig,
 ): void => {
-  DefaultWebExperimentClient.getInstance(apiKey, flags, objects, config)
+  DefaultWebExperimentClient.getInstance(
+    apiKey,
+    flags,
+    objects,
+    behavioralRules,
+    config,
+  )
     .start()
     .finally(() => {
       // Remove anti-flicker css if it exists

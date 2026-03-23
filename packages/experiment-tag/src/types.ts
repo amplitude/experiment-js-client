@@ -140,6 +140,8 @@ export interface WebExperimentClient {
 
   getActivePages(): PageObjects;
 
+  getActiveBehaviors(): Set<string>;
+
   setRedirectHandler(handler: (url: string) => void): void;
 
   toggleManualPageObject(name: string, isActive?: boolean): void;

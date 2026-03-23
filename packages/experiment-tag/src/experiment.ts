@@ -17,6 +17,8 @@ import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 import * as domMutatorExports from 'dom-mutator';
 
+import { BehavioralTargetingManager } from './behavioral-targeting';
+import { getEventToFlagMap } from './behavioral-targeting/util';
 import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import { MessageBus } from './subscriptions/message-bus';
@@ -33,6 +35,7 @@ import {
   PreviewVariantsOptions,
   PreviewState,
   RevertVariantsOptions,
+  BehavioralTargetingRules,
 } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
@@ -105,6 +108,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly messageBus: MessageBus;
   private pageObjects: PageObjects;
   private activePages: PageObjects = {};
+  private readonly behavioralTargetingRules: BehavioralTargetingRules = {};
+  private activeBehavioralFlags: Set<string> = new Set();
+  private readonly behavioralTargetingManager:
+    | BehavioralTargetingManager
+    | undefined;
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
@@ -115,6 +123,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     apiKey: string,
     initialFlags: string,
     pageObjects: string,
+    behavioralRules: string,
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
@@ -127,6 +136,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.apiKey = apiKey;
     this.initialFlags = JSON.parse(initialFlags);
     this.pageObjects = JSON.parse(pageObjects);
+    this.behavioralTargetingRules = JSON.parse(behavioralRules);
+    const trackedEvents = getEventToFlagMap(this.behavioralTargetingRules);
+
+    // Initialize behavioral targeting infrastructure only if there are rules
+    if (Object.keys(this.behavioralTargetingRules).length > 0) {
+      this.behavioralTargetingManager = new BehavioralTargetingManager(
+        this.apiKey,
+        this.behavioralTargetingRules,
+        trackedEvents,
+      );
+    }
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
@@ -200,6 +220,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this,
       this.messageBus,
       this.pageObjects,
+      this.behavioralTargetingManager,
       {
         ...this.config,
         isVisualEditorMode: this.isVisualEditorMode,
@@ -297,6 +318,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
 
+    // Evaluate initial behaviors (from events already in storage) before applying variants
+    this.behavioralTargetingManager?.evaluateAll();
+
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
     this.previewVariants({
@@ -328,11 +352,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param initialFlags
    * @param pageObjects
    * @param config
+   * @param behavioralRules
    */
   static getInstance(
     apiKey: string,
     initialFlags: string,
     pageObjects: string,
+    behavioralRules: string,
     config: WebExperimentConfig = {},
   ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
@@ -354,6 +380,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       apiKey,
       initialFlags,
       pageObjects,
+      behavioralRules,
       config,
     );
     // Set the real client instance
@@ -538,6 +565,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
+   * Get the set of active behavioral targeting flags.
+   */
+  public getActiveBehaviors(): Set<string> {
+    return this.activeBehavioralFlags;
+  }
+
+  /**
    * Add a subscriber to the page change event.
    * @param callback
    * @returns An unsubscribe function to remove the subscriber.
@@ -610,7 +644,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Track an analytics event that can trigger page objects.
+   * Track an analytics event that can trigger page objects and behavioral targeting.
    * @param event_type The event type/name
    * @param event_properties Optional event properties
    */
@@ -618,10 +652,30 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     event_type: string,
     event_properties?: Record<string, unknown>,
   ) {
+    // Store event in behavioral targeting storage
+    this.behavioralTargetingManager?.trackEvent(
+      event_type,
+      event_properties || {},
+    );
+
+    // Publish to message bus for page object triggers
     this.messageBus.publish('analytics_event', {
       event: event_type,
       properties: event_properties || {},
     });
+  }
+
+  /**
+   * Update active behavioral flags tracking.
+   */
+  updateActiveBehavioralFlags(flagState: { [flagKey: string]: boolean }): void {
+    for (const flagKey in flagState) {
+      if (flagState[flagKey]) {
+        this.activeBehavioralFlags.add(flagKey);
+      } else {
+        this.activeBehavioralFlags.delete(flagKey);
+      }
+    }
   }
 
   private async fetchRemoteFlags() {
@@ -883,14 +937,34 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     scope: string[] | undefined,
   ): boolean {
     const flagPages = this.activePages[flagKey];
+    const hasBehavioralTargeting =
+      this.behavioralTargetingManager?.hasRules(flagKey);
 
-    // If no scope is provided, assume variant is active if the flag has any active pages
+    // Check if pages or behaviors are active at flag level
+    const hasPagesActive =
+      !!flagPages && Object.values(flagPages).some(Boolean);
+    const hasBehaviorsActive = this.activeBehavioralFlags.has(flagKey);
+
+    // If no scope is provided:
+    // - If experiment has behavioral targeting: BOTH pages AND behaviors must be active
+    // - If experiment has no behavioral targeting: only pages must be active
     if (!scope) {
-      return !!flagPages && Object.values(flagPages).some(Boolean);
+      if (hasBehavioralTargeting) {
+        return hasPagesActive && hasBehaviorsActive;
+      }
+      return hasPagesActive;
     }
 
-    // If scope is provided, check if any scoped page is active
-    return scope.some((pageId) => flagPages?.[pageId] ?? false);
+    // If scope is provided, check if scoped pages are active
+    // Behavioral targeting is always evaluated at flag level, not scope level
+    const pageMatch = scope.some((pageId) => flagPages?.[pageId] ?? false);
+
+    // If experiment has behavioral targeting: both page scope AND flag-level behaviors must be active
+    // If no behavioral targeting: only page scope must be active
+    if (hasBehavioralTargeting) {
+      return pageMatch && hasBehaviorsActive;
+    }
+    return pageMatch;
   }
 
   private storeRedirectImpressions(

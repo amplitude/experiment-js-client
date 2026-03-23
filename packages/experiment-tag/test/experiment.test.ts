@@ -67,6 +67,7 @@ describe('initializeExperiment', () => {
       stringify(apiKey),
       JSON.stringify([]),
       JSON.stringify({}),
+      JSON.stringify({}),
     ).start();
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       web_exp_id: 'mock',
@@ -105,6 +106,7 @@ describe('initializeExperiment', () => {
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify({}),
+      JSON.stringify({}),
       {
         httpClient: mockHttpClient,
       },
@@ -120,6 +122,7 @@ describe('initializeExperiment', () => {
       await DefaultWebExperimentClient.getInstance(
         stringify(apiKey),
         JSON.stringify([]),
+        JSON.stringify({}),
         JSON.stringify({}),
       ).start();
     } catch (error: any) {
@@ -154,6 +157,7 @@ describe('initializeExperiment', () => {
         ),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     );
 
     // Initialize the client to ensure messageBus is created
@@ -204,6 +208,7 @@ describe('initializeExperiment', () => {
         createRedirectFlag('test', 'control', 'http://test.com/2'),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     ).start();
 
     // No redirect should happen
@@ -242,6 +247,7 @@ describe('initializeExperiment', () => {
         createRedirectFlag('test', 'treatment', 'http://test.com/2'),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     ).start();
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
@@ -288,6 +294,7 @@ describe('initializeExperiment', () => {
         ),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     );
 
     await client.start();
@@ -344,6 +351,7 @@ describe('initializeExperiment', () => {
         createRedirectFlag('test', 'treatment', 'http://test.com/2', undefined),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     );
 
     client.start().then();
@@ -383,6 +391,7 @@ describe('initializeExperiment', () => {
         ),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     );
 
     await client.start();
@@ -434,6 +443,7 @@ describe('initializeExperiment', () => {
         ),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     ).start();
 
     expect(mockGlobal.location.replace).not.toHaveBeenCalled();
@@ -469,6 +479,7 @@ describe('initializeExperiment', () => {
         ),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     );
 
     // Initialize the client to ensure messageBus is created
@@ -531,6 +542,7 @@ describe('initializeExperiment', () => {
         ),
       ]),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     );
     expect(mockExposure).not.toHaveBeenCalled();
   });
@@ -550,6 +562,7 @@ describe('initializeExperiment', () => {
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
       {
         httpClient: mockHttpClient,
       },
@@ -601,6 +614,7 @@ describe('initializeExperiment', () => {
           'http://test.com',
         ),
       }),
+      JSON.stringify({}),
       {
         httpClient: mockHttpClient,
       },
@@ -658,6 +672,7 @@ describe('initializeExperiment', () => {
           'http://test.com',
         ),
       }),
+      JSON.stringify({}),
       {
         httpClient: mockHttpClient,
       },
@@ -686,6 +701,7 @@ describe('initializeExperiment', () => {
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
       {
         httpClient: mockHttpClient,
       },
@@ -726,6 +742,7 @@ describe('initializeExperiment', () => {
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
       {
         httpClient: mockHttpClient,
       },
@@ -772,6 +789,7 @@ describe('initializeExperiment', () => {
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
       {
         httpClient: mockHttpClient,
       },
@@ -828,6 +846,7 @@ describe('initializeExperiment', () => {
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     );
     await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
@@ -862,6 +881,7 @@ describe('initializeExperiment', () => {
           ...createPageObject('B', 'url_change', undefined, 'http://test.com'),
         },
       }),
+      JSON.stringify({}),
     );
     await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
@@ -916,6 +936,7 @@ describe('initializeExperiment', () => {
         'test-1': test1Page,
         'test-2': test2Page,
       }),
+      JSON.stringify({}),
     );
     client.start().then();
     let activePages = (client as any).activePages;
@@ -944,6 +965,7 @@ describe('initializeExperiment', () => {
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     );
     await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
@@ -976,6 +998,7 @@ describe('initializeExperiment', () => {
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     );
     client.start().then();
     expect(mockExposure).toHaveBeenCalledTimes(0);
@@ -995,6 +1018,7 @@ describe('initializeExperiment', () => {
       stringify(apiKey),
       JSON.stringify(initialFlags),
       JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      JSON.stringify({}),
     );
     await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
@@ -1048,6 +1072,7 @@ describe('initializeExperiment', () => {
         'test-1': test1Page,
         'test-2': test2Page,
       }),
+      JSON.stringify({}),
     );
     await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
@@ -1126,6 +1151,7 @@ describe('initializeExperiment', () => {
           'http://test.com',
         ),
       }),
+      JSON.stringify({}),
     );
 
     // Clear exposure tracking before test
@@ -1213,6 +1239,7 @@ describe('initializeExperiment', () => {
         apiKey,
         JSON.stringify(initialFlags),
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
+        JSON.stringify({}),
         {
           httpClient: new MockHttpClient(JSON.stringify(remoteFlags), 200),
         },
@@ -1295,6 +1322,7 @@ describe('initializeExperiment', () => {
         apiKey,
         JSON.stringify(initialFlags),
         JSON.stringify(DEFAULT_PAGE_OBJECTS),
+        JSON.stringify({}),
         {
           httpClient: new MockHttpClient(JSON.stringify(remoteFlags), 200),
         },
@@ -1400,6 +1428,7 @@ describe('helper methods', () => {
           'http://not-targeted.com',
         ),
       }),
+      JSON.stringify({}),
     );
     await webExperiment.start();
     const activeExperiments = webExperiment.getActiveExperiments();
@@ -1428,6 +1457,7 @@ describe('helper methods', () => {
         ),
         createRedirectFlag('flag-2', 'control', '', undefined),
       ]),
+      JSON.stringify({}),
       JSON.stringify({}),
     );
     const variants = webExperiment.getVariants();
