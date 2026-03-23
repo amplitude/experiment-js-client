@@ -131,4 +131,6 @@ export type {
   PageObjectDebugInfo,
   TriggerDebugInfo,
   VisualEditorDebugInfo,
+  DebugEvent,
+  VEMessengerState,
 } from './types/debug';
