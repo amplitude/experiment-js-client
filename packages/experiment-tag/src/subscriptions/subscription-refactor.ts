@@ -1,11 +1,7 @@
 import { EvaluationEngine } from '@amplitude/experiment-core';
 
 import { DefaultWebExperimentClient, INJECT_ACTION } from '../experiment';
-import {
-  TriggerManager,
-  TRIGGER_MANAGER_REGISTRY,
-  // ManualTriggerManager,
-} from '../triggers';
+import { TriggerManager, TRIGGER_MANAGER_REGISTRY } from '../triggers';
 import { PageObject, PageObjects } from '../types';
 import { arePageObjectsEqual, clonePageObjects } from '../util/page-object';
 
@@ -85,18 +81,6 @@ export class SubscriptionManager {
     }
     return snapshots;
   }
-
-  /**
-   * Toggle manual page object activation
-   */
-  // public toggleManualPageObject = (page: string, isActive: boolean): void => {
-  //   const manager = this.triggerManagers.get('manual') as
-  //     | ManualTriggerManager
-  //     | undefined;
-  //   if (manager) {
-  //     manager.toggle(page, isActive);
-  //   }
-  // };
 
   /**
    * Create trigger managers only for trigger types that have page objects.
