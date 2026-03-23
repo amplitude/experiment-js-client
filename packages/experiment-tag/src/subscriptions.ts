@@ -417,12 +417,6 @@ export class SubscriptionManager {
         if (pagesChanged || isUrlChange) {
           this.scheduleDebugNotification();
         }
-
-        // Debug subscribers fire on any URL change or page change,
-        // since the debugger cares about currentUrl and trigger state too.
-        if (pagesChanged || isUrlChange) {
-          this.scheduleDebugNotification();
-        }
       });
     }
   };
