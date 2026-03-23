@@ -59,10 +59,12 @@ export class BehavioralTargetingManager {
    * Evaluate all behavioral targeting rules.
    * @returns Set of flag keys that match their behavioral targeting rules
    */
-  public evaluateAll(): { [flagKey: string]: boolean } {
-    const result: { [flagKey: string]: boolean } = {};
+  public evaluateAll(): Set<string> {
+    const result = new Set<string>();
     for (const flagKey in this.rules) {
-      result[flagKey] = this.evaluateFlag(flagKey);
+      if (this.evaluateFlag(flagKey)) {
+        result.add(flagKey);
+      }
     }
     return result;
   }
