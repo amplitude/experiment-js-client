@@ -352,12 +352,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param initialFlags
    * @param pageObjects
    * @param config
+   * @param behavioralRules
    */
   static getInstance(
     apiKey: string,
     initialFlags: string,
     pageObjects: string,
     config: WebExperimentConfig = {},
+    behavioralRules: string,
   ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
     if (!globalScope) {
@@ -379,6 +381,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       initialFlags,
       pageObjects,
       config,
+      behavioralRules,
     );
     // Set the real client instance
     globalScope.webExperiment = webExperiment;
