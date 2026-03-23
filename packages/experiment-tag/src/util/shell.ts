@@ -2,13 +2,12 @@ const MOBILE_MODE_SESSION_KEY = 'amp-visual-editor-mobile-mode';
 const DEVICE_IFRAME_ID = 'amp-device-iframe';
 const DEVICE_CONTAINER_ID = 'amp-overlay-device-iframe-container';
 
-// TODO: Replace with the default device from the device presets list.
 const DEFAULT_MOBILE_WIDTH = 375;
 const DEFAULT_MOBILE_HEIGHT = 667;
 
 export function isMobileModeActive(): boolean {
   try {
-    return sessionStorage.getItem(MOBILE_MODE_SESSION_KEY) !== null;
+    return sessionStorage.getItem(MOBILE_MODE_SESSION_KEY) === 'true';
   } catch {
     return false;
   }

@@ -14,15 +14,15 @@ import {
   Variants,
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
-import mutate, {
-  MutationController,
-  pauseGlobalObserver,
-  resumeGlobalObserver,
-} from 'dom-mutator';
+import mutate, { MutationController } from 'dom-mutator';
+import * as domMutatorExports from 'dom-mutator';
 
 import { showPreviewModeModal } from './preview/preview';
-import { PageChangeEvent, SubscriptionManager } from './subscriptions/subscriptions';
 import { MessageBus } from './subscriptions/message-bus';
+import {
+  PageChangeEvent,
+  SubscriptionManager,
+} from './subscriptions/subscriptions';
 import {
   Defaults,
   WebExperimentClient,
@@ -37,6 +37,7 @@ import {
   PreviewState,
   RevertVariantsOptions,
 } from './types';
+import type { DebugState } from './types/debug';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
@@ -110,6 +111,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
+  private isDebugActive = false;
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, string> = {};
@@ -190,12 +192,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // When running inside an iframe (mobile shell), skip overlay loading and
     // expose dom-mutator on the window so the overlay in the parent frame can
     // apply and control mutations against this document.
-    if (this.globalScope.self !== this.globalScope.top) {
-      (this.globalScope as any).ampDomMutator = {
-        ...mutate,
-        pauseGlobalObserver,
-        resumeGlobalObserver,
-      };
+    if (
+      this.globalScope.self !== this.globalScope.top &&
+      isMobileModeActive()
+    ) {
+      (this.globalScope as any).ampDomMutator = domMutatorExports;
       this.isRunning = true;
       return;
     }
@@ -203,6 +204,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
       getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
+    this.isDebugActive = this.evaluateDebugActivation();
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
@@ -210,6 +212,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       {
         ...this.config,
         isVisualEditorMode: this.isVisualEditorMode,
+        isDebugActive: this.isDebugActive,
       },
       this.globalScope,
     );
@@ -348,9 +351,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         'Amplitude Web Experiment Client could not be initialized.',
       );
     }
-    // if the client has already been initialized, return the existing instance
-    if (globalScope.webExperiment instanceof DefaultWebExperimentClient) {
-      const existingClient = globalScope.webExperiment;
+    // if the client has already been initialized not a stub, return the
+    // existing instance
+    if (globalScope.webExperiment && !globalScope.webExperiment.isStub) {
+      const existingClient =
+        globalScope.webExperiment as DefaultWebExperimentClient;
       // Flush any events that may have been buffered since last initialization
       if (existingClient.isRunning) {
         flushEventBuffer(existingClient);
@@ -590,6 +595,70 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public toggleManualPageObject(name: string, isActive = true) {
     this.subscriptionManager?.toggleManualPageObject(name, isActive);
+  }
+
+  /**
+   * Returns a snapshot of the current debug state for all flags.
+   * Populated with richer page-object and trigger detail in later stories.
+   */
+  public getDebugState(): DebugState {
+    const flags: DebugState['flags'] = {};
+    const variants = this.getVariants();
+
+    for (const flagKey of [...this.localFlagKeys, ...this.remoteFlagKeys]) {
+      const variant = variants[flagKey];
+      const activePagesForFlag = this.activePages[flagKey];
+
+      flags[flagKey] = {
+        flagKey,
+        variant: variant?.key
+          ? { key: variant.key, value: variant.value }
+          : null,
+        isActive:
+          !!activePagesForFlag && Object.keys(activePagesForFlag).length > 0,
+        pageObjects: [],
+      };
+    }
+
+    return {
+      flags,
+      visualEditor: { isActive: this.isVisualEditorMode },
+      currentUrl: this.globalScope.location.href,
+      timestamp: Date.now(),
+    };
+  }
+
+  /**
+   * Subscribe to debug state changes. Fires debounced (~100 ms) on page change events.
+   * @returns An unsubscribe function, or undefined if subscriptions are not initialized.
+   */
+  public addDebugStateSubscriber(
+    callback: (state: DebugState) => void,
+  ): (() => void) | undefined {
+    if (this.subscriptionManager) {
+      return this.subscriptionManager.addDebugStateSubscriber(callback);
+    }
+  }
+
+  /**
+   * Debug activation check, evaluated once at init time and cached.
+   * Debug recording is always an explicit opt-in — NOT auto-enabled in
+   * visual editor mode. Two signals are checked:
+   * 1. Global flag: `window.__AMP_DEBUG`
+   * 2. localStorage key: `amp-ve-debug`
+   */
+  private evaluateDebugActivation(): boolean {
+    if ((this.globalScope as Record<string, unknown>).__AMP_DEBUG === true) {
+      return true;
+    }
+    try {
+      if (this.globalScope.localStorage?.getItem('amp-ve-debug') === 'true') {
+        return true;
+      }
+    } catch {
+      // localStorage may throw in restricted contexts
+    }
+    return false;
   }
 
   /**
