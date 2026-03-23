@@ -666,10 +666,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Update active behavioral flags tracking.
    */
   updateActiveBehavioralFlags(flagState: { [flagKey: string]: boolean }): void {
-    this.activeBehavioralFlags = {
-      ...this.activeBehavioralFlags,
-      ...flagState,
-    };
+    for (const flagKey in flagState) {
+      if (flagState[flagKey]) {
+        this.activeBehavioralFlags.add(flagKey);
+      } else {
+        this.activeBehavioralFlags.delete(flagKey);
+      }
+    }
   }
 
   private async fetchRemoteFlags() {
