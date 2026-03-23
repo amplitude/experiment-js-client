@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.18.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.17.1...@amplitude/experiment-tag@0.18.0) (2026-03-23)
+
+
+### Features
+
+* don't minify in dev mode and allow earlier WebExperiment to override ([#289](https://github.com/amplitude/experiment-js-client/issues/289)) ([af46363](https://github.com/amplitude/experiment-js-client/commit/af46363ec0988f9f80575d174abb8877c4d9a12c))
+* **experiment-tag:** add debug state API with activation check and subscriber ([#288](https://github.com/amplitude/experiment-js-client/issues/288)) ([43f0b72](https://github.com/amplitude/experiment-js-client/commit/43f0b72825c56cee227d6d97462274132e6f1418))
+* **experiment-tag:** add page object trigger debug info and manual test page ([#291](https://github.com/amplitude/experiment-js-client/issues/291)) ([8106448](https://github.com/amplitude/experiment-js-client/commit/8106448bf54bcae47a8ff321ae7bc9180fcdbaef))
+
+
+
+
+
 ## [0.17.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.17.0...@amplitude/experiment-tag@0.17.1) (2026-03-20)
 
 
