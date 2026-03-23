@@ -36,3 +36,7 @@ export {
 } from './types/plugin';
 export { Logger, LogLevel } from './types/logger';
 export { ConsoleLogger } from './logger/consoleLogger';
+export {
+  FlagEvaluationTrace,
+  SegmentEvaluationTrace,
+} from '@amplitude/experiment-core';

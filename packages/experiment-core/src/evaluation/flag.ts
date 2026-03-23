@@ -42,6 +42,20 @@ export type EvaluationDistribution = {
   range: number[];
 };
 
+export type SegmentEvaluationTrace = {
+  segmentName?: string;
+  conditionsPassed: boolean;
+  bucketed: boolean;
+  bucketVariant?: string;
+};
+
+export type FlagEvaluationTrace = {
+  flagKey: string;
+  matched: boolean;
+  matchedSegment?: string;
+  segments: SegmentEvaluationTrace[];
+};
+
 export const EvaluationOperator = {
   IS: 'is',
   IS_NOT: 'is not',
