@@ -1,6 +1,7 @@
 const MOBILE_MODE_SESSION_KEY = 'amp-visual-editor-mobile-mode';
 const DEVICE_IFRAME_ID = 'amp-device-iframe';
 const DEVICE_CONTAINER_ID = 'amp-overlay-device-iframe-container';
+const OVERLAY_HOST_ID = 'overlay-shadow-host';
 
 const DEFAULT_MOBILE_WIDTH = 375;
 const DEFAULT_MOBILE_HEIGHT = 667;
@@ -21,6 +22,16 @@ export function isMobileModeActive(): boolean {
 export function buildShell(globalScope: typeof globalThis): void {
   const run = () => {
     const doc = globalScope.document;
+
+    // Inject a CSS rule that hides any direct children of <body> except the
+    // device-iframe container and the overlay host. This prevents third-party
+    // scripts from rendering visible elements in the shell.
+    const shellGuard = doc.createElement('style');
+    shellGuard.setAttribute('data-amp-shell-guard', '');
+    shellGuard.textContent =
+      `body > *:not(#${DEVICE_CONTAINER_ID}):not(#${OVERLAY_HOST_ID}) ` +
+      `{ display: none !important; }`;
+    doc.head.appendChild(shellGuard);
 
     while (doc.body.firstChild) {
       doc.body.removeChild(doc.body.firstChild);
