@@ -2,6 +2,7 @@ const MOBILE_MODE_SESSION_KEY = 'amp-visual-editor-mobile-mode';
 const DEVICE_IFRAME_ID = 'amp-device-iframe';
 const DEVICE_CONTAINER_ID = 'amp-overlay-device-iframe-container';
 const OVERLAY_HOST_ID = 'overlay-shadow-host';
+const LOADING_INDICATOR_ID = 'amp-exp-loading';
 
 const DEFAULT_MOBILE_WIDTH = 375;
 const DEFAULT_MOBILE_HEIGHT = 667;
@@ -29,7 +30,7 @@ export function buildShell(globalScope: typeof globalThis): void {
     const shellGuard = doc.createElement('style');
     shellGuard.setAttribute('data-amp-shell-guard', '');
     shellGuard.textContent =
-      `body > *:not(#${DEVICE_CONTAINER_ID}):not(#${OVERLAY_HOST_ID}) ` +
+      `body > *:not(#${DEVICE_CONTAINER_ID}):not(#${OVERLAY_HOST_ID}):not(#${LOADING_INDICATOR_ID}) ` +
       `{ display: none !important; }`;
     doc.head.appendChild(shellGuard);
 
