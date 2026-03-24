@@ -60,7 +60,8 @@ export class SubscriptionManager {
     new Set();
   private lastNotifiedActivePages: PageObjects = {};
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
-  private elementVisibilityState: Map<string, boolean> = new Map();
+  // MOVED to ElementVisibleTriggerManager (element-visible-trigger-manager.ts)
+  // private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
   private manuallyActivatedPageObjects: Set<string> = new Set();
   private targetedElementSelectors: Set<string> = new Set();
@@ -114,7 +115,8 @@ export class SubscriptionManager {
       this.setupLocationChangePublisher();
     }
     this.setupMutationObserverPublisher();
-    this.setupVisibilityPublisher();
+    // MOVED to ElementVisibleTriggerManager.initialize (element-visible-trigger-manager.ts)
+    // this.setupVisibilityPublisher();
     this.setupUserInteractionPublisher();
     this.setupExitIntentPublisher();
     this.setupScrolledToPublisher();
@@ -435,7 +437,8 @@ export class SubscriptionManager {
     DebugRecorder.push('trigger_reset', 'all non-url_change triggers cleared');
     // Clear "has fired" state for all triggers
     this.elementAppearedState.clear();
-    this.elementVisibilityState.clear();
+    // MOVED to ElementVisibleTriggerManager.reset (element-visible-trigger-manager.ts)
+    // this.elementVisibilityState.clear();
     this.firedUserInteractions.clear();
     this.scrolledToElementState.clear();
     this.manuallyActivatedPageObjects.clear();
@@ -1335,13 +1338,14 @@ export class SubscriptionManager {
         return this.elementAppearedState.has(selector);
       }
 
-      case 'element_visible': {
-        const triggerValue = page.trigger_value as ElementVisibleTriggerValue;
-        const selector = triggerValue.selector;
-        const visibilityRatio = triggerValue.visibilityRatio ?? 0;
-        const observerKey = `${selector}\0${visibilityRatio}`;
-        return this.elementVisibilityState.get(observerKey) ?? false;
-      }
+      // MOVED to ElementVisibleTriggerManager.isActive (element-visible-trigger-manager.ts)
+      // case 'element_visible': {
+      //   const triggerValue = page.trigger_value as ElementVisibleTriggerValue;
+      //   const selector = triggerValue.selector;
+      //   const visibilityRatio = triggerValue.visibilityRatio ?? 0;
+      //   const observerKey = `${selector}\0${visibilityRatio}`;
+      //   return this.elementVisibilityState.get(observerKey) ?? false;
+      // }
 
       case 'exit_intent': {
         const durationMs = (message as ExitIntentPayload).durationMs;
