@@ -45,6 +45,7 @@ export function buildShell(globalScope: typeof globalThis): void {
       display: flex;
       align-items: center;
       justify-content: center;
+      background-color: #fff;
       background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABZSURBVHgB7dG7DYBADANQJxexAiXSTXw9uyExBih34SOxQhr83Li2ASIiIiIiIpo7QbLW1tms1zijq9puSDaGLxhhuBPaqyKZTFK+/r6AZOJlg8shqv5ccAGZWRnaKiSy9QAAAABJRU5ErkJggg==");
     `;
 
@@ -64,8 +65,9 @@ export function buildShell(globalScope: typeof globalThis): void {
     iframe.style.cssText = `
       width: ${DEFAULT_MOBILE_WIDTH}px;
       height: ${DEFAULT_MOBILE_HEIGHT}px;
-      border: 1px solid #000;
+      border: 1px solid #dedfe2;
       border-radius: 20px;
+      box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.1);
       background: #fff;
     `;
 
