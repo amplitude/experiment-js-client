@@ -142,10 +142,13 @@ export class ExperimentClient implements Client {
     );
     const internalInstanceName = this.config?.['internalInstanceNameSuffix'];
     this.isWebExperiment = internalInstanceName === 'web';
-    this.poller = new Poller(
-      () => this.doFlags(),
-      this.config.flagConfigPollingIntervalMillis,
-    );
+    this.poller = new Poller(async () => {
+      try {
+        await this.doFlags();
+      } catch (e) {
+        this.logger.error(e);
+      }
+    }, this.config.flagConfigPollingIntervalMillis);
     // Transform initialVariants
     if (this.config.initialVariants) {
       for (const flagKey in this.config.initialVariants) {
@@ -795,11 +798,10 @@ export class ExperimentClient implements Client {
     } catch (e) {
       if (e instanceof TimeoutError) {
         this.logger.debug(e);
-        // If throwOnError is configured to true, rethrow timeout errors
-        if (this.config.throwOnError) {
-          throw e;
-        }
       } else {
+        this.logger.error(e);
+      }
+      if (this.config.throwOnError) {
         throw e;
       }
     }
