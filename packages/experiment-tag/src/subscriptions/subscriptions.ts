@@ -70,7 +70,8 @@ export class SubscriptionManager {
   private maxScrollPercentage = 0;
   private timeOnPageTimeouts: Record<number, ReturnType<typeof setTimeout>> =
     {};
-  private firedUserInteractions: Set<string> = new Set();
+  // MOVED to UserInteractionTriggerManager (user-interaction-trigger-manager.ts)
+  // private firedUserInteractions: Set<string> = new Set();
   private clickTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private hoverTimeouts: WeakMap<
     Element,
@@ -436,7 +437,8 @@ export class SubscriptionManager {
     // Clear "has fired" state for all triggers
     this.elementAppearedState.clear();
     this.elementVisibilityState.clear();
-    this.firedUserInteractions.clear();
+    // MOVED to UserInteractionTriggerManager.reset (user-interaction-trigger-manager.ts)
+    // this.firedUserInteractions.clear();
     this.scrolledToElementState.clear();
     this.manuallyActivatedPageObjects.clear();
     this.maxScrollPercentage = 0;
@@ -1352,13 +1354,14 @@ export class SubscriptionManager {
         );
       }
 
-      case 'user_interaction': {
-        const triggerValue = page.trigger_value as UserInteractionTriggerValue;
-        const interactionKey = `${triggerValue.selector}\0${
-          triggerValue.interactionType
-        }\0${triggerValue.minThresholdMs || 0}`;
-        return this.firedUserInteractions.has(interactionKey);
-      }
+      // MOVED to UserInteractionTriggerManager.isActive (user-interaction-trigger-manager.ts)
+      // case 'user_interaction': {
+      //   const triggerValue = page.trigger_value as UserInteractionTriggerValue;
+      //   const interactionKey = `${triggerValue.selector}\0${
+      //     triggerValue.interactionType
+      //   }\0${triggerValue.minThresholdMs || 0}`;
+      //   return this.firedUserInteractions.has(interactionKey);
+      // }
 
       case 'time_on_page': {
         const payload = message as TimeOnPagePayload;
