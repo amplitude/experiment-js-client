@@ -798,10 +798,11 @@ export class ExperimentClient implements Client {
     } catch (e) {
       if (e instanceof TimeoutError) {
         this.logger.debug(e);
+        // If throwOnError is configured to true, rethrow timeout errors
+        if (this.config.throwOnError) {
+          throw e;
+        }
       } else {
-        this.logger.error(e);
-      }
-      if (this.config.throwOnError) {
         throw e;
       }
     }
