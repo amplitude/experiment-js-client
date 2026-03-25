@@ -66,7 +66,8 @@ export class SubscriptionManager {
   private targetedElementSelectors: Set<string> = new Set();
   private scrolledToObservers: Map<string, IntersectionObserver> = new Map();
   private scrolledToElementState: Map<string, boolean> = new Map();
-  private analyticsEventState: Set<string> = new Set();
+  // MOVED to AnalyticsEventTriggerManager (analytics-event-trigger-manager.ts)
+  // private analyticsEventState: Set<string> = new Set();
   private maxScrollPercentage = 0;
   private timeOnPageTimeouts: Record<number, ReturnType<typeof setTimeout>> =
     {};
@@ -441,7 +442,8 @@ export class SubscriptionManager {
     this.manuallyActivatedPageObjects.clear();
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
-    this.analyticsEventState.clear();
+    // MOVED to AnalyticsEventTriggerManager.reset (analytics-event-trigger-manager.ts)
+    // this.analyticsEventState.clear();
 
     // Clear pending click timeouts
     for (const timeout of this.clickTimeouts.values()) {
@@ -1302,31 +1304,32 @@ export class SubscriptionManager {
         return this.manuallyActivatedPageObjects.has(triggerValue.name);
       }
 
-      case 'analytics_event': {
-        const id = page.id;
-        if (this.analyticsEventState.has(id)) return true;
-        const triggerValue = page.trigger_value as AnalyticsEventTriggerValue;
-        const eventMessage = message as AnalyticsEventPayload;
-
-        const eventContext = {
-          type: 'analytics_event',
-          data: {
-            event: eventMessage.event,
-            properties: eventMessage.properties,
-          },
-        };
-
-        const match = evaluationEngine.evaluateConditions(
-          {
-            context: eventContext,
-            result: {},
-          },
-          triggerValue,
-        );
-        if (match) {
-          this.analyticsEventState.add(id);
-        }
-        return match;
+      // MOVED to AnalyticsEventTriggerManager.isActive (analytics-event-trigger-manager.ts)
+      // case 'analytics_event': {
+      //   const id = page.id;
+      //   if (this.analyticsEventState.has(id)) return true;
+      //   const triggerValue = page.trigger_value as AnalyticsEventTriggerValue;
+      //   const eventMessage = message as AnalyticsEventPayload;
+      //
+      //   const eventContext = {
+      //     type: 'analytics_event',
+      //     data: {
+      //       event: eventMessage.event,
+      //       properties: eventMessage.properties,
+      //     },
+      //   };
+      //
+      //   const match = evaluationEngine.evaluateConditions(
+      //     {
+      //       context: eventContext,
+      //       result: {},
+      //     },
+      //     triggerValue,
+      //   );
+      //   if (match) {
+      //     this.analyticsEventState.add(id);
+      //   }
+      //   return match;
       }
 
       case 'element_appeared': {
