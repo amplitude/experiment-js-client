@@ -9,6 +9,7 @@ import {
   EvaluationFlag,
   FetchError,
   FlagApi,
+  FlagEvaluationTrace,
   Poller,
   SdkEvaluationApi,
   SdkFlagApi,
@@ -498,6 +499,16 @@ export class ExperimentClient implements Client {
       );
     }
     return variants;
+  }
+
+  public getEvaluationTraces(
+    flagKeys?: string[],
+  ): Record<string, FlagEvaluationTrace> {
+    const user = this.addContext(this.user);
+    const flags = topologicalSort(this.flags.getAll(), flagKeys);
+    const context = convertUserToContext(user);
+    const { traces } = this.engine.evaluateWithTraces(context, flags);
+    return traces;
   }
 
   private variantAndSource(

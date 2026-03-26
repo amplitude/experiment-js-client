@@ -8,6 +8,8 @@ export {
   EvaluationOperator,
   EvaluationSegment,
   EvaluationVariant,
+  SegmentEvaluationTrace,
+  FlagEvaluationTrace,
 } from './evaluation/flag';
 export { topologicalSort } from './evaluation/topological-sort';
 export {

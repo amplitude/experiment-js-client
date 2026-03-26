@@ -17,11 +17,24 @@ export interface FlagDebugInfo {
   variant: VariantDebugInfo | null;
   isActive: boolean;
   pageObjects: PageObjectDebugInfo[];
+  audienceEvaluation?: AudienceEvaluationDebugInfo;
+}
+
+export interface AudienceEvaluationDebugInfo {
+  matched: boolean;
+  matchedSegment?: string;
+  segments: Array<{
+    segmentName?: string;
+    conditionsPassed: boolean;
+    bucketed: boolean;
+    bucketVariant?: string;
+  }>;
 }
 
 export interface VariantDebugInfo {
   key: string;
   value?: string;
+  metadata?: Record<string, unknown>;
 }
 
 // --- Per-page-object debug info ---

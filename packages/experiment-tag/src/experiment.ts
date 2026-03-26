@@ -12,6 +12,7 @@ import {
   AmplitudeIntegrationPlugin,
   ExperimentClient,
   Variants,
+  FlagEvaluationTrace,
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
@@ -34,7 +35,7 @@ import {
   PreviewState,
   RevertVariantsOptions,
 } from './types';
-import type { DebugState } from './types/debug';
+import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
@@ -633,17 +634,46 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const debugPageObjects =
       this.subscriptionManager?.getDebugPageObjects() ?? {};
 
+    const traces: Record<string, FlagEvaluationTrace> | undefined =
+      this.localFlagKeys.length > 0
+        ? this.experimentClient.getEvaluationTraces(this.localFlagKeys)
+        : undefined;
+
     for (const flagKey of [...this.localFlagKeys, ...this.remoteFlagKeys]) {
       const variant = variants[flagKey];
       const activePagesForFlag = this.activePages[flagKey];
 
+      let audienceEvaluation: AudienceEvaluationDebugInfo | undefined;
+      const trace = traces?.[flagKey];
+      // Local flags: full per-segment traces from the evaluation engine
+      if (trace) {
+        audienceEvaluation = {
+          matched: trace.matched,
+          matchedSegment: trace.matchedSegment,
+          segments: trace.segments,
+        };
+      }
+      // Remote flags: server-side evaluation, only matched segment name available from variant metadata
+      else if (variant?.metadata?.segmentName) {
+        audienceEvaluation = {
+          matched: true,
+          matchedSegment: variant.metadata.segmentName as string,
+          segments: [],
+        };
+      }
+
       flags[flagKey] = {
         flagKey,
         variant: variant?.key
-          ? { key: variant.key, value: variant.value }
+          ? {
+              key: variant.key,
+              value: variant.value,
+              metadata: variant.metadata,
+            }
           : null,
         isActive:
           !!activePagesForFlag && Object.keys(activePagesForFlag).length > 0,
+        audienceEvaluation,
         pageObjects: debugPageObjects[flagKey] ?? [],
       };
     }
