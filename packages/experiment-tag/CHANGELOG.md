@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.18.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.18.0...@amplitude/experiment-tag@0.18.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* prevent scripts from inserting elements into shell body after do… ([#295](https://github.com/amplitude/experiment-js-client/issues/295)) ([95cbe10](https://github.com/amplitude/experiment-js-client/commit/95cbe103a36b87c538e494073e470d149b3e1026))
+
+
+
+
+
 # [0.18.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.17.1...@amplitude/experiment-tag@0.18.0) (2026-03-23)
 
 
