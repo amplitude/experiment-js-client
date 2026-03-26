@@ -146,7 +146,7 @@ export class ExperimentClient implements Client {
       try {
         await this.doFlags();
       } catch (e) {
-        this.logger.error(e);
+        this.logger.info(e);
       }
     }, this.config.flagConfigPollingIntervalMillis);
     // Transform initialVariants
