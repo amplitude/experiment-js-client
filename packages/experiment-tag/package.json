@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-tag",
-  "version": "0.17.1",
+  "version": "0.18.1",
   "description": "Amplitude Experiment Javascript Snippet",
   "author": "Amplitude",
   "homepage": "https://github.com/amplitude/experiment-js-client",
@@ -17,7 +17,7 @@
   },
   "scripts": {
     "build": "rm -rf dist && rollup -c && node example/build_example.js",
-    "build-dev": "NODE_ENV=development rm -rf dist && rollup -c && node example/build_example.js",
+    "build-dev": "rm -rf dist && NODE_ENV=development rollup -c && node example/build_example.js",
     "clean": "rimraf node_modules dist",
     "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
     "test": "jest",
@@ -30,7 +30,7 @@
     "@amplitude/analytics-core": "^2.21.0",
     "@amplitude/analytics-types": "^2.11.0",
     "@amplitude/experiment-core": "^0.12.0",
-    "@amplitude/experiment-js-client": "^1.20.3",
+    "@amplitude/experiment-js-client": "^1.20.4",
     "dom-mutator": "git+ssh://git@github.com/amplitude/dom-mutator#0294e723c6a8f85d448bdfa59999591f2ae9e476",
     "rollup-plugin-license": "^3.6.0"
   },

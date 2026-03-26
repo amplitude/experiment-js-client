@@ -123,3 +123,14 @@ export {
   WebExperimentClient,
   WebExperimentConfig,
 } from './types';
+
+export type {
+  DebugState,
+  FlagDebugInfo,
+  VariantDebugInfo,
+  PageObjectDebugInfo,
+  TriggerDebugInfo,
+  VisualEditorDebugInfo,
+  DebugEvent,
+  VEMessengerState,
+} from './types/debug';
