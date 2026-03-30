@@ -5,6 +5,8 @@ import {
 } from '../subscriptions/message-bus';
 import { PageObject } from '../types';
 
+import { TriggerManagerOptions } from './index';
+
 /**
  * Base interface that all trigger managers must implement.
  * Each trigger type (element_visible, user_interaction, etc.) has its own manager.
@@ -38,6 +40,16 @@ export interface TriggerManager<TPayload = any> {
    * Get debug snapshot of current state (optional, for debugging).
    */
   getSnapshot?(): Record<string, any>;
+
+  /**
+   * Mark a URL as published (optional, for url_change manager).
+   */
+  markUrlAsPublished?(url: string): void;
+
+  /**
+   * Trigger an initial check (optional, for element_appeared manager).
+   */
+  triggerInitialCheck?(): void;
 }
 
 /**
@@ -51,7 +63,7 @@ export abstract class BaseTriggerManager<TPayload = any>
     protected readonly pageObjects: PageObject[],
     protected readonly messageBus: MessageBus,
     protected readonly globalScope: typeof globalThis,
-    protected readonly options?: any,
+    protected readonly options?: TriggerManagerOptions,
   ) {}
 
   abstract readonly triggerType: MessageType;

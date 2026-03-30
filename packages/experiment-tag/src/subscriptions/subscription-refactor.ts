@@ -39,8 +39,8 @@ export class SubscriptionManager {
   };
 
   public markUrlAsPublished = (url: string) => {
-    const urlChangeManager = this.triggerManagers.get('url_change') as any;
-    if (urlChangeManager && urlChangeManager.markUrlAsPublished) {
+    const urlChangeManager = this.triggerManagers.get('url_change');
+    if (urlChangeManager?.markUrlAsPublished) {
       urlChangeManager.markUrlAsPublished(url);
     }
   };
@@ -51,8 +51,8 @@ export class SubscriptionManager {
     // Trigger initial element check AFTER subscriptions are set up
     const elementAppearedManager = this.triggerManagers.get(
       'element_appeared',
-    ) as any;
-    if (elementAppearedManager && elementAppearedManager.triggerInitialCheck) {
+    );
+    if (elementAppearedManager?.triggerInitialCheck) {
       elementAppearedManager.triggerInitialCheck();
     }
   };
@@ -128,7 +128,6 @@ export class SubscriptionManager {
         triggerType as keyof typeof TRIGGER_MANAGER_REGISTRY
       ];
     if (!ManagerClass) {
-      console.warn(`No manager found for trigger type: ${triggerType}`);
       return;
     }
 
