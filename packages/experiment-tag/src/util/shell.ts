@@ -3,8 +3,8 @@ const DEVICE_IFRAME_ID = 'amp-device-iframe';
 const DEVICE_CONTAINER_ID = 'amp-overlay-device-iframe-container';
 const OVERLAY_HOST_ID = 'overlay-shadow-host';
 
-const DEFAULT_MOBILE_WIDTH = 375;
-const DEFAULT_MOBILE_HEIGHT = 667;
+const DEFAULT_MOBILE_WIDTH = 402;
+const DEFAULT_MOBILE_HEIGHT = 874;
 
 export function isMobileModeActive(): boolean {
   try {
@@ -118,6 +118,7 @@ export function buildShell(globalScope: typeof globalThis): void {
       border-radius: 20px;
       box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.1);
       background: #fff;
+      transition: all 0.1s ease;
     `;
 
     // On each iframe navigation, sync its URL to the top-level URL bar.
