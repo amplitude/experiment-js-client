@@ -49,9 +49,7 @@ export class SubscriptionManager {
     this.setupPageObjectSubscriptions();
 
     // Trigger initial element check AFTER subscriptions are set up
-    const elementAppearedManager = this.triggerManagers.get(
-      'element_appeared',
-    );
+    const elementAppearedManager = this.triggerManagers.get('element_appeared');
     if (elementAppearedManager?.triggerInitialCheck) {
       elementAppearedManager.triggerInitialCheck();
     }
