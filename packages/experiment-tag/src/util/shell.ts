@@ -15,6 +15,55 @@ export function isMobileModeActive(): boolean {
 }
 
 /**
+ * Syncs the iframe URL to the top-level URL bar. The wrapped replaceState
+ * also triggers the SDK's url_change pipeline.
+ */
+function syncIframeUrl(globalScope: typeof globalThis, iframeWindow: Window) {
+  try {
+    const iframeHref = iframeWindow.location.href;
+    if (iframeHref && iframeHref !== globalScope.location.href) {
+      globalScope.history.replaceState(
+        globalScope.history.state,
+        '',
+        iframeHref,
+      );
+    }
+  } catch {
+    // cross-origin or detached — ignore
+  }
+}
+
+/**
+ * Patches iframe history methods and popstate to mirror SPA navigations.
+ */
+function observeIframeSpaNav(
+  globalScope: typeof globalThis,
+  iframeWindow: Window,
+) {
+  const iframeHistory = iframeWindow.history;
+
+  const wrap = (original: typeof iframeHistory.pushState) =>
+    function (
+      this: History,
+      state: unknown,
+      title: string,
+      url?: string | URL | null,
+    ) {
+      original.call(this, state, title, url);
+      syncIframeUrl(globalScope, iframeWindow);
+    };
+
+  iframeHistory.pushState = wrap(iframeHistory.pushState.bind(iframeHistory));
+  iframeHistory.replaceState = wrap(
+    iframeHistory.replaceState.bind(iframeHistory),
+  );
+
+  iframeWindow.addEventListener('popstate', () => {
+    syncIframeUrl(globalScope, iframeWindow);
+  });
+}
+
+/**
  * Replaces the page DOM with a shell container that loads the customer site
  * in a same-origin iframe. Deferred until the document is fully parsed so
  * the HTML parser doesn't add elements after the body is cleared.
@@ -70,6 +119,14 @@ export function buildShell(globalScope: typeof globalThis): void {
       box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.1);
       background: #fff;
     `;
+
+    // On each iframe navigation, sync its URL to the top-level URL bar.
+    iframe.addEventListener('load', () => {
+      const iframeWindow = iframe.contentWindow;
+      if (!iframeWindow) return;
+      syncIframeUrl(globalScope, iframeWindow);
+      observeIframeSpaNav(globalScope, iframeWindow);
+    });
 
     container.appendChild(iframe);
     doc.body.appendChild(container);
