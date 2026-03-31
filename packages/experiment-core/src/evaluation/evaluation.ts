@@ -1,11 +1,12 @@
 import {
   type EvaluationCondition,
+  type EvaluationConditionResult,
   type EvaluationFlag,
   type EvaluationSegment,
+  type EvaluationSegmentResult,
   type EvaluationVariant,
   EvaluationOperator,
   type FlagEvaluationTrace,
-  type SegmentEvaluationTrace,
 } from './flag';
 import { hash32x86 } from './murmur3';
 import { select } from './select';
@@ -84,41 +85,86 @@ export class EvaluationEngine {
     target: EvaluationTarget,
     flag: EvaluationFlag,
   ): { variant: EvaluationVariant | undefined; trace: FlagEvaluationTrace } {
-    const segmentTraces: SegmentEvaluationTrace[] = [];
+    const steps: EvaluationSegmentResult[] = [];
     let winnerVariant: EvaluationVariant | undefined;
     let winnerSegment: EvaluationSegment | undefined;
     let matchedSegmentName: string | undefined;
 
     for (const segment of flag.segments) {
-      const conditionsPassed =
-        !segment.conditions ||
-        this.evaluateConditions(target, segment.conditions);
-
-      let bucketed = false;
-      let bucketVariant: string | undefined;
-
-      if (conditionsPassed) {
+      if (!segment.conditions) {
         const variantKey = this.bucket(target, segment);
-        if (variantKey !== undefined) {
-          bucketed = true;
-          bucketVariant = variantKey;
+        const bucketed = variantKey !== undefined;
+        steps.push({
+          segmentMetadata: segment.metadata,
+          conditionsPassed: true,
+          bucketed,
+          bucketVariant: variantKey,
+          conditionResult: undefined,
+          matched: true,
+        });
+        if (!winnerVariant && bucketed) {
+          winnerVariant = flag.variants[variantKey!];
+          winnerSegment = segment;
+          matchedSegmentName = segment.metadata?.segmentName as
+            | string
+            | undefined;
+        }
+        continue;
+      }
 
-          if (!winnerVariant) {
-            winnerVariant = flag.variants[variantKey];
-            winnerSegment = segment;
-            matchedSegmentName = segment.metadata?.segmentName as
-              | string
-              | undefined;
+      const orConditionResults: (EvaluationConditionResult[] | undefined)[] =
+        [];
+      let segmentMatched = false;
+
+      for (const innerConditions of segment.conditions) {
+        let match = true;
+        const andConditionResults: EvaluationConditionResult[] = [];
+
+        for (const condition of innerConditions) {
+          const propValue = select(target, condition.selector);
+          const conditionMatch = this.matchCondition(target, condition);
+          andConditionResults.push({
+            propValue,
+            condition,
+            matched: conditionMatch,
+          });
+          if (!conditionMatch) {
+            match = false;
+            break;
           }
+        }
+
+        orConditionResults.push(andConditionResults);
+
+        if (match) {
+          segmentMatched = true;
+          break;
         }
       }
 
-      segmentTraces.push({
-        segmentName: segment.metadata?.segmentName as string | undefined,
-        conditionsPassed,
+      let bucketed = false;
+      let bucketVariant: string | undefined;
+      if (segmentMatched) {
+        bucketVariant = this.bucket(target, segment);
+        bucketed = bucketVariant !== undefined;
+      }
+
+      steps.push({
+        segmentMetadata: segment.metadata,
+        conditionsPassed: segmentMatched,
         bucketed,
         bucketVariant,
+        conditionResult: orConditionResults,
+        matched: segmentMatched && bucketed,
       });
+
+      if (segmentMatched && bucketed && !winnerVariant) {
+        winnerVariant = flag.variants[bucketVariant!];
+        winnerSegment = segment;
+        matchedSegmentName = segment.metadata?.segmentName as
+          | string
+          | undefined;
+      }
     }
 
     if (winnerVariant && winnerSegment) {
@@ -134,7 +180,7 @@ export class EvaluationEngine {
       flagKey: flag.key,
       matched: winnerVariant !== undefined,
       matchedSegment: matchedSegmentName,
-      segments: segmentTraces,
+      steps,
     };
 
     return { variant: winnerVariant, trace };

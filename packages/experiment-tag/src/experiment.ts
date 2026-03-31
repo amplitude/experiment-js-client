@@ -2,6 +2,7 @@ import { AnalyticsConnector } from '@amplitude/analytics-connector';
 import { Event, Plugin } from '@amplitude/analytics-types';
 import {
   EvaluationFlag,
+  FlagEvaluationTrace,
   getGlobalScope,
   isLocalStorageAvailable,
   safeGlobal,
@@ -12,7 +13,6 @@ import {
   AmplitudeIntegrationPlugin,
   ExperimentClient,
   Variants,
-  FlagEvaluationTrace,
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
@@ -650,7 +650,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         audienceEvaluation = {
           matched: trace.matched,
           matchedSegment: trace.matchedSegment,
-          segments: trace.segments,
+          steps: trace.steps,
         };
       }
       // Remote flags: server-side evaluation, only matched segment name available from variant metadata
@@ -658,7 +658,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         audienceEvaluation = {
           matched: true,
           matchedSegment: variant.metadata.segmentName as string,
-          segments: [],
+          steps: [],
         };
       }
 

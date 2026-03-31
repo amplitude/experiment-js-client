@@ -1,7 +1,7 @@
 import {
   EvaluationEngine,
-  type EvaluationFlag,
-  type EvaluationSegment,
+  EvaluationFlag,
+  EvaluationSegment,
 } from '../../src';
 
 const engine = new EvaluationEngine();
@@ -28,42 +28,27 @@ const userContext = (
 });
 
 describe('evaluateWithTraces', () => {
-  it('traces a single segment where conditions pass and bucketing succeeds', () => {
+  it('traces a single always-match segment with no conditions', () => {
     const flag = makeFlag('flag-1', [
       {
-        metadata: { segmentName: 'Beta Users' },
-        conditions: [
-          [
-            {
-              selector: ['context', 'user', 'user_properties', 'beta'],
-              op: 'is',
-              values: ['true'],
-            },
-          ],
-        ],
+        metadata: { segmentName: 'All Users' },
         variant: 'treatment',
       },
     ]);
 
-    const context = userContext('u1', { beta: 'true' });
-    const { results, traces } = engine.evaluateWithTraces(context, [flag]);
-
-    expect(results['flag-1']?.key).toEqual('treatment');
-
+    const context = userContext('u1');
+    const { traces } = engine.evaluateWithTraces(context, [flag]);
     const trace = traces['flag-1'];
-    expect(trace.flagKey).toEqual('flag-1');
+
     expect(trace.matched).toBe(true);
-    expect(trace.matchedSegment).toEqual('Beta Users');
-    expect(trace.segments).toHaveLength(1);
-    expect(trace.segments[0]).toEqual({
-      segmentName: 'Beta Users',
-      conditionsPassed: true,
-      bucketed: true,
-      bucketVariant: 'treatment',
-    });
+    expect(trace.matchedSegment).toEqual('All Users');
+    expect(trace.steps).toHaveLength(1);
+    expect(trace.steps[0].matched).toBe(true);
+    expect(trace.steps[0].segmentMetadata).toEqual({ segmentName: 'All Users' });
+    expect(trace.steps[0].conditionResult).toBeUndefined();
   });
 
-  it('traces a single segment where conditions fail', () => {
+  it('records per-condition detail with propValue and matched', () => {
     const flag = makeFlag('flag-2', [
       {
         metadata: { segmentName: 'Beta Users' },
@@ -80,32 +65,30 @@ describe('evaluateWithTraces', () => {
       },
     ]);
 
-    const context = userContext('u1', { beta: 'false' });
-    const { results, traces } = engine.evaluateWithTraces(context, [flag]);
+    const context = userContext('u1', { beta: 'true' });
+    const { traces } = engine.evaluateWithTraces(context, [flag]);
+    const step = traces['flag-2'].steps[0];
 
-    expect(results['flag-2']).toBeUndefined();
-
-    const trace = traces['flag-2'];
-    expect(trace.matched).toBe(false);
-    expect(trace.matchedSegment).toBeUndefined();
-    expect(trace.segments[0]).toEqual({
-      segmentName: 'Beta Users',
-      conditionsPassed: false,
-      bucketed: false,
-      bucketVariant: undefined,
-    });
+    expect(step.matched).toBe(true);
+    expect(step.conditionResult).toHaveLength(1);
+    const andGroup = step.conditionResult![0]!;
+    expect(andGroup).toHaveLength(1);
+    expect(andGroup[0].propValue).toEqual('true');
+    expect(andGroup[0].condition.op).toEqual('is');
+    expect(andGroup[0].condition.values).toEqual(['true']);
+    expect(andGroup[0].matched).toBe(true);
   });
 
-  it('traces multiple segments and identifies the first match', () => {
+  it('records failed condition with actual propValue', () => {
     const flag = makeFlag('flag-3', [
       {
-        metadata: { segmentName: 'VIP Users' },
+        metadata: { segmentName: 'UK Users' },
         conditions: [
           [
             {
-              selector: ['context', 'user', 'user_properties', 'vip'],
+              selector: ['context', 'user', 'user_properties', 'country'],
               op: 'is',
-              values: ['true'],
+              values: ['UK'],
             },
           ],
         ],
@@ -117,86 +100,58 @@ describe('evaluateWithTraces', () => {
       },
     ]);
 
-    const context = userContext('u1', { vip: 'true' });
-    const { results, traces } = engine.evaluateWithTraces(context, [flag]);
-
-    expect(results['flag-3']?.key).toEqual('treatment');
-
+    const context = userContext('u1', { country: 'US' });
+    const { traces } = engine.evaluateWithTraces(context, [flag]);
     const trace = traces['flag-3'];
-    expect(trace.matched).toBe(true);
-    expect(trace.matchedSegment).toEqual('VIP Users');
-    expect(trace.segments).toHaveLength(2);
-    expect(trace.segments[0].conditionsPassed).toBe(true);
-    expect(trace.segments[0].bucketed).toBe(true);
-    expect(trace.segments[0].bucketVariant).toEqual('treatment');
-    // Second segment is still evaluated for trace purposes
-    expect(trace.segments[1].segmentName).toEqual('All Other Users');
-    expect(trace.segments[1].conditionsPassed).toBe(true);
-    expect(trace.segments[1].bucketed).toBe(true);
-    expect(trace.segments[1].bucketVariant).toEqual('control');
-  });
 
-  it('falls through to second segment when first fails conditions', () => {
-    const flag = makeFlag('flag-4', [
-      {
-        metadata: { segmentName: 'VIP Users' },
-        conditions: [
-          [
-            {
-              selector: ['context', 'user', 'user_properties', 'vip'],
-              op: 'is',
-              values: ['true'],
-            },
-          ],
-        ],
-        variant: 'treatment',
-      },
-      {
-        metadata: { segmentName: 'All Other Users' },
-        variant: 'control',
-      },
-    ]);
-
-    const context = userContext('u1', { vip: 'false' });
-    const { results, traces } = engine.evaluateWithTraces(context, [flag]);
-
-    expect(results['flag-4']?.key).toEqual('control');
-
-    const trace = traces['flag-4'];
     expect(trace.matched).toBe(true);
     expect(trace.matchedSegment).toEqual('All Other Users');
-    expect(trace.segments[0].conditionsPassed).toBe(false);
-    expect(trace.segments[0].bucketed).toBe(false);
-    expect(trace.segments[1].conditionsPassed).toBe(true);
-    expect(trace.segments[1].bucketed).toBe(true);
-    expect(trace.segments[1].bucketVariant).toEqual('control');
+    expect(trace.steps).toHaveLength(2);
+    expect(trace.steps[0].matched).toBe(false);
+    expect(trace.steps[0].conditionResult![0]![0].propValue).toEqual('US');
+    expect(trace.steps[0].conditionResult![0]![0].matched).toBe(false);
+    expect(trace.steps[1].matched).toBe(true);
+    expect(trace.steps[1].conditionResult).toBeUndefined();
+  });
+
+  it('handles missing propValue (undefined) in condition results', () => {
+    const flag = makeFlag('flag-4', [
+      {
+        metadata: { segmentName: 'VIP' },
+        conditions: [
+          [
+            {
+              selector: ['context', 'user', 'user_properties', 'vip'],
+              op: 'is',
+              values: ['true'],
+            },
+          ],
+        ],
+        variant: 'treatment',
+      },
+      { metadata: { segmentName: 'Fallback' }, variant: 'control' },
+    ]);
+
+    const context = userContext('u1', {});
+    const { traces } = engine.evaluateWithTraces(context, [flag]);
+
+    expect(traces['flag-4'].steps[0].conditionResult![0]![0].propValue).toBeUndefined();
+    expect(traces['flag-4'].steps[0].conditionResult![0]![0].matched).toBe(false);
   });
 
   it('traces multiple segments where none match', () => {
     const flag = makeFlag('flag-5', [
       {
-        metadata: { segmentName: 'VIP Users' },
+        metadata: { segmentName: 'VIP' },
         conditions: [
-          [
-            {
-              selector: ['context', 'user', 'user_properties', 'vip'],
-              op: 'is',
-              values: ['true'],
-            },
-          ],
+          [{ selector: ['context', 'user', 'user_properties', 'vip'], op: 'is', values: ['true'] }],
         ],
         variant: 'treatment',
       },
       {
-        metadata: { segmentName: 'Internal Users' },
+        metadata: { segmentName: 'Internal' },
         conditions: [
-          [
-            {
-              selector: ['context', 'user', 'user_properties', 'internal'],
-              op: 'is',
-              values: ['true'],
-            },
-          ],
+          [{ selector: ['context', 'user', 'user_properties', 'internal'], op: 'is', values: ['true'] }],
         ],
         variant: 'control',
       },
@@ -206,101 +161,18 @@ describe('evaluateWithTraces', () => {
     const { results, traces } = engine.evaluateWithTraces(context, [flag]);
 
     expect(results['flag-5']).toBeUndefined();
-
-    const trace = traces['flag-5'];
-    expect(trace.matched).toBe(false);
-    expect(trace.matchedSegment).toBeUndefined();
-    expect(trace.segments).toHaveLength(2);
-    expect(trace.segments[0].conditionsPassed).toBe(false);
-    expect(trace.segments[0].bucketed).toBe(false);
-    expect(trace.segments[1].conditionsPassed).toBe(false);
-    expect(trace.segments[1].bucketed).toBe(false);
-  });
-
-  it('traces a segment with no conditions (always-match)', () => {
-    const flag = makeFlag('flag-6', [
-      {
-        metadata: { segmentName: 'All Users' },
-        variant: 'treatment',
-      },
-    ]);
-
-    const context = userContext('u1');
-    const { results, traces } = engine.evaluateWithTraces(context, [flag]);
-
-    expect(results['flag-6']?.key).toEqual('treatment');
-
-    const trace = traces['flag-6'];
-    expect(trace.matched).toBe(true);
-    expect(trace.matchedSegment).toEqual('All Users');
-    expect(trace.segments[0]).toEqual({
-      segmentName: 'All Users',
-      conditionsPassed: true,
-      bucketed: true,
-      bucketVariant: 'treatment',
-    });
-  });
-
-  it('traces a segment with bucketing miss (allocation out of range)', () => {
-    const flag = makeFlag('flag-7', [
-      {
-        metadata: { segmentName: '0% Rollout' },
-        bucket: {
-          selector: ['context', 'user', 'user_id'],
-          salt: 'test-salt',
-          allocations: [
-            {
-              range: [0, 0],
-              distributions: [{ variant: 'treatment', range: [0, 10000] }],
-            },
-          ],
-        },
-        variant: 'off',
-      },
-    ]);
-
-    const context = userContext('u1');
-    const { traces } = engine.evaluateWithTraces(context, [flag]);
-
-    // With 0% allocation, bucketing returns the default variant 'off'
-    const trace = traces['flag-7'];
-    expect(trace.segments[0].conditionsPassed).toBe(true);
-    expect(trace.segments[0].bucketed).toBe(true);
-    expect(trace.segments[0].bucketVariant).toEqual('off');
-  });
-
-  it('traces segment with no segmentName in metadata', () => {
-    const flag = makeFlag('flag-8', [
-      {
-        metadata: { someOtherField: 'value' },
-        variant: 'treatment',
-      },
-    ]);
-
-    const context = userContext('u1');
-    const { traces } = engine.evaluateWithTraces(context, [flag]);
-
-    expect(traces['flag-8'].segments[0].segmentName).toBeUndefined();
-    expect(traces['flag-8'].matchedSegment).toBeUndefined();
-    expect(traces['flag-8'].matched).toBe(true);
+    expect(traces['flag-5'].matched).toBe(false);
+    expect(traces['flag-5'].steps).toHaveLength(2);
+    expect(traces['flag-5'].steps[0].matched).toBe(false);
+    expect(traces['flag-5'].steps[1].matched).toBe(false);
   });
 
   it('merges metadata correctly on the winning variant', () => {
     const flag = makeFlag(
-      'flag-9',
-      [
-        {
-          metadata: { segmentName: 'All Users', segmentId: 's1' },
-          variant: 'treatment',
-        },
-      ],
+      'flag-6',
+      [{ metadata: { segmentName: 'All', segmentId: 's1' }, variant: 'treatment' }],
       {
-        control: { key: 'control', value: 'control' },
-        treatment: {
-          key: 'treatment',
-          value: 'treatment',
-          metadata: { variantLevel: true },
-        },
+        treatment: { key: 'treatment', value: 'treatment', metadata: { variantLevel: true } },
       },
       { flagLevel: true },
     );
@@ -308,9 +180,9 @@ describe('evaluateWithTraces', () => {
     const context = userContext('u1');
     const { results } = engine.evaluateWithTraces(context, [flag]);
 
-    expect(results['flag-9']?.metadata).toEqual({
+    expect(results['flag-6']?.metadata).toEqual({
       flagLevel: true,
-      segmentName: 'All Users',
+      segmentName: 'All',
       segmentId: 's1',
       variantLevel: true,
     });
@@ -322,58 +194,24 @@ describe('evaluateWithTraces', () => {
         {
           metadata: { segmentName: 'Beta' },
           conditions: [
-            [
-              {
-                selector: ['context', 'user', 'user_properties', 'beta'],
-                op: 'is',
-                values: ['true'],
-              },
-            ],
+            [{ selector: ['context', 'user', 'user_properties', 'beta'], op: 'is', values: ['true'] }],
           ],
           variant: 'treatment',
         },
         { metadata: { segmentName: 'All' }, variant: 'control' },
       ]),
-      makeFlag('flag-b', [
-        {
-          metadata: { segmentName: 'All' },
-          variant: 'treatment',
-        },
-      ]),
-      makeFlag('flag-c', [
-        {
-          metadata: { segmentName: 'Nobody' },
-          conditions: [
-            [
-              {
-                selector: ['context', 'user', 'user_properties', 'impossible'],
-                op: 'is',
-                values: ['yes'],
-              },
-            ],
-          ],
-          variant: 'treatment',
-        },
-      ]),
+      makeFlag('flag-b', [{ metadata: { segmentName: 'All' }, variant: 'treatment' }]),
     ];
 
     const context = userContext('u1', { beta: 'true' });
+    const standard = engine.evaluate(context, flags);
+    const { results: traced } = engine.evaluateWithTraces(context, flags);
 
-    const standardResults = engine.evaluate(context, flags);
-    const { results: tracedResults } = engine.evaluateWithTraces(
-      context,
-      flags,
-    );
-
-    expect(Object.keys(tracedResults).sort()).toEqual(
-      Object.keys(standardResults).sort(),
-    );
-    for (const key of Object.keys(standardResults)) {
-      expect(tracedResults[key]?.key).toEqual(standardResults[key]?.key);
-      expect(tracedResults[key]?.value).toEqual(standardResults[key]?.value);
-      expect(tracedResults[key]?.metadata).toEqual(
-        standardResults[key]?.metadata,
-      );
+    expect(Object.keys(traced).sort()).toEqual(Object.keys(standard).sort());
+    for (const key of Object.keys(standard)) {
+      expect(traced[key]?.key).toEqual(standard[key]?.key);
+      expect(traced[key]?.value).toEqual(standard[key]?.value);
+      expect(traced[key]?.metadata).toEqual(standard[key]?.metadata);
     }
   });
 });

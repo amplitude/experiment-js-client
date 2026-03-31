@@ -42,18 +42,26 @@ export type EvaluationDistribution = {
   range: number[];
 };
 
-export type SegmentEvaluationTrace = {
-  segmentName?: string;
+export type EvaluationConditionResult = {
+  propValue: unknown;
+  condition: EvaluationCondition;
+  matched: boolean;
+};
+
+export type EvaluationSegmentResult = {
+  segmentMetadata?: Record<string, unknown>;
   conditionsPassed: boolean;
   bucketed: boolean;
   bucketVariant?: string;
+  conditionResult?: (EvaluationConditionResult[] | undefined)[];
+  matched: boolean;
 };
 
 export type FlagEvaluationTrace = {
   flagKey: string;
   matched: boolean;
   matchedSegment?: string;
-  segments: SegmentEvaluationTrace[];
+  steps: EvaluationSegmentResult[];
 };
 
 export const EvaluationOperator = {

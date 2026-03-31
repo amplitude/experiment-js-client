@@ -23,11 +23,20 @@ export interface FlagDebugInfo {
 export interface AudienceEvaluationDebugInfo {
   matched: boolean;
   matchedSegment?: string;
-  segments: Array<{
-    segmentName?: string;
+  steps: Array<{
+    segmentMetadata?: Record<string, unknown>;
     conditionsPassed: boolean;
     bucketed: boolean;
     bucketVariant?: string;
+    conditionResult?: Array<
+      | Array<{
+          propValue: unknown;
+          condition: { selector: string[]; op: string; values: string[] };
+          matched: boolean;
+        }>
+      | undefined
+    >;
+    matched: boolean;
   }>;
 }
 

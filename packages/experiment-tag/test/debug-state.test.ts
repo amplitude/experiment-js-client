@@ -1,8 +1,8 @@
 import * as experimentCore from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
+import { stringify } from 'ts-jest';
 import { DefaultWebExperimentClient } from 'src/experiment';
 import * as uuid from 'src/util/uuid';
-import { stringify } from 'ts-jest';
 
 import { createMockGlobal, setupGlobalObservers } from './util/mocks';
 
@@ -29,7 +29,7 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal);
   });
 
-  it('populates audienceEvaluation for a local flag with a single always-match segment', async () => {
+  it('populates audienceEvaluation with steps for a local flag', async () => {
     const flags = [
       {
         key: 'flag-single',
@@ -64,21 +64,21 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
     const flagInfo = state.flags['flag-single'];
 
     expect(flagInfo).toBeDefined();
-
     const audienceEval = flagInfo.audienceEvaluation;
     if (!audienceEval) throw new Error('expected audienceEvaluation');
     expect(audienceEval.matched).toBe(true);
     expect(audienceEval.matchedSegment).toEqual('All Users');
-    expect(audienceEval.segments).toHaveLength(1);
-    expect(audienceEval.segments[0]).toEqual({
+    expect(audienceEval.steps).toHaveLength(1);
+    expect(audienceEval.steps[0].matched).toBe(true);
+    expect(audienceEval.steps[0].conditionsPassed).toBe(true);
+    expect(audienceEval.steps[0].bucketed).toBe(true);
+    expect(audienceEval.steps[0].bucketVariant).toEqual('treatment');
+    expect(audienceEval.steps[0].segmentMetadata).toEqual({
       segmentName: 'All Users',
-      conditionsPassed: true,
-      bucketed: true,
-      bucketVariant: 'treatment',
     });
   });
 
-  it('populates audienceEvaluation with multiple segments showing pass/fail', async () => {
+  it('populates audienceEvaluation with per-condition detail for multi-segment flag', async () => {
     const flags = [
       {
         key: 'flag-multi',
@@ -135,17 +135,17 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
 
     const audienceEval = flagInfo.audienceEvaluation;
     if (!audienceEval) throw new Error('expected audienceEvaluation');
-    // User has no vip property, so first segment fails, second matches
     expect(audienceEval.matched).toBe(true);
     expect(audienceEval.matchedSegment).toEqual('All Other Users');
-    expect(audienceEval.segments).toHaveLength(2);
-    expect(audienceEval.segments[0].segmentName).toEqual('VIP Only');
-    expect(audienceEval.segments[0].conditionsPassed).toBe(false);
-    expect(audienceEval.segments[0].bucketed).toBe(false);
-    expect(audienceEval.segments[1].segmentName).toEqual('All Other Users');
-    expect(audienceEval.segments[1].conditionsPassed).toBe(true);
-    expect(audienceEval.segments[1].bucketed).toBe(true);
-    expect(audienceEval.segments[1].bucketVariant).toEqual('control');
+    expect(audienceEval.steps).toHaveLength(2);
+    expect(audienceEval.steps[0].matched).toBe(false);
+    expect(audienceEval.steps[0].conditionsPassed).toBe(false);
+    expect(audienceEval.steps[0].bucketed).toBe(false);
+    expect(audienceEval.steps[0].bucketVariant).toBeUndefined();
+    expect(audienceEval.steps[1].matched).toBe(true);
+    expect(audienceEval.steps[1].conditionsPassed).toBe(true);
+    expect(audienceEval.steps[1].bucketed).toBe(true);
+    expect(audienceEval.steps[1].bucketVariant).toEqual('control');
   });
 
   it('populates audienceEvaluation from variant metadata for remote flags', async () => {
@@ -177,11 +177,10 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
     const flagInfo = state.flags['flag-remote'];
 
     expect(flagInfo).toBeDefined();
-    // Remote flags use the metadata fallback path (no full segment traces)
     const audienceEval = flagInfo.audienceEvaluation;
     if (!audienceEval) throw new Error('expected audienceEvaluation');
     expect(audienceEval.matched).toBe(true);
     expect(audienceEval.matchedSegment).toEqual('All Users');
-    expect(audienceEval.segments).toEqual([]);
+    expect(audienceEval.steps).toEqual([]);
   });
 });
