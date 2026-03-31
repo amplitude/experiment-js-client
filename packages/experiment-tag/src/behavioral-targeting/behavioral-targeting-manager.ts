@@ -20,22 +20,17 @@ export class BehavioralTargetingManager {
     Array<{ id: string; flagKey: string }>
   > = new Map();
 
-  constructor(
-    apiKey: string,
-    initialRules: BehavioralTargetingRules = {},
-    trackedEventsToFlagKeys: Map<string, Set<string>> = new Map(),
-  ) {
+  constructor(apiKey: string, initialRules: BehavioralTargetingRules = {}) {
     this.rules = initialRules;
     this.sessionManager = new SessionManager(apiKey);
+    // Build event-to-behavior mapping for efficient lookups
+    this.buildEventToBehaviorsMap();
     this.eventStorage = new EventStorageManager(
       apiKey,
       this.sessionManager,
-      new Set(trackedEventsToFlagKeys.keys()),
+      new Set(this.eventToBehaviors.keys()),
     );
     this.evaluator = new BehavioralTargetingEvaluator(this.eventStorage);
-
-    // Build event-to-behavior mapping for efficient lookups
-    this.buildEventToBehaviorsMap();
 
     // Initialize active behavior state on startup
     this.evaluateAll();
