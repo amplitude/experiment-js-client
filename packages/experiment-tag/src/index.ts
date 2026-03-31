@@ -44,7 +44,11 @@ export const initialize = (
       .then((previewState) => {
         const flags = JSON.stringify(previewState.flags);
         const objects = JSON.stringify(previewState.pageViewObjects);
-        startClient(apiKey, flags, objects, behavioralRules, config);
+        // Use fetched behavioral rules if available, otherwise fall back to initial rules
+        const rules = previewState.behavioralTargetingRules
+          ? JSON.stringify(previewState.behavioralTargetingRules)
+          : behavioralRules;
+        startClient(apiKey, flags, objects, rules, config);
       })
       .catch((error) => {
         console.warn('Failed to fetch latest configs for preview:', error);
