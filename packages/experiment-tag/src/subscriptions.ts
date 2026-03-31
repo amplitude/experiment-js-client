@@ -221,7 +221,14 @@ export class SubscriptionManager {
               triggerTypeExperimentMap[triggerType] || [],
             );
             const behaviorFlags = behaviorsChanged
-              ? Array.from(activeBehavioralFlags?.keys() || [])
+              ? Array.from(
+                  new Set([
+                    ...Array.from(activeBehavioralFlags?.keys() || []),
+                    ...Array.from(
+                      this.lastNotifiedActiveBehavioralFlags?.keys() || [],
+                    ),
+                  ]),
+                )
               : [];
             relevantFlags = Array.from(
               new Set([...pageTriggerFlags, ...behaviorFlags]),
