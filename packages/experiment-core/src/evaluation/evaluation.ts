@@ -100,10 +100,10 @@ export class EvaluationEngine {
           bucketed,
           bucketVariant: variantKey,
           conditionResult: undefined,
-          matched: true,
+          matched: bucketed,
         });
-        if (!winnerVariant && bucketed) {
-          winnerVariant = flag.variants[variantKey!];
+        if (!winnerVariant && variantKey !== undefined) {
+          winnerVariant = flag.variants[variantKey];
           winnerSegment = segment;
           matchedSegmentName = segment.metadata?.segmentName as
             | string
@@ -158,8 +158,8 @@ export class EvaluationEngine {
         matched: segmentMatched && bucketed,
       });
 
-      if (segmentMatched && bucketed && !winnerVariant) {
-        winnerVariant = flag.variants[bucketVariant!];
+      if (segmentMatched && bucketVariant !== undefined && !winnerVariant) {
+        winnerVariant = flag.variants[bucketVariant];
         winnerSegment = segment;
         matchedSegmentName = segment.metadata?.segmentName as
           | string
