@@ -3,6 +3,7 @@ const DEVICE_IFRAME_ID = 'amp-device-iframe';
 const DEVICE_CONTAINER_ID = 'amp-overlay-device-iframe-container';
 const OVERLAY_HOST_ID = 'overlay-shadow-host';
 
+// These values map to the dimensions of an iPhone 17
 const DEFAULT_MOBILE_WIDTH = 402;
 const DEFAULT_MOBILE_HEIGHT = 874;
 
