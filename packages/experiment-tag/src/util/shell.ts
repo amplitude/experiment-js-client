@@ -15,6 +15,37 @@ export function isMobileModeActive(): boolean {
 }
 
 /**
+ * Returns the device iframe element when the customer page is rendered inside
+ * it (mobile viewport mode), or null when running in the top frame.
+ */
+export function getDeviceIframe(): HTMLIFrameElement | null {
+  return document.getElementById(DEVICE_IFRAME_ID) as HTMLIFrameElement | null;
+}
+
+/**
+ * Returns the Document for the customer page. In mobile viewport mode the
+ * customer site lives inside a same-origin iframe; otherwise it is the
+ * top-level document.
+ */
+export function getCustomerDocument(globalScope: typeof globalThis): Document {
+  return getDeviceIframe()?.contentDocument ?? globalScope.document;
+}
+
+/**
+ * Returns the Window for the customer page. In mobile viewport mode the
+ * customer site lives inside a same-origin iframe; otherwise it is the
+ * top-level window.
+ */
+export const getCustomerWindow = (
+  globalScope: typeof globalThis,
+): Window & typeof globalThis => {
+  return (
+    (getDeviceIframe()?.contentWindow as Window & typeof globalThis) ??
+    globalScope
+  );
+};
+
+/**
  * Syncs the iframe URL to the top-level URL bar. The wrapped replaceState
  * also triggers the SDK's url_change pipeline.
  */

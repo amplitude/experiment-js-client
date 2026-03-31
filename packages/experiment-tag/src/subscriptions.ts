@@ -33,6 +33,7 @@ import {
   getElementSelectors,
   getPageObjectsByTriggerType,
 } from './util/page-object';
+import { getCustomerDocument, getCustomerWindow } from './util/shell';
 import { DebouncedMutationManager } from './util/triggers/mutation-manager';
 
 const evaluationEngine = new EvaluationEngine();
@@ -84,6 +85,14 @@ export class SubscriptionManager {
   private lastPublishedUrl: string | null = null;
   private debugStateSubscribers: Set<(state: DebugState) => void> = new Set();
   private debugDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private get contentDocument(): Document {
+    return getCustomerDocument(this.globalScope);
+  }
+
+  private get contentWindow(): typeof globalThis {
+    return getCustomerWindow(this.globalScope);
+  }
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -510,9 +519,9 @@ export class SubscriptionManager {
 
       if (isRelevant) {
         try {
-          const elements = this.globalScope.document.querySelectorAll(selector);
+          const elements = this.contentDocument.querySelectorAll(selector);
           for (const element of Array.from(elements)) {
-            const style = this.globalScope.getComputedStyle(element);
+            const style = this.contentWindow.getComputedStyle(element);
             const hasAppeared =
               style.display !== 'none' && style.visibility !== 'hidden';
 
@@ -597,7 +606,7 @@ export class SubscriptionManager {
     ];
 
     const mutationManager = new DebouncedMutationManager(
-      this.globalScope.document.documentElement,
+      this.contentDocument.documentElement,
       (mutationList) => {
         // Check each active selector and update state
         this.updateElementAppearedState(
@@ -662,8 +671,7 @@ export class SubscriptionManager {
 
           // Observe the element if it exists
           try {
-            const elements =
-              this.globalScope.document.querySelectorAll(selector);
+            const elements = this.contentDocument.querySelectorAll(selector);
             elements.forEach((element) => {
               observer.observe(element);
             });
@@ -691,8 +699,7 @@ export class SubscriptionManager {
 
         if (isRelevant) {
           try {
-            const elements =
-              this.globalScope.document.querySelectorAll(selector);
+            const elements = this.contentDocument.querySelectorAll(selector);
             elements.forEach((element) => {
               observer.observe(element);
             });
@@ -745,17 +752,11 @@ export class SubscriptionManager {
     // Install listener after minimum time requirement
     if (minTimeOnPageMs > 0) {
       this.globalScope.setTimeout(() => {
-        this.globalScope.document.addEventListener(
-          'mouseleave',
-          handleMouseLeave,
-        );
+        this.contentDocument.addEventListener('mouseleave', handleMouseLeave);
       }, minTimeOnPageMs);
     } else {
       // Install immediately if no time requirement
-      this.globalScope.document.addEventListener(
-        'mouseleave',
-        handleMouseLeave,
-      );
+      this.contentDocument.addEventListener('mouseleave', handleMouseLeave);
     }
   };
 
@@ -918,7 +919,7 @@ export class SubscriptionManager {
       }
     };
 
-    this.globalScope.document.addEventListener('click', handler, { signal });
+    this.contentDocument.addEventListener('click', handler, { signal });
   };
 
   private setupThresholdBasedDelegation = (
@@ -1020,14 +1021,10 @@ export class SubscriptionManager {
       }
     };
 
-    this.globalScope.document.addEventListener(
-      config.startEvent,
-      startHandler,
-      {
-        signal,
-      },
-    );
-    this.globalScope.document.addEventListener(config.endEvent, endHandler, {
+    this.contentDocument.addEventListener(config.startEvent, startHandler, {
+      signal,
+    });
+    this.contentDocument.addEventListener(config.endEvent, endHandler, {
       signal,
     });
   };
@@ -1163,7 +1160,7 @@ export class SubscriptionManager {
         });
       };
 
-      this.globalScope.addEventListener('scroll', throttledScroll, {
+      this.contentWindow.addEventListener('scroll', throttledScroll, {
         passive: true,
       });
 
@@ -1213,8 +1210,7 @@ export class SubscriptionManager {
 
             // Observe all elements matching the selector
             try {
-              const elements =
-                this.globalScope.document.querySelectorAll(selector);
+              const elements = this.contentDocument.querySelectorAll(selector);
               elements.forEach((element) => {
                 observer.observe(element);
               });
@@ -1242,8 +1238,7 @@ export class SubscriptionManager {
 
           if (isRelevant) {
             try {
-              const elements =
-                this.globalScope.document.querySelectorAll(selector);
+              const elements = this.contentDocument.querySelectorAll(selector);
               elements.forEach((element) => {
                 observer.observe(element);
               });
@@ -1257,10 +1252,9 @@ export class SubscriptionManager {
   };
 
   private calculateScrollPercentage(): number {
-    const windowHeight = this.globalScope.innerHeight;
-    const documentHeight =
-      this.globalScope.document.documentElement.scrollHeight;
-    const scrollTop = this.globalScope.scrollY;
+    const windowHeight = this.contentWindow.innerHeight;
+    const documentHeight = this.contentDocument.documentElement.scrollHeight;
+    const scrollTop = this.contentWindow.scrollY;
     const scrollableHeight = documentHeight - windowHeight;
 
     if (scrollableHeight <= 0) {
