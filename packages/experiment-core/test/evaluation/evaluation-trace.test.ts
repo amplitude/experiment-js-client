@@ -1,8 +1,4 @@
-import {
-  EvaluationEngine,
-  EvaluationFlag,
-  EvaluationSegment,
-} from '../../src';
+import { EvaluationEngine, EvaluationFlag, EvaluationSegment } from '../../src';
 
 const engine = new EvaluationEngine();
 
@@ -44,7 +40,9 @@ describe('evaluateWithTraces', () => {
     expect(trace.matchedSegment).toEqual('All Users');
     expect(trace.steps).toHaveLength(1);
     expect(trace.steps[0].matched).toBe(true);
-    expect(trace.steps[0].segmentMetadata).toEqual({ segmentName: 'All Users' });
+    expect(trace.steps[0].segmentMetadata).toEqual({
+      segmentName: 'All Users',
+    });
     expect(trace.steps[0].conditionResult).toBeUndefined();
   });
 
@@ -135,8 +133,12 @@ describe('evaluateWithTraces', () => {
     const context = userContext('u1', {});
     const { traces } = engine.evaluateWithTraces(context, [flag]);
 
-    expect(traces['flag-4'].steps[0].conditionResult![0]![0].propValue).toBeUndefined();
-    expect(traces['flag-4'].steps[0].conditionResult![0]![0].matched).toBe(false);
+    expect(
+      traces['flag-4'].steps[0].conditionResult![0]![0].propValue,
+    ).toBeUndefined();
+    expect(traces['flag-4'].steps[0].conditionResult![0]![0].matched).toBe(
+      false,
+    );
   });
 
   it('traces multiple segments where none match', () => {
@@ -144,14 +146,26 @@ describe('evaluateWithTraces', () => {
       {
         metadata: { segmentName: 'VIP' },
         conditions: [
-          [{ selector: ['context', 'user', 'user_properties', 'vip'], op: 'is', values: ['true'] }],
+          [
+            {
+              selector: ['context', 'user', 'user_properties', 'vip'],
+              op: 'is',
+              values: ['true'],
+            },
+          ],
         ],
         variant: 'treatment',
       },
       {
         metadata: { segmentName: 'Internal' },
         conditions: [
-          [{ selector: ['context', 'user', 'user_properties', 'internal'], op: 'is', values: ['true'] }],
+          [
+            {
+              selector: ['context', 'user', 'user_properties', 'internal'],
+              op: 'is',
+              values: ['true'],
+            },
+          ],
         ],
         variant: 'control',
       },
@@ -170,9 +184,18 @@ describe('evaluateWithTraces', () => {
   it('merges metadata correctly on the winning variant', () => {
     const flag = makeFlag(
       'flag-6',
-      [{ metadata: { segmentName: 'All', segmentId: 's1' }, variant: 'treatment' }],
+      [
+        {
+          metadata: { segmentName: 'All', segmentId: 's1' },
+          variant: 'treatment',
+        },
+      ],
       {
-        treatment: { key: 'treatment', value: 'treatment', metadata: { variantLevel: true } },
+        treatment: {
+          key: 'treatment',
+          value: 'treatment',
+          metadata: { variantLevel: true },
+        },
       },
       { flagLevel: true },
     );
@@ -194,13 +217,21 @@ describe('evaluateWithTraces', () => {
         {
           metadata: { segmentName: 'Beta' },
           conditions: [
-            [{ selector: ['context', 'user', 'user_properties', 'beta'], op: 'is', values: ['true'] }],
+            [
+              {
+                selector: ['context', 'user', 'user_properties', 'beta'],
+                op: 'is',
+                values: ['true'],
+              },
+            ],
           ],
           variant: 'treatment',
         },
         { metadata: { segmentName: 'All' }, variant: 'control' },
       ]),
-      makeFlag('flag-b', [{ metadata: { segmentName: 'All' }, variant: 'treatment' }]),
+      makeFlag('flag-b', [
+        { metadata: { segmentName: 'All' }, variant: 'treatment' },
+      ]),
     ];
 
     const context = userContext('u1', { beta: 'true' });
