@@ -1,14 +1,6 @@
 import { EvaluationEngine } from '@amplitude/experiment-core';
 
-import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
-import {
-  ExitIntentPayload,
-  MessageBus,
-  MessagePayloads,
-  AnalyticsEventPayload,
-  MessageType,
-  TimeOnPagePayload,
-} from './subscriptions/message-bus';
+import { DefaultWebExperimentClient, INJECT_ACTION } from '../experiment';
 import {
   ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
@@ -20,21 +12,30 @@ import {
   TimeOnPageTriggerValue,
   ScrolledToTriggerValue,
   AnalyticsEventTriggerValue,
-} from './types';
-import type {
+} from '../types';
+import {
   DebugState,
   PageObjectDebugInfo,
   TriggerDebugInfo,
-} from './types/debug';
-import { DebugRecorder } from './util/debug-recorder';
+} from '../types/debug';
+import { DebugRecorder } from '../util/debug-recorder';
 import {
   arePageObjectsEqual,
   clonePageObjects,
   getElementSelectors,
   getPageObjectsByTriggerType,
-} from './util/page-object';
-import { getCustomerDocument, getCustomerWindow } from './util/shell';
-import { DebouncedMutationManager } from './util/triggers/mutation-manager';
+} from '../util/page-object';
+import { getCustomerDocument, getCustomerWindow } from '../util/shell';
+import { DebouncedMutationManager } from '../util/triggers/mutation-manager';
+
+import {
+  ExitIntentPayload,
+  MessageBus,
+  MessagePayloads,
+  AnalyticsEventPayload,
+  MessageType,
+  TimeOnPagePayload,
+} from './message-bus';
 
 const evaluationEngine = new EvaluationEngine();
 
