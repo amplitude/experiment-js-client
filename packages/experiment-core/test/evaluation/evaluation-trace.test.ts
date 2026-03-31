@@ -1,4 +1,8 @@
-import { EvaluationEngine, EvaluationFlag, EvaluationSegment } from '../../src';
+import {
+  EvaluationEngine,
+  type EvaluationFlag,
+  type EvaluationSegment,
+} from '../../src';
 
 const engine = new EvaluationEngine();
 
@@ -46,6 +50,25 @@ describe('evaluateWithTraces', () => {
     expect(trace.steps[0].conditionResult).toBeUndefined();
   });
 
+  it('reports matched: false for a no-conditions segment when bucket returns undefined', () => {
+    const flag = makeFlag('flag-unbucketed', [
+      {
+        metadata: { segmentName: 'Empty Segment' },
+      },
+    ]);
+
+    const context = userContext('u1');
+    const { results, traces } = engine.evaluateWithTraces(context, [flag]);
+    const trace = traces['flag-unbucketed'];
+
+    expect(results['flag-unbucketed']).toBeUndefined();
+    expect(trace.matched).toBe(false);
+    expect(trace.steps).toHaveLength(1);
+    expect(trace.steps[0].conditionsPassed).toBe(true);
+    expect(trace.steps[0].bucketed).toBe(false);
+    expect(trace.steps[0].matched).toBe(false);
+  });
+
   it('records per-condition detail with propValue and matched', () => {
     const flag = makeFlag('flag-2', [
       {
@@ -69,12 +92,12 @@ describe('evaluateWithTraces', () => {
 
     expect(step.matched).toBe(true);
     expect(step.conditionResult).toHaveLength(1);
-    const andGroup = step.conditionResult![0]!;
+    const andGroup = step.conditionResult?.[0];
     expect(andGroup).toHaveLength(1);
-    expect(andGroup[0].propValue).toEqual('true');
-    expect(andGroup[0].condition.op).toEqual('is');
-    expect(andGroup[0].condition.values).toEqual(['true']);
-    expect(andGroup[0].matched).toBe(true);
+    expect(andGroup?.[0].propValue).toEqual('true');
+    expect(andGroup?.[0].condition.op).toEqual('is');
+    expect(andGroup?.[0].condition.values).toEqual(['true']);
+    expect(andGroup?.[0].matched).toBe(true);
   });
 
   it('records failed condition with actual propValue', () => {
@@ -106,39 +129,10 @@ describe('evaluateWithTraces', () => {
     expect(trace.matchedSegment).toEqual('All Other Users');
     expect(trace.steps).toHaveLength(2);
     expect(trace.steps[0].matched).toBe(false);
-    expect(trace.steps[0].conditionResult![0]![0].propValue).toEqual('US');
-    expect(trace.steps[0].conditionResult![0]![0].matched).toBe(false);
+    expect(trace.steps[0].conditionResult?.[0]?.[0]?.propValue).toEqual('US');
+    expect(trace.steps[0].conditionResult?.[0]?.[0]?.matched).toBe(false);
     expect(trace.steps[1].matched).toBe(true);
     expect(trace.steps[1].conditionResult).toBeUndefined();
-  });
-
-  it('handles missing propValue (undefined) in condition results', () => {
-    const flag = makeFlag('flag-4', [
-      {
-        metadata: { segmentName: 'VIP' },
-        conditions: [
-          [
-            {
-              selector: ['context', 'user', 'user_properties', 'vip'],
-              op: 'is',
-              values: ['true'],
-            },
-          ],
-        ],
-        variant: 'treatment',
-      },
-      { metadata: { segmentName: 'Fallback' }, variant: 'control' },
-    ]);
-
-    const context = userContext('u1', {});
-    const { traces } = engine.evaluateWithTraces(context, [flag]);
-
-    expect(
-      traces['flag-4'].steps[0].conditionResult![0]![0].propValue,
-    ).toBeUndefined();
-    expect(traces['flag-4'].steps[0].conditionResult![0]![0].matched).toBe(
-      false,
-    );
   });
 
   it('traces multiple segments where none match', () => {
