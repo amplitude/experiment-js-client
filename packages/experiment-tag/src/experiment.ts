@@ -18,7 +18,6 @@ import mutate, { MutationController } from 'dom-mutator';
 import * as domMutatorExports from 'dom-mutator';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
-import { getEventToFlagMap } from './behavioral-targeting/util';
 import { showPreviewModeModal } from './preview/preview';
 import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import { MessageBus } from './subscriptions/message-bus';
@@ -109,8 +108,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private pageObjects: PageObjects;
   private activePages: PageObjects = {};
   private readonly behavioralTargetingRules: BehavioralTargetingRules = {};
-  private activeBehavioralFlags: Set<string> = new Set();
-  private readonly behavioralTargetingManager:
+  public readonly behavioralTargetingManager:
     | BehavioralTargetingManager
     | undefined;
   private subscriptionManager: SubscriptionManager | undefined;
@@ -137,14 +135,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.initialFlags = JSON.parse(initialFlags);
     this.pageObjects = JSON.parse(pageObjects);
     this.behavioralTargetingRules = JSON.parse(behavioralRules);
-    const trackedEvents = getEventToFlagMap(this.behavioralTargetingRules);
 
     // Initialize behavioral targeting infrastructure only if there are rules
     if (Object.keys(this.behavioralTargetingRules).length > 0) {
       this.behavioralTargetingManager = new BehavioralTargetingManager(
         this.apiKey,
         this.behavioralTargetingRules,
-        trackedEvents,
       );
     }
     // merge config with defaults and experimentConfig (if provided)
@@ -312,14 +308,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.globalScope.experimentIntegration.type = 'integration';
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(enrichedUser);
+    this.updateUserWithBehaviors();
 
     if (!this.isRemoteBlocking) {
       // Remove anti-flicker css if remote flags are not blocking
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
-
-    // Evaluate initial behaviors (from events already in storage) before applying variants
-    this.behavioralTargetingManager?.evaluateAll();
 
     // apply local variants
     this.applyVariants({ flagKeys: this.localFlagKeys });
@@ -565,13 +559,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Get the set of active behavioral targeting flags.
-   */
-  public getActiveBehaviors(): Set<string> {
-    return this.activeBehavioralFlags;
-  }
-
-  /**
    * Add a subscriber to the page change event.
    * @param callback
    * @returns An unsubscribe function to remove the subscriber.
@@ -583,6 +570,35 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.subscriptionManager) {
       return this.subscriptionManager.addPageChangeSubscriber(callback);
     }
+  }
+
+  /**
+   * Update the user with matched behavioral targeting IDs.
+   * Sets the user property `real_time_behaviors` to an array of all matched behavior IDs.
+   */
+  public updateUserWithBehaviors(): void {
+    // Extract all behavior IDs from the map
+    if (!this.behavioralTargetingManager) {
+      return;
+    }
+    const behaviorIds: string[] = [];
+    for (const behaviorSet of this.behavioralTargetingManager
+      .getMatchedBehaviors()
+      .values()) {
+      behaviorIds.push(...behaviorSet);
+    }
+
+    // Get the current user from the experiment client
+    const currentUser = this.experimentClient.getUser();
+
+    // Update user with real_time_behaviors property directly on the user object
+    const updatedUser = {
+      ...currentUser,
+      real_time_behaviors: behaviorIds,
+    };
+
+    // Set the updated user
+    this.experimentClient.setUser(updatedUser);
   }
 
   /**
@@ -663,19 +679,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       event: event_type,
       properties: event_properties || {},
     });
-  }
-
-  /**
-   * Update active behavioral flags tracking.
-   */
-  updateActiveBehavioralFlags(flagState: { [flagKey: string]: boolean }): void {
-    for (const flagKey in flagState) {
-      if (flagState[flagKey]) {
-        this.activeBehavioralFlags.add(flagKey);
-      } else {
-        this.activeBehavioralFlags.delete(flagKey);
-      }
-    }
   }
 
   private async fetchRemoteFlags() {
@@ -937,34 +940,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     scope: string[] | undefined,
   ): boolean {
     const flagPages = this.activePages[flagKey];
-    const hasBehavioralTargeting =
-      this.behavioralTargetingManager?.hasRules(flagKey);
 
-    // Check if pages or behaviors are active at flag level
-    const hasPagesActive =
-      !!flagPages && Object.values(flagPages).some(Boolean);
-    const hasBehaviorsActive = this.activeBehavioralFlags.has(flagKey);
-
-    // If no scope is provided:
-    // - If experiment has behavioral targeting: BOTH pages AND behaviors must be active
-    // - If experiment has no behavioral targeting: only pages must be active
+    // If no scope is provided, assume variant is active if the flag has any active pages
     if (!scope) {
-      if (hasBehavioralTargeting) {
-        return hasPagesActive && hasBehaviorsActive;
-      }
-      return hasPagesActive;
+      return !!flagPages && Object.values(flagPages).some(Boolean);
     }
 
-    // If scope is provided, check if scoped pages are active
-    // Behavioral targeting is always evaluated at flag level, not scope level
-    const pageMatch = scope.some((pageId) => flagPages?.[pageId] ?? false);
-
-    // If experiment has behavioral targeting: both page scope AND flag-level behaviors must be active
-    // If no behavioral targeting: only page scope must be active
-    if (hasBehavioralTargeting) {
-      return pageMatch && hasBehaviorsActive;
-    }
-    return pageMatch;
+    // If scope is provided, check if any scoped page is active
+    return scope.some((pageId) => flagPages?.[pageId] ?? false);
   }
 
   private storeRedirectImpressions(

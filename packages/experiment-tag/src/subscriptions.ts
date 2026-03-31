@@ -1,6 +1,7 @@
 import { EvaluationEngine } from '@amplitude/experiment-core';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
+import { areBehaviorsEqual } from './behavioral-targeting/util';
 import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
 import {
   ExitIntentPayload,
@@ -28,7 +29,6 @@ import {
   getElementSelectors,
   getPageObjectsByTriggerType,
 } from './util/page-object';
-import { symmetricDifference } from './util/set';
 import { DebouncedMutationManager } from './util/triggers/mutation-manager';
 
 const evaluationEngine = new EvaluationEngine();
@@ -54,7 +54,8 @@ export class SubscriptionManager {
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
     new Set();
   private lastNotifiedActivePages: PageObjects = {};
-  private lastNotifiedActiveBehavioralFlags: Set<string> = new Set();
+  private lastNotifiedActiveBehavioralFlags: Map<string, Set<string>> =
+    new Map();
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
@@ -102,21 +103,6 @@ export class SubscriptionManager {
 
   public markUrlAsPublished = (url: string) => {
     this.lastPublishedUrl = url;
-  };
-
-  /**
-   * Evaluate all behavioral targeting rules and update active behavioral flags.
-   */
-  public evaluateAllBehaviors = (event: string): void => {
-    if (!this.behavioralTargetingManager) {
-      return;
-    }
-
-    // Evaluate all rules and get active flags
-    const flagState = this.behavioralTargetingManager.evaluateEvent(event);
-
-    // Update the experiment client with the active flags
-    this.webExperimentClient.updateActiveBehavioralFlags(flagState);
   };
 
   public initSubscriptions = () => {
@@ -195,11 +181,6 @@ export class SubscriptionManager {
           this.revertInjections();
         }
 
-        // Evaluate behavioral targeting for analytics events
-        if (isAnalyticsEvent) {
-          this.evaluateAllBehaviors((payload as AnalyticsEventPayload).event);
-        }
-
         // Get current page state and check if it changed
         const activePages = this.webExperimentClient.getActivePages();
         const pagesChanged = !arePageObjectsEqual(
@@ -209,14 +190,17 @@ export class SubscriptionManager {
 
         // Get current behavioral state and check if it changed
         const activeBehavioralFlags =
-          this.webExperimentClient.getActiveBehaviors();
+          this.webExperimentClient.behavioralTargetingManager?.getMatchedBehaviors();
+
         const behaviorsChanged =
           isAnalyticsEvent &&
-          symmetricDifference(
+          !areBehaviorsEqual(
             activeBehavioralFlags,
             this.lastNotifiedActiveBehavioralFlags,
-          ).size > 0;
-
+          );
+        if (behaviorsChanged) {
+          this.webExperimentClient.updateUserWithBehaviors();
+        }
         // Skip processing in visual editor mode or internal updates
         const isInternalUpdate =
           'updateActivePages' in payload && payload.updateActivePages;
@@ -237,7 +221,7 @@ export class SubscriptionManager {
               triggerTypeExperimentMap[triggerType] || [],
             );
             const behaviorFlags = behaviorsChanged
-              ? Array.from(activeBehavioralFlags)
+              ? Array.from(activeBehavioralFlags?.keys() || [])
               : [];
             relevantFlags = Array.from(
               new Set([...pageTriggerFlags, ...behaviorFlags]),
@@ -276,9 +260,12 @@ export class SubscriptionManager {
         }
 
         // Update last notified behaviors if they changed
-        if (behaviorsChanged) {
-          this.lastNotifiedActiveBehavioralFlags = new Set(
-            activeBehavioralFlags,
+        if (behaviorsChanged && activeBehavioralFlags) {
+          this.lastNotifiedActiveBehavioralFlags = new Map(
+            Array.from(activeBehavioralFlags.entries()).map(([key, value]) => [
+              key,
+              new Set(value),
+            ]),
           );
         }
       });
@@ -304,7 +291,7 @@ export class SubscriptionManager {
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
     this.analyticsEventState.clear();
-    this.lastNotifiedActiveBehavioralFlags = new Set();
+    this.lastNotifiedActiveBehavioralFlags = new Map();
 
     // Clear pending click timeouts
     for (const timeout of this.clickTimeouts.values()) {

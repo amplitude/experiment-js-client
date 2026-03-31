@@ -1,55 +1,35 @@
-import { BehavioralTargeting } from './types';
-
 /**
- * Extracts all unique event names from behavioral targeting rules.
- * @param rules Map of flag keys to behavioral targeting rule arrays
- * @returns Set of event names referenced in the rules
+ * Check if two Maps of behavioral flags are equal.
+ * Compares flag keys and their associated behavior ID sets.
+ * @param current Current map of flag keys to behavior ID sets
+ * @param previous Previous map of flag keys to behavior ID sets
+ * @returns true if the maps are equal, false if they're different
  */
-export function extractEventNames(rules: {
-  [flagKey: string]: BehavioralTargeting;
-}): Set<string> {
-  const eventNames = new Set<string>();
+export function areBehaviorsEqual(
+  current: Map<string, Set<string>> | undefined,
+  previous: Map<string, Set<string>>,
+): boolean {
+  // If one is undefined and the other isn't, they're different
+  if (!current && previous.size > 0) return false;
+  if (current && current.size !== previous.size) return false;
+  if (!current) return true;
 
-  for (const flagKey in rules) {
-    const behavioralTargeting = rules[flagKey];
+  // Check if all keys and their values match
+  for (const [flagKey, behaviorIds] of current) {
+    const previousBehaviorIds = previous.get(flagKey);
+    if (!previousBehaviorIds) return false;
 
-    // Iterate through OR groups (outer array)
-    for (const orGroup of behavioralTargeting) {
-      // Iterate through AND conditions (inner array)
-      for (const conditionSet of orGroup) {
-        const condition = conditionSet.condition;
-        // Extract the event name from type_value
-        if (condition.type === 'event' && condition.type_value) {
-          eventNames.add(condition.type_value);
-        }
-      }
+    // Compare sets of behavior IDs
+    if (behaviorIds.size !== previousBehaviorIds.size) return false;
+    for (const id of behaviorIds) {
+      if (!previousBehaviorIds.has(id)) return false;
     }
   }
 
-  return eventNames;
-}
-
-/**
- * Creates a map of event names to flag keys for behavioral targeting rules.
- * @param rules Map of flag keys to behavioral targeting rule arrays
- * @returns Map of event names to sets of flag keys
- */
-export function getEventToFlagMap(rules: {
-  [flagKey: string]: BehavioralTargeting;
-}): Map<string, Set<string>> {
-  const eventToFlagMap = new Map<string, Set<string>>();
-
-  for (const flagKey in rules) {
-    const behavioralTargeting = rules[flagKey];
-    const eventNames = extractEventNames({ [flagKey]: behavioralTargeting });
-
-    for (const eventName of eventNames) {
-      if (!eventToFlagMap.has(eventName)) {
-        eventToFlagMap.set(eventName, new Set());
-      }
-      eventToFlagMap.get(eventName)?.add(flagKey);
-    }
+  // Check if previous has any keys that current doesn't
+  for (const flagKey of previous.keys()) {
+    if (!current.has(flagKey)) return false;
   }
 
-  return eventToFlagMap;
+  return true;
 }
