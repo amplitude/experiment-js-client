@@ -19,17 +19,9 @@ export function isMobileModeActive(): boolean {
  * also triggers the SDK's url_change pipeline.
  */
 function syncIframeUrl(globalScope: typeof globalThis, iframeWindow: Window) {
-  try {
-    const iframeHref = iframeWindow.location.href;
-    if (iframeHref && iframeHref !== globalScope.location.href) {
-      globalScope.history.replaceState(
-        globalScope.history.state,
-        '',
-        iframeHref,
-      );
-    }
-  } catch {
-    // cross-origin or detached — ignore
+  const iframeHref = iframeWindow.location.href;
+  if (iframeHref && iframeHref !== globalScope.location.href) {
+    globalScope.history.replaceState(globalScope.history.state, '', iframeHref);
   }
 }
 
@@ -125,8 +117,12 @@ export function buildShell(globalScope: typeof globalThis): void {
     iframe.addEventListener('load', () => {
       const iframeWindow = iframe.contentWindow;
       if (!iframeWindow) return;
-      syncIframeUrl(globalScope, iframeWindow);
-      observeIframeSpaNav(globalScope, iframeWindow);
+      try {
+        syncIframeUrl(globalScope, iframeWindow);
+        observeIframeSpaNav(globalScope, iframeWindow);
+      } catch {
+        // cross-origin iframe — skip URL syncing
+      }
     });
 
     container.appendChild(iframe);
