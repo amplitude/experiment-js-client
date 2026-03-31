@@ -552,14 +552,15 @@ export class SubscriptionManager {
       // Check if any added nodes match the selector
       if (mutation.addedNodes.length > 0) {
         for (const node of Array.from(mutation.addedNodes)) {
-          if (node instanceof Element) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
             try {
+              const el = node as Element;
               // Check if the added node itself matches
-              if (node.matches(selector)) {
+              if (el.matches(selector)) {
                 return true;
               }
               // Check if any descendant matches
-              if (node.querySelector(selector)) {
+              if (el.querySelector(selector)) {
                 return true;
               }
             } catch (e) {
@@ -570,14 +571,15 @@ export class SubscriptionManager {
       }
 
       // Check if mutation target or its ancestors/descendants match
-      if (mutation.target instanceof Element) {
+      if (mutation.target.nodeType === Node.ELEMENT_NODE) {
         try {
+          const target = mutation.target as Element;
           // Check if target matches
-          if (mutation.target.matches(selector)) {
+          if (target.matches(selector)) {
             return true;
           }
           // Check if target contains matching elements
-          if (mutation.target.querySelector(selector)) {
+          if (target.querySelector(selector)) {
             return true;
           }
         } catch (e) {
