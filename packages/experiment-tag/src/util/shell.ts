@@ -28,7 +28,10 @@ export function getDeviceIframe(): HTMLIFrameElement | null {
  * top-level document.
  */
 export function getCustomerDocument(globalScope: typeof globalThis): Document {
-  return getDeviceIframe()?.contentDocument ?? globalScope.document;
+  if (isMobileModeActive()) {
+    return getDeviceIframe()?.contentDocument ?? globalScope.document;
+  }
+  return globalScope.document;
 }
 
 /**
@@ -39,10 +42,13 @@ export function getCustomerDocument(globalScope: typeof globalThis): Document {
 export const getCustomerWindow = (
   globalScope: typeof globalThis,
 ): Window & typeof globalThis => {
-  return (
-    (getDeviceIframe()?.contentWindow as Window & typeof globalThis) ??
-    globalScope
-  );
+  if (isMobileModeActive()) {
+    return (
+      (getDeviceIframe()?.contentWindow as Window & typeof globalThis) ??
+      (globalScope as Window & typeof globalThis)
+    );
+  }
+  return globalScope as Window & typeof globalThis;
 };
 
 /**
