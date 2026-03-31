@@ -177,7 +177,18 @@ export class EventStorageManager {
     const stored = localStorage.getItem(this.storageKey);
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Validate structure to prevent crashes from malformed data
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          Array.isArray(parsed.events) &&
+          typeof parsed.nextId === 'number'
+        ) {
+          return parsed;
+        }
+        // Invalid structure, return empty
+        return { events: [], nextId: 1 };
       } catch (e) {
         // Invalid JSON, return empty
         return { events: [], nextId: 1 };
@@ -222,8 +233,7 @@ export class EventStorageManager {
         this.debouncedWriteTimeout = null;
       }
     } catch (e) {
-      // localStorage quota exceeded or unavailable - fail and log error
-      console.error('Error writing to localStorage:', e);
+      // localStorage quota exceeded or unavailable
     }
   }
 
