@@ -1,16 +1,8 @@
 import { EvaluationEngine } from '@amplitude/experiment-core';
 
-import { BehavioralTargetingManager } from './behavioral-targeting';
-import { areBehaviorsEqual } from './behavioral-targeting/util';
-import { DefaultWebExperimentClient, INJECT_ACTION } from './experiment';
-import {
-  ExitIntentPayload,
-  MessageBus,
-  MessagePayloads,
-  AnalyticsEventPayload,
-  MessageType,
-  TimeOnPagePayload,
-} from './subscriptions/message-bus';
+import { BehavioralTargetingManager } from '../behavioral-targeting';
+import { areBehaviorsEqual } from '../behavioral-targeting/util';
+import { DefaultWebExperimentClient, INJECT_ACTION } from '../experiment';
 import {
   ElementAppearedTriggerValue,
   ElementVisibleTriggerValue,
@@ -22,20 +14,38 @@ import {
   TimeOnPageTriggerValue,
   ScrolledToTriggerValue,
   AnalyticsEventTriggerValue,
-} from './types';
+} from '../types';
+import {
+  DebugState,
+  PageObjectDebugInfo,
+  TriggerDebugInfo,
+} from '../types/debug';
+import { DebugRecorder } from '../util/debug-recorder';
 import {
   arePageObjectsEqual,
   clonePageObjects,
   getElementSelectors,
   getPageObjectsByTriggerType,
-} from './util/page-object';
-import { DebouncedMutationManager } from './util/triggers/mutation-manager';
+} from '../util/page-object';
+import { DebouncedMutationManager } from '../util/triggers/mutation-manager';
+
+import {
+  ExitIntentPayload,
+  MessageBus,
+  MessagePayloads,
+  AnalyticsEventPayload,
+  MessageType,
+  TimeOnPagePayload,
+} from './message-bus';
 
 const evaluationEngine = new EvaluationEngine();
+
+const DEBUG_DEBOUNCE_MS = 100;
 
 type initOptions = {
   useDefaultNavigationHandler?: boolean;
   isVisualEditorMode?: boolean;
+  isDebugActive?: boolean;
 };
 
 export type PageChangeEvent = {
@@ -80,6 +90,8 @@ export class SubscriptionManager {
   private userInteractionAbortController: AbortController | null = null;
   private pageLoadTime: number = Number.POSITIVE_INFINITY;
   private lastPublishedUrl: string | null = null;
+  private debugStateSubscribers: Set<(state: DebugState) => void> = new Set();
+  private debugDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     webExperimentClient: DefaultWebExperimentClient,
@@ -135,6 +147,178 @@ export class SubscriptionManager {
     };
   };
 
+  public addDebugStateSubscriber = (
+    callback: (state: DebugState) => void,
+  ): (() => void) => {
+    this.debugStateSubscribers.add(callback);
+    return () => {
+      this.debugStateSubscribers.delete(callback);
+    };
+  };
+
+  public getDebugPageObjects(): Record<string, PageObjectDebugInfo[]> {
+    const result: Record<string, PageObjectDebugInfo[]> = {};
+    const activePages = this.webExperimentClient.getActivePages();
+
+    for (const [flagKey, pages] of Object.entries(this.pageObjects)) {
+      result[flagKey] = Object.values(pages).map((page) => {
+        const urlConditionsPassed = this.evaluateUrlConditions(page);
+        const trigger = this.buildTriggerDebugInfo(page, flagKey, activePages);
+
+        return {
+          id: page.id,
+          name: page.name,
+          urlConditionsPassed,
+          triggerPassed: trigger.passed,
+          trigger,
+          overallStatus:
+            urlConditionsPassed && trigger.passed ? 'pass' : 'fail',
+        };
+      });
+    }
+
+    return result;
+  }
+
+  private evaluateUrlConditions(page: PageObject): boolean {
+    if (!page.conditions || page.conditions.length === 0) {
+      return true;
+    }
+    return evaluationEngine.evaluateConditions(
+      {
+        context: { page: { url: this.globalScope.location.href } },
+        result: {},
+      },
+      page.conditions,
+    );
+  }
+
+  private buildTriggerDebugInfo(
+    page: PageObject,
+    flagKey: string,
+    activePages: PageObjects,
+  ): TriggerDebugInfo {
+    switch (page.trigger_type) {
+      case 'url_change':
+        return { type: 'url_change', passed: true };
+
+      case 'element_appeared': {
+        const { selector } = page.trigger_value as ElementAppearedTriggerValue;
+        return {
+          type: 'element_appeared',
+          passed: this.elementAppearedState.has(selector),
+          config: { selector },
+        };
+      }
+
+      case 'element_visible': {
+        const { selector, visibilityRatio: rawRatio } =
+          page.trigger_value as ElementVisibleTriggerValue;
+        const visibilityRatio = rawRatio ?? 0;
+        const key = `${selector}\0${visibilityRatio}`;
+        return {
+          type: 'element_visible',
+          passed: this.elementVisibilityState.get(key) ?? false,
+          config: { selector, visibilityRatio },
+        };
+      }
+
+      case 'manual': {
+        const { name } = page.trigger_value as ManualTriggerValue;
+        return {
+          type: 'manual',
+          passed: this.manuallyActivatedPageObjects.has(name),
+          config: { name },
+        };
+      }
+
+      case 'analytics_event':
+        return {
+          type: 'analytics_event',
+          passed: this.analyticsEventState.has(page.id),
+          config: { conditions: page.trigger_value },
+        };
+
+      case 'user_interaction': {
+        const {
+          selector,
+          interactionType,
+          minThresholdMs: rawMs,
+        } = page.trigger_value as UserInteractionTriggerValue;
+        const minThresholdMs = rawMs || 0;
+        const key = `${selector}\0${interactionType}\0${minThresholdMs}`;
+        return {
+          type: 'user_interaction',
+          passed: this.firedUserInteractions.has(key),
+          config: { selector, interactionType, minThresholdMs },
+        };
+      }
+
+      case 'exit_intent': {
+        const { minTimeOnPageMs } =
+          page.trigger_value as ExitIntentTriggerValue;
+        return {
+          type: 'exit_intent',
+          passed: !!activePages[flagKey]?.[page.id],
+          config: { minTimeOnPageMs },
+        };
+      }
+
+      case 'time_on_page': {
+        const { durationMs } = page.trigger_value as TimeOnPageTriggerValue;
+        const elapsedMs = Math.max(0, Date.now() - this.pageLoadTime);
+        return {
+          type: 'time_on_page',
+          passed: !(durationMs in this.timeOnPageTimeouts),
+          config: { durationMs },
+          elapsedMs,
+        };
+      }
+
+      case 'scrolled_to': {
+        const tv = page.trigger_value as ScrolledToTriggerValue;
+        if (tv.mode === 'percent') {
+          const { percentage } = tv;
+          return {
+            type: 'scrolled_to',
+            passed: this.maxScrollPercentage >= percentage,
+            config: { mode: 'percent' as const, percentage },
+            currentPercentage: Math.round(this.maxScrollPercentage),
+          };
+        }
+        const { selector, offsetPx } = tv;
+        const offset = offsetPx || 0;
+        const key = `${selector}\0${offset}`;
+        return {
+          type: 'scrolled_to',
+          passed: this.scrolledToElementState.get(key) ?? false,
+          config: { mode: 'element' as const, selector, offsetPx },
+        };
+      }
+
+      default:
+        return { type: 'url_change', passed: false };
+    }
+  }
+
+  private scheduleDebugNotification = () => {
+    if (!this.options.isDebugActive || this.debugStateSubscribers.size === 0) {
+      return;
+    }
+
+    if (this.debugDebounceTimer !== null) {
+      this.globalScope.clearTimeout(this.debugDebounceTimer);
+    }
+
+    this.debugDebounceTimer = this.globalScope.setTimeout(() => {
+      this.debugDebounceTimer = null;
+      const state = this.webExperimentClient.getDebugState();
+      for (const subscriber of this.debugStateSubscribers) {
+        subscriber(state);
+      }
+    }, DEBUG_DEBOUNCE_MS);
+  };
+
   public setupPageObjectSubscriptions = () => {
     const triggerTypeExperimentMap: Record<string, Set<string>> = {
       // should always include url_change to ensure initial state is reset upon navigation
@@ -160,11 +344,21 @@ export class SubscriptionManager {
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
       for (const page of Object.values(pages)) {
         this.messageBus.subscribe(page.trigger_type, (payload) => {
+          const wasActive =
+            !!this.webExperimentClient.getActivePages()[experiment]?.[page.id];
+          const isActive = this.isPageObjectActive(page, payload);
           this.webExperimentClient.updateActivePages(
             experiment,
             page,
-            this.isPageObjectActive(page, payload),
+            isActive,
           );
+          if (isActive && !wasActive) {
+            DebugRecorder.push(
+              'trigger_fired',
+              `flag=${experiment}, page=${page.name || page.id}, ` +
+                `type=${page.trigger_type}`,
+            );
+          }
         });
       }
     }
@@ -177,6 +371,10 @@ export class SubscriptionManager {
 
         // Handle URL change: reset state and revert injections
         if (isUrlChange) {
+          DebugRecorder.push(
+            'url_change',
+            `navigated to ${this.globalScope.location.href}`,
+          );
           this.resetTriggerStates();
           this.revertInjections();
         }
@@ -259,11 +457,15 @@ export class SubscriptionManager {
         }
 
         // Notify subscribers if pages actually changed
-        if (pagesChanged) {
-          this.lastNotifiedActivePages = clonePageObjects(activePages);
-          for (const subscriber of this.pageChangeSubscribers) {
-            subscriber({ activePages });
-          }
+        this.lastNotifiedActivePages = clonePageObjects(activePages);
+        for (const subscriber of this.pageChangeSubscribers) {
+          subscriber({ activePages });
+        }
+
+        // Debug subscribers fire on any URL change or page change,
+        // since the debugger cares about currentUrl and trigger state too.
+        if (pagesChanged || isUrlChange) {
+          this.scheduleDebugNotification();
         }
 
         // Update last notified behaviors if they changed
@@ -289,6 +491,7 @@ export class SubscriptionManager {
   };
 
   private resetTriggerStates = () => {
+    DebugRecorder.push('trigger_reset', 'all non-url_change triggers cleared');
     // Clear "has fired" state for all triggers
     this.elementAppearedState.clear();
     this.elementVisibilityState.clear();

@@ -3,6 +3,59 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.18.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.18.0...@amplitude/experiment-tag@0.18.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* prevent scripts from inserting elements into shell body after do… ([#295](https://github.com/amplitude/experiment-js-client/issues/295)) ([95cbe10](https://github.com/amplitude/experiment-js-client/commit/95cbe103a36b87c538e494073e470d149b3e1026))
+
+
+
+
+
+# [0.18.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.17.1...@amplitude/experiment-tag@0.18.0) (2026-03-23)
+
+
+### Features
+
+* don't minify in dev mode and allow earlier WebExperiment to override ([#289](https://github.com/amplitude/experiment-js-client/issues/289)) ([af46363](https://github.com/amplitude/experiment-js-client/commit/af46363ec0988f9f80575d174abb8877c4d9a12c))
+* **experiment-tag:** add debug state API with activation check and subscriber ([#288](https://github.com/amplitude/experiment-js-client/issues/288)) ([43f0b72](https://github.com/amplitude/experiment-js-client/commit/43f0b72825c56cee227d6d97462274132e6f1418))
+* **experiment-tag:** add page object trigger debug info and manual test page ([#291](https://github.com/amplitude/experiment-js-client/issues/291)) ([8106448](https://github.com/amplitude/experiment-js-client/commit/8106448bf54bcae47a8ff321ae7bc9180fcdbaef))
+
+
+
+
+
+## [0.17.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.17.0...@amplitude/experiment-tag@0.17.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* stricter check for mobile mode ([#293](https://github.com/amplitude/experiment-js-client/issues/293)) ([ee87833](https://github.com/amplitude/experiment-js-client/commit/ee87833ddfc7839a2196d6706d1a5e6eb6ee51cb))
+
+
+
+
+
+# [0.17.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.16.0...@amplitude/experiment-tag@0.17.0) (2026-03-19)
+
+
+### Bug Fixes
+
+* expose full dom-mutator API on ampDomMutator ([#287](https://github.com/amplitude/experiment-js-client/issues/287)) ([c1bed9f](https://github.com/amplitude/experiment-js-client/commit/c1bed9f4936ddea531bef0a44a9a80033c49aab8))
+* remove subscription dedupe for pageChangeSubscribers ([70bbd35](https://github.com/amplitude/experiment-js-client/commit/70bbd35abcef622ebd80f4b1cfe5747ed830607b))
+* Replace instanceOf checks with type casting when deduping multiple initializations ([#286](https://github.com/amplitude/experiment-js-client/issues/286)) ([b46f504](https://github.com/amplitude/experiment-js-client/commit/b46f504c758b4b841b2123fd103809ffa6842e49))
+
+
+### Features
+
+* site as shell ([#261](https://github.com/amplitude/experiment-js-client/issues/261)) ([5da84e8](https://github.com/amplitude/experiment-js-client/commit/5da84e8fc2a1cf5c4b807aab0c50e90b4e897336))
+
+
+
+
+
 # [0.16.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.15.3...@amplitude/experiment-tag@0.16.0) (2026-03-11)
 
 

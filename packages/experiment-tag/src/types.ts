@@ -7,6 +7,7 @@ import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
 import { BehavioralTargeting } from './behavioral-targeting';
 import { MessageType } from './subscriptions/message-bus';
+import type { DebugState } from './types/debug';
 
 export type ApplyVariantsOptions = {
   /**
@@ -143,6 +144,12 @@ export interface WebExperimentClient {
   setRedirectHandler(handler: (url: string) => void): void;
 
   toggleManualPageObject(name: string, isActive?: boolean): void;
+
+  getDebugState(): DebugState;
+
+  addDebugStateSubscriber(
+    callback: (state: DebugState) => void,
+  ): (() => void) | undefined;
 }
 
 export type WebExperimentUser = {

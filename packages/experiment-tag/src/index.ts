@@ -26,11 +26,8 @@ export const initialize = (
   }
 
   // Expose plugin factory immediately (only if not already a real client instance)
-  if (
-    !globalScope.webExperiment ||
-    !(globalScope.webExperiment instanceof DefaultWebExperimentClient)
-  ) {
-    globalScope.webExperiment = { plugin: createPlugin };
+  if (!globalScope.webExperiment) {
+    globalScope.webExperiment = { plugin: createPlugin, isStub: true };
   }
 
   const shouldFetchConfigs =
@@ -99,13 +96,11 @@ export const createPlugin = (): Plugin => ({
   type: 'enrichment',
   execute: async (context: Event): Promise<Event> => {
     const globalScope = getGlobalScope();
-    const client = globalScope?.webExperiment;
-
+    const client = globalScope?.webExperiment as DefaultWebExperimentClient;
     if (
       client &&
-      client instanceof DefaultWebExperimentClient &&
       typeof client.trackEvent === 'function' &&
-      (client as any).isRunning === true // Check if client is fully started
+      client.isRunning // Check if client is fully started
     ) {
       // Client ready - forward event directly
       client.trackEvent(
@@ -140,3 +135,14 @@ export {
   WebExperimentClient,
   WebExperimentConfig,
 } from './types';
+
+export type {
+  DebugState,
+  FlagDebugInfo,
+  VariantDebugInfo,
+  PageObjectDebugInfo,
+  TriggerDebugInfo,
+  VisualEditorDebugInfo,
+  DebugEvent,
+  VEMessengerState,
+} from './types/debug';

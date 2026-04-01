@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Check out Git repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -27,8 +27,11 @@ jobs:
       continue-on-error: true # forked repos don't have access, and this is only for experiment-tag
       shell: bash
 
+    - name: Clear yarn cache
+      run: yarn cache clean
+
     - name: Install
-      run: yarn install --frozen-lockfile
+      run: yarn install --frozen-lockfile --force
 
     - name: Lint
       run: yarn lint

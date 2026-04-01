@@ -142,10 +142,13 @@ export class ExperimentClient implements Client {
     );
     const internalInstanceName = this.config?.['internalInstanceNameSuffix'];
     this.isWebExperiment = internalInstanceName === 'web';
-    this.poller = new Poller(
-      () => this.doFlags(),
-      this.config.flagConfigPollingIntervalMillis,
-    );
+    this.poller = new Poller(async () => {
+      try {
+        await this.doFlags();
+      } catch (e) {
+        this.logger.info(e);
+      }
+    }, this.config.flagConfigPollingIntervalMillis);
     // Transform initialVariants
     if (this.config.initialVariants) {
       for (const flagKey in this.config.initialVariants) {

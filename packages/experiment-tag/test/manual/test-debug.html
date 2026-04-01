@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Debug API Manual Test</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        line-height: 1.6;
+      }
+      code {
+        background: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 12px;
+      }
+      button {
+        padding: 6px 12px;
+        margin: 3px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .layout {
+        display: flex;
+        align-items: flex-start;
+      }
+      .left {
+        flex: 1;
+        padding: 24px 32px;
+      }
+      .right {
+        flex: 1;
+        border-left: 2px solid #e5e5e5;
+        overflow-y: auto;
+        padding: 16px;
+        background: #fafafa;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+      h1 {
+        font-size: 20px;
+        margin-top: 0;
+      }
+      h2 {
+        font-size: 16px;
+        margin-top: 24px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 4px;
+      }
+      .right h2 {
+        margin-top: 12px;
+        font-size: 14px;
+      }
+
+      .flag-card {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+      .flag-header {
+        padding: 8px 12px;
+        background: #f8f8f8;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .flag-name {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .flag-variant {
+        font-size: 12px;
+        color: #666;
+      }
+      .flag-active {
+        display: inline-block;
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+        margin-left: 6px;
+      }
+      .flag-active.yes {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .flag-active.no {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+
+      .po-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .po-table th {
+        text-align: left;
+        padding: 4px 8px;
+        background: #f0f0f0;
+        font-weight: 600;
+        color: #555;
+      }
+      .po-table td {
+        padding: 4px 8px;
+        border-top: 1px solid #f0f0f0;
+      }
+      .po-table .pass-cell {
+        font-weight: 700;
+      }
+      .pass-cell.pass {
+        color: #16a34a;
+      }
+      .pass-cell.fail {
+        color: #dc2626;
+      }
+
+      .meta-row {
+        font-size: 11px;
+        color: #888;
+        padding: 8px 12px;
+        border-top: 1px solid #f0f0f0;
+      }
+
+      .activation-bar {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 12px;
+        font-size: 12px;
+      }
+      .activation-bar .label {
+        font-weight: 600;
+        color: #555;
+      }
+      .signal {
+        display: inline-block;
+        margin-right: 8px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .signal.on {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .signal.off {
+        background: #f3f4f6;
+        color: #9ca3af;
+      }
+
+      #log {
+        background: #fff;
+        border: 1px solid #e5e5e5;
+        padding: 8px;
+        border-radius: 6px;
+        min-height: 80px;
+        max-height: 150px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 11px;
+      }
+      #log .log-line {
+        margin: 0;
+        white-space: pre-wrap;
+      }
+      #log .log-ts {
+        color: #9ca3af;
+      }
+      #log .log-warn {
+        color: #d97706;
+      }
+      #log .log-error {
+        color: #dc2626;
+      }
+      #log .log-fire {
+        color: #16a34a;
+      }
+      #log .log-info {
+        color: #555;
+      }
+      .raw-toggle {
+        font-size: 11px;
+        color: #6366f1;
+        cursor: pointer;
+        text-decoration: underline;
+        margin-left: 8px;
+      }
+      #raw-json {
+        display: none;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 12px;
+        border-radius: 6px;
+        overflow: auto;
+        max-height: 300px;
+        font-size: 11px;
+        margin-top: 8px;
+      }
+
+      .scroll-zone {
+        height: 120vh;
+        background: linear-gradient(to bottom, #fff, #f0f0f0);
+        padding: 16px;
+        margin-top: 12px;
+        border-radius: 8px;
+      }
+      #trigger-target {
+        background: #e0e7ff;
+        padding: 10px;
+        margin: 8px 0;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #scroll-target {
+        background: #fef3c7;
+        padding: 6px;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+
+      .auto-refresh {
+        font-size: 11px;
+        color: #888;
+      }
+      .auto-refresh .dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #22c55e;
+        margin-right: 4px;
+        animation: pulse 1s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+
+      .sub-bar {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 12px;
+        font-size: 12px;
+        transition: border-color 0.15s;
+      }
+      .sub-bar.flash {
+        border-color: #22c55e;
+        box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+      }
+      .sub-status {
+        font-weight: 600;
+      }
+      .sub-status.on {
+        color: #16a34a;
+      }
+      .sub-status.off {
+        color: #9ca3af;
+      }
+      .sub-count {
+        color: #555;
+        margin-left: 12px;
+      }
+      .sub-last {
+        color: #888;
+        font-size: 11px;
+        display: block;
+        margin-top: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <!-- LEFT: Controls and interaction targets -->
+      <div class="left">
+        <h1>Debug API — Manual Test</h1>
+
+        <h2>Debug Controls</h2>
+        <div>
+          <button onclick="enableViaLocalStorage()">Set localStorage</button>
+          <button onclick="clearLocalStorage()">Clear localStorage</button>
+          <button onclick="location.reload()">Reload</button>
+        </div>
+        <div style="margin-top: 8px">
+          <button onclick="subscribe()">Subscribe</button>
+          <button onclick="unsubscribe()">Unsubscribe</button>
+          <button onclick="simulateNavigation()">Simulate SPA Nav</button>
+        </div>
+        <div id="log"></div>
+
+        <h2>Trigger Interactions</h2>
+        <div>
+          <button onclick="toggleManual()">Toggle Manual ("checkout")</button>
+          <button onclick="trackAnalyticsEvent()">
+            Track "Purchase" Event
+          </button>
+        </div>
+        <div id="trigger-target">
+          <strong>element_appeared / element_visible / click target</strong> —
+          <code>#trigger-target</code> <br /><span
+            style="font-size: 12px; color: #666"
+            >Click this div to fire user_interaction trigger</span
+          >
+        </div>
+
+        <div class="scroll-zone">
+          Scroll down to exercise <code>scrolled_to</code> (percent) trigger...
+          <div id="scroll-target" style="position: absolute; bottom: 200px">
+            <strong>scrolled_to element target</strong> —
+            <code>#scroll-target</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Live debug state panel -->
+      <div class="right">
+        <h2 style="margin-top: 0">
+          Debug State
+          <span class="auto-refresh"
+            ><span class="dot"></span>auto-refresh 500ms</span
+          >
+        </h2>
+
+        <div class="activation-bar">
+          <span class="label">Signals:</span>
+          <span id="sig-amp" class="signal off">__AMP_DEBUG</span>
+          <span id="sig-ls" class="signal off">localStorage</span>
+          <span id="sig-active" class="signal off">active</span>
+        </div>
+
+        <div id="sub-bar" class="sub-bar">
+          <span>Subscriber:</span>
+          <span id="sub-status" class="sub-status off">not subscribed</span>
+          <span id="sub-count" class="sub-count"></span>
+          <span id="sub-last" class="sub-last"></span>
+        </div>
+
+        <div id="flags-panel">
+          <div
+            style="
+              color: #999;
+              font-size: 13px;
+              padding: 20px;
+              text-align: center;
+            "
+          >
+            Loading SDK...
+          </div>
+        </div>
+
+        <div style="margin-top: 12px">
+          <span class="raw-toggle" onclick="toggleRawJson()"
+            >Show raw JSON</span
+          >
+          <pre id="raw-json"></pre>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Uncomment to test __AMP_DEBUG activation:
+      // window.__AMP_DEBUG = true;
+    </script>
+
+    <!-- Build first: yarn build (from packages/experiment-tag) -->
+    <script src="../../dist/experiment-tag-min.js"></script>
+
+    <script>
+      var FLAG_TEMPLATE = function (key) {
+        return {
+          key: key,
+          metadata: {
+            deployed: true,
+            evaluationMode: 'local',
+            flagType: 'experiment',
+            deliveryMethod: 'web',
+          },
+          segments: [
+            { metadata: { segmentName: 'All' }, variant: 'treatment' },
+          ],
+          variants: {
+            off: { key: 'off', metadata: { default: true } },
+            treatment: {
+              key: 'treatment',
+              value: 'treatment',
+              payload: [{ action: 'mutate', data: { mutations: [] } }],
+            },
+          },
+        };
+      };
+
+      var FLAGS = [FLAG_TEMPLATE('flag-url'), FLAG_TEMPLATE('flag-triggers')];
+      var PAGE_OBJECTS = {
+        'flag-url': {
+          'po-url-match': {
+            id: 'po-url-match',
+            name: 'URL Match (should pass)',
+            conditions: [
+              [
+                {
+                  op: 'regex match',
+                  selector: ['context', 'page', 'url'],
+                  values: ['.*test-debug.*'],
+                },
+              ],
+            ],
+            trigger_type: 'url_change',
+            trigger_value: {},
+          },
+          'po-url-miss': {
+            id: 'po-url-miss',
+            name: 'URL Miss (should fail)',
+            conditions: [
+              [
+                {
+                  op: 'regex match',
+                  selector: ['context', 'page', 'url'],
+                  values: ['.*no-match-ever.*'],
+                },
+              ],
+            ],
+            trigger_type: 'url_change',
+            trigger_value: {},
+          },
+        },
+        'flag-triggers': {
+          'po-elem-appeared': {
+            id: 'po-elem-appeared',
+            name: 'Element Appeared (#trigger-target)',
+            conditions: [],
+            trigger_type: 'element_appeared',
+            trigger_value: { selector: '#trigger-target' },
+          },
+          'po-elem-visible': {
+            id: 'po-elem-visible',
+            name: 'Element Visible (#trigger-target, 50%)',
+            conditions: [],
+            trigger_type: 'element_visible',
+            trigger_value: {
+              selector: '#trigger-target',
+              visibilityRatio: 0.5,
+            },
+          },
+          'po-manual': {
+            id: 'po-manual',
+            name: 'Manual (checkout)',
+            conditions: [],
+            trigger_type: 'manual',
+            trigger_value: { name: 'checkout' },
+          },
+          'po-time': {
+            id: 'po-time',
+            name: 'Time on Page (3s)',
+            conditions: [],
+            trigger_type: 'time_on_page',
+            trigger_value: { durationMs: 3000 },
+          },
+          'po-scroll-pct': {
+            id: 'po-scroll-pct',
+            name: 'Scrolled To 50%',
+            conditions: [],
+            trigger_type: 'scrolled_to',
+            trigger_value: { mode: 'percent', percentage: 50 },
+          },
+          'po-interaction': {
+            id: 'po-interaction',
+            name: 'User Interaction (click #trigger-target)',
+            conditions: [],
+            trigger_type: 'user_interaction',
+            trigger_value: {
+              selector: '#trigger-target',
+              interactionType: 'click',
+              minThresholdMs: 0,
+            },
+          },
+          'po-analytics': {
+            id: 'po-analytics',
+            name: 'Analytics Event (Purchase)',
+            conditions: [],
+            trigger_type: 'analytics_event',
+            trigger_value: [
+              [
+                {
+                  op: 'is',
+                  selector: ['context', 'data', 'event'],
+                  values: ['Purchase'],
+                },
+              ],
+            ],
+          },
+        },
+      };
+
+      WebExperiment.initialize(
+        'test-api-key',
+        JSON.stringify(FLAGS),
+        JSON.stringify(PAGE_OBJECTS),
+        {},
+      );
+
+      function renderPanel() {
+        var sdk = window.webExperiment;
+        if (!sdk || typeof sdk.getDebugState !== 'function') {
+          document.getElementById('flags-panel').innerHTML =
+            '<div style="color:#999;font-size:13px;padding:20px;text-align:center">SDK not loaded or getDebugState unavailable</div>';
+          return;
+        }
+
+        var state = sdk.getDebugState();
+
+        // Activation signals
+        var ampDebug = window.__AMP_DEBUG === true;
+        var lsDebug = localStorage.getItem('amp-ve-debug') === 'true';
+        var isActive = ampDebug || lsDebug;
+        setSignal('sig-amp', ampDebug);
+        setSignal('sig-ls', lsDebug);
+        setSignal('sig-active', isActive);
+
+        // Raw JSON
+        document.getElementById('raw-json').textContent = JSON.stringify(
+          state,
+          null,
+          2,
+        );
+
+        // Flag cards
+        var flagKeys = Object.keys(state.flags);
+        if (flagKeys.length === 0) {
+          document.getElementById('flags-panel').innerHTML =
+            '<div style="color:#999;font-size:13px;padding:20px;text-align:center">No flags</div>';
+          return;
+        }
+
+        var html = '';
+        flagKeys.forEach(function (key) {
+          var f = state.flags[key];
+          var variant = f.variant;
+          var variantLabel = variant ? variant.key || 'null' : 'null';
+          var activeClass = f.isActive ? 'yes' : 'no';
+          var activeLabel = f.isActive ? 'ACTIVE' : 'INACTIVE';
+
+          html += '<div class="flag-card">';
+          html += '<div class="flag-header">';
+          html += '<span class="flag-name">' + esc(key) + '</span>';
+          html +=
+            '<span class="flag-active ' +
+            activeClass +
+            '">' +
+            activeLabel +
+            '</span>';
+          html +=
+            '<div class="flag-variant">Variant: <strong>' +
+            esc(variantLabel) +
+            '</strong></div>';
+          html += '</div>';
+
+          if (f.pageObjects && f.pageObjects.length > 0) {
+            html += '<table class="po-table">';
+            html +=
+              '<tr><th>Page Object</th><th>URL</th><th>Trigger</th><th>Result</th></tr>';
+            f.pageObjects.forEach(function (po) {
+              var trigType = po.trigger ? po.trigger.type : '?';
+              var trigDetail = getTriggerSummary(po.trigger);
+              var urlClass = po.urlConditionsPassed ? 'pass' : 'fail';
+              var urlIcon = po.urlConditionsPassed ? '\u2713' : '\u2717';
+              var trigClass = po.trigger && po.trigger.passed ? 'pass' : 'fail';
+              var trigIcon =
+                po.trigger && po.trigger.passed ? '\u2713' : '\u2717';
+              var resultClass = po.overallStatus === 'pass' ? 'pass' : 'fail';
+              var resultIcon =
+                po.overallStatus === 'pass' ? '\u2713' : '\u2717';
+
+              html += '<tr>';
+              html +=
+                '<td title="' +
+                esc(po.id) +
+                '">' +
+                esc(po.name || po.id) +
+                '</td>';
+              html +=
+                '<td class="pass-cell ' + urlClass + '">' + urlIcon + '</td>';
+              html +=
+                '<td class="pass-cell ' +
+                trigClass +
+                '" title="' +
+                esc(trigType) +
+                '">' +
+                trigIcon +
+                ' ' +
+                esc(trigDetail) +
+                '</td>';
+              html +=
+                '<td class="pass-cell ' +
+                resultClass +
+                '">' +
+                resultIcon +
+                '</td>';
+              html += '</tr>';
+            });
+            html += '</table>';
+          }
+
+          html += '</div>';
+        });
+
+        // VE info
+        if (state.visualEditor && state.visualEditor.isActive) {
+          html += '<div class="flag-card">';
+          html +=
+            '<div class="flag-header"><span class="flag-name">Visual Editor</span></div>';
+          html +=
+            '<div class="meta-row">Events: ' +
+            (state.visualEditor.events ? state.visualEditor.events.length : 0) +
+            '</div>';
+          html += '</div>';
+        }
+
+        html +=
+          '<div class="meta-row">URL: ' +
+          esc(state.currentUrl) +
+          '<br>Snapshot: ' +
+          new Date(state.timestamp).toLocaleTimeString() +
+          '</div>';
+
+        document.getElementById('flags-panel').innerHTML = html;
+      }
+
+      function getTriggerSummary(trigger) {
+        if (!trigger) return '?';
+        var cfg = trigger.config || {};
+        switch (trigger.type) {
+          case 'url_change':
+            return 'url';
+          case 'element_appeared':
+            return 'elem ' + (cfg.selector || trigger.selector || '');
+          case 'element_visible':
+            return 'vis ' + (cfg.selector || trigger.selector || '');
+          case 'time_on_page': {
+            var durMs =
+              cfg.durationMs != null ? cfg.durationMs : trigger.durationMs;
+            var elapMs = trigger.elapsedMs;
+            var dur = durMs != null ? durMs / 1000 + 's' : '?';
+            var elapsed =
+              elapMs != null ? (elapMs / 1000).toFixed(0) + 's' : '?';
+            return 'time ' + elapsed + '/' + dur;
+          }
+          case 'scrolled_to': {
+            var mode = cfg.mode || trigger.mode;
+            if (mode === 'percent') {
+              var pct =
+                cfg.percentage != null ? cfg.percentage : trigger.percentage;
+              var cur =
+                cfg.currentPercentage != null
+                  ? cfg.currentPercentage
+                  : trigger.currentPercentage;
+              return (
+                'scroll ' +
+                (cur != null ? cur.toFixed(0) : '?') +
+                '%/' +
+                (pct || '?') +
+                '%'
+              );
+            }
+            return 'scroll ' + (cfg.selector || trigger.selector || '');
+          }
+          case 'user_interaction':
+            return (
+              (cfg.interactionType || trigger.interactionType || '') +
+              ' ' +
+              (cfg.selector || trigger.selector || '')
+            );
+          case 'analytics_event':
+            return 'event';
+          case 'exit_intent':
+            return 'exit';
+          case 'manual':
+            return 'manual ' + (cfg.name || trigger.name || '');
+          default:
+            return trigger.type || '?';
+        }
+      }
+
+      function setSignal(id, on) {
+        var el = document.getElementById(id);
+        el.className = 'signal ' + (on ? 'on' : 'off');
+      }
+
+      function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+      }
+
+      function toggleRawJson() {
+        var el = document.getElementById('raw-json');
+        var isHidden = getComputedStyle(el).display === 'none';
+        el.style.display = isHidden ? 'block' : 'none';
+      }
+
+      // Auto-refresh panel every 500ms
+      setInterval(renderPanel, 500);
+      setTimeout(renderPanel, 300);
+
+      // --- Interaction handlers (same as before) ---
+
+      function enableViaLocalStorage() {
+        localStorage.setItem('amp-ve-debug', 'true');
+        appendLog(
+          'localStorage signal set. Reload to pick it up at init time.',
+          'info',
+        );
+      }
+
+      function clearLocalStorage() {
+        localStorage.removeItem('amp-ve-debug');
+        appendLog(
+          'localStorage signal cleared. Reload to pick it up at init time.',
+          'info',
+        );
+      }
+
+      var unsubFn = null;
+      var subFireCount = 0;
+
+      function subscribe() {
+        var sdk = window.webExperiment;
+        if (!sdk || typeof sdk.addDebugStateSubscriber !== 'function') {
+          appendLog(
+            'SDK not loaded or addDebugStateSubscriber not available',
+            'error',
+          );
+          return;
+        }
+        if (unsubFn) {
+          appendLog('Already subscribed.', 'warn');
+          return;
+        }
+        subFireCount = 0;
+        unsubFn = sdk.addDebugStateSubscriber(function (state) {
+          subFireCount++;
+          updateSubBar();
+          flashSubBar();
+          var activeTriggers = [];
+          Object.keys(state.flags).forEach(function (k) {
+            var f = state.flags[k];
+            (f.pageObjects || []).forEach(function (po) {
+              if (po.trigger && po.trigger.passed) {
+                activeTriggers.push(
+                  po.trigger.type +
+                    (po.trigger.config
+                      ? ' ' + JSON.stringify(po.trigger.config)
+                      : ''),
+                );
+              }
+            });
+          });
+          appendLog(
+            'Subscriber fired (#' +
+              subFireCount +
+              ') active triggers: ' +
+              (activeTriggers.length > 0 ? activeTriggers.join(', ') : 'none'),
+            'fire',
+          );
+        });
+        if (!unsubFn) {
+          appendLog('Subscribe returned undefined.', 'error');
+          return;
+        }
+        var hasDebugSignal =
+          window.__AMP_DEBUG === true ||
+          localStorage.getItem('amp-ve-debug') === 'true';
+        updateSubBar();
+        if (hasDebugSignal) {
+          appendLog('Subscribed.', 'info');
+        } else {
+          appendLog(
+            'Subscribed. WARNING: debug not active -- subscriber will not fire. Set localStorage and reload.',
+            'warn',
+          );
+        }
+      }
+
+      function unsubscribe() {
+        if (unsubFn) {
+          unsubFn();
+          unsubFn = null;
+          subFireCount = 0;
+          updateSubBar();
+          appendLog('Unsubscribed.', 'info');
+        } else {
+          appendLog('Not subscribed.', 'warn');
+        }
+      }
+
+      function updateSubBar() {
+        var statusEl = document.getElementById('sub-status');
+        var countEl = document.getElementById('sub-count');
+        var lastEl = document.getElementById('sub-last');
+        if (unsubFn) {
+          statusEl.textContent = 'subscribed';
+          statusEl.className = 'sub-status on';
+          countEl.textContent = 'Fires: ' + subFireCount;
+          lastEl.textContent =
+            subFireCount > 0 ? 'Last: ' + new Date().toLocaleTimeString() : '';
+        } else {
+          statusEl.textContent = 'not subscribed';
+          statusEl.className = 'sub-status off';
+          countEl.textContent = '';
+          lastEl.textContent = '';
+        }
+      }
+
+      function flashSubBar() {
+        var bar = document.getElementById('sub-bar');
+        bar.classList.add('flash');
+        setTimeout(function () {
+          bar.classList.remove('flash');
+        }, 400);
+      }
+
+      function toggleManual() {
+        var sdk = window.webExperiment;
+        if (!sdk) {
+          appendLog('SDK not loaded', 'error');
+          return;
+        }
+        if (!window._manualOn) {
+          sdk.toggleManualPageObject('checkout', true);
+          window._manualOn = true;
+          appendLog('Manual trigger "checkout" ACTIVATED', 'fire');
+        } else {
+          sdk.toggleManualPageObject('checkout', false);
+          window._manualOn = false;
+          appendLog('Manual trigger "checkout" DEACTIVATED', 'info');
+        }
+      }
+
+      function trackAnalyticsEvent() {
+        var sdk = window.webExperiment;
+        if (!sdk) {
+          appendLog('SDK not loaded', 'error');
+          return;
+        }
+        sdk.trackEvent('Purchase', { amount: 42 });
+        appendLog('Tracked: Purchase', 'fire');
+      }
+
+      function simulateNavigation() {
+        var newUrl = location.href.includes('?nav=1')
+          ? location.origin + location.pathname
+          : location.origin + location.pathname + '?nav=1';
+        history.pushState({}, '', newUrl);
+        appendLog('Navigated to: ' + newUrl, 'info');
+      }
+
+      function appendLog(msg, level) {
+        var el = document.getElementById('log');
+        var line = document.createElement('div');
+        line.className = 'log-line';
+        var cls =
+          level === 'warn'
+            ? 'log-warn'
+            : level === 'error'
+            ? 'log-error'
+            : level === 'fire'
+            ? 'log-fire'
+            : 'log-info';
+        line.innerHTML =
+          '<span class="log-ts">[' +
+          new Date().toLocaleTimeString() +
+          ']</span> <span class="' +
+          cls +
+          '">' +
+          esc(msg) +
+          '</span>';
+        el.appendChild(line);
+        el.scrollTop = el.scrollHeight;
+      }
+    </script>
+  </body>
+</html>

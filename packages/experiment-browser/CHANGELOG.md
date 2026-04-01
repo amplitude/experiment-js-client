@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.20.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.20.3...@amplitude/experiment-js-client@1.20.4) (2026-03-26)
+
+
+### Bug Fixes
+
+* poll unhandled rejection ([#296](https://github.com/amplitude/experiment-js-client/issues/296)) ([bdfd7a0](https://github.com/amplitude/experiment-js-client/commit/bdfd7a0ba155fa24d48f82427e920ec1f5b5229b))
+
+
+
+
+
 ## [1.20.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.20.2...@amplitude/experiment-js-client@1.20.3) (2026-01-24)
 
 

@@ -19,8 +19,11 @@ import * as domMutatorExports from 'dom-mutator';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { showPreviewModeModal } from './preview/preview';
-import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import { MessageBus } from './subscriptions/message-bus';
+import {
+  PageChangeEvent,
+  SubscriptionManager,
+} from './subscriptions/subscriptions';
 import {
   Defaults,
   WebExperimentClient,
@@ -36,9 +39,11 @@ import {
   RevertVariantsOptions,
   BehavioralTargetingRules,
 } from './types';
+import type { DebugState } from './types/debug';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
+import { DebugRecorder } from './util/debug-recorder';
 import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
@@ -113,6 +118,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     | undefined;
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
+  private isDebugActive = false;
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, string> = {};
@@ -203,7 +209,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // When running inside an iframe (mobile shell), skip overlay loading and
     // expose dom-mutator on the window so the overlay in the parent frame can
     // apply and control mutations against this document.
-    if (this.globalScope.self !== this.globalScope.top) {
+    if (
+      this.globalScope.self !== this.globalScope.top &&
+      isMobileModeActive()
+    ) {
       (this.globalScope as any).ampDomMutator = domMutatorExports;
       this.isRunning = true;
       return;
@@ -212,6 +221,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
       getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
+    DebugRecorder.init(this.globalScope);
+    this.isDebugActive = DebugRecorder.isActive();
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
@@ -220,11 +231,26 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       {
         ...this.config,
         isVisualEditorMode: this.isVisualEditorMode,
+        isDebugActive: this.isDebugActive,
       },
       this.globalScope,
     );
     this.setupPreviewMode(urlParams);
     this.subscriptionManager.initSubscriptions();
+
+    // Register debug state provider so DebugRecorder can assemble full snapshots
+    DebugRecorder.registerStateProvider(() => ({
+      flags: this.buildFlagDebugInfo(),
+      visualEditor: {
+        isActive: this.isVisualEditorMode,
+        source: this.isVisualEditorMode
+          ? getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null
+            ? ('session_storage' as const)
+            : ('url_param' as const)
+          : null,
+      },
+      currentUrl: this.globalScope.location.href,
+    }));
 
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
@@ -234,12 +260,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         buildShell(this.globalScope);
       }
 
+      const veSource =
+        urlParams[VISUAL_EDITOR_PARAM] === 'true'
+          ? 'url_param'
+          : 'session_storage';
+      DebugRecorder.push('ve_mode_detected', `source=${veSource}`);
       this.globalScope.history.replaceState(
         {},
         '',
         removeQueryParams(this.globalScope.location.href, [
           VISUAL_EDITOR_PARAM,
         ]),
+      );
+      DebugRecorder.push(
+        'url_param_removed',
+        `cleaned URL: ${this.globalScope.location.href}`,
       );
       // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
       this.subscriptionManager.markUrlAsPublished(
@@ -361,9 +396,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         'Amplitude Web Experiment Client could not be initialized.',
       );
     }
-    // if the client has already been initialized, return the existing instance
-    if (globalScope.webExperiment instanceof DefaultWebExperimentClient) {
-      const existingClient = globalScope.webExperiment;
+    // if the client has already been initialized not a stub, return the
+    // existing instance
+    if (globalScope.webExperiment && !globalScope.webExperiment.isStub) {
+      const existingClient =
+        globalScope.webExperiment as DefaultWebExperimentClient;
       // Flush any events that may have been buffered since last initialization
       if (existingClient.isRunning) {
         flushEventBuffer(existingClient);
@@ -633,6 +670,50 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public toggleManualPageObject(name: string, isActive = true) {
     this.subscriptionManager?.toggleManualPageObject(name, isActive);
+  }
+
+  /**
+   * Returns a snapshot of the current debug state for all flags,
+   * including per-page-object trigger introspection.
+   */
+  public getDebugState(): DebugState {
+    return DebugRecorder.getDebugState();
+  }
+
+  private buildFlagDebugInfo(): DebugState['flags'] {
+    const flags: DebugState['flags'] = {};
+    const variants = this.getVariants();
+    const debugPageObjects =
+      this.subscriptionManager?.getDebugPageObjects() ?? {};
+
+    for (const flagKey of [...this.localFlagKeys, ...this.remoteFlagKeys]) {
+      const variant = variants[flagKey];
+      const activePagesForFlag = this.activePages[flagKey];
+
+      flags[flagKey] = {
+        flagKey,
+        variant: variant?.key
+          ? { key: variant.key, value: variant.value }
+          : null,
+        isActive:
+          !!activePagesForFlag && Object.keys(activePagesForFlag).length > 0,
+        pageObjects: debugPageObjects[flagKey] ?? [],
+      };
+    }
+
+    return flags;
+  }
+
+  /**
+   * Subscribe to debug state changes. Fires debounced (~100 ms) on page change events.
+   * @returns An unsubscribe function, or undefined if subscriptions are not initialized.
+   */
+  public addDebugStateSubscriber(
+    callback: (state: DebugState) => void,
+  ): (() => void) | undefined {
+    if (this.subscriptionManager) {
+      return this.subscriptionManager.addDebugStateSubscriber(callback);
+    }
   }
 
   /**

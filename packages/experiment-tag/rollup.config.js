@@ -15,6 +15,8 @@ import license from 'rollup-plugin-license';
 import * as packageJson from './package.json';
 
 let branchName = '';
+const isDevMode = process.env.NODE_ENV === 'development';
+
 try {
   const fullBranch = execSync('git rev-parse --abbrev-ref HEAD', {
     encoding: 'utf8',
@@ -66,6 +68,7 @@ const getOutputConfig = (outputOptions) => ({
   output: {
     dir: 'dist',
     name: 'WebExperiment',
+    extend: true,
     banner: `/* ${packageJson.name} v${packageJson.version}${
       branchName ? ` (${branchName})` : ''
     } - For license info see https://unpkg.com/@amplitude/experiment-tag@${
@@ -85,13 +88,17 @@ const configs = [
     }),
     plugins: [
       ...config.plugins,
-      terser({
-        format: {
-          // Don't remove semver comment
-          comments:
-            /@amplitude\/.* v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/,
-        },
-      }),
+      ...(!isDevMode
+        ? [
+            terser({
+              format: {
+                // Don't remove semver comment
+                comments:
+                  /@amplitude\/.* v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/,
+              },
+            }),
+          ]
+        : []),
       gzip(),
     ],
     external: [],
