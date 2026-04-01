@@ -611,7 +611,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   /**
    * Update the user with matched behavioral targeting IDs.
-   * Sets the user property `real_time_behaviors` to an array of all matched behavior IDs.
+   * Sets the user property `behavioral_targeting` to an array of all matched behavior IDs.
    */
   public updateUserWithBehaviors(): void {
     // Extract all behavior IDs from the map
@@ -628,10 +628,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Get the current user from the experiment client
     const currentUser = this.experimentClient.getUser();
 
-    // Update user with real_time_behaviors property directly on the user object
+    // Update user with behavioral_targeting property directly on the user object
     const updatedUser = {
       ...currentUser,
-      real_time_behaviors: behaviorIds,
+      behavioral_targeting: behaviorIds,
     };
 
     // Set the updated user
