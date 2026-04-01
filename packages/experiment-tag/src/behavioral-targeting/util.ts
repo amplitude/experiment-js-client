@@ -26,10 +26,5 @@ export function areBehaviorsEqual(
     }
   }
 
-  // Check if previous has any keys that current doesn't
-  for (const flagKey of previous.keys()) {
-    if (!current.has(flagKey)) return false;
-  }
-
   return true;
 }
