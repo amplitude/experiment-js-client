@@ -178,9 +178,9 @@ export function buildShell(globalScope: typeof globalThis): void {
       if (doc.body) {
         run();
       } else {
-        requestAnimationFrame(waitForBody);
+        globalScope.requestAnimationFrame(waitForBody);
       }
     };
-    requestAnimationFrame(waitForBody);
+    globalScope.requestAnimationFrame(waitForBody);
   }
 }
