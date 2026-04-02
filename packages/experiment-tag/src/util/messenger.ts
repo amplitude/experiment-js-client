@@ -204,16 +204,7 @@ export const asyncLoadScript = (url: string) => {
       }
     };
 
-    // Only start loading the script after document is completely loaded
-    if (document.readyState === 'complete') {
-      DebugRecorder.push('readyState', 'complete, loading immediately');
-      loadScript();
-    } else {
-      DebugRecorder.push(
-        'readyState',
-        `${document.readyState}, deferring to window.load`,
-      );
-      window.addEventListener('load', loadScript, { once: true });
-    }
+    DebugRecorder.push('readyState', document.readyState);
+    loadScript();
   });
 };
