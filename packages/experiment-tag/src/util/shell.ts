@@ -95,13 +95,17 @@ function observeIframeSpaNav(
 
 /**
  * Replaces the page DOM with a shell container that loads the customer site
- * in a same-origin iframe. Deferred until the document is fully parsed so
- * the HTML parser doesn't add elements after the body is cleared.
+ * in a same-origin iframe.
+ *
+ * We avoid deferring to window.load or DOMContentLoaded because third-party
+ * scripts (e.g. Cloudflare Rocket Loader) proxy those events and can suppress
+ * our listeners. Instead we check for document.body directly and fall back to
+ * requestAnimationFrame polling if it doesn't exist yet.
  */
 export function buildShell(globalScope: typeof globalThis): void {
-  const run = () => {
-    const doc = globalScope.document;
+  const doc = globalScope.document;
 
+  const run = () => {
     // Inject a CSS rule that hides any direct children of <body> except the
     // device-iframe container and the overlay host. This prevents third-party
     // scripts from rendering visible elements in the shell.
@@ -167,9 +171,16 @@ export function buildShell(globalScope: typeof globalThis): void {
     doc.body.appendChild(container);
   };
 
-  if (globalScope.document.readyState === 'complete') {
+  if (doc.body) {
     run();
   } else {
-    globalScope.addEventListener('load', run, { once: true });
+    const waitForBody = () => {
+      if (doc.body) {
+        run();
+      } else {
+        globalScope.requestAnimationFrame(waitForBody);
+      }
+    };
+    globalScope.requestAnimationFrame(waitForBody);
   }
 }
