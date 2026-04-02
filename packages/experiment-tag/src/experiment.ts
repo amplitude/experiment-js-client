@@ -17,6 +17,7 @@ import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate, { MutationController } from 'dom-mutator';
 import * as domMutatorExports from 'dom-mutator';
 
+import { BehavioralTargetingManager } from './behavioral-targeting';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -36,6 +37,7 @@ import {
   PreviewVariantsOptions,
   PreviewState,
   RevertVariantsOptions,
+  BehavioralTargetingRules,
 } from './types';
 import type { DebugState } from './types/debug';
 import { applyAntiFlickerCss } from './util/anti-flicker';
@@ -110,6 +112,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly messageBus: MessageBus;
   private pageObjects: PageObjects;
   private activePages: PageObjects = {};
+  private readonly behavioralTargetingRules: BehavioralTargetingRules = {};
+  public readonly behavioralTargetingManager:
+    | BehavioralTargetingManager
+    | undefined;
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
   private isDebugActive = false;
@@ -121,6 +127,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     apiKey: string,
     initialFlags: string,
     pageObjects: string,
+    behavioralRules: string,
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
@@ -133,6 +140,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.apiKey = apiKey;
     this.initialFlags = JSON.parse(initialFlags);
     this.pageObjects = JSON.parse(pageObjects);
+    this.behavioralTargetingRules = JSON.parse(behavioralRules);
+
+    // Initialize behavioral targeting infrastructure only if there are rules
+    if (Object.keys(this.behavioralTargetingRules).length > 0) {
+      this.behavioralTargetingManager = new BehavioralTargetingManager(
+        this.apiKey,
+        this.behavioralTargetingRules,
+      );
+    }
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
@@ -211,6 +227,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this,
       this.messageBus,
       this.pageObjects,
+      this.behavioralTargetingManager,
       {
         ...this.config,
         isVisualEditorMode: this.isVisualEditorMode,
@@ -326,6 +343,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.globalScope.experimentIntegration.type = 'integration';
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(enrichedUser);
+    this.updateUserWithBehaviors();
 
     if (!this.isRemoteBlocking) {
       // Remove anti-flicker css if remote flags are not blocking
@@ -363,11 +381,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * @param initialFlags
    * @param pageObjects
    * @param config
+   * @param behavioralRules
    */
   static getInstance(
     apiKey: string,
     initialFlags: string,
     pageObjects: string,
+    behavioralRules: string,
     config: WebExperimentConfig = {},
   ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
@@ -391,6 +411,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       apiKey,
       initialFlags,
       pageObjects,
+      behavioralRules,
       config,
     );
     // Set the real client instance
@@ -589,6 +610,35 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
+   * Update the user with matched behavioral targeting IDs.
+   * Sets the user property `behavioral_targeting` to an array of all matched behavior IDs.
+   */
+  public updateUserWithBehaviors(): void {
+    // Extract all behavior IDs from the map
+    if (!this.behavioralTargetingManager) {
+      return;
+    }
+    const behaviorIds: string[] = [];
+    for (const behaviorSet of this.behavioralTargetingManager
+      .getMatchedBehaviors()
+      .values()) {
+      behaviorIds.push(...behaviorSet);
+    }
+
+    // Get the current user from the experiment client
+    const currentUser = this.experimentClient.getUser();
+
+    // Update user with behavioral_targeting property directly on the user object
+    const updatedUser = {
+      ...currentUser,
+      behavioral_targeting: behaviorIds,
+    };
+
+    // Set the updated user
+    this.experimentClient.setUser(updatedUser);
+  }
+
+  /**
    * When in visual editor mode, update the current page objects and reinitialize subscriptions and active pages.
    *
    * @param {PageObjects} pageObjects - The new set of page objects to be set.
@@ -691,7 +741,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Track an analytics event that can trigger page objects.
+   * Track an analytics event that can trigger page objects and behavioral targeting.
    * @param event_type The event type/name
    * @param event_properties Optional event properties
    */
@@ -699,6 +749,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     event_type: string,
     event_properties?: Record<string, unknown>,
   ) {
+    // Store event in behavioral targeting storage
+    this.behavioralTargetingManager?.trackEvent(
+      event_type,
+      event_properties || {},
+    );
+
+    // Publish to message bus for page object triggers
     this.messageBus.publish('analytics_event', {
       event: event_type,
       properties: event_properties || {},
