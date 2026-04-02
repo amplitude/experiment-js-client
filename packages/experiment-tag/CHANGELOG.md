@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.19.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.18.1...@amplitude/experiment-tag@0.19.0) (2026-04-02)
+
+
+### Bug Fixes
+
+* sync iframe URL and target iframe document for triggers in mobile mode ([#297](https://github.com/amplitude/experiment-js-client/issues/297)) ([d0fe3be](https://github.com/amplitude/experiment-js-client/commit/d0fe3bef5bc1d570da6351f4f7092165551ec14e))
+
+
+### Features
+
+* BehavioralTargetingManager, EventStorage and BehavioralTargetingEvaluator ([#262](https://github.com/amplitude/experiment-js-client/issues/262)) ([1159067](https://github.com/amplitude/experiment-js-client/commit/115906751c0bb1fafc4bbe9683767b1a2ad8fb06))
+
+
+
+
+
 ## [0.18.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.18.0...@amplitude/experiment-tag@0.18.1) (2026-03-26)
 
 
