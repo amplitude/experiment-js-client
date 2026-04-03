@@ -498,6 +498,7 @@ export class ExperimentClient implements Client {
     return variants;
   }
 
+  /** @alpha */
   public getEvaluationTraces(
     flagKeys?: string[],
   ): Record<string, FlagEvaluationTrace> {

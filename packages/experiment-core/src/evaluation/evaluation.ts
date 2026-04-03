@@ -37,6 +37,7 @@ export class EvaluationEngine {
     return results;
   }
 
+  /** @alpha */
   public evaluateWithTraces(
     context: Record<string, unknown>,
     flags: EvaluationFlag[],

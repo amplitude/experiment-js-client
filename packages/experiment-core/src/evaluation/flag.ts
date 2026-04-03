@@ -42,12 +42,14 @@ export type EvaluationDistribution = {
   range: number[];
 };
 
+/** @alpha */
 export type EvaluationConditionResult = {
   propValue: unknown;
   condition: EvaluationCondition;
   matched: boolean;
 };
 
+/** @alpha */
 export type EvaluationSegmentResult = {
   segmentMetadata?: Record<string, unknown>;
   conditionsPassed: boolean;
@@ -57,6 +59,7 @@ export type EvaluationSegmentResult = {
   matched: boolean;
 };
 
+/** @alpha */
 export type FlagEvaluationTrace = {
   flagKey: string;
   matched: boolean;
