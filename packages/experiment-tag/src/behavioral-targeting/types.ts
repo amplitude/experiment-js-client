@@ -23,7 +23,7 @@ export interface BehavioralConditionSet {
 export interface BehavioralCondition {
   type: 'event';
   event_type: string; // Event name
-  op: '>=' | '>' | '=' | '<' | '<=' | '!=' | 'is set' | 'is not set';
+  op: '>=' | '>' | '=' | '<' | '<=' | '!=';
   value: number; // Count threshold
   time_type: 'current_session' | 'rolling';
   time_value: number;
