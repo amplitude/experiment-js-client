@@ -48,9 +48,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'add_to_cart',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'add_to_cart',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -58,9 +58,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: 'is not set',
-              operator_value: 0,
+              event_type: 'purchase',
+              op: '=',
+              value: 0,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -101,9 +101,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'add_to_cart',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'add_to_cart',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -120,9 +120,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'add_to_cart',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'add_to_cart',
+              op: '>=',
+              value: 1,
               time_type: 'rolling',
               time_value: 7,
               interval: 'day',
@@ -167,9 +167,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'page_view',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'page_view',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -177,9 +177,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'add_to_cart',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'add_to_cart',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -202,9 +202,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'add_to_cart',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'add_to_cart',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -212,9 +212,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: 'is not set',
-              operator_value: 0,
+              event_type: 'purchase',
+              op: '=',
+              value: 0,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -245,9 +245,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'page_view',
-              operator: '>=',
-              operator_value: 2,
+              event_type: 'page_view',
+              op: '>=',
+              value: 2,
               time_type: 'rolling',
               time_value: 30,
               interval: 'day',
@@ -273,9 +273,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 2,
+              event_type: 'purchase',
+              op: '>=',
+              value: 2,
               time_type: 'current_session',
               time_value: 0,
               event_props: [
@@ -305,9 +305,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'page_view',
-              operator: '>=',
-              operator_value: 3,
+              event_type: 'page_view',
+              op: '>=',
+              value: 3,
               time_type: 'current_session',
               time_value: 0,
               event_props: [
@@ -322,9 +322,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'search',
-              operator: 'is not set',
-              operator_value: 0,
+              event_type: 'search',
+              op: '=',
+              value: 0,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -356,9 +356,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'page_view',
-              operator: '>=',
-              operator_value: 3,
+              event_type: 'page_view',
+              op: '>=',
+              value: 3,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -366,9 +366,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: '>=',
-              operator_value: 2,
+              event_type: 'click',
+              op: '>=',
+              value: 2,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -379,9 +379,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'purchase',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -408,9 +408,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'page_view',
-              operator: '>=',
-              operator_value: 2,
+              event_type: 'page_view',
+              op: '>=',
+              value: 2,
               time_type: 'current_session',
               time_value: 0,
               event_props: [
@@ -425,9 +425,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'signup',
-              operator: 'is not set',
-              operator_value: 0,
+              event_type: 'signup',
+              op: '=',
+              value: 0,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -438,9 +438,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'click',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
               event_props: [
@@ -455,9 +455,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'signup',
-              operator: 'is not set',
-              operator_value: 0,
+              event_type: 'signup',
+              op: '=',
+              value: 0,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -493,9 +493,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'purchase',
+              op: '>=',
+              value: 1,
               time_type: 'rolling',
               time_value: 7,
               interval: 'day',
@@ -504,9 +504,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'page_view',
-              operator: 'is not set',
-              operator_value: 0,
+              event_type: 'page_view',
+              op: '=',
+              value: 0,
               time_type: 'rolling',
               time_value: 24,
               interval: 'hour',
@@ -545,9 +545,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: '>=',
-              operator_value: 500,
+              event_type: 'click',
+              op: '>=',
+              value: 500,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -583,9 +583,9 @@ describe('Behavioral Targeting Integration', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'view',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'view',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
