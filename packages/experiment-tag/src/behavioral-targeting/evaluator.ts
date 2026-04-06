@@ -78,11 +78,7 @@ export class BehavioralTargetingEvaluator {
 
     // 3. Check count threshold
     const count = matchingEvents.length;
-    return this.evaluateCountOperator(
-      count,
-      condition.op,
-      condition.value,
-    );
+    return this.evaluateCountOperator(count, condition.op, condition.value);
   }
 
   /**
