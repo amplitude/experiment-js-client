@@ -12,7 +12,11 @@ export class Poller {
     if (this.poller) {
       return;
     }
-    this.poller = safeGlobal.setInterval(this.action, this.ms);
+    if (safeGlobal) {
+      this.poller = safeGlobal.setInterval(this.action, this.ms);
+    } else {
+      throw Error('Cannot start poller, global is not defined');
+    }
     void this.action();
   }
 
@@ -22,7 +26,7 @@ export class Poller {
     }
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    safeGlobal.clearInterval(this.poller);
+    safeGlobal?.clearInterval(this.poller); // If it can start, it can stop
     this.poller = undefined;
   }
 }
