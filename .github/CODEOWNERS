@@ -4,3 +4,12 @@
 # Workflow files and release automation additionally require security review
 .github/workflows/ @amplitude/experiment-sdk @amplitude/seceng
 scripts/ @amplitude/experiment-sdk @amplitude/seceng
+
+# Package/dependency metadata additionally require security review
+package.json @amplitude/experiment-sdk @amplitude/seceng
+**/package.json @amplitude/experiment-sdk @amplitude/seceng
+yarn.lock @amplitude/experiment-sdk @amplitude/seceng
+package-lock.json @amplitude/experiment-sdk @amplitude/seceng
+pnpm-lock.yaml @amplitude/experiment-sdk @amplitude/seceng
+lerna.json @amplitude/experiment-sdk @amplitude/seceng
+npm-shrinkwrap.json @amplitude/experiment-sdk @amplitude/seceng

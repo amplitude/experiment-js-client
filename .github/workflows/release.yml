@@ -78,11 +78,12 @@ jobs:
       #   repository: amplitude/experiment-js-client
       #   workflow: release.yml
       #   environment: release
-      # Provenance attestation is auto-enabled when OIDC is active.
+      # Ensure provenance attestations are generated during publish.
       - name: Release
         if: ${{ github.event.inputs.dryRun == 'false'}}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
         run: |
           yarn lerna version --yes
           yarn lerna publish from-git --yes --loglevel silly
