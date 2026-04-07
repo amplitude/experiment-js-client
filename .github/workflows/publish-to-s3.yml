@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ${{ github.actor }} permission check
-        uses: 'lannonbr/repo-permission-check-action@2.0.2'
+        uses: 'lannonbr/repo-permission-check-action@2bb8c89ba8bf115c4bfab344d6a6f442b24c9a1f' # v2.0.2
         with:
           permission: 'write'
         env:
@@ -86,7 +86,7 @@ jobs:
           if [[ "${{ github.event.inputs.includeTag }}" == "true" ]]; then
             PACKAGES="tag"
           fi
-          
+
           if [[ "${{ github.event.inputs.includeSegmentPlugin }}" == "true" ]]; then
             if [[ -n "$PACKAGES" ]]; then
               PACKAGES="$PACKAGES,segment-plugin"
@@ -102,12 +102,12 @@ jobs:
               PACKAGES="chrome-extension"
             fi
           fi
-          
+
           if [[ -z "$PACKAGES" ]]; then
             echo "No packages selected for upload"
             exit 1
           fi
-          
+
           echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials

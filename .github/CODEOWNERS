@@ -1,0 +1,6 @@
+# Workflow files, release automation, and build scripts require review
+# from the experiment-sdk team and security engineering.
+.github/workflows/ @amplitude/experiment-sdk @amplitude/seceng
+scripts/ @amplitude/experiment-sdk @amplitude/seceng
+package.json @amplitude/experiment-sdk
+lerna.json @amplitude/experiment-sdk
