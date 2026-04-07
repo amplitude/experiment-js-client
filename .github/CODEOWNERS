@@ -1,0 +1,6 @@
+# Default owners for everything in the repo
+* @amplitude/experiment-sdk
+
+# Workflow files and release automation additionally require security review
+.github/workflows/ @amplitude/experiment-sdk @amplitude/seceng
+scripts/ @amplitude/experiment-sdk @amplitude/seceng
