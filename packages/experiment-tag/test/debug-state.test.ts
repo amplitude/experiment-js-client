@@ -57,6 +57,7 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
       stringify(apiKey),
       JSON.stringify(flags),
       JSON.stringify({}),
+      JSON.stringify({}),
     );
     await client.start();
 
@@ -127,6 +128,7 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
       stringify(apiKey),
       JSON.stringify(flags),
       JSON.stringify({}),
+      JSON.stringify({}),
     );
     await client.start();
 
@@ -169,6 +171,7 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       JSON.stringify(flags),
+      JSON.stringify({}),
       JSON.stringify({}),
     );
     await client.start();
