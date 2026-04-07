@@ -145,4 +145,5 @@ export type {
   VisualEditorDebugInfo,
   DebugEvent,
   VEMessengerState,
+  AudienceEvaluationDebugInfo,
 } from './types/debug';

@@ -108,7 +108,7 @@ export class BehavioralTargetingManager {
     for (const andGroup of rules) {
       for (const conditionSet of andGroup) {
         if (conditionSet.condition.type === 'event') {
-          eventTypes.add(conditionSet.condition.type_value);
+          eventTypes.add(conditionSet.condition.event_type);
         }
       }
     }
