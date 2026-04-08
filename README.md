@@ -17,6 +17,7 @@ experimentation and feature management platform.
 
 Refer to the [Javascript SDK Developer Documentation](https://www.docs.developers.amplitude.com/experiment/sdks/javascript-sdk/) to get started.
 
+test
 ## Examples
 
 This repo contains various example applications for getting familiar with the 
