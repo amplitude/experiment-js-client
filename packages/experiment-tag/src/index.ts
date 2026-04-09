@@ -4,7 +4,7 @@ import { getGlobalScope } from '@amplitude/experiment-core';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
-import { initConfigs, WebExperimentConfig } from './types';
+import { InitConfigs, WebExperimentConfig } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { isPreviewMode } from './util/url';
 
@@ -15,7 +15,7 @@ const eventBuffer: Array<{
 
 export const initialize = (
   apiKey: string,
-  initConfigs: initConfigs,
+  initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): void => {
   const globalScope = getGlobalScope();
@@ -56,7 +56,7 @@ export const initialize = (
 
 const startClient = (
   apiKey: string,
-  initConfigs: initConfigs,
+  initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): void => {
   DefaultWebExperimentClient.getInstance(apiKey, initConfigs, config)
@@ -118,6 +118,7 @@ export {
   ApplyVariantsOptions,
   RevertVariantsOptions,
   PreviewVariantsOptions,
+  InitConfigs,
   WebExperimentClient,
   WebExperimentConfig,
 } from './types';
