@@ -26,7 +26,7 @@ import {
 } from './subscriptions/subscriptions';
 import {
   Defaults,
-  initConfigs,
+  InitConfigs,
   WebExperimentClient,
   WebExperimentConfig,
   WebExperimentUser,
@@ -121,7 +121,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   constructor(
     apiKey: string,
-    initConfigs: initConfigs,
+    initConfigs: InitConfigs,
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
@@ -366,7 +366,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   static getInstance(
     apiKey: string,
-    initConfigs: initConfigs,
+    initConfigs: InitConfigs,
     config: WebExperimentConfig = {},
   ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
