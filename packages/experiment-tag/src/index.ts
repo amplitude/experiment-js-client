@@ -120,6 +120,7 @@ export {
   PreviewVariantsOptions,
   WebExperimentClient,
   WebExperimentConfig,
+  initConfigs,
 } from './types';
 
 export type {
