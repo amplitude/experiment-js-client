@@ -53,10 +53,10 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
       },
     ];
 
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      { initialFlags: JSON.stringify(flags), pageObjects: JSON.stringify({}) },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify(flags),
+      pageObjects: JSON.stringify({}),
+    });
     await client.start();
 
     const state = client.getDebugState();
@@ -122,10 +122,10 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
       },
     ];
 
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      { initialFlags: JSON.stringify(flags), pageObjects: JSON.stringify({}) },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify(flags),
+      pageObjects: JSON.stringify({}),
+    });
     await client.start();
 
     const state = client.getDebugState();
@@ -164,10 +164,10 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
       },
     ];
 
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      { initialFlags: JSON.stringify(flags), pageObjects: JSON.stringify({}) },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify(flags),
+      pageObjects: JSON.stringify({}),
+    });
     await client.start();
 
     const state = client.getDebugState();

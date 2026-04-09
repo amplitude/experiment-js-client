@@ -63,10 +63,10 @@ describe('initializeExperiment', () => {
   });
 
   test('should initialize experiment with empty user', async () => {
-    await DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      { initialFlags: JSON.stringify([]), pageObjects: JSON.stringify({}) },
-    ).start();
+    await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([]),
+      pageObjects: JSON.stringify({}),
+    }).start();
     expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
       web_exp_id: 'mock',
     });
@@ -102,7 +102,10 @@ describe('initializeExperiment', () => {
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify({}) },
+      {
+        initialFlags: JSON.stringify(initialFlags),
+        pageObjects: JSON.stringify({}),
+      },
       {
         httpClient: mockHttpClient,
       },
@@ -115,10 +118,10 @@ describe('initializeExperiment', () => {
       .spyOn(experimentCore, 'isLocalStorageAvailable')
       .mockReturnValue(false);
     try {
-      await DefaultWebExperimentClient.getInstance(
-        stringify(apiKey),
-        { initialFlags: JSON.stringify([]), pageObjects: JSON.stringify({}) },
-      ).start();
+      await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+        initialFlags: JSON.stringify([]),
+        pageObjects: JSON.stringify({}),
+      }).start();
     } catch (error: any) {
       expect(error.message).toBe(
         'Amplitude Web Experiment Client could not be initialized.',
@@ -139,21 +142,18 @@ describe('initializeExperiment', () => {
     // Verify sessionStorage is empty before test
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
 
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createRedirectFlag(
-            'test',
-            'treatment',
-            'http://test.com/2',
-            undefined,
-            DEFAULT_REDIRECT_SCOPE,
-          ),
-        ]),
-        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
-      },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
 
     // Initialize the client to ensure messageBus is created
     await client.start();
@@ -197,15 +197,12 @@ describe('initializeExperiment', () => {
   });
 
   test('control variant on control page - should not redirect but call exposure', async () => {
-    await DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createRedirectFlag('test', 'control', 'http://test.com/2'),
-        ]),
-        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
-      },
-    ).start();
+    await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag('test', 'control', 'http://test.com/2'),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    }).start();
 
     // No redirect should happen
     expect(mockGlobal.location.replace).toBeCalledTimes(0);
@@ -237,15 +234,12 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    await DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createRedirectFlag('test', 'treatment', 'http://test.com/2'),
-        ]),
-        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
-      },
-    ).start();
+    await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag('test', 'treatment', 'http://test.com/2'),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    }).start();
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
       {},
@@ -279,21 +273,18 @@ describe('initializeExperiment', () => {
 
     const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createRedirectFlag(
-            'test',
-            'control',
-            'http://test.com/2',
-            undefined,
-            DEFAULT_REDIRECT_SCOPE,
-          ),
-        ]),
-        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
-      },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'control',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
 
     await client.start();
 
@@ -343,15 +334,12 @@ describe('initializeExperiment', () => {
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
 
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createRedirectFlag('test', 'treatment', 'http://test.com/2', undefined),
-        ]),
-        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
-      },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag('test', 'treatment', 'http://test.com/2', undefined),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
 
     client.start().then();
 
@@ -378,21 +366,18 @@ describe('initializeExperiment', () => {
 
     const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createRedirectFlag(
-            'test',
-            'treatment',
-            'http://test.com/2?param3=c',
-            'http://test.com/',
-            DEFAULT_REDIRECT_SCOPE,
-          ),
-        ]),
-        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
-      },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2?param3=c',
+          'http://test.com/',
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
 
     await client.start();
 
@@ -431,21 +416,18 @@ describe('initializeExperiment', () => {
   });
 
   test('should behave as control variant when payload is empty', async () => {
-    await DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createRedirectFlag(
-            'test',
-            'control',
-            'http://test.com/2?param3=c',
-            undefined,
-            DEFAULT_REDIRECT_SCOPE,
-          ),
-        ]),
-        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
-      },
-    ).start();
+    await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'control',
+          'http://test.com/2?param3=c',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    }).start();
 
     expect(mockGlobal.location.replace).not.toHaveBeenCalled();
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -468,21 +450,18 @@ describe('initializeExperiment', () => {
     // Verify sessionStorage is empty before test
     expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
 
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createRedirectFlag(
-            'test',
-            'treatment',
-            'http://test.com/2',
-            undefined,
-            DEFAULT_REDIRECT_SCOPE,
-          ),
-        ]),
-        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
-      },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
 
     // Initialize the client to ensure messageBus is created
     await client.start();
@@ -532,21 +511,18 @@ describe('initializeExperiment', () => {
       },
       writable: true,
     });
-    DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createRedirectFlag(
-            'test',
-            'treatment',
-            'http://test.com/2',
-            undefined,
-            DEFAULT_REDIRECT_SCOPE,
-          ),
-        ]),
-        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
-      },
-    );
+    DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
     expect(mockExposure).not.toHaveBeenCalled();
   });
 
@@ -563,7 +539,10 @@ describe('initializeExperiment', () => {
 
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS) },
+      {
+        initialFlags: JSON.stringify(initialFlags),
+        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      },
       {
         httpClient: mockHttpClient,
       },
@@ -702,7 +681,10 @@ describe('initializeExperiment', () => {
 
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS) },
+      {
+        initialFlags: JSON.stringify(initialFlags),
+        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      },
       {
         httpClient: mockHttpClient,
       },
@@ -741,7 +723,10 @@ describe('initializeExperiment', () => {
     );
     DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS) },
+      {
+        initialFlags: JSON.stringify(initialFlags),
+        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      },
       {
         httpClient: mockHttpClient,
       },
@@ -786,7 +771,10 @@ describe('initializeExperiment', () => {
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS) },
+      {
+        initialFlags: JSON.stringify(initialFlags),
+        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      },
       {
         httpClient: mockHttpClient,
       },
@@ -839,10 +827,10 @@ describe('initializeExperiment', () => {
         [],
       ),
     ];
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS) },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify(initialFlags),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
     await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -867,18 +855,15 @@ describe('initializeExperiment', () => {
         { metadata: { scope: ['B'] } },
       ]),
     ];
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify(initialFlags),
-        pageObjects: JSON.stringify({
-          test: {
-            ...createPageObject('A', 'url_change', undefined, 'http://test.com'),
-            ...createPageObject('B', 'url_change', undefined, 'http://test.com'),
-          },
-        }),
-      },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify(initialFlags),
+      pageObjects: JSON.stringify({
+        test: {
+          ...createPageObject('A', 'url_change', undefined, 'http://test.com'),
+          ...createPageObject('B', 'url_change', undefined, 'http://test.com'),
+        },
+      }),
+    });
     await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -922,19 +907,16 @@ describe('initializeExperiment', () => {
       undefined,
       'http://B.com',
     );
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createMutateFlag('test-1', 'treatment', [{ metadata: {} }]),
-          createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
-        ]),
-        pageObjects: JSON.stringify({
-          'test-1': test1Page,
-          'test-2': test2Page,
-        }),
-      },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createMutateFlag('test-1', 'treatment', [{ metadata: {} }]),
+        createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
+      ]),
+      pageObjects: JSON.stringify({
+        'test-1': test1Page,
+        'test-2': test2Page,
+      }),
+    });
     client.start().then();
     let activePages = (client as any).activePages;
     expect(activePages).toEqual({ 'test-1': test1Page });
@@ -958,10 +940,10 @@ describe('initializeExperiment', () => {
         { metadata: { scope: ['A'] } },
       ]),
     ];
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS) },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify(initialFlags),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
     await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -989,10 +971,10 @@ describe('initializeExperiment', () => {
         { metadata: { scope: ['C'] } },
       ]),
     ];
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS) },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify(initialFlags),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
     client.start().then();
     expect(mockExposure).toHaveBeenCalledTimes(0);
     const appliedMutations = (client as any).appliedMutations;
@@ -1007,10 +989,10 @@ describe('initializeExperiment', () => {
         { metadata: { scope: ['B'] } },
       ]),
     ];
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS) },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify(initialFlags),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
     await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test');
@@ -1053,19 +1035,16 @@ describe('initializeExperiment', () => {
       undefined,
       'http://B.com',
     );
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createMutateFlag('test-1', 'treatment', [{ metadata: {} }]),
-          createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
-        ]),
-        pageObjects: JSON.stringify({
-          'test-1': test1Page,
-          'test-2': test2Page,
-        }),
-      },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createMutateFlag('test-1', 'treatment', [{ metadata: {} }]),
+        createMutateFlag('test-2', 'treatment', [{ metadata: {} }]),
+      ]),
+      pageObjects: JSON.stringify({
+        'test-1': test1Page,
+        'test-2': test2Page,
+      }),
+    });
     await client.start();
     expect(mockExposure).toHaveBeenCalledTimes(1);
     expect(mockExposure).toHaveBeenCalledWith('test-1');
@@ -1130,22 +1109,19 @@ describe('initializeExperiment', () => {
     );
 
     // Create client with some flags (not the stored redirect flag)
-    const client = DefaultWebExperimentClient.getInstance(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createMutateFlag('other-flag', 'treatment', [DEFAULT_MUTATE_SCOPE]),
-        ]),
-        pageObjects: JSON.stringify({
-          'other-flag': createPageObject(
-            'A',
-            'url_change',
-            undefined,
-            'http://test.com',
-          ),
-        }),
-      },
-    );
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createMutateFlag('other-flag', 'treatment', [DEFAULT_MUTATE_SCOPE]),
+      ]),
+      pageObjects: JSON.stringify({
+        'other-flag': createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com',
+        ),
+      }),
+    });
 
     // Clear exposure tracking before test
     mockExposureInternal.mockClear();
@@ -1230,7 +1206,10 @@ describe('initializeExperiment', () => {
       ];
       const client = DefaultWebExperimentClient.getInstance(
         apiKey,
-        { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS) },
+        {
+          initialFlags: JSON.stringify(initialFlags),
+          pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+        },
         {
           httpClient: new MockHttpClient(JSON.stringify(remoteFlags), 200),
         },
@@ -1311,7 +1290,10 @@ describe('initializeExperiment', () => {
       ];
       const client = DefaultWebExperimentClient.getInstance(
         apiKey,
-        { initialFlags: JSON.stringify(initialFlags), pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS) },
+        {
+          initialFlags: JSON.stringify(initialFlags),
+          pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+        },
         {
           httpClient: new MockHttpClient(JSON.stringify(remoteFlags), 200),
         },
@@ -1434,23 +1416,20 @@ describe('helper methods', () => {
         variant: 'treatment',
       },
     ];
-    const webExperiment = new DefaultWebExperimentClient(
-      stringify(apiKey),
-      {
-        initialFlags: JSON.stringify([
-          createRedirectFlag(
-            'flag-1',
-            'control',
-            '',
-            undefined,
-            {},
-            targetedSegment,
-          ),
-          createRedirectFlag('flag-2', 'control', '', undefined),
-        ]),
-        pageObjects: JSON.stringify({}),
-      },
-    );
+    const webExperiment = new DefaultWebExperimentClient(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'flag-1',
+          'control',
+          '',
+          undefined,
+          {},
+          targetedSegment,
+        ),
+        createRedirectFlag('flag-2', 'control', '', undefined),
+      ]),
+      pageObjects: JSON.stringify({}),
+    });
     const variants = webExperiment.getVariants();
     expect(variants['flag-1'].key).toEqual('treatment');
     expect(variants['flag-2'].key).toEqual('control');
