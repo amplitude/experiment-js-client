@@ -4,7 +4,7 @@ import { getGlobalScope } from '@amplitude/experiment-core';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
-import { WebExperimentConfig } from './types';
+import { initConfigs, WebExperimentConfig } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { isPreviewMode } from './util/url';
 
@@ -15,8 +15,7 @@ const eventBuffer: Array<{
 
 export const initialize = (
   apiKey: string,
-  initialFlags: string,
-  pageObjects: string,
+  initConfigs: initConfigs,
   config: WebExperimentConfig,
 ): void => {
   const globalScope = getGlobalScope();
@@ -38,30 +37,29 @@ export const initialize = (
     // Fetch latest configs and create client
     fetchLatestConfigs(apiKey, config.serverZone)
       .then((previewState) => {
-        const flags = JSON.stringify(previewState.flags);
-        const objects = JSON.stringify(previewState.pageViewObjects);
-        startClient(apiKey, flags, objects, config);
+        const initialFlags = JSON.stringify(previewState.flags);
+        const pageObjects = JSON.stringify(previewState.pageViewObjects);
+        startClient(apiKey, { initialFlags, pageObjects }, config);
       })
       .catch((error) => {
         console.warn('Failed to fetch latest configs for preview:', error);
-        startClient(apiKey, initialFlags, pageObjects, config);
+        startClient(apiKey, initConfigs, config);
       })
       .finally(() => {
         // Remove anti-flicker css if it exists
         document.getElementById('amp-exp-css')?.remove();
       });
   } else {
-    startClient(apiKey, initialFlags, pageObjects, config);
+    startClient(apiKey, initConfigs, config);
   }
 };
 
 const startClient = (
   apiKey: string,
-  flags: string,
-  objects: string,
+  initConfigs: initConfigs,
   config: WebExperimentConfig,
 ): void => {
-  DefaultWebExperimentClient.getInstance(apiKey, flags, objects, config)
+  DefaultWebExperimentClient.getInstance(apiKey, initConfigs, config)
     .start()
     .finally(() => {
       // Remove anti-flicker css if it exists
