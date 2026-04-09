@@ -97,10 +97,11 @@ function observeIframeSpaNav(
  * Replaces the page DOM with a shell container that loads the customer site
  * in a same-origin iframe.
  *
- * We avoid deferring to window.load or DOMContentLoaded because third-party
- * scripts (e.g. Cloudflare Rocket Loader) proxy those events and can suppress
- * our listeners. Instead we check for document.body directly and fall back to
- * requestAnimationFrame polling if it doesn't exist yet.
+ * Waits for document.readyState === 'complete' before modifying the DOM so
+ * that SSR frameworks (e.g. Next.js) can finish hydration first. Uses
+ * setTimeout polling instead of window.addEventListener('load') because
+ * third-party scripts can proxy addEventListener and suppress load handlers.
+ * setTimeout is not affected by such proxies.
  */
 export function buildShell(globalScope: typeof globalThis): void {
   const doc = globalScope.document;
@@ -116,6 +117,9 @@ export function buildShell(globalScope: typeof globalThis): void {
       `{ display: none !important; }`;
     doc.head.appendChild(shellGuard);
 
+    // Preserve the overlay shadow host if it was already attached (the
+    // overlay script may have loaded before buildShell ran).
+    const existingOverlay = doc.getElementById(OVERLAY_HOST_ID);
     while (doc.body.firstChild) {
       doc.body.removeChild(doc.body.firstChild);
     }
@@ -169,18 +173,21 @@ export function buildShell(globalScope: typeof globalThis): void {
 
     container.appendChild(iframe);
     doc.body.appendChild(container);
+    if (existingOverlay) {
+      doc.body.appendChild(existingOverlay);
+    }
   };
 
-  if (doc.body) {
+  if (doc.readyState === 'complete' && doc.body) {
     run();
   } else {
-    const waitForBody = () => {
-      if (doc.body) {
+    const waitUntilReady = () => {
+      if (doc.readyState === 'complete' && doc.body) {
         run();
       } else {
-        globalScope.requestAnimationFrame(waitForBody);
+        globalScope.requestAnimationFrame(waitUntilReady);
       }
     };
-    globalScope.requestAnimationFrame(waitForBody);
+    globalScope.requestAnimationFrame(waitUntilReady);
   }
 }
