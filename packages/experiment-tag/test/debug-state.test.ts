@@ -55,8 +55,7 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      JSON.stringify(flags),
-      JSON.stringify({}),
+      { initialFlags: JSON.stringify(flags), pageObjects: JSON.stringify({}) },
     );
     await client.start();
 
@@ -125,8 +124,7 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      JSON.stringify(flags),
-      JSON.stringify({}),
+      { initialFlags: JSON.stringify(flags), pageObjects: JSON.stringify({}) },
     );
     await client.start();
 
@@ -168,8 +166,7 @@ describe('buildFlagDebugInfo audienceEvaluation', () => {
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      JSON.stringify(flags),
-      JSON.stringify({}),
+      { initialFlags: JSON.stringify(flags), pageObjects: JSON.stringify({}) },
     );
     await client.start();
 
