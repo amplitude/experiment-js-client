@@ -99,11 +99,16 @@ function observeIframeSpaNav(
  *
  * Waits for document.readyState === 'complete' before modifying the DOM so
  * that SSR frameworks (e.g. Next.js) can finish hydration first. Uses
- * setTimeout polling instead of window.addEventListener('load') because
- * third-party scripts can proxy addEventListener and suppress load handlers.
- * setTimeout is not affected by such proxies.
+ * requestAnimationFrame polling instead of window.addEventListener('load')
+ * because third-party scripts can proxy addEventListener and suppress load
+ * handlers. Polling readyState directly is not affected by such proxies.
+ *
+ * Returns a Promise that resolves after the shell is built. In mobile mode,
+ * the overlay script should be loaded after awaiting this promise to
+ * guarantee it renders into the already-built shell rather than racing with
+ * DOM restructuring.
  */
-export function buildShell(globalScope: typeof globalThis): void {
+export function buildShell(globalScope: typeof globalThis): Promise<void> {
   const doc = globalScope.document;
 
   const run = () => {
@@ -117,9 +122,6 @@ export function buildShell(globalScope: typeof globalThis): void {
       `{ display: none !important; }`;
     doc.head.appendChild(shellGuard);
 
-    // Preserve the overlay shadow host if it was already attached (the
-    // overlay script may have loaded before buildShell ran).
-    const existingOverlay = doc.getElementById(OVERLAY_HOST_ID);
     while (doc.body.firstChild) {
       doc.body.removeChild(doc.body.firstChild);
     }
@@ -173,21 +175,22 @@ export function buildShell(globalScope: typeof globalThis): void {
 
     container.appendChild(iframe);
     doc.body.appendChild(container);
-    if (existingOverlay) {
-      doc.body.appendChild(existingOverlay);
-    }
   };
 
-  if (doc.readyState === 'complete' && doc.body) {
-    run();
-  } else {
-    const waitUntilReady = () => {
-      if (doc.readyState === 'complete' && doc.body) {
-        run();
-      } else {
-        globalScope.requestAnimationFrame(waitUntilReady);
-      }
-    };
-    globalScope.requestAnimationFrame(waitUntilReady);
-  }
+  return new Promise<void>((resolve) => {
+    if (doc.readyState === 'complete' && doc.body) {
+      run();
+      resolve();
+    } else {
+      const waitUntilReady = () => {
+        if (doc.readyState === 'complete' && doc.body) {
+          run();
+          resolve();
+        } else {
+          globalScope.requestAnimationFrame(waitUntilReady);
+        }
+      };
+      globalScope.requestAnimationFrame(waitUntilReady);
+    }
+  });
 }

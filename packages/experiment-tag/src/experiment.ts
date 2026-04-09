@@ -238,11 +238,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
-      WindowMessenger.setup();
-
       if (isMobileModeActive()) {
-        buildShell(this.globalScope);
+        // In mobile mode, build the shell first and load the overlay after.
+        // The overlay must render into the already-built shell to avoid a
+        // race where buildShell restructures the DOM while the overlay's
+        // React 18 concurrent render is in-flight.
+        await buildShell(this.globalScope);
       }
+      WindowMessenger.setup();
 
       const veSource =
         urlParams[VISUAL_EDITOR_PARAM] === 'true'
