@@ -1,9 +1,12 @@
 import {
-  EvaluationCondition,
-  EvaluationFlag,
-  EvaluationSegment,
-  EvaluationVariant,
+  type EvaluationCondition,
+  type EvaluationConditionResult,
+  type EvaluationFlag,
+  type EvaluationSegment,
+  type EvaluationSegmentResult,
+  type EvaluationVariant,
   EvaluationOperator,
+  type FlagEvaluationTrace,
 } from './flag';
 import { hash32x86 } from './murmur3';
 import { select } from './select';
@@ -34,6 +37,30 @@ export class EvaluationEngine {
     return results;
   }
 
+  /** @alpha */
+  public evaluateWithTraces(
+    context: Record<string, unknown>,
+    flags: EvaluationFlag[],
+  ): {
+    results: Record<string, EvaluationVariant>;
+    traces: Record<string, FlagEvaluationTrace>;
+  } {
+    const results: Record<string, EvaluationVariant> = {};
+    const traces: Record<string, FlagEvaluationTrace> = {};
+    const target: EvaluationTarget = {
+      context: context,
+      result: results,
+    };
+    for (const flag of flags) {
+      const { variant, trace } = this.evaluateFlagWithTrace(target, flag);
+      if (variant) {
+        results[flag.key] = variant;
+      }
+      traces[flag.key] = trace;
+    }
+    return { results, traces };
+  }
+
   private evaluateFlag(
     target: EvaluationTarget,
     flag: EvaluationFlag,
@@ -53,6 +80,111 @@ export class EvaluationEngine {
       }
     }
     return result;
+  }
+
+  private evaluateFlagWithTrace(
+    target: EvaluationTarget,
+    flag: EvaluationFlag,
+  ): { variant: EvaluationVariant | undefined; trace: FlagEvaluationTrace } {
+    const steps: EvaluationSegmentResult[] = [];
+    let winnerVariant: EvaluationVariant | undefined;
+    let winnerSegment: EvaluationSegment | undefined;
+    let matchedSegmentName: string | undefined;
+
+    for (const segment of flag.segments) {
+      if (!segment.conditions) {
+        const variantKey = this.bucket(target, segment);
+        const bucketed = variantKey !== undefined;
+        steps.push({
+          segmentMetadata: segment.metadata,
+          conditionsPassed: true,
+          bucketed,
+          bucketVariant: variantKey,
+          conditionResult: undefined,
+          matched: bucketed,
+        });
+        if (!winnerVariant && variantKey !== undefined) {
+          winnerVariant = flag.variants[variantKey];
+          winnerSegment = segment;
+          matchedSegmentName = segment.metadata?.segmentName as
+            | string
+            | undefined;
+        }
+        continue;
+      }
+
+      const orConditionResults: (EvaluationConditionResult[] | undefined)[] =
+        [];
+      let segmentMatched = false;
+
+      for (const innerConditions of segment.conditions) {
+        let match = true;
+        const andConditionResults: EvaluationConditionResult[] = [];
+
+        for (const condition of innerConditions) {
+          const propValue = select(target, condition.selector);
+          const conditionMatch = this.matchCondition(target, condition);
+          andConditionResults.push({
+            propValue,
+            condition,
+            matched: conditionMatch,
+          });
+          if (!conditionMatch) {
+            match = false;
+            break;
+          }
+        }
+
+        orConditionResults.push(andConditionResults);
+
+        if (match) {
+          segmentMatched = true;
+          break;
+        }
+      }
+
+      let bucketed = false;
+      let bucketVariant: string | undefined;
+      if (segmentMatched) {
+        bucketVariant = this.bucket(target, segment);
+        bucketed = bucketVariant !== undefined;
+      }
+
+      steps.push({
+        segmentMetadata: segment.metadata,
+        conditionsPassed: segmentMatched,
+        bucketed,
+        bucketVariant,
+        conditionResult: orConditionResults,
+        matched: segmentMatched && bucketed,
+      });
+
+      if (segmentMatched && bucketVariant !== undefined && !winnerVariant) {
+        winnerVariant = flag.variants[bucketVariant];
+        winnerSegment = segment;
+        matchedSegmentName = segment.metadata?.segmentName as
+          | string
+          | undefined;
+      }
+    }
+
+    if (winnerVariant && winnerSegment) {
+      const metadata = {
+        ...flag.metadata,
+        ...winnerSegment.metadata,
+        ...winnerVariant.metadata,
+      };
+      winnerVariant = { ...winnerVariant, metadata };
+    }
+
+    const trace: FlagEvaluationTrace = {
+      flagKey: flag.key,
+      matched: winnerVariant !== undefined,
+      matchedSegment: matchedSegmentName,
+      steps,
+    };
+
+    return { variant: winnerVariant, trace };
   }
 
   private evaluateSegment(

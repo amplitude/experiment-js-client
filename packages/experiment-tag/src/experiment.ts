@@ -3,6 +3,7 @@ import { CookieStorage } from '@amplitude/analytics-core';
 import { Event, Plugin } from '@amplitude/analytics-types';
 import {
   EvaluationFlag,
+  FlagEvaluationTrace,
   getGlobalScope,
   isLocalStorageAvailable,
   safeGlobal,
@@ -38,7 +39,7 @@ import {
   PreviewState,
   RevertVariantsOptions,
 } from './types';
-import type { DebugState } from './types/debug';
+import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
@@ -239,11 +240,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
-      WindowMessenger.setup();
-
       if (isMobileModeActive()) {
-        buildShell(this.globalScope);
+        // In mobile mode, build the shell first and load the overlay after.
+        // The overlay must render into the already-built shell to avoid a
+        // race where buildShell restructures the DOM while the overlay's
+        // React 18 concurrent render is in-flight.
+        await buildShell(this.globalScope);
       }
+      WindowMessenger.setup();
 
       const veSource =
         urlParams[VISUAL_EDITOR_PARAM] === 'true'
@@ -644,17 +648,46 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const debugPageObjects =
       this.subscriptionManager?.getDebugPageObjects() ?? {};
 
+    const traces: Record<string, FlagEvaluationTrace> | undefined =
+      this.localFlagKeys.length > 0
+        ? this.experimentClient.getEvaluationTraces(this.localFlagKeys)
+        : undefined;
+
     for (const flagKey of [...this.localFlagKeys, ...this.remoteFlagKeys]) {
       const variant = variants[flagKey];
       const activePagesForFlag = this.activePages[flagKey];
 
+      let audienceEvaluation: AudienceEvaluationDebugInfo | undefined;
+      const trace = traces?.[flagKey];
+      // Local flags: full per-segment traces from the evaluation engine
+      if (trace) {
+        audienceEvaluation = {
+          matched: trace.matched,
+          matchedSegment: trace.matchedSegment,
+          steps: trace.steps,
+        };
+      }
+      // Remote flags: server-side evaluation, only matched segment name available from variant metadata
+      else if (variant?.metadata?.segmentName) {
+        audienceEvaluation = {
+          matched: true,
+          matchedSegment: variant.metadata.segmentName as string,
+          steps: [],
+        };
+      }
+
       flags[flagKey] = {
         flagKey,
         variant: variant?.key
-          ? { key: variant.key, value: variant.value }
+          ? {
+              key: variant.key,
+              value: variant.value,
+              metadata: variant.metadata,
+            }
           : null,
         isActive:
           !!activePagesForFlag && Object.keys(activePagesForFlag).length > 0,
+        audienceEvaluation,
         pageObjects: debugPageObjects[flagKey] ?? [],
       };
     }

@@ -76,9 +76,9 @@ describe('BehavioralTargetingEvaluator', () => {
               {
                 condition: {
                   type: 'event',
-                  type_value: 'click',
-                  operator: operator as any,
-                  operator_value: passingValue,
+                  event_type: 'click',
+                  op: operator as any,
+                  value: passingValue,
                   time_type: 'current_session',
                   time_value: 0,
                 },
@@ -88,55 +88,11 @@ describe('BehavioralTargetingEvaluator', () => {
 
           expect(evaluator.evaluate(rules)).toBe(true);
 
-          rules[0][0].condition.operator_value = failingValue;
+          rules[0][0].condition.value = failingValue;
           expect(evaluator.evaluate(rules)).toBe(false);
         });
       },
     );
-
-    test('should evaluate "is set" operator', () => {
-      const rules: BehavioralTargeting = [
-        [
-          {
-            condition: {
-              type: 'event',
-              type_value: 'click',
-              operator: 'is set',
-              operator_value: 0,
-              time_type: 'current_session',
-              time_value: 0,
-            },
-          },
-        ],
-      ];
-
-      expect(evaluator.evaluate(rules)).toBe(true);
-
-      rules[0][0].condition.type_value = 'nonexistent';
-      expect(evaluator.evaluate(rules)).toBe(false);
-    });
-
-    test('should evaluate "is not set" operator', () => {
-      const rules: BehavioralTargeting = [
-        [
-          {
-            condition: {
-              type: 'event',
-              type_value: 'nonexistent',
-              operator: 'is not set',
-              operator_value: 0,
-              time_type: 'current_session',
-              time_value: 0,
-            },
-          },
-        ],
-      ];
-
-      expect(evaluator.evaluate(rules)).toBe(true);
-
-      rules[0][0].condition.type_value = 'click';
-      expect(evaluator.evaluate(rules)).toBe(false);
-    });
   });
 
   describe('time windows', () => {
@@ -154,9 +110,9 @@ describe('BehavioralTargetingEvaluator', () => {
             {
               condition: {
                 type: 'event',
-                type_value: 'click',
-                operator: '>=',
-                operator_value: 1,
+                event_type: 'click',
+                op: '>=',
+                value: 1,
                 time_type: 'current_session',
                 time_value: 0,
               },
@@ -167,7 +123,7 @@ describe('BehavioralTargetingEvaluator', () => {
         expect(evaluator.evaluate(rules)).toBe(true);
 
         // Should only count 1 event from current session
-        rules[0][0].condition.operator_value = 2;
+        rules[0][0].condition.value = 2;
         expect(evaluator.evaluate(rules)).toBe(false);
       });
     });
@@ -197,9 +153,9 @@ describe('BehavioralTargetingEvaluator', () => {
             {
               condition: {
                 type: 'event',
-                type_value: 'click',
-                operator: '>=',
-                operator_value: 1,
+                event_type: 'click',
+                op: '>=',
+                value: 1,
                 time_type: 'rolling',
                 time_value: 1,
                 interval: 'hour',
@@ -211,7 +167,7 @@ describe('BehavioralTargetingEvaluator', () => {
         expect(evaluator.evaluate(rules)).toBe(true);
 
         // Only 1 event in last hour
-        rules[0][0].condition.operator_value = 2;
+        rules[0][0].condition.value = 2;
         expect(evaluator.evaluate(rules)).toBe(false);
       });
 
@@ -230,9 +186,9 @@ describe('BehavioralTargetingEvaluator', () => {
             {
               condition: {
                 type: 'event',
-                type_value: 'click',
-                operator: '>=',
-                operator_value: 1,
+                event_type: 'click',
+                op: '>=',
+                value: 1,
                 time_type: 'rolling',
                 time_value: 1,
                 interval: 'day',
@@ -244,7 +200,7 @@ describe('BehavioralTargetingEvaluator', () => {
         expect(evaluator.evaluate(rules)).toBe(true);
 
         // Only 1 event in last day
-        rules[0][0].condition.operator_value = 2;
+        rules[0][0].condition.value = 2;
         expect(evaluator.evaluate(rules)).toBe(false);
       });
     });
@@ -269,9 +225,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 2,
+              event_type: 'purchase',
+              op: '>=',
+              value: 2,
               time_type: 'current_session',
               time_value: 0,
               event_props: [
@@ -289,7 +245,7 @@ describe('BehavioralTargetingEvaluator', () => {
       expect(evaluator.evaluate(rules)).toBe(true);
 
       // Only 2 electronics purchases
-      rules[0][0].condition.operator_value = 3;
+      rules[0][0].condition.value = 3;
       expect(evaluator.evaluate(rules)).toBe(false);
     });
 
@@ -299,9 +255,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'purchase',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
               event_props: [
@@ -324,7 +280,7 @@ describe('BehavioralTargetingEvaluator', () => {
       expect(evaluator.evaluate(rules)).toBe(true);
 
       // Only 1 electronics purchase >= 200
-      rules[0][0].condition.operator_value = 2;
+      rules[0][0].condition.value = 2;
       expect(evaluator.evaluate(rules)).toBe(false);
     });
 
@@ -334,9 +290,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 3,
+              event_type: 'purchase',
+              op: '>=',
+              value: 3,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -362,9 +318,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: '>=',
-              operator_value: 5,
+              event_type: 'click',
+              op: '>=',
+              value: 5,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -375,9 +331,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'purchase',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -395,9 +351,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'click',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -405,9 +361,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'purchase',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -419,7 +375,7 @@ describe('BehavioralTargetingEvaluator', () => {
       expect(evaluator.evaluate(rules)).toBe(true);
 
       // Change second condition to require 2 purchases
-      rules[0][1].condition.operator_value = 2;
+      rules[0][1].condition.value = 2;
       expect(evaluator.evaluate(rules)).toBe(false);
     });
 
@@ -429,9 +385,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: '>=',
-              operator_value: 10,
+              event_type: 'click',
+              op: '>=',
+              value: 10,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -441,9 +397,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 10,
+              event_type: 'purchase',
+              op: '>=',
+              value: 10,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -467,9 +423,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: '>=',
-              operator_value: 3,
+              event_type: 'click',
+              op: '>=',
+              value: 3,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -482,7 +438,7 @@ describe('BehavioralTargetingEvaluator', () => {
       expect(evaluator.evaluate(rules)).toBe(true);
 
       // Condition is true (2 >= 2), negated makes it false
-      rules[0][0].condition.operator_value = 2;
+      rules[0][0].condition.value = 2;
       expect(evaluator.evaluate(rules)).toBe(false);
     });
 
@@ -494,9 +450,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'click',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -504,9 +460,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'purchase',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -537,9 +493,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'view',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'view',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
               event_props: [
@@ -554,9 +510,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'click',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -564,9 +520,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'purchase',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'purchase',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -597,9 +553,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'click',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
               event_props: [],
@@ -619,9 +575,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'click',
-              operator: 'unknown' as any,
-              operator_value: 1,
+              event_type: 'click',
+              op: 'unknown' as any,
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },
@@ -638,9 +594,9 @@ describe('BehavioralTargetingEvaluator', () => {
           {
             condition: {
               type: 'event',
-              type_value: 'nonexistent',
-              operator: '>=',
-              operator_value: 1,
+              event_type: 'nonexistent',
+              op: '>=',
+              value: 1,
               time_type: 'current_session',
               time_value: 0,
             },

@@ -42,6 +42,31 @@ export type EvaluationDistribution = {
   range: number[];
 };
 
+/** @alpha */
+export type EvaluationConditionResult = {
+  propValue: unknown;
+  condition: EvaluationCondition;
+  matched: boolean;
+};
+
+/** @alpha */
+export type EvaluationSegmentResult = {
+  segmentMetadata?: Record<string, unknown>;
+  conditionsPassed: boolean;
+  bucketed: boolean;
+  bucketVariant?: string;
+  conditionResult?: (EvaluationConditionResult[] | undefined)[];
+  matched: boolean;
+};
+
+/** @alpha */
+export type FlagEvaluationTrace = {
+  flagKey: string;
+  matched: boolean;
+  matchedSegment?: string;
+  steps: EvaluationSegmentResult[];
+};
+
 export const EvaluationOperator = {
   IS: 'is',
   IS_NOT: 'is not',

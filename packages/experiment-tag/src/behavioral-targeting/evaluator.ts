@@ -65,7 +65,7 @@ export class BehavioralTargetingEvaluator {
   private evaluateCondition(condition: BehavioralCondition): boolean {
     // 1. Get events in time window
     const events = this.eventStorage.getEventsInTimeWindow(
-      condition.type_value,
+      condition.event_type,
       condition.time_type,
       condition.time_value,
       condition.interval,
@@ -78,11 +78,7 @@ export class BehavioralTargetingEvaluator {
 
     // 3. Check count threshold
     const count = matchingEvents.length;
-    return this.evaluateCountOperator(
-      count,
-      condition.operator,
-      condition.operator_value,
-    );
+    return this.evaluateCountOperator(count, condition.op, condition.value);
   }
 
   /**
@@ -131,10 +127,6 @@ export class BehavioralTargetingEvaluator {
         return count <= threshold;
       case '!=':
         return count !== threshold;
-      case 'is set':
-        return count > 0;
-      case 'is not set':
-        return count === 0;
       default:
         return false;
     }

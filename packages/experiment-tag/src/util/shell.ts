@@ -97,12 +97,18 @@ function observeIframeSpaNav(
  * Replaces the page DOM with a shell container that loads the customer site
  * in a same-origin iframe.
  *
- * We avoid deferring to window.load or DOMContentLoaded because third-party
- * scripts (e.g. Cloudflare Rocket Loader) proxy those events and can suppress
- * our listeners. Instead we check for document.body directly and fall back to
- * requestAnimationFrame polling if it doesn't exist yet.
+ * Waits for document.readyState === 'complete' before modifying the DOM so
+ * that SSR frameworks (e.g. Next.js) can finish hydration first. Uses
+ * requestAnimationFrame polling instead of window.addEventListener('load')
+ * because third-party scripts can proxy addEventListener and suppress load
+ * handlers. Polling readyState directly is not affected by such proxies.
+ *
+ * Returns a Promise that resolves after the shell is built. In mobile mode,
+ * the overlay script should be loaded after awaiting this promise to
+ * guarantee it renders into the already-built shell rather than racing with
+ * DOM restructuring.
  */
-export function buildShell(globalScope: typeof globalThis): void {
+export function buildShell(globalScope: typeof globalThis): Promise<void> {
   const doc = globalScope.document;
 
   const run = () => {
@@ -171,16 +177,20 @@ export function buildShell(globalScope: typeof globalThis): void {
     doc.body.appendChild(container);
   };
 
-  if (doc.body) {
-    run();
-  } else {
-    const waitForBody = () => {
-      if (doc.body) {
-        run();
-      } else {
-        globalScope.requestAnimationFrame(waitForBody);
-      }
-    };
-    globalScope.requestAnimationFrame(waitForBody);
-  }
+  return new Promise<void>((resolve) => {
+    if (doc.readyState === 'complete' && doc.body) {
+      run();
+      resolve();
+    } else {
+      const waitUntilReady = () => {
+        if (doc.readyState === 'complete' && doc.body) {
+          run();
+          resolve();
+        } else {
+          globalScope.requestAnimationFrame(waitUntilReady);
+        }
+      };
+      globalScope.requestAnimationFrame(waitUntilReady);
+    }
+  });
 }
