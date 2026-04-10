@@ -508,8 +508,10 @@
 
       WebExperiment.initialize(
         'test-api-key',
-        JSON.stringify(FLAGS),
-        JSON.stringify(PAGE_OBJECTS),
+        {
+          initialFlags: JSON.stringify(FLAGS),
+          pageObjects: JSON.stringify(PAGE_OBJECTS),
+        },
         {},
       );
 
