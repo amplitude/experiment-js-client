@@ -39,6 +39,7 @@ import {
   ConsentOptions,
   ConsentStatus,
   Defaults,
+  InitConfigs,
   WebExperimentClient,
   WebExperimentConfig,
   WebExperimentUser,
@@ -124,8 +125,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   constructor(
     apiKey: string,
-    initialFlags: string,
-    pageObjects: string,
+    initConfigs: InitConfigs,
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
@@ -136,8 +136,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     this.globalScope = globalScope;
     this.apiKey = apiKey;
-    this.initialFlags = JSON.parse(initialFlags);
-    this.pageObjects = JSON.parse(pageObjects);
+    this.initialFlags = JSON.parse(initConfigs.initialFlags);
+    this.pageObjects = JSON.parse(initConfigs.pageObjects);
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
@@ -331,14 +331,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Get singleton of the {@link DefaultWebExperimentClient} if it has already been initialized.
    * If not, initialize the client and return the instance.
    * @param apiKey
-   * @param initialFlags
-   * @param pageObjects
+   * @param initConfigs
    * @param config
    */
   static getInstance(
     apiKey: string,
-    initialFlags: string,
-    pageObjects: string,
+    initConfigs: InitConfigs,
     config: WebExperimentConfig = {},
   ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
@@ -353,8 +351,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     const webExperiment = new DefaultWebExperimentClient(
       apiKey,
-      initialFlags,
-      pageObjects,
+      initConfigs,
       config,
     );
     globalScope.webExperiment = webExperiment;

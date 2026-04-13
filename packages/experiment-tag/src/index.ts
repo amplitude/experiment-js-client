@@ -4,14 +4,13 @@ import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
 import { deletePersistedData } from './storage/storage';
-import { ConsentStatus, WebExperimentConfig } from './types';
+import { ConsentStatus, InitConfigs, WebExperimentConfig } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { isPreviewMode } from './util/url';
 
 export const initialize = (
   apiKey: string,
-  initialFlags: string,
-  pageObjects: string,
+  initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): void => {
   if (
@@ -28,26 +27,25 @@ export const initialize = (
     applyAntiFlickerCss();
     fetchLatestConfigs(apiKey, config.serverZone)
       .then((previewState) => {
-        const flags = JSON.stringify(previewState.flags);
-        const objects = JSON.stringify(previewState.pageViewObjects);
-        startClient(apiKey, flags, objects, config);
+        const initialFlags = JSON.stringify(previewState.flags);
+        const pageObjects = JSON.stringify(previewState.pageViewObjects);
+        startClient(apiKey, { initialFlags, pageObjects }, config);
       })
       .catch((error) => {
         console.warn('Failed to fetch latest configs for preview:', error);
-        startClient(apiKey, initialFlags, pageObjects, config);
+        startClient(apiKey, initConfigs, config);
       });
   } else {
-    startClient(apiKey, initialFlags, pageObjects, config);
+    startClient(apiKey, initConfigs, config);
   }
 };
 
 const startClient = (
   apiKey: string,
-  flags: string,
-  objects: string,
+  initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): void => {
-  DefaultWebExperimentClient.getInstance(apiKey, flags, objects, config)
+  DefaultWebExperimentClient.getInstance(apiKey, initConfigs, config)
     .start()
     .finally(() => {
       // Remove anti-flicker css if it exists
