@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.21.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.20.0...@amplitude/experiment-tag@0.21.0) (2026-04-13)
+
+
+### Features
+
+* use initConfigs for web experiment initialization ([#305](https://github.com/amplitude/experiment-js-client/issues/305)) ([4bf12c6](https://github.com/amplitude/experiment-js-client/commit/4bf12c64eacfd40ae7934ba84493e7031ac2de97))
+
+
+
+
+
 # [0.20.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.19.1...@amplitude/experiment-tag@0.20.0) (2026-04-10)
 
 
