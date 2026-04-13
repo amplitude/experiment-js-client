@@ -3,6 +3,34 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.21.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.20.0...@amplitude/experiment-tag@0.21.0) (2026-04-13)
+
+
+### Features
+
+* use initConfigs for web experiment initialization ([#305](https://github.com/amplitude/experiment-js-client/issues/305)) ([4bf12c6](https://github.com/amplitude/experiment-js-client/commit/4bf12c64eacfd40ae7934ba84493e7031ac2de97))
+
+
+
+
+
+# [0.20.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.19.1...@amplitude/experiment-tag@0.20.0) (2026-04-10)
+
+
+### Bug Fixes
+
+* Behavioral Targeting schema update ([#300](https://github.com/amplitude/experiment-js-client/issues/300)) ([e271736](https://github.com/amplitude/experiment-js-client/commit/e271736caba63568e054275675ac85aae08c181b))
+* **experiment-tag:** load overlay after shell is built in mobile mode ([#304](https://github.com/amplitude/experiment-js-client/issues/304)) ([dc818b6](https://github.com/amplitude/experiment-js-client/commit/dc818b60f0109a980e0ea34da57aa42871d197e9))
+
+
+### Features
+
+* add per-segment evaluation traces to debug API ([#294](https://github.com/amplitude/experiment-js-client/issues/294)) ([51fcb09](https://github.com/amplitude/experiment-js-client/commit/51fcb09e5569b9065d8a6969f1c61935c3992c48))
+
+
+
+
+
 ## [0.19.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.19.0...@amplitude/experiment-tag@0.19.1) (2026-04-02)
 
 

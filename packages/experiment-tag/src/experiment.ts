@@ -27,6 +27,7 @@ import {
 } from './subscriptions/subscriptions';
 import {
   Defaults,
+  InitConfigs,
   WebExperimentClient,
   WebExperimentConfig,
   WebExperimentUser,
@@ -126,9 +127,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   constructor(
     apiKey: string,
-    initialFlags: string,
-    pageObjects: string,
-    behavioralRules: string,
+    initConfigs: InitConfigs,
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
@@ -139,9 +138,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     this.globalScope = globalScope;
     this.apiKey = apiKey;
-    this.initialFlags = JSON.parse(initialFlags);
-    this.pageObjects = JSON.parse(pageObjects);
-    this.behavioralTargetingRules = JSON.parse(behavioralRules);
+    this.initialFlags = JSON.parse(initConfigs.initialFlags);
+    this.pageObjects = JSON.parse(initConfigs.pageObjects);
+    this.behavioralTargetingRules = initConfigs.behavioralTargetingRules
+      ? JSON.parse(initConfigs.behavioralTargetingRules)
+      : [];
 
     // Initialize behavioral targeting infrastructure only if there are rules
     if (Object.keys(this.behavioralTargetingRules).length > 0) {
@@ -255,11 +256,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
-      WindowMessenger.setup();
-
       if (isMobileModeActive()) {
-        buildShell(this.globalScope);
+        // In mobile mode, build the shell first and load the overlay after.
+        // The overlay must render into the already-built shell to avoid a
+        // race where buildShell restructures the DOM while the overlay's
+        // React 18 concurrent render is in-flight.
+        await buildShell(this.globalScope);
       }
+      WindowMessenger.setup();
 
       const veSource =
         urlParams[VISUAL_EDITOR_PARAM] === 'true'
@@ -379,16 +383,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Get singleton of the {@link DefaultWebExperimentClient} if it has already been initialized.
    * If not, initialize the client and return the instance.
    * @param apiKey
-   * @param initialFlags
-   * @param pageObjects
+   * @param initConfigs
    * @param config
-   * @param behavioralRules
    */
   static getInstance(
     apiKey: string,
-    initialFlags: string,
-    pageObjects: string,
-    behavioralRules: string,
+    initConfigs: InitConfigs,
     config: WebExperimentConfig = {},
   ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
@@ -410,9 +410,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     const webExperiment = new DefaultWebExperimentClient(
       apiKey,
-      initialFlags,
-      pageObjects,
-      behavioralRules,
+      initConfigs,
       config,
     );
     // Set the real client instance

@@ -4,7 +4,7 @@ import { getGlobalScope } from '@amplitude/experiment-core';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
-import { WebExperimentConfig } from './types';
+import { InitConfigs, WebExperimentConfig } from './types';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { isPreviewMode } from './util/url';
 
@@ -15,9 +15,7 @@ const eventBuffer: Array<{
 
 export const initialize = (
   apiKey: string,
-  initialFlags: string,
-  pageObjects: string,
-  behavioralRules: string,
+  initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): void => {
   const globalScope = getGlobalScope();
@@ -39,41 +37,40 @@ export const initialize = (
     // Fetch latest configs and create client
     fetchLatestConfigs(apiKey, config.serverZone)
       .then((previewState) => {
-        const flags = JSON.stringify(previewState.flags);
-        const objects = JSON.stringify(previewState.pageViewObjects);
-        // Use fetched behavioral rules if available, otherwise fall back to initial rules
-        const rules = previewState.behavioralTargetingRules
-          ? JSON.stringify(previewState.behavioralTargetingRules)
-          : behavioralRules;
-        startClient(apiKey, flags, objects, rules, config);
+        const initialFlags = JSON.stringify(previewState.flags);
+        const pageObjects = JSON.stringify(previewState.pageViewObjects);
+        const behavioralTargetingRules = JSON.stringify(
+          previewState.behavioralTargetingRules,
+        );
+        startClient(
+          apiKey,
+          {
+            initialFlags,
+            pageObjects,
+            behavioralTargetingRules,
+          },
+          config,
+        );
       })
       .catch((error) => {
         console.warn('Failed to fetch latest configs for preview:', error);
-        startClient(apiKey, initialFlags, pageObjects, behavioralRules, config);
+        startClient(apiKey, initConfigs, config);
       })
       .finally(() => {
         // Remove anti-flicker css if it exists
         document.getElementById('amp-exp-css')?.remove();
       });
   } else {
-    startClient(apiKey, initialFlags, pageObjects, behavioralRules, config);
+    startClient(apiKey, initConfigs, config);
   }
 };
 
 const startClient = (
   apiKey: string,
-  flags: string,
-  objects: string,
-  behavioralRules: string,
+  initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): void => {
-  DefaultWebExperimentClient.getInstance(
-    apiKey,
-    flags,
-    objects,
-    behavioralRules,
-    config,
-  )
+  DefaultWebExperimentClient.getInstance(apiKey, initConfigs, config)
     .start()
     .finally(() => {
       // Remove anti-flicker css if it exists

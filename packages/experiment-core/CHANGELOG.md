@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.13.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.12.0...@amplitude/experiment-core@0.13.0) (2026-04-10)
+
+
+### Features
+
+* add per-segment evaluation traces to debug API ([#294](https://github.com/amplitude/experiment-js-client/issues/294)) ([51fcb09](https://github.com/amplitude/experiment-js-client/commit/51fcb09e5569b9065d8a6969f1c61935c3992c48))
+
+
+
+
+
 # [0.12.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.11.1...@amplitude/experiment-core@0.12.0) (2025-11-24)
 
 

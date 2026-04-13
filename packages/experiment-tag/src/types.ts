@@ -155,3 +155,9 @@ export interface WebExperimentClient {
 export type WebExperimentUser = {
   web_exp_id?: string;
 } & ExperimentUser;
+
+export type InitConfigs = {
+  initialFlags: string;
+  pageObjects: string;
+  behavioralTargetingRules?: string;
+};
