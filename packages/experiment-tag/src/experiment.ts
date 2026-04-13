@@ -142,7 +142,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.pageObjects = JSON.parse(initConfigs.pageObjects);
     this.behavioralTargetingRules = initConfigs.behavioralTargetingRules
       ? JSON.parse(initConfigs.behavioralTargetingRules)
-      : [];
+      : {};
 
     // Initialize behavioral targeting infrastructure only if there are rules
     if (Object.keys(this.behavioralTargetingRules).length > 0) {
