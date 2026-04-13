@@ -176,7 +176,9 @@ export class ExperimentClient implements Client {
       ? `${this.config.instanceName}-${internalInstanceName}`
       : this.config.instanceName;
     if (this.isWebExperiment) {
-      storage = config?.['consentAwareStorage']?.['sessionStorage'];
+      storage =
+        config?.['consentAwareStorage']?.['sessionStorage'] ||
+        new SessionStorage();
     } else {
       storage = new LocalStorage();
     }

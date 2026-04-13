@@ -58,8 +58,8 @@ export const setAndStringifyStorageItem = <T>(
   try {
     const stringValue = JSON.stringify(value);
     setRawStorageItem(storageType, key, stringValue);
-  } catch (error) {
-    console.warn(`Failed to persist data for key ${key}:`, error);
+  } catch {
+    return;
   }
 };
 
@@ -74,8 +74,8 @@ export const removeStorageItem = (
 ): void => {
   try {
     getStorage(storageType)?.removeItem(key);
-  } catch (error) {
-    console.warn(`Failed to remove item from ${storageType}:`, error);
+  } catch {
+    return;
   }
 };
 

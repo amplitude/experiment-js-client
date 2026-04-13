@@ -65,8 +65,7 @@ export class ConsentAwareExposureHandler {
           return originalTrack(event);
         }
         return false;
-      } catch (error) {
-        console.warn('Failed to track event:', error);
+      } catch {
         return false;
       }
     };
@@ -85,8 +84,8 @@ export class ConsentAwareExposureHandler {
           if (this.originalTrack) {
             try {
               this.originalTrack(event);
-            } catch (error) {
-              console.warn('Failed to track pending event:', error);
+            } catch {
+              // Ignore failures for individual pending events.
             }
           }
         }

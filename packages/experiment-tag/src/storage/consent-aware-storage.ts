@@ -48,6 +48,10 @@ export class ConsentAwareStorage {
       this.inMemoryStorage.clear();
       this.inMemoryRawStorage.clear();
       this.persistMarketingCookies().catch();
+    } else if (consentStatus === ConsentStatus.REJECTED) {
+      this.inMemoryStorage.clear();
+      this.inMemoryRawStorage.clear();
+      this.inMemoryMarketingCookies.clear();
     }
   }
 
@@ -64,11 +68,8 @@ export class ConsentAwareStorage {
           sameSite: 'Lax',
         });
         await cookieStorage.set(storageKey, campaign);
-      } catch (error) {
-        console.warn(
-          `Failed to persist marketing cookie for key ${storageKey}:`,
-          error,
-        );
+      } catch {
+        continue;
       }
     }
     this.inMemoryMarketingCookies.clear();
@@ -176,8 +177,8 @@ export class ConsentAwareStorage {
       } else {
         this.inMemoryMarketingCookies.set(storageKey, campaign);
       }
-    } catch (error) {
-      console.warn('Failed to set marketing cookie:', error);
+    } catch {
+      return;
     }
   }
 }
