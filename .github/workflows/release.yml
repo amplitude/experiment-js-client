@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ${{ github.actor }} permission check
-        uses: 'lannonbr/repo-permission-check-action@2.0.2'
+        uses: 'lannonbr/repo-permission-check-action@2bb8c89ba8bf115c4bfab344d6a6f442b24c9a1f' # 2.0.2
         with:
           permission: 'write'
         env:
@@ -29,14 +29,14 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       # Needed for lerna version to determine last tag
       - name: Fetch
         run: git fetch --prune --unshallow --tags
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
@@ -112,7 +112,7 @@ jobs:
       # Configure AWS credentials for S3 upload
       - name: Configure AWS Credentials
         if: ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != '' }}
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-west-2

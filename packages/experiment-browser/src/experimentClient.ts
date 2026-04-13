@@ -9,6 +9,7 @@ import {
   EvaluationFlag,
   FetchError,
   FlagApi,
+  FlagEvaluationTrace,
   Poller,
   SdkEvaluationApi,
   SdkFlagApi,
@@ -142,10 +143,13 @@ export class ExperimentClient implements Client {
     );
     const internalInstanceName = this.config?.['internalInstanceNameSuffix'];
     this.isWebExperiment = internalInstanceName === 'web';
-    this.poller = new Poller(
-      () => this.doFlags(),
-      this.config.flagConfigPollingIntervalMillis,
-    );
+    this.poller = new Poller(async () => {
+      try {
+        await this.doFlags();
+      } catch (e) {
+        this.logger.info(e);
+      }
+    }, this.config.flagConfigPollingIntervalMillis);
     // Transform initialVariants
     if (this.config.initialVariants) {
       for (const flagKey in this.config.initialVariants) {
@@ -495,6 +499,17 @@ export class ExperimentClient implements Client {
       );
     }
     return variants;
+  }
+
+  /** @alpha */
+  public getEvaluationTraces(
+    flagKeys?: string[],
+  ): Record<string, FlagEvaluationTrace> {
+    const user = this.addContext(this.user);
+    const flags = topologicalSort(this.flags.getAll(), flagKeys);
+    const context = convertUserToContext(user);
+    const { traces } = this.engine.evaluateWithTraces(context, flags);
+    return traces;
   }
 
   private variantAndSource(

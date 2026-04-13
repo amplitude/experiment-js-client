@@ -3,6 +3,7 @@ import { CookieStorage } from '@amplitude/analytics-core';
 import { Event, Plugin } from '@amplitude/analytics-types';
 import {
   EvaluationFlag,
+  FlagEvaluationTrace,
   getGlobalScope,
   isLocalStorageAvailable,
   safeGlobal,
@@ -19,10 +20,14 @@ import mutate, { MutationController } from 'dom-mutator';
 import * as domMutatorExports from 'dom-mutator';
 
 import { showPreviewModeModal } from './preview/preview';
-import { PageChangeEvent, SubscriptionManager } from './subscriptions';
 import { MessageBus } from './subscriptions/message-bus';
 import {
+  PageChangeEvent,
+  SubscriptionManager,
+} from './subscriptions/subscriptions';
+import {
   Defaults,
+  InitConfigs,
   WebExperimentClient,
   WebExperimentConfig,
   WebExperimentUser,
@@ -35,9 +40,11 @@ import {
   PreviewState,
   RevertVariantsOptions,
 } from './types';
+import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
+import { DebugRecorder } from './util/debug-recorder';
 import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
@@ -109,14 +116,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private activePages: PageObjects = {};
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
+  private isDebugActive = false;
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, string> = {};
 
   constructor(
     apiKey: string,
-    initialFlags: string,
-    pageObjects: string,
+    initConfigs: InitConfigs,
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
@@ -127,8 +134,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     this.globalScope = globalScope;
     this.apiKey = apiKey;
-    this.initialFlags = JSON.parse(initialFlags);
-    this.pageObjects = JSON.parse(pageObjects);
+    this.initialFlags = JSON.parse(initConfigs.initialFlags);
+    this.pageObjects = JSON.parse(initConfigs.pageObjects);
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
@@ -201,6 +208,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.isVisualEditorMode =
       urlParams[VISUAL_EDITOR_PARAM] === 'true' ||
       getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null;
+    DebugRecorder.init(this.globalScope);
+    this.isDebugActive = DebugRecorder.isActive();
     this.subscriptionManager = new SubscriptionManager(
       this,
       this.messageBus,
@@ -208,26 +217,53 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       {
         ...this.config,
         isVisualEditorMode: this.isVisualEditorMode,
+        isDebugActive: this.isDebugActive,
       },
       this.globalScope,
     );
     this.setupPreviewMode(urlParams);
     this.subscriptionManager.initSubscriptions();
 
+    // Register debug state provider so DebugRecorder can assemble full snapshots
+    DebugRecorder.registerStateProvider(() => ({
+      flags: this.buildFlagDebugInfo(),
+      visualEditor: {
+        isActive: this.isVisualEditorMode,
+        source: this.isVisualEditorMode
+          ? getStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY) !== null
+            ? ('session_storage' as const)
+            : ('url_param' as const)
+          : null,
+      },
+      currentUrl: this.globalScope.location.href,
+    }));
+
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
+      if (isMobileModeActive()) {
+        // In mobile mode, build the shell first and load the overlay after.
+        // The overlay must render into the already-built shell to avoid a
+        // race where buildShell restructures the DOM while the overlay's
+        // React 18 concurrent render is in-flight.
+        await buildShell(this.globalScope);
+      }
       WindowMessenger.setup();
 
-      if (isMobileModeActive()) {
-        buildShell(this.globalScope);
-      }
-
+      const veSource =
+        urlParams[VISUAL_EDITOR_PARAM] === 'true'
+          ? 'url_param'
+          : 'session_storage';
+      DebugRecorder.push('ve_mode_detected', `source=${veSource}`);
       this.globalScope.history.replaceState(
         {},
         '',
         removeQueryParams(this.globalScope.location.href, [
           VISUAL_EDITOR_PARAM,
         ]),
+      );
+      DebugRecorder.push(
+        'url_param_removed',
+        `cleaned URL: ${this.globalScope.location.href}`,
       );
       // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
       this.subscriptionManager.markUrlAsPublished(
@@ -337,14 +373,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Get singleton of the {@link DefaultWebExperimentClient} if it has already been initialized.
    * If not, initialize the client and return the instance.
    * @param apiKey
-   * @param initialFlags
-   * @param pageObjects
+   * @param initConfigs
    * @param config
    */
   static getInstance(
     apiKey: string,
-    initialFlags: string,
-    pageObjects: string,
+    initConfigs: InitConfigs,
     config: WebExperimentConfig = {},
   ): DefaultWebExperimentClient {
     const globalScope = getGlobalScope();
@@ -366,8 +400,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     const webExperiment = new DefaultWebExperimentClient(
       apiKey,
-      initialFlags,
-      pageObjects,
+      initConfigs,
       config,
     );
     // Set the real client instance
@@ -596,6 +629,79 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    */
   public toggleManualPageObject(name: string, isActive = true) {
     this.subscriptionManager?.toggleManualPageObject(name, isActive);
+  }
+
+  /**
+   * Returns a snapshot of the current debug state for all flags,
+   * including per-page-object trigger introspection.
+   */
+  public getDebugState(): DebugState {
+    return DebugRecorder.getDebugState();
+  }
+
+  private buildFlagDebugInfo(): DebugState['flags'] {
+    const flags: DebugState['flags'] = {};
+    const variants = this.getVariants();
+    const debugPageObjects =
+      this.subscriptionManager?.getDebugPageObjects() ?? {};
+
+    const traces: Record<string, FlagEvaluationTrace> | undefined =
+      this.localFlagKeys.length > 0
+        ? this.experimentClient.getEvaluationTraces(this.localFlagKeys)
+        : undefined;
+
+    for (const flagKey of [...this.localFlagKeys, ...this.remoteFlagKeys]) {
+      const variant = variants[flagKey];
+      const activePagesForFlag = this.activePages[flagKey];
+
+      let audienceEvaluation: AudienceEvaluationDebugInfo | undefined;
+      const trace = traces?.[flagKey];
+      // Local flags: full per-segment traces from the evaluation engine
+      if (trace) {
+        audienceEvaluation = {
+          matched: trace.matched,
+          matchedSegment: trace.matchedSegment,
+          steps: trace.steps,
+        };
+      }
+      // Remote flags: server-side evaluation, only matched segment name available from variant metadata
+      else if (variant?.metadata?.segmentName) {
+        audienceEvaluation = {
+          matched: true,
+          matchedSegment: variant.metadata.segmentName as string,
+          steps: [],
+        };
+      }
+
+      flags[flagKey] = {
+        flagKey,
+        variant: variant?.key
+          ? {
+              key: variant.key,
+              value: variant.value,
+              metadata: variant.metadata,
+            }
+          : null,
+        isActive:
+          !!activePagesForFlag && Object.keys(activePagesForFlag).length > 0,
+        audienceEvaluation,
+        pageObjects: debugPageObjects[flagKey] ?? [],
+      };
+    }
+
+    return flags;
+  }
+
+  /**
+   * Subscribe to debug state changes. Fires debounced (~100 ms) on page change events.
+   * @returns An unsubscribe function, or undefined if subscriptions are not initialized.
+   */
+  public addDebugStateSubscriber(
+    callback: (state: DebugState) => void,
+  ): (() => void) | undefined {
+    if (this.subscriptionManager) {
+      return this.subscriptionManager.addDebugStateSubscriber(callback);
+    }
   }
 
   /**

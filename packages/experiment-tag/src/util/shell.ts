@@ -1,9 +1,11 @@
 const MOBILE_MODE_SESSION_KEY = 'amp-visual-editor-mobile-mode';
 const DEVICE_IFRAME_ID = 'amp-device-iframe';
 const DEVICE_CONTAINER_ID = 'amp-overlay-device-iframe-container';
+const OVERLAY_HOST_ID = 'overlay-shadow-host';
 
-const DEFAULT_MOBILE_WIDTH = 375;
-const DEFAULT_MOBILE_HEIGHT = 667;
+// These values map to the dimensions of an iPhone 17
+const DEFAULT_MOBILE_WIDTH = 402;
+const DEFAULT_MOBILE_HEIGHT = 874;
 
 export function isMobileModeActive(): boolean {
   try {
@@ -14,13 +16,111 @@ export function isMobileModeActive(): boolean {
 }
 
 /**
- * Replaces the page DOM with a shell container that loads the customer site
- * in a same-origin iframe. Deferred until the document is fully parsed so
- * the HTML parser doesn't add elements after the body is cleared.
+ * Returns the device iframe element when the customer page is rendered inside
+ * it (mobile viewport mode), or null when running in the top frame.
  */
-export function buildShell(globalScope: typeof globalThis): void {
+export function getDeviceIframe(): HTMLIFrameElement | null {
+  return document.getElementById(DEVICE_IFRAME_ID) as HTMLIFrameElement | null;
+}
+
+/**
+ * Returns the Document for the customer page. In mobile viewport mode the
+ * customer site lives inside a same-origin iframe; otherwise it is the
+ * top-level document.
+ */
+export function getCustomerDocument(globalScope: typeof globalThis): Document {
+  if (isMobileModeActive()) {
+    return getDeviceIframe()?.contentDocument ?? globalScope.document;
+  }
+  return globalScope.document;
+}
+
+/**
+ * Returns the Window for the customer page. In mobile viewport mode the
+ * customer site lives inside a same-origin iframe; otherwise it is the
+ * top-level window.
+ */
+export const getCustomerWindow = (
+  globalScope: typeof globalThis,
+): Window & typeof globalThis => {
+  if (isMobileModeActive()) {
+    return (
+      (getDeviceIframe()?.contentWindow as Window & typeof globalThis) ??
+      (globalScope as Window & typeof globalThis)
+    );
+  }
+  return globalScope as Window & typeof globalThis;
+};
+
+/**
+ * Syncs the iframe URL to the top-level URL bar. The wrapped replaceState
+ * also triggers the SDK's url_change pipeline.
+ */
+function syncIframeUrl(globalScope: typeof globalThis, iframeWindow: Window) {
+  const iframeHref = iframeWindow.location.href;
+  if (iframeHref && iframeHref !== globalScope.location.href) {
+    globalScope.history.replaceState(globalScope.history.state, '', iframeHref);
+  }
+}
+
+/**
+ * Patches iframe history methods and popstate to mirror SPA navigations.
+ */
+function observeIframeSpaNav(
+  globalScope: typeof globalThis,
+  iframeWindow: Window,
+) {
+  const iframeHistory = iframeWindow.history;
+
+  const wrap = (original: typeof iframeHistory.pushState) =>
+    function (
+      this: History,
+      state: unknown,
+      title: string,
+      url?: string | URL | null,
+    ) {
+      original.call(this, state, title, url);
+      syncIframeUrl(globalScope, iframeWindow);
+    };
+
+  iframeHistory.pushState = wrap(iframeHistory.pushState.bind(iframeHistory));
+  iframeHistory.replaceState = wrap(
+    iframeHistory.replaceState.bind(iframeHistory),
+  );
+
+  iframeWindow.addEventListener('popstate', () => {
+    syncIframeUrl(globalScope, iframeWindow);
+  });
+}
+
+/**
+ * Replaces the page DOM with a shell container that loads the customer site
+ * in a same-origin iframe.
+ *
+ * Waits for document.readyState === 'complete' before modifying the DOM so
+ * that SSR frameworks (e.g. Next.js) can finish hydration first. Uses
+ * requestAnimationFrame polling instead of window.addEventListener('load')
+ * because third-party scripts can proxy addEventListener and suppress load
+ * handlers. Polling readyState directly is not affected by such proxies.
+ *
+ * Returns a Promise that resolves after the shell is built. In mobile mode,
+ * the overlay script should be loaded after awaiting this promise to
+ * guarantee it renders into the already-built shell rather than racing with
+ * DOM restructuring.
+ */
+export function buildShell(globalScope: typeof globalThis): Promise<void> {
+  const doc = globalScope.document;
+
   const run = () => {
-    const doc = globalScope.document;
+    // Inject a CSS rule that hides any direct children of <body> except the
+    // device-iframe container and the overlay host. This prevents third-party
+    // scripts from rendering visible elements in the shell.
+    const shellGuard = doc.createElement('style');
+    shellGuard.setAttribute('data-amp-shell-guard', '');
+    shellGuard.textContent =
+      `body > *:not(#${DEVICE_CONTAINER_ID}):not(#${OVERLAY_HOST_ID}) ` +
+      `{ display: none !important; }`;
+    doc.head.appendChild(shellGuard);
 
     while (doc.body.firstChild) {
       doc.body.removeChild(doc.body.firstChild);
@@ -29,11 +129,12 @@ export function buildShell(globalScope: typeof globalThis): void {
     doc.body.style.cssText = `
       margin: 0;
       padding: 0;
-      overflow: hidden;
-      height: 100vh;
+      overflow: auto;
+      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      background-color: #fff;
       background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABZSURBVHgB7dG7DYBADANQJxexAiXSTXw9uyExBih34SOxQhr83Li2ASIiIiIiIpo7QbLW1tms1zijq9puSDaGLxhhuBPaqyKZTFK+/r6AZOJlg8shqv5ccAGZWRnaKiSy9QAAAABJRU5ErkJggg==");
     `;
 
@@ -53,18 +154,43 @@ export function buildShell(globalScope: typeof globalThis): void {
     iframe.style.cssText = `
       width: ${DEFAULT_MOBILE_WIDTH}px;
       height: ${DEFAULT_MOBILE_HEIGHT}px;
-      border: 1px solid #000;
+      border: 1px solid #dedfe2;
       border-radius: 20px;
+      box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.1);
       background: #fff;
+      transition: all 0.1s ease;
     `;
+
+    // On each iframe navigation, sync its URL to the top-level URL bar.
+    iframe.addEventListener('load', () => {
+      const iframeWindow = iframe.contentWindow;
+      if (!iframeWindow) return;
+      try {
+        syncIframeUrl(globalScope, iframeWindow);
+        observeIframeSpaNav(globalScope, iframeWindow);
+      } catch {
+        // cross-origin iframe — skip URL syncing
+      }
+    });
 
     container.appendChild(iframe);
     doc.body.appendChild(container);
   };
 
-  if (globalScope.document.readyState === 'complete') {
-    run();
-  } else {
-    globalScope.addEventListener('load', run, { once: true });
-  }
+  return new Promise<void>((resolve) => {
+    if (doc.readyState === 'complete' && doc.body) {
+      run();
+      resolve();
+    } else {
+      const waitUntilReady = () => {
+        if (doc.readyState === 'complete' && doc.body) {
+          run();
+          resolve();
+        } else {
+          globalScope.requestAnimationFrame(waitUntilReady);
+        }
+      };
+      globalScope.requestAnimationFrame(waitUntilReady);
+    }
+  });
 }

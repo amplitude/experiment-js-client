@@ -3,6 +3,85 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.21.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.20.0...@amplitude/experiment-tag@0.21.0) (2026-04-13)
+
+
+### Features
+
+* use initConfigs for web experiment initialization ([#305](https://github.com/amplitude/experiment-js-client/issues/305)) ([4bf12c6](https://github.com/amplitude/experiment-js-client/commit/4bf12c64eacfd40ae7934ba84493e7031ac2de97))
+
+
+
+
+
+# [0.20.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.19.1...@amplitude/experiment-tag@0.20.0) (2026-04-10)
+
+
+### Bug Fixes
+
+* Behavioral Targeting schema update ([#300](https://github.com/amplitude/experiment-js-client/issues/300)) ([e271736](https://github.com/amplitude/experiment-js-client/commit/e271736caba63568e054275675ac85aae08c181b))
+* **experiment-tag:** load overlay after shell is built in mobile mode ([#304](https://github.com/amplitude/experiment-js-client/issues/304)) ([dc818b6](https://github.com/amplitude/experiment-js-client/commit/dc818b60f0109a980e0ea34da57aa42871d197e9))
+
+
+### Features
+
+* add per-segment evaluation traces to debug API ([#294](https://github.com/amplitude/experiment-js-client/issues/294)) ([51fcb09](https://github.com/amplitude/experiment-js-client/commit/51fcb09e5569b9065d8a6969f1c61935c3992c48))
+
+
+
+
+
+## [0.19.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.19.0...@amplitude/experiment-tag@0.19.1) (2026-04-02)
+
+
+### Bug Fixes
+
+* **experiment-tag:** load overlay script immediately instead of deferring to window.load ([#299](https://github.com/amplitude/experiment-js-client/issues/299)) ([89bbc1a](https://github.com/amplitude/experiment-js-client/commit/89bbc1a4bc4de7a22b54190682dc6a8eb7682f5a))
+
+
+
+
+
+# [0.19.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.18.1...@amplitude/experiment-tag@0.19.0) (2026-04-02)
+
+
+### Bug Fixes
+
+* sync iframe URL and target iframe document for triggers in mobile mode ([#297](https://github.com/amplitude/experiment-js-client/issues/297)) ([d0fe3be](https://github.com/amplitude/experiment-js-client/commit/d0fe3bef5bc1d570da6351f4f7092165551ec14e))
+
+
+### Features
+
+* BehavioralTargetingManager, EventStorage and BehavioralTargetingEvaluator ([#262](https://github.com/amplitude/experiment-js-client/issues/262)) ([1159067](https://github.com/amplitude/experiment-js-client/commit/115906751c0bb1fafc4bbe9683767b1a2ad8fb06))
+
+
+
+
+
+## [0.18.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.18.0...@amplitude/experiment-tag@0.18.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* prevent scripts from inserting elements into shell body after do… ([#295](https://github.com/amplitude/experiment-js-client/issues/295)) ([95cbe10](https://github.com/amplitude/experiment-js-client/commit/95cbe103a36b87c538e494073e470d149b3e1026))
+
+
+
+
+
+# [0.18.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.17.1...@amplitude/experiment-tag@0.18.0) (2026-03-23)
+
+
+### Features
+
+* don't minify in dev mode and allow earlier WebExperiment to override ([#289](https://github.com/amplitude/experiment-js-client/issues/289)) ([af46363](https://github.com/amplitude/experiment-js-client/commit/af46363ec0988f9f80575d174abb8877c4d9a12c))
+* **experiment-tag:** add debug state API with activation check and subscriber ([#288](https://github.com/amplitude/experiment-js-client/issues/288)) ([43f0b72](https://github.com/amplitude/experiment-js-client/commit/43f0b72825c56cee227d6d97462274132e6f1418))
+* **experiment-tag:** add page object trigger debug info and manual test page ([#291](https://github.com/amplitude/experiment-js-client/issues/291)) ([8106448](https://github.com/amplitude/experiment-js-client/commit/8106448bf54bcae47a8ff321ae7bc9180fcdbaef))
+
+
+
+
+
 ## [0.17.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.17.0...@amplitude/experiment-tag@0.17.1) (2026-03-20)
 
 

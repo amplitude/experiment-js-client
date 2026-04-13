@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.21.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.20.4...@amplitude/experiment-js-client@1.21.0) (2026-04-10)
+
+
+### Features
+
+* add per-segment evaluation traces to debug API ([#294](https://github.com/amplitude/experiment-js-client/issues/294)) ([51fcb09](https://github.com/amplitude/experiment-js-client/commit/51fcb09e5569b9065d8a6969f1c61935c3992c48))
+
+
+
+
+
+## [1.20.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.20.3...@amplitude/experiment-js-client@1.20.4) (2026-03-26)
+
+
+### Bug Fixes
+
+* poll unhandled rejection ([#296](https://github.com/amplitude/experiment-js-client/issues/296)) ([bdfd7a0](https://github.com/amplitude/experiment-js-client/commit/bdfd7a0ba155fa24d48f82427e920ec1f5b5229b))
+
+
+
+
+
 ## [1.20.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.20.2...@amplitude/experiment-js-client@1.20.3) (2026-01-24)
 
 
