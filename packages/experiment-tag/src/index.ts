@@ -39,9 +39,10 @@ export const initialize = (
       .then((previewState) => {
         const initialFlags = JSON.stringify(previewState.flags);
         const pageObjects = JSON.stringify(previewState.pageViewObjects);
-        const behavioralTargetingRules = JSON.stringify(
-          previewState.behavioralTargetingRules,
-        );
+        const behavioralTargetingRules =
+          previewState.behavioralTargetingRules === undefined
+            ? undefined
+            : JSON.stringify(previewState.behavioralTargetingRules);
         startClient(
           apiKey,
           {
