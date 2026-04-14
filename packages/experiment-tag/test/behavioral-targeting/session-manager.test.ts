@@ -3,7 +3,7 @@ import { SessionManager } from 'src/behavioral-targeting/session-manager';
 describe('SessionManager', () => {
   let sessionManager: SessionManager;
   const testApiKey = 'test-api-key';
-
+  const storageKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_session`;
   beforeEach(() => {
     // Clear sessionStorage before each test
     sessionStorage.clear();
@@ -33,7 +33,7 @@ describe('SessionManager', () => {
     test('should persist session ID in sessionStorage', () => {
       const sessionId = sessionManager.getOrCreateSessionId();
 
-      const stored = sessionStorage.getItem('EXP_test-api-key_rtbt_session');
+      const stored = sessionStorage.getItem(storageKey);
       expect(stored).not.toBeNull();
 
       if (stored) {
@@ -65,7 +65,7 @@ describe('SessionManager', () => {
     });
 
     test('should handle invalid JSON in sessionStorage', () => {
-      sessionStorage.setItem('EXP_test-api-key_rtbt_session', 'invalid json');
+      sessionStorage.setItem(storageKey, 'invalid json');
 
       const sessionId = sessionManager.getOrCreateSessionId();
 
@@ -119,7 +119,7 @@ describe('SessionManager', () => {
       sessionManager.getOrCreateSessionId();
       sessionManager.clearSession();
 
-      const stored = sessionStorage.getItem('EXP_test-api-key_rtbt_session');
+      const stored = sessionStorage.getItem(storageKey);
       expect(stored).toBeNull();
     });
 
