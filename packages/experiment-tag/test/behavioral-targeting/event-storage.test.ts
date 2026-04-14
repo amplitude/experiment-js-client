@@ -5,8 +5,7 @@ describe('EventStorageManager', () => {
   let eventStorage: EventStorageManager;
   let sessionManager: SessionManager;
   const testApiKey = 'test-api-key';
-  // Storage key uses first 10 characters of API key
-  const storageKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_events`; // 'EXP_test-api-ke_rtbt_events'
+  const storageKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_events`;
 
   beforeEach(() => {
     // Clear storage before each test
