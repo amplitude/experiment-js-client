@@ -8,6 +8,7 @@ describe('Behavioral Targeting Integration', () => {
   let eventStorage: EventStorageManager;
   let evaluator: BehavioralTargetingEvaluator;
   const testApiKey = 'test-api-key';
+  const storageKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_events`;
 
   beforeEach(() => {
     localStorage.clear();
@@ -565,7 +566,7 @@ describe('Behavioral Targeting Integration', () => {
       eventStorage.addEvent('click');
 
       // Corrupt localStorage
-      localStorage.setItem('EXP_test-api-key_rtbt_events', 'invalid json');
+      localStorage.setItem(storageKey, 'invalid json');
 
       // Create new instances (simulates page reload)
       const newSessionManager = new SessionManager(testApiKey);

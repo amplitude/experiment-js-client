@@ -8,7 +8,7 @@ export class SessionManager {
   private sessionStartTime?: number;
 
   constructor(apiKey: string) {
-    this.storageKey = `EXP_${apiKey}_rtbt_session`;
+    this.storageKey = `EXP_${apiKey.slice(0, 10)}_rtbt_session`;
   }
 
   /**
