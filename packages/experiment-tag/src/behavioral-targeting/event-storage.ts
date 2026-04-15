@@ -39,7 +39,7 @@ export class EventStorageManager {
     sessionManager: SessionManager,
     persistedEvents?: Set<string>,
   ) {
-    this.storageKey = `EXP_${apiKey}_rtbt_events`;
+    this.storageKey = `EXP_${apiKey.slice(0, 10)}_rtbt_events`;
     this.sessionManager = sessionManager;
     this.persistedEvents = persistedEvents;
 
