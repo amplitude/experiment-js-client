@@ -425,9 +425,24 @@ export class EvaluationEngine {
     op: string,
     filterValues: string[],
   ): boolean {
-    return propValues.some((element) =>
-      this.matchString(element, op, filterValues),
-    );
+    switch (op) {
+      case EvaluationOperator.IS_NOT:
+        return !propValues.some((element) =>
+          this.matchesIs(element, filterValues),
+        );
+      case EvaluationOperator.DOES_NOT_CONTAIN:
+        return !propValues.some((element) =>
+          this.matchesContains(element, filterValues),
+        );
+      case EvaluationOperator.REGEX_DOES_NOT_MATCH:
+        return !propValues.some((element) =>
+          this.matchesRegex(element, filterValues),
+        );
+      default:
+        return propValues.some((element) =>
+          this.matchString(element, op, filterValues),
+        );
+    }
   }
 
   private matchesIs(propValue: string, filterValues: string[]): boolean {
