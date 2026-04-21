@@ -798,7 +798,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       flagKey,
       variant,
       currentDomain,
-      redirectUrl
+      redirectUrl,
     );
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
