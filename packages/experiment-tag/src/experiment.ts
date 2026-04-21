@@ -344,8 +344,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       keyToVariant: this.previewFlags,
     });
 
-    // fire stored redirect impressions upon startup
-    this.fireStoredRedirectImpressions().catch();
     // Subscribe directly to url_change events to fire redirect impressions
     this.messageBus.subscribe('url_change', () => {
       this.fireStoredRedirectImpressions().catch();
@@ -446,7 +444,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache[currentUrl] = {};
     }
 
-    this.fireStoredRedirectImpressions();
+    this.fireStoredRedirectImpressions().catch();
     for (const key in variants) {
       // preview actions are handled by previewVariants
       if ((flagKeys && !flagKeys.includes(key)) || this.previewFlags[key]) {
@@ -756,7 +754,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private handleVariantAction(key: string, variant: Variant) {
     for (const action of variant.payload) {
       if (action.action === REDIRECT_ACTION) {
-        this.handleRedirect(action, key, variant);
+        this.handleRedirect(action, key, variant).catch();
       } else if (action.action === MUTATE_ACTION) {
         this.handleMutate(action, key, variant);
       } else if (action.action === INJECT_ACTION) {
@@ -803,7 +801,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    await setMarketingCookie(this.apiKey, currentDomain);
+    try {
+      await setMarketingCookie(this.apiKey, currentDomain);
+    } catch (error) {
+      console.error('Failed to set marketing cookie:', error);
+    }
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
