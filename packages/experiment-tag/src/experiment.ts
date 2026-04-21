@@ -765,7 +765,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private handleRedirect(action, flagKey: string, variant: Variant) {
+  private async handleRedirect(action, flagKey: string, variant: Variant) {
     if (!this.isActionActiveOnPage(flagKey, action?.data?.metadata?.scope)) {
       return;
     }
@@ -794,11 +794,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     const currentDomain = getCookieDomain(this.globalScope.location.href);
-    this.storeRedirectImpressions(flagKey, variant, currentDomain, redirectUrl);
+    await this.storeRedirectImpressions(
+      flagKey,
+      variant,
+      currentDomain,
+      redirectUrl,
+    );
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    setMarketingCookie(this.apiKey, currentDomain).then();
+    await setMarketingCookie(this.apiKey, currentDomain);
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
@@ -1038,7 +1043,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
 
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
-    storage
+    return storage
       .get(storageKey)
       .then((storedRedirects) => {
         const redirects = storedRedirects || {};
