@@ -2,7 +2,7 @@ import fetch from 'unfetch';
 
 import { EvaluationEngine, EvaluationFlag } from '../../src';
 
-const deploymentKey = 'server-NgJxxvg8OGwwBsWVXqyxQbdiflbhvugy';
+const deploymentKey = 'server-VVhLULXCxxY0xqmszXouXxiEzoeJWmSh';
 const engine = new EvaluationEngine();
 let flags: EvaluationFlag[];
 
@@ -499,6 +499,64 @@ test('test is with booleans', () => {
     false: 'false',
   });
   result = engine.evaluate(user, flags)['test-is-with-booleans'];
+  expect(result?.key).toEqual('on');
+});
+
+// Multi-value array property tests
+
+test('test set is with JSON array string', () => {
+  const user = userContext(undefined, undefined, undefined, {
+    key: '["1", "2", "3"]',
+  });
+  const result = engine.evaluate(user, flags)['test-set-is'];
+  expect(result?.key).toEqual('on');
+});
+
+test('test is with array (collection)', () => {
+  const user = userContext(undefined, undefined, undefined, {
+    key: ['value1', 'value2'],
+  });
+  const result = engine.evaluate(user, flags)['test-is-array'];
+  expect(result?.key).toEqual('on');
+});
+
+test('test is not with array', () => {
+  const user = userContext(undefined, undefined, undefined, {
+    key: ['value3', 'value4'],
+  });
+  const result = engine.evaluate(user, flags)['test-is-not-array'];
+  expect(result?.key).toEqual('on');
+});
+
+test('test contains with array', () => {
+  const user = userContext(undefined, undefined, undefined, {
+    key: ['has-target-value', 'has', 'value'],
+  });
+  const result = engine.evaluate(user, flags)['test-contains-array'];
+  expect(result?.key).toEqual('on');
+});
+
+test('test does not contain with array', () => {
+  const user = userContext(undefined, undefined, undefined, {
+    key: ['has-value', 'has', 'value'],
+  });
+  const result = engine.evaluate(user, flags)['test-does-not-contain-array'];
+  expect(result?.key).toEqual('on');
+});
+
+test('test is with JSON array string', () => {
+  const user = userContext(undefined, undefined, undefined, {
+    key: '["value1", "value2"]',
+  });
+  const result = engine.evaluate(user, flags)['test-is-array'];
+  expect(result?.key).toEqual('on');
+});
+
+test('test does not contain with JSON array string', () => {
+  const user = userContext(undefined, undefined, undefined, {
+    key: '["has-value", "has", "value"]',
+  });
+  const result = engine.evaluate(user, flags)['test-does-not-contain-array'];
   expect(result?.key).toEqual('on');
 });
 
