@@ -1,3 +1,4 @@
+import { EvaluationOperator } from '@amplitude/experiment-core';
 import { BehavioralTargetingEvaluator } from 'src/behavioral-targeting/evaluator';
 import { EventStorageManager } from 'src/behavioral-targeting/event-storage';
 import { SessionManager } from 'src/behavioral-targeting/session-manager';
@@ -50,7 +51,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'add_to_cart',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -60,7 +61,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'purchase',
-              op: '=',
+              op: EvaluationOperator.IS,
               value: 0,
               time_type: 'current_session',
               time_value: 0,
@@ -103,7 +104,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'add_to_cart',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -122,7 +123,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'add_to_cart',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'rolling',
               time_value: 7,
@@ -169,7 +170,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'page_view',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -179,7 +180,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'add_to_cart',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -204,7 +205,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'add_to_cart',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -214,7 +215,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'purchase',
-              op: '=',
+              op: EvaluationOperator.IS,
               value: 0,
               time_type: 'current_session',
               time_value: 0,
@@ -247,7 +248,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'page_view',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 2,
               time_type: 'rolling',
               time_value: 30,
@@ -275,7 +276,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 2,
               time_type: 'current_session',
               time_value: 0,
@@ -307,7 +308,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'page_view',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 3,
               time_type: 'current_session',
               time_value: 0,
@@ -324,7 +325,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'search',
-              op: '=',
+              op: EvaluationOperator.IS,
               value: 0,
               time_type: 'current_session',
               time_value: 0,
@@ -358,7 +359,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'page_view',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 3,
               time_type: 'current_session',
               time_value: 0,
@@ -368,7 +369,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'click',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 2,
               time_type: 'current_session',
               time_value: 0,
@@ -381,7 +382,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -410,7 +411,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'page_view',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 2,
               time_type: 'current_session',
               time_value: 0,
@@ -427,7 +428,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'signup',
-              op: '=',
+              op: EvaluationOperator.IS,
               value: 0,
               time_type: 'current_session',
               time_value: 0,
@@ -440,7 +441,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'click',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -457,7 +458,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'signup',
-              op: '=',
+              op: EvaluationOperator.IS,
               value: 0,
               time_type: 'current_session',
               time_value: 0,
@@ -495,7 +496,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'rolling',
               time_value: 7,
@@ -506,7 +507,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'page_view',
-              op: '=',
+              op: EvaluationOperator.IS,
               value: 0,
               time_type: 'rolling',
               time_value: 24,
@@ -547,7 +548,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'click',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 500,
               time_type: 'current_session',
               time_value: 0,
@@ -585,7 +586,7 @@ describe('Behavioral Targeting Integration', () => {
             condition: {
               type: 'event',
               event_type: 'view',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
