@@ -78,7 +78,7 @@ describe('BehavioralTargetingEvaluator', () => {
                 condition: {
                   type: 'event',
                   event_type: 'click',
-                  op: operator as any,
+                  op: operator,
                   value: passingValue,
                   time_type: 'current_session',
                   time_value: 0,

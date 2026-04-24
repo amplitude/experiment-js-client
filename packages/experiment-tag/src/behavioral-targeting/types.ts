@@ -26,13 +26,13 @@ export interface BehavioralConditionSet {
 export interface BehavioralCondition {
   type: 'event';
   event_type: string; // Event name
-  op:
-    | (typeof EvaluationOperator)['GREATER_THAN_EQUALS']
-    | (typeof EvaluationOperator)['GREATER_THAN']
-    | (typeof EvaluationOperator)['IS']
-    | (typeof EvaluationOperator)['LESS_THAN']
-    | (typeof EvaluationOperator)['LESS_THAN_EQUALS']
-    | (typeof EvaluationOperator)['IS_NOT'];
+  op: (typeof EvaluationOperator)[
+    | 'GREATER_THAN_EQUALS'
+    | 'GREATER_THAN'
+    | 'IS'
+    | 'LESS_THAN'
+    | 'LESS_THAN_EQUALS'
+    | 'IS_NOT'];
   value: number; // Count threshold
   time_type: 'current_session' | 'rolling';
   time_value: number;
