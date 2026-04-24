@@ -1,4 +1,7 @@
-import { EvaluationCondition } from '@amplitude/experiment-core';
+import {
+  EvaluationCondition,
+  EvaluationOperator,
+} from '@amplitude/experiment-core';
 
 /**
  * Behavioral targeting uses DNF (Disjunctive Normal Form): OR of ANDs
@@ -23,7 +26,13 @@ export interface BehavioralConditionSet {
 export interface BehavioralCondition {
   type: 'event';
   event_type: string; // Event name
-  op: '>=' | '>' | '=' | '<' | '<=' | '!=';
+  op: (typeof EvaluationOperator)[
+    | 'GREATER_THAN_EQUALS'
+    | 'GREATER_THAN'
+    | 'IS'
+    | 'LESS_THAN'
+    | 'LESS_THAN_EQUALS'
+    | 'IS_NOT'];
   value: number; // Count threshold
   time_type: 'current_session' | 'rolling';
   time_value: number;
