@@ -76,7 +76,7 @@ describe('BehavioralTargetingEvaluator', () => {
             [
               {
                 condition: {
-                  type: 'event',
+                  type: 'behavior',
                   event_type: 'click',
                   op: operator,
                   value: passingValue,
@@ -110,7 +110,7 @@ describe('BehavioralTargetingEvaluator', () => {
           [
             {
               condition: {
-                type: 'event',
+                type: 'behavior',
                 event_type: 'click',
                 op: EvaluationOperator.GREATER_THAN_EQUALS,
                 value: 1,
@@ -153,7 +153,7 @@ describe('BehavioralTargetingEvaluator', () => {
           [
             {
               condition: {
-                type: 'event',
+                type: 'behavior',
                 event_type: 'click',
                 op: EvaluationOperator.GREATER_THAN_EQUALS,
                 value: 1,
@@ -186,7 +186,7 @@ describe('BehavioralTargetingEvaluator', () => {
           [
             {
               condition: {
-                type: 'event',
+                type: 'behavior',
                 event_type: 'click',
                 op: EvaluationOperator.GREATER_THAN_EQUALS,
                 value: 1,
@@ -225,7 +225,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 2,
@@ -255,7 +255,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -290,7 +290,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 3,
@@ -318,7 +318,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 5,
@@ -331,7 +331,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -351,7 +351,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -361,7 +361,7 @@ describe('BehavioralTargetingEvaluator', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -385,7 +385,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 10,
@@ -397,7 +397,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 10,
@@ -423,7 +423,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 3,
@@ -450,7 +450,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -460,7 +460,7 @@ describe('BehavioralTargetingEvaluator', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -493,7 +493,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'view',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -510,7 +510,7 @@ describe('BehavioralTargetingEvaluator', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -520,7 +520,7 @@ describe('BehavioralTargetingEvaluator', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -553,7 +553,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -575,7 +575,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: 'unknown' as any,
               value: 1,
@@ -594,7 +594,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'nonexistent',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,

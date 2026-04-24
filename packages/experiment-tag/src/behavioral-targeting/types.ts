@@ -24,7 +24,7 @@ export interface BehavioralConditionSet {
  * A behavioral condition
  */
 export interface BehavioralCondition {
-  type: 'event';
+  type: 'behavior';
   event_type: string; // Event name
   op: (typeof EvaluationOperator)[
     | 'GREATER_THAN_EQUALS'
