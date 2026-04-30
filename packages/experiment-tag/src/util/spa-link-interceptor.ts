@@ -71,11 +71,11 @@ export function installSpaLinkInterceptor() {
     // check for typical SPA page navigation
     const href = anchor.getAttribute('href');
     const target = anchor.getAttribute('target');
-    if (!href || !isLocalNavigation(e, href, target)) {
-      return;
-    }
-
-    if (!detectSpaRouter(anchor)) {
+    if (
+      !href ||
+      !isLocalNavigation(e, href, target) ||
+      !detectSpaRouter(anchor)
+    ) {
       return;
     }
 
