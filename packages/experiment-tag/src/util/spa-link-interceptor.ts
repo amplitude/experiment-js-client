@@ -26,7 +26,7 @@ function isLocalNavigation(
     event.altKey ||
     event.button > 0;
 
-  const url = new URL(href, window.location.origin);
+  const url = new URL(href, window.location.href);
 
   // ignore if link is just changing the hash
   const samePage =
@@ -79,7 +79,6 @@ export function installSpaLinkInterceptor() {
     }
 
     e.preventDefault();
-    e.stopPropagation();
     navigateSpa(href);
   };
 
