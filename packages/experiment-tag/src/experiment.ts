@@ -189,6 +189,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     patchRemoveChild();
+    installSpaLinkInterceptor();
     const urlParams = getUrlParams();
 
     // When running inside an iframe (mobile shell), skip overlay loading and
