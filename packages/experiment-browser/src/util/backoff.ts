@@ -1,4 +1,4 @@
-import { getSetTimeout } from '@amplitude/experiment-core';
+import { getSetTimeout, getClearTimeout } from '@amplitude/experiment-core';
 
 export class Backoff {
   private readonly attempts: number;
@@ -34,7 +34,10 @@ export class Backoff {
 
   public cancel(): void {
     this.done = true;
-    clearTimeout(this.timeoutHandle);
+    const clearTimeoutFn = getClearTimeout();
+    if (clearTimeoutFn) {
+      clearTimeoutFn(this.timeoutHandle);
+    }
   }
 
   private async backoff(
