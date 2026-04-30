@@ -151,7 +151,9 @@ export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
         new Promise<void>((_, reject) => {
           const setTimeoutFn = getSetTimeout();
           if (!setTimeoutFn) {
-            reject('Timed out waiting for Amplitude Analytics SDK to initialize.');
+            reject(
+              'Timed out waiting for Amplitude Analytics SDK to initialize.',
+            );
             return;
           }
           setTimeoutFn(

@@ -292,10 +292,7 @@ export class PersistentTrackingQueue {
           this.inMemoryQueue.length - this.maxQueueSize,
         );
       }
-      localStorage.setItem(
-        this.storageKey,
-        JSON.stringify(this.inMemoryQueue),
-      );
+      localStorage.setItem(this.storageKey, JSON.stringify(this.inMemoryQueue));
     }
   }
 

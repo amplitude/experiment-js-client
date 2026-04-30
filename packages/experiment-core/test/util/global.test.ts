@@ -96,19 +96,21 @@ describe('getSetTimeout / getClearTimeout', () => {
   it('returned setTimeout schedules the callback and clearTimeout cancels it', (done) => {
     const setTimeoutFn = getSetTimeout();
     const clearTimeoutFn = getClearTimeout();
-    expect(setTimeoutFn).toBeDefined();
-    expect(clearTimeoutFn).toBeDefined();
+    if (!setTimeoutFn || !clearTimeoutFn) {
+      done.fail('expected setTimeout/clearTimeout to be defined');
+      return;
+    }
 
     let cancelled = false;
-    const handle = setTimeoutFn!(() => {
+    const handle = setTimeoutFn(() => {
       if (cancelled) {
         done.fail('cancelled timeout fired');
       }
     }, 50);
-    clearTimeoutFn!(handle);
+    clearTimeoutFn(handle);
     cancelled = true;
 
-    setTimeoutFn!(() => done(), 100);
+    setTimeoutFn(() => done(), 100);
   });
 });
 
@@ -116,16 +118,18 @@ describe('getSetInterval / getClearInterval', () => {
   it('returned setInterval schedules and clearInterval cancels', (done) => {
     const setIntervalFn = getSetInterval();
     const clearIntervalFn = getClearInterval();
-    expect(setIntervalFn).toBeDefined();
-    expect(clearIntervalFn).toBeDefined();
+    if (!setIntervalFn || !clearIntervalFn) {
+      done.fail('expected setInterval/clearInterval to be defined');
+      return;
+    }
 
     let calls = 0;
-    const handle = setIntervalFn!(() => {
+    const handle = setIntervalFn(() => {
       calls += 1;
     }, 25);
 
     setTimeout(() => {
-      clearIntervalFn!(handle);
+      clearIntervalFn(handle);
       const callsAtCancel = calls;
       setTimeout(() => {
         expect(calls).toBe(callsAtCancel);
