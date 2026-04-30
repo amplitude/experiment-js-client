@@ -5,6 +5,7 @@ import {
   showLoadingIndicator,
   hideLoadingIndicator,
 } from './loading-indicator';
+import { isOpenerChannelBroken } from './opener-channel';
 import { getStorageItem } from './storage';
 
 interface VisualEditorSession {
@@ -17,6 +18,15 @@ export const VISUAL_EDITOR_SESSION_KEY = 'visual-editor-state';
 export class WindowMessenger {
   static setup() {
     let state: 'closed' | 'opening' | 'open' = 'closed';
+
+    // Surface a diagnostic so `getDebugState().events` exposes the opener
+    // state regardless of how setup() was reached (VE mode, preview mode).
+    DebugRecorder.push(
+      'opener_check',
+      isOpenerChannelBroken()
+        ? 'FAIL: window.opener is null, closed, or inaccessible'
+        : 'PASS',
+    );
 
     // Check for existing session on setup
     const existingSession = WindowMessenger.getStoredSession();

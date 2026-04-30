@@ -47,6 +47,8 @@ import { DebugRecorder } from './util/debug-recorder';
 import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
+import { isOpenerChannelBroken } from './util/opener-channel';
+import { showOpenerSeveredBanner } from './util/opener-severed-banner';
 import { patchRemoveChild } from './util/patch';
 import { buildShell, isMobileModeActive } from './util/shell';
 import {
@@ -238,6 +240,35 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
+      const veSource =
+        urlParams[VISUAL_EDITOR_PARAM] === 'true'
+          ? 'url_param'
+          : 'session_storage';
+      DebugRecorder.push('ve_mode_detected', `source=${veSource}`);
+
+      // The overlay is loaded by skylab postMessaging OpenOverlay through the
+      // window.opener channel. If it's broken (COOP, or explicit
+      // window.opener = null), that message never arrives and the editor
+      // never loads — show a banner instead.
+      if (isOpenerChannelBroken()) {
+        DebugRecorder.push(
+          'opener_check',
+          'FAIL: window.opener is null, closed, or inaccessible',
+        );
+        DebugRecorder.setMessengerState('error');
+        showOpenerSeveredBanner();
+        this.globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(this.globalScope.location.href, [
+            VISUAL_EDITOR_PARAM,
+          ]),
+        );
+        this.isRunning = true;
+        return;
+      }
+      DebugRecorder.push('opener_check', 'PASS');
+
       if (isMobileModeActive()) {
         // In mobile mode, build the shell first and load the overlay after.
         // The overlay must render into the already-built shell to avoid a
@@ -246,12 +277,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         await buildShell(this.globalScope);
       }
       WindowMessenger.setup();
-
-      const veSource =
-        urlParams[VISUAL_EDITOR_PARAM] === 'true'
-          ? 'url_param'
-          : 'session_storage';
-      DebugRecorder.push('ve_mode_detected', `source=${veSource}`);
       this.globalScope.history.replaceState(
         {},
         '',
