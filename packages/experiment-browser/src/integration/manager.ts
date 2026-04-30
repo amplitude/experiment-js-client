@@ -1,7 +1,10 @@
 import {
+  getClearInterval,
   getGlobalScope,
+  getLocalStorage,
+  getSessionStorage,
+  getSetInterval,
   isLocalStorageAvailable,
-  safeGlobal,
 } from '@amplitude/experiment-core';
 
 import { Defaults, ExperimentConfig } from '../config';
@@ -137,9 +140,10 @@ export class SessionDedupeCache {
   constructor(instanceName: string) {
     this.storageKey = `EXP_sent_v3_${instanceName}`;
     // Remove previous versions of storage if they exist.
-    if (this.isSessionStorageAvailable) {
-      safeGlobal.sessionStorage.removeItem(`EXP_sent_${instanceName}`);
-      safeGlobal.sessionStorage.removeItem(`EXP_sent_v2_${instanceName}`);
+    const sessionStorage = getSessionStorage();
+    if (this.isSessionStorageAvailable && sessionStorage) {
+      sessionStorage.removeItem(`EXP_sent_${instanceName}`);
+      sessionStorage.removeItem(`EXP_sent_v2_${instanceName}`);
     }
   }
 
@@ -177,8 +181,9 @@ export class SessionDedupeCache {
 
   private clearCache(): void {
     this.inMemoryCache = {};
-    if (this.isSessionStorageAvailable) {
-      safeGlobal.sessionStorage.removeItem(this.storageKey);
+    const sessionStorage = getSessionStorage();
+    if (this.isSessionStorageAvailable && sessionStorage) {
+      sessionStorage.removeItem(this.storageKey);
     }
   }
 
@@ -193,16 +198,18 @@ export class SessionDedupeCache {
   }
 
   private loadCache(): void {
-    if (this.isSessionStorageAvailable) {
-      const storedCache = safeGlobal.sessionStorage.getItem(this.storageKey);
+    const sessionStorage = getSessionStorage();
+    if (this.isSessionStorageAvailable && sessionStorage) {
+      const storedCache = sessionStorage.getItem(this.storageKey);
       this.inMemoryCache = storedCache ? JSON.parse(storedCache) : {};
     }
   }
 
   private storeCache(): void {
-    if (this.isSessionStorageAvailable) {
+    const sessionStorage = getSessionStorage();
+    if (this.isSessionStorageAvailable && sessionStorage) {
       try {
-        safeGlobal.sessionStorage.setItem(
+        sessionStorage.setItem(
           this.storageKey,
           JSON.stringify(this.inMemoryCache),
         );
@@ -236,9 +243,12 @@ export class PersistentTrackingQueue {
 
   setTracker(tracker: (event: ExperimentEvent) => boolean): void {
     this.tracker = tracker;
-    this.poller = safeGlobal.setInterval(() => {
-      this.loadFlushStore();
-    }, 1000);
+    const setInterval = getSetInterval();
+    if (setInterval) {
+      this.poller = setInterval(() => {
+        this.loadFlushStore();
+      }, 1000);
+    }
     this.loadFlushStore();
   }
 
@@ -257,27 +267,32 @@ export class PersistentTrackingQueue {
     }
     this.inMemoryQueue = this.inMemoryQueue.slice(i);
     if (this.inMemoryQueue.length === 0 && this.poller) {
-      safeGlobal.clearInterval(this.poller);
+      const clearInterval = getClearInterval();
+      if (clearInterval) {
+        clearInterval(this.poller);
+      }
       this.poller = undefined;
     }
   }
 
   private loadQueue(): void {
-    if (this.isLocalStorageAvailable) {
-      const storedQueue = safeGlobal.localStorage.getItem(this.storageKey);
+    const localStorage = getLocalStorage();
+    if (this.isLocalStorageAvailable && localStorage) {
+      const storedQueue = localStorage.getItem(this.storageKey);
       this.inMemoryQueue = storedQueue ? JSON.parse(storedQueue) : [];
     }
   }
 
   private storeQueue(): void {
-    if (this.isLocalStorageAvailable) {
+    const localStorage = getLocalStorage();
+    if (this.isLocalStorageAvailable && localStorage) {
       // Trim the queue if it is too large.
       if (this.inMemoryQueue.length > this.maxQueueSize) {
         this.inMemoryQueue = this.inMemoryQueue.slice(
           this.inMemoryQueue.length - this.maxQueueSize,
         );
       }
-      safeGlobal.localStorage.setItem(
+      localStorage.setItem(
         this.storageKey,
         JSON.stringify(this.inMemoryQueue),
       );

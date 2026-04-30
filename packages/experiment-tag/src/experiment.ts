@@ -5,7 +5,6 @@ import {
   FlagEvaluationTrace,
   getGlobalScope,
   isLocalStorageAvailable,
-  safeGlobal,
 } from '@amplitude/experiment-core';
 import {
   Experiment,
@@ -73,7 +72,10 @@ export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 
-safeGlobal.Experiment = FeatureExperiment;
+const moduleScope = getGlobalScope();
+if (moduleScope) {
+  moduleScope.Experiment = FeatureExperiment;
+}
 
 export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;

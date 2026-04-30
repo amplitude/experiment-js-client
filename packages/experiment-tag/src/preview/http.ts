@@ -1,4 +1,4 @@
-import { safeGlobal, TimeoutError } from '@amplitude/experiment-core';
+import { getFetch, TimeoutError } from '@amplitude/experiment-core';
 import unfetch from 'unfetch';
 
 export interface SimpleResponse {
@@ -16,7 +16,7 @@ export interface HttpClient {
   ): Promise<SimpleResponse>;
 }
 
-const fetch = safeGlobal.fetch || unfetch;
+const fetch = getFetch() || unfetch;
 
 const withTimeout = (
   promise: Promise<SimpleResponse>,

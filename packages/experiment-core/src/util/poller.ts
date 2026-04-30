@@ -1,4 +1,4 @@
-import { safeGlobal } from './global';
+import { getClearInterval, getSetInterval } from './global';
 
 export class Poller {
   public readonly action: () => Promise<void>;
@@ -12,7 +12,11 @@ export class Poller {
     if (this.poller) {
       return;
     }
-    this.poller = safeGlobal.setInterval(this.action, this.ms);
+    const setInterval = getSetInterval();
+    if (!setInterval) {
+      return;
+    }
+    this.poller = setInterval(this.action, this.ms);
     void this.action();
   }
 
@@ -20,9 +24,13 @@ export class Poller {
     if (!this.poller) {
       return;
     }
+    const clearInterval = getClearInterval();
+    if (!clearInterval) {
+      return;
+    }
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    safeGlobal.clearInterval(this.poller);
+    clearInterval(this.poller);
     this.poller = undefined;
   }
 }

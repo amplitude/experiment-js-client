@@ -1,4 +1,4 @@
-import { safeGlobal } from '@amplitude/experiment-core';
+import { getSetTimeout } from '@amplitude/experiment-core';
 
 export class Backoff {
   private readonly attempts: number;
@@ -45,7 +45,11 @@ export class Backoff {
     if (this.done) {
       return;
     }
-    this.timeoutHandle = safeGlobal.setTimeout(async () => {
+    const setTimeoutFn = getSetTimeout();
+    if (!setTimeoutFn) {
+      return;
+    }
+    this.timeoutHandle = setTimeoutFn(async () => {
       try {
         await fn();
       } catch (e) {
