@@ -25,12 +25,11 @@ export class Poller {
       return;
     }
     const clearInterval = getClearInterval();
-    if (!clearInterval) {
-      return;
+    if (clearInterval) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      clearInterval(this.poller);
     }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    clearInterval(this.poller);
     this.poller = undefined;
   }
 }
