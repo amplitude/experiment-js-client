@@ -13,6 +13,7 @@ declare global {
   }
 }
 
+// determine if click navigates to a different in-app page
 function isLocalNavigation(
   event: MouseEvent,
   href: string,
@@ -67,7 +68,7 @@ export function installSpaLinkInterceptor() {
       return;
     }
 
-    // checK for typical SPA page navigation
+    // check for typical SPA page navigation
     const href = anchor.getAttribute('href');
     const target = anchor.getAttribute('target');
     if (!href || !isLocalNavigation(e, href, target)) {
