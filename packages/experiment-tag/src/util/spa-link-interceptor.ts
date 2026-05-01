@@ -37,22 +37,16 @@ function isLocalNavigation(
   return !isModified && sameOrigin && !samePage;
 }
 
-function detectSpaRouter(anchor: HTMLAnchorElement) {
-  // detect NextJS router
-  if (window.next?.router?.push) {
-    return true;
-  }
-
-  // detect React app, caveats:
-  // not guaranteed for react-router to be used
-  // not guaranteed to be a <Link> component that utilizes the router
+function detectSpaRouting(anchor: HTMLAnchorElement) {
+  // detect React and NextJS router links
+  // caveat: not 100% guaranteed to be a <Link> component that utilizes the router
   const fiberKey = Object.keys(anchor).find((k) =>
     k.startsWith('__reactFiber'),
   );
   if (!fiberKey) return false;
 
-  // SPA link components should have an onClick handler
-  return Boolean(anchor[fiberKey]?.memoizedProps?.onClick);
+  // <Link> components should have an onClick handler
+  return String(anchor[fiberKey]?.memoizedProps?.onClick).includes('defaultPrevented');
 }
 
 export function installSpaLinkInterceptor() {
@@ -74,7 +68,7 @@ export function installSpaLinkInterceptor() {
     if (
       !href ||
       !isLocalNavigation(e, href, target) ||
-      !detectSpaRouter(anchor)
+      !detectSpaRouting(anchor)
     ) {
       return;
     }
