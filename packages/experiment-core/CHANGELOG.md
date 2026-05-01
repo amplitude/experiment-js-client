@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.13.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.13.0...@amplitude/experiment-core@0.13.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* **experiment-core:** SKY-10281 match array user property values element-wise for non-set operators ([#308](https://github.com/amplitude/experiment-js-client/issues/308)) ([225839d](https://github.com/amplitude/experiment-js-client/commit/225839d204673fdbb39591f030d2d96da2130d87))
+* export EvaluationOperator as const, use it for behavioral targeting op type ([#309](https://github.com/amplitude/experiment-js-client/issues/309)) ([8c1464a](https://github.com/amplitude/experiment-js-client/commit/8c1464af1f32653d53629ae2da22c2f0b69f708f))
+
+
+
+
+
 # [0.13.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.12.0...@amplitude/experiment-core@0.13.0) (2026-04-10)
 
 
