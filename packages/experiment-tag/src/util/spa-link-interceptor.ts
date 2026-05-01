@@ -51,7 +51,15 @@ function detectSpaRouting(anchor: HTMLAnchorElement) {
   );
 }
 
+// guard against double scripts
+const initFlag = Symbol.for('@amplitude/spa-link-interceptor-initiated');
+
 export function installSpaLinkInterceptor() {
+  if (window[initFlag]) {
+    return;
+  }
+  window[initFlag] = true;
+
   const handler = (e: MouseEvent) => {
     const anchor = (e.target as Element).closest(
       'a',
