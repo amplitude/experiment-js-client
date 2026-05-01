@@ -47,7 +47,7 @@ function detectSpaRouting(anchor: HTMLAnchorElement) {
 
   // <Link> components should have an onClick handler that checks for event.defaultPrevented
   return String(anchor[fiberKey]?.memoizedProps?.onClick).includes(
-    '.defaultPrevented'
+    '.defaultPrevented',
   );
 }
 
