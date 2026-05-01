@@ -45,8 +45,10 @@ function detectSpaRouting(anchor: HTMLAnchorElement) {
   );
   if (!fiberKey) return false;
 
-  // <Link> components should have an onClick handler
-  return String(anchor[fiberKey]?.memoizedProps?.onClick).includes('defaultPrevented');
+  // <Link> components should have an onClick handler that checks for event.defaultPrevented
+  return String(anchor[fiberKey]?.memoizedProps?.onClick).includes(
+    '.defaultPrevented'
+  );
 }
 
 export function installSpaLinkInterceptor() {
