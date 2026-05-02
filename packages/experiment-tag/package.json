@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",
+    "construct-style-sheets-polyfill": "^3.1.0",
     "rollup-plugin-gzip": "^3.1.0",
     "rollup-plugin-license": "^3.6.0"
   },
