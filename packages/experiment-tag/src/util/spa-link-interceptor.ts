@@ -98,6 +98,6 @@ function navigateSpa(href: string): void {
   }
 
   // other routers use pushState
-  history.pushState(null, '', href);
+  history.pushState(history.state, '', href);
   window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
 }
