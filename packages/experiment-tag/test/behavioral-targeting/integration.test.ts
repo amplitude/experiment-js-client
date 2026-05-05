@@ -49,7 +49,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'add_to_cart',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -59,7 +59,7 @@ describe('Behavioral Targeting Integration', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.IS,
               value: 0,
@@ -102,7 +102,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'add_to_cart',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -121,7 +121,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'add_to_cart',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -168,7 +168,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'page_view',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -178,7 +178,7 @@ describe('Behavioral Targeting Integration', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'add_to_cart',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -203,7 +203,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'add_to_cart',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -213,7 +213,7 @@ describe('Behavioral Targeting Integration', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.IS,
               value: 0,
@@ -246,7 +246,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'page_view',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 2,
@@ -274,7 +274,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 2,
@@ -306,7 +306,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'page_view',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 3,
@@ -323,7 +323,7 @@ describe('Behavioral Targeting Integration', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'search',
               op: EvaluationOperator.IS,
               value: 0,
@@ -357,7 +357,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'page_view',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 3,
@@ -367,7 +367,7 @@ describe('Behavioral Targeting Integration', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 2,
@@ -380,7 +380,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -409,7 +409,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'page_view',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 2,
@@ -426,7 +426,7 @@ describe('Behavioral Targeting Integration', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'signup',
               op: EvaluationOperator.IS,
               value: 0,
@@ -439,7 +439,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -456,7 +456,7 @@ describe('Behavioral Targeting Integration', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'signup',
               op: EvaluationOperator.IS,
               value: 0,
@@ -494,7 +494,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
@@ -505,7 +505,7 @@ describe('Behavioral Targeting Integration', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'page_view',
               op: EvaluationOperator.IS,
               value: 0,
@@ -546,7 +546,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 500,
@@ -584,7 +584,7 @@ describe('Behavioral Targeting Integration', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'view',
               op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,

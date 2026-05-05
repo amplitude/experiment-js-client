@@ -39,7 +39,18 @@ export const initialize = (
       .then((previewState) => {
         const initialFlags = JSON.stringify(previewState.flags);
         const pageObjects = JSON.stringify(previewState.pageViewObjects);
-        startClient(apiKey, { initialFlags, pageObjects }, config);
+        const behavioralTargetingRules = JSON.stringify(
+          previewState.behavioralTargetingRules,
+        );
+        startClient(
+          apiKey,
+          {
+            initialFlags,
+            pageObjects,
+            behavioralTargetingRules,
+          },
+          config,
+        );
       })
       .catch((error) => {
         console.warn('Failed to fetch latest configs for preview:', error);
