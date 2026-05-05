@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.23.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.22.0...@amplitude/experiment-tag@0.23.0) (2026-05-05)
+
+
+### Features
+
+* behavioral targeting for web experiment client ([#265](https://github.com/amplitude/experiment-js-client/issues/265)) ([a4c2e48](https://github.com/amplitude/experiment-js-client/commit/a4c2e48739ff26823ddd68bc84ccbd00462e7bd7))
+
+
+
+
+
 # [0.22.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.21.1...@amplitude/experiment-tag@0.22.0) (2026-05-05)
 
 
