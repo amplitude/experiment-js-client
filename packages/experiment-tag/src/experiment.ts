@@ -49,6 +49,7 @@ import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
 import { buildShell, isMobileModeActive } from './util/shell';
+import { installSpaLinkInterceptor } from './util/spa-link-interceptor';
 import {
   getStorageItem,
   setStorageItem,
@@ -189,6 +190,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     patchRemoveChild();
+    installSpaLinkInterceptor();
     const urlParams = getUrlParams();
 
     // When running inside an iframe (mobile shell), skip overlay loading and
