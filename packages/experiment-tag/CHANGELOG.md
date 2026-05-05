@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.22.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.21.1...@amplitude/experiment-tag@0.22.0) (2026-05-05)
+
+
+### Features
+
+* **spa-router:** intercept clicks on SPA routed links ([#312](https://github.com/amplitude/experiment-js-client/issues/312)) ([6606f4a](https://github.com/amplitude/experiment-js-client/commit/6606f4a953d6e4d7d3c8ddf8768808d6ba3345c0))
+
+
+
+
+
 ## [0.21.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.21.0...@amplitude/experiment-tag@0.21.1) (2026-04-28)
 
 
