@@ -2,16 +2,11 @@
  * Adopts a CSSStyleSheet onto a Document or ShadowRoot.
  *
  * Constructable stylesheets are not gated by CSP `style-src`, which means this
- * works on customer pages with strict nonce/hash CSP policies (e.g. Fathom)
- * where `<style>` element injection would be blocked.
+ * works on customer pages with strict nonce/hash CSP policies where `<style>`
+ * element injection would be blocked.
  *
  * Returns idempotent revert/reapply handles for hide-and-restore use cases
- * (e.g. AI stylizer page snapshots).
- *
- * NOTE: This file is duplicated in:
- *   - apps/experiment-overlay/src/lib/csp-safe-stylesheet.ts (javascript repo)
- *   - packages/experiment-tag/src/util/csp-safe-stylesheet.ts (experiment-js-client repo)
- * If you change one, change the other.
+ * (e.g. temporarily hiding then restoring a page's styles).
  */
 
 export type StyleSheetHandle = {
