@@ -1,6 +1,7 @@
 import {
   EvaluationCondition,
   EvaluationEngine,
+  EvaluationOperator,
 } from '@amplitude/experiment-core';
 
 import { EventRecord, EventStorageManager } from './event-storage';
@@ -115,17 +116,17 @@ export class BehavioralTargetingEvaluator {
     threshold: number,
   ): boolean {
     switch (operator) {
-      case '>=':
+      case EvaluationOperator.GREATER_THAN_EQUALS:
         return count >= threshold;
-      case '>':
+      case EvaluationOperator.GREATER_THAN:
         return count > threshold;
-      case '=':
+      case EvaluationOperator.IS:
         return count === threshold;
-      case '<':
+      case EvaluationOperator.LESS_THAN:
         return count < threshold;
-      case '<=':
+      case EvaluationOperator.LESS_THAN_EQUALS:
         return count <= threshold;
-      case '!=':
+      case EvaluationOperator.IS_NOT:
         return count !== threshold;
       default:
         return false;

@@ -245,27 +245,36 @@ export class EvaluationEngine {
     condition: EvaluationCondition,
   ): boolean {
     const propValue = select(target, condition.selector);
-    // We need special matching for null properties and set type prop values
-    // and operators. All other values are matched as strings, since the
-    // filter values are always strings.
     if (propValue === undefined || propValue === null) {
       return this.matchNull(condition.op, condition.values);
-    } else if (this.isSetOperator(condition.op)) {
-      const propValueStringList = this.coerceStringArray(propValue);
-      if (!propValueStringList) {
-        return false;
-      }
-      return this.matchSet(propValueStringList, condition.op, condition.values);
     } else {
-      const propValueString = this.coerceString(propValue);
-      if (propValueString !== undefined) {
-        return this.matchString(
-          propValueString,
+      const propValueStringList = this.coerceStringArray(propValue);
+      if (this.isSetOperator(condition.op)) {
+        if (!propValueStringList) {
+          return false;
+        }
+        return this.matchSet(
+          propValueStringList,
+          condition.op,
+          condition.values,
+        );
+      } else if (propValueStringList) {
+        return this.matchStringsNonSet(
+          propValueStringList,
           condition.op,
           condition.values,
         );
       } else {
-        return false;
+        const propValueString = this.coerceString(propValue);
+        if (propValueString !== undefined) {
+          return this.matchString(
+            propValueString,
+            condition.op,
+            condition.values,
+          );
+        } else {
+          return false;
+        }
       }
     }
   }
@@ -411,6 +420,16 @@ export class EvaluationEngine {
     }
   }
 
+  private matchStringsNonSet(
+    propValues: string[],
+    op: string,
+    filterValues: string[],
+  ): boolean {
+    return propValues.some((element) =>
+      this.matchString(element, op, filterValues),
+    );
+  }
+
   private matchesIs(propValue: string, filterValues: string[]): boolean {
     if (this.containsBooleans(filterValues)) {
       const lower = propValue.toLowerCase();
@@ -552,20 +571,20 @@ export class EvaluationEngine {
         .filter(Boolean) as string[];
     }
     const stringValue = String(value);
+    if (!stringValue.startsWith('[')) {
+      return undefined;
+    }
     try {
       const parsedValue = JSON.parse(stringValue);
       if (Array.isArray(parsedValue)) {
-        const anyArray = value as unknown[];
-        return anyArray
+        return parsedValue
           .map((e) => this.coerceString(e))
           .filter(Boolean) as string[];
       } else {
-        const s = this.coerceString(stringValue);
-        return s ? [s] : undefined;
+        return undefined;
       }
     } catch {
-      const s = this.coerceString(stringValue);
-      return s ? [s] : undefined;
+      return undefined;
     }
   }
 

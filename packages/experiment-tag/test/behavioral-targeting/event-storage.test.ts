@@ -5,6 +5,7 @@ describe('EventStorageManager', () => {
   let eventStorage: EventStorageManager;
   let sessionManager: SessionManager;
   const testApiKey = 'test-api-key';
+  const storageKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_events`;
 
   beforeEach(() => {
     // Clear storage before each test
@@ -48,7 +49,7 @@ describe('EventStorageManager', () => {
       eventStorage.addEvent('click', { button: 'submit' });
       eventStorage.flush(); // Flush debounced write for testing
 
-      const stored = localStorage.getItem('EXP_test-api-key_rtbt_events');
+      const stored = localStorage.getItem(storageKey);
       expect(stored).not.toBeNull();
 
       if (stored) {
@@ -99,7 +100,7 @@ describe('EventStorageManager', () => {
     });
 
     test('should handle invalid JSON in localStorage', () => {
-      localStorage.setItem('EXP_test-api-key_rtbt_events', 'invalid json');
+      localStorage.setItem(storageKey, 'invalid json');
 
       eventStorage.addEvent('click');
 
@@ -357,7 +358,7 @@ describe('EventStorageManager', () => {
       eventStorage.addEvent('click');
       eventStorage.clearEvents();
 
-      const stored = localStorage.getItem('EXP_test-api-key_rtbt_events');
+      const stored = localStorage.getItem(storageKey);
       expect(stored).not.toBeNull();
 
       if (stored) {

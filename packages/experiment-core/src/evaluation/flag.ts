@@ -88,4 +88,4 @@ export const EvaluationOperator = {
   SET_DOES_NOT_CONTAIN_ANY: 'set does not contain any',
   REGEX_MATCH: 'regex match',
   REGEX_DOES_NOT_MATCH: 'regex does not match',
-};
+} as const;

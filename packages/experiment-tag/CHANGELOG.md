@@ -3,6 +3,40 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.23.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.22.0...@amplitude/experiment-tag@0.23.0) (2026-05-05)
+
+
+### Features
+
+* behavioral targeting for web experiment client ([#265](https://github.com/amplitude/experiment-js-client/issues/265)) ([a4c2e48](https://github.com/amplitude/experiment-js-client/commit/a4c2e48739ff26823ddd68bc84ccbd00462e7bd7))
+
+
+
+
+
+# [0.22.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.21.1...@amplitude/experiment-tag@0.22.0) (2026-05-05)
+
+
+### Features
+
+* **spa-router:** intercept clicks on SPA routed links ([#312](https://github.com/amplitude/experiment-js-client/issues/312)) ([6606f4a](https://github.com/amplitude/experiment-js-client/commit/6606f4a953d6e4d7d3c8ddf8768808d6ba3345c0))
+
+
+
+
+
+## [0.21.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.21.0...@amplitude/experiment-tag@0.21.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* export EvaluationOperator as const, use it for behavioral targeting op type ([#309](https://github.com/amplitude/experiment-js-client/issues/309)) ([8c1464a](https://github.com/amplitude/experiment-js-client/commit/8c1464af1f32653d53629ae2da22c2f0b69f708f))
+* shorten behavioral targeting storage key ([#306](https://github.com/amplitude/experiment-js-client/issues/306)) ([7e2da31](https://github.com/amplitude/experiment-js-client/commit/7e2da3171e382301d2e0bf424f9c41fb5b59fa98))
+
+
+
+
+
 # [0.21.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.20.0...@amplitude/experiment-tag@0.21.0) (2026-04-13)
 
 

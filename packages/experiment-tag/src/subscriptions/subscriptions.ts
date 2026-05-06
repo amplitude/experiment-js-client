@@ -1,5 +1,7 @@
 import { EvaluationEngine } from '@amplitude/experiment-core';
 
+import { BehavioralTargetingManager } from '../behavioral-targeting';
+import { areBehaviorsEqual } from '../behavioral-targeting/util';
 import { DefaultWebExperimentClient, INJECT_ACTION } from '../experiment';
 import {
   ElementAppearedTriggerValue,
@@ -55,11 +57,16 @@ export class SubscriptionManager {
   private webExperimentClient: DefaultWebExperimentClient;
   private messageBus: MessageBus;
   private pageObjects: PageObjects;
+  private readonly behavioralTargetingManager:
+    | BehavioralTargetingManager
+    | undefined;
   private options: initOptions;
   private readonly globalScope: typeof globalThis;
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
     new Set();
   private lastNotifiedActivePages: PageObjects = {};
+  private lastNotifiedActiveBehavioralFlags: Map<string, Set<string>> =
+    new Map();
   private intersectionObservers: Map<string, IntersectionObserver> = new Map();
   private elementVisibilityState: Map<string, boolean> = new Map();
   private elementAppearedState: Set<string> = new Set();
@@ -99,12 +106,14 @@ export class SubscriptionManager {
     webExperimentClient: DefaultWebExperimentClient,
     messageBus: MessageBus,
     pageObjects: PageObjects,
+    behavioralTargetingManager: BehavioralTargetingManager | undefined,
     options: initOptions,
     globalScope: typeof globalThis,
   ) {
     this.webExperimentClient = webExperimentClient;
     this.messageBus = messageBus;
     this.pageObjects = pageObjects;
+    this.behavioralTargetingManager = behavioralTargetingManager;
     this.options = options;
     this.globalScope = globalScope;
   }
@@ -325,6 +334,12 @@ export class SubscriptionManager {
       url_change: new Set(),
     };
 
+    // Ensure analytics_event subscription is set up if behavioral targeting exists
+    // This ensures behavioral targeting evaluation runs even without analytics_event page objects
+    if (this.behavioralTargetingManager) {
+      triggerTypeExperimentMap.analytics_event = new Set();
+    }
+
     for (const [experiment, pages] of Object.entries(this.pageObjects)) {
       for (const page of Object.values(pages)) {
         if (!triggerTypeExperimentMap[page.trigger_type]) {
@@ -361,6 +376,7 @@ export class SubscriptionManager {
     for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
       this.messageBus.groupSubscribe(triggerType as MessageType, (payload) => {
         const isUrlChange = triggerType === 'url_change';
+        const isAnalyticsEvent = triggerType === 'analytics_event';
 
         // Handle URL change: reset state and revert injections
         if (isUrlChange) {
@@ -379,19 +395,52 @@ export class SubscriptionManager {
           this.lastNotifiedActivePages,
         );
 
+        // Get current behavioral state and check if it changed
+        const activeBehavioralFlags =
+          this.webExperimentClient.behavioralTargetingManager?.getMatchedBehaviors();
+
+        const behaviorsChanged =
+          isAnalyticsEvent &&
+          !areBehaviorsEqual(
+            activeBehavioralFlags,
+            this.lastNotifiedActiveBehavioralFlags,
+          );
+        if (behaviorsChanged) {
+          this.webExperimentClient.updateUserWithBehaviors();
+        }
         // Skip processing in visual editor mode or internal updates
         const isInternalUpdate =
           'updateActivePages' in payload && payload.updateActivePages;
         const shouldApplyVariants =
           !isInternalUpdate &&
           !this.options.isVisualEditorMode &&
-          (pagesChanged || isUrlChange);
+          (pagesChanged || behaviorsChanged || isUrlChange);
 
         if (shouldApplyVariants) {
           // Determine which experiments to apply variants for
-          const relevantFlags = isUrlChange
-            ? undefined // All experiments
-            : Array.from(triggerTypeExperimentMap[triggerType] || []);
+          let relevantFlags: string[] | undefined;
+
+          if (isUrlChange) {
+            relevantFlags = undefined; // All experiments
+          } else {
+            // Combine flags from both page triggers and behavioral changes
+            const pageTriggerFlags = Array.from(
+              triggerTypeExperimentMap[triggerType] || [],
+            );
+            const behaviorFlags = behaviorsChanged
+              ? Array.from(
+                  new Set([
+                    ...Array.from(activeBehavioralFlags?.keys() || []),
+                    ...Array.from(
+                      this.lastNotifiedActiveBehavioralFlags?.keys() || [],
+                    ),
+                  ]),
+                )
+              : [];
+            relevantFlags = Array.from(
+              new Set([...pageTriggerFlags, ...behaviorFlags]),
+            );
+          }
 
           // Apply non-preview variants
           this.webExperimentClient.applyVariants({
@@ -427,6 +476,16 @@ export class SubscriptionManager {
         if (pagesChanged || isUrlChange) {
           this.scheduleDebugNotification();
         }
+
+        // Update last notified behaviors if they changed
+        if (behaviorsChanged && activeBehavioralFlags) {
+          this.lastNotifiedActiveBehavioralFlags = new Map(
+            Array.from(activeBehavioralFlags.entries()).map(([key, value]) => [
+              key,
+              new Set(value),
+            ]),
+          );
+        }
       });
     }
   };
@@ -451,6 +510,7 @@ export class SubscriptionManager {
     this.maxScrollPercentage = 0;
     this.pageLoadTime = Date.now();
     this.analyticsEventState.clear();
+    this.lastNotifiedActiveBehavioralFlags = new Map();
 
     // Clear pending click timeouts
     for (const timeout of this.clickTimeouts.values()) {

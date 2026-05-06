@@ -159,4 +159,5 @@ export type WebExperimentUser = {
 export type InitConfigs = {
   initialFlags: string;
   pageObjects: string;
+  behavioralTargetingRules?: string;
 };

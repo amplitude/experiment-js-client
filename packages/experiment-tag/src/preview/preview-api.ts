@@ -1,7 +1,7 @@
 import { EvaluationFlag } from '@amplitude/experiment-core';
 
 import { version } from '../../package.json';
-import { PageObjects } from '../types';
+import { BehavioralTargetingRules, PageObjects } from '../types';
 
 import { HttpClient } from './http';
 
@@ -9,6 +9,7 @@ export interface PreviewApi {
   getPreviewFlagsAndPageViewObjects(): Promise<{
     flags: EvaluationFlag[];
     pageViewObjects: PageObjects;
+    behavioralTargetingRules?: BehavioralTargetingRules;
   }>;
 }
 
@@ -30,6 +31,7 @@ export class SdkPreviewApi implements PreviewApi {
   public async getPreviewFlagsAndPageViewObjects(): Promise<{
     flags: EvaluationFlag[];
     pageViewObjects: PageObjects;
+    behavioralTargetingRules?: BehavioralTargetingRules;
   }> {
     const headers: Record<string, string> = {
       Authorization: `Api-Key ${this.deploymentKey}`,
@@ -45,10 +47,12 @@ export class SdkPreviewApi implements PreviewApi {
     if (response.status != 200) {
       throw Error(`Preview error response: status=${response.status}`);
     }
-    const flags: EvaluationFlag[] = JSON.parse(response.body)
-      .flags as EvaluationFlag[];
-    const pageViewObjects: PageObjects = JSON.parse(response.body)
-      .pageObjects as PageObjects;
-    return { flags, pageViewObjects };
+    const responseBody = JSON.parse(response.body);
+    const flags: EvaluationFlag[] = responseBody.flags as EvaluationFlag[];
+    const pageViewObjects: PageObjects =
+      responseBody.pageObjects as PageObjects;
+    const behavioralTargetingRules: BehavioralTargetingRules | undefined =
+      responseBody.behavioralTargetingRules;
+    return { flags, pageViewObjects, behavioralTargetingRules };
   }
 }

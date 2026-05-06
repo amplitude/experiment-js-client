@@ -1,3 +1,4 @@
+import { EvaluationOperator } from '@amplitude/experiment-core';
 import { BehavioralTargetingEvaluator } from 'src/behavioral-targeting/evaluator';
 import { EventStorageManager } from 'src/behavioral-targeting/event-storage';
 import { SessionManager } from 'src/behavioral-targeting/session-manager';
@@ -32,37 +33,37 @@ describe('BehavioralTargetingEvaluator', () => {
 
     describe.each([
       {
-        operator: '>=',
+        operator: EvaluationOperator.GREATER_THAN_EQUALS,
         passingValue: 3,
         failingValue: 4,
         description: 'greater than or equal',
       },
       {
-        operator: '>',
+        operator: EvaluationOperator.GREATER_THAN,
         passingValue: 2,
         failingValue: 3,
         description: 'greater than',
       },
       {
-        operator: '=',
+        operator: EvaluationOperator.IS,
         passingValue: 3,
         failingValue: 2,
         description: 'equal to',
       },
       {
-        operator: '<',
+        operator: EvaluationOperator.LESS_THAN,
         passingValue: 4,
         failingValue: 3,
         description: 'less than',
       },
       {
-        operator: '<=',
+        operator: EvaluationOperator.LESS_THAN_EQUALS,
         passingValue: 3,
         failingValue: 2,
         description: 'less than or equal',
       },
       {
-        operator: '!=',
+        operator: EvaluationOperator.IS_NOT,
         passingValue: 5,
         failingValue: 3,
         description: 'not equal',
@@ -75,9 +76,9 @@ describe('BehavioralTargetingEvaluator', () => {
             [
               {
                 condition: {
-                  type: 'event',
+                  type: 'behavior',
                   event_type: 'click',
-                  op: operator as any,
+                  op: operator,
                   value: passingValue,
                   time_type: 'current_session',
                   time_value: 0,
@@ -109,9 +110,9 @@ describe('BehavioralTargetingEvaluator', () => {
           [
             {
               condition: {
-                type: 'event',
+                type: 'behavior',
                 event_type: 'click',
-                op: '>=',
+                op: EvaluationOperator.GREATER_THAN_EQUALS,
                 value: 1,
                 time_type: 'current_session',
                 time_value: 0,
@@ -152,9 +153,9 @@ describe('BehavioralTargetingEvaluator', () => {
           [
             {
               condition: {
-                type: 'event',
+                type: 'behavior',
                 event_type: 'click',
-                op: '>=',
+                op: EvaluationOperator.GREATER_THAN_EQUALS,
                 value: 1,
                 time_type: 'rolling',
                 time_value: 1,
@@ -185,9 +186,9 @@ describe('BehavioralTargetingEvaluator', () => {
           [
             {
               condition: {
-                type: 'event',
+                type: 'behavior',
                 event_type: 'click',
-                op: '>=',
+                op: EvaluationOperator.GREATER_THAN_EQUALS,
                 value: 1,
                 time_type: 'rolling',
                 time_value: 1,
@@ -224,9 +225,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 2,
               time_type: 'current_session',
               time_value: 0,
@@ -254,9 +255,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -289,9 +290,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 3,
               time_type: 'current_session',
               time_value: 0,
@@ -317,9 +318,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 5,
               time_type: 'current_session',
               time_value: 0,
@@ -330,9 +331,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -350,9 +351,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -360,9 +361,9 @@ describe('BehavioralTargetingEvaluator', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -384,9 +385,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 10,
               time_type: 'current_session',
               time_value: 0,
@@ -396,9 +397,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 10,
               time_type: 'current_session',
               time_value: 0,
@@ -422,9 +423,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 3,
               time_type: 'current_session',
               time_value: 0,
@@ -449,9 +450,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -459,9 +460,9 @@ describe('BehavioralTargetingEvaluator', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -492,9 +493,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'view',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -509,9 +510,9 @@ describe('BehavioralTargetingEvaluator', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -519,9 +520,9 @@ describe('BehavioralTargetingEvaluator', () => {
           },
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'purchase',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -552,9 +553,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
@@ -574,7 +575,7 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'click',
               op: 'unknown' as any,
               value: 1,
@@ -593,9 +594,9 @@ describe('BehavioralTargetingEvaluator', () => {
         [
           {
             condition: {
-              type: 'event',
+              type: 'behavior',
               event_type: 'nonexistent',
-              op: '>=',
+              op: EvaluationOperator.GREATER_THAN_EQUALS,
               value: 1,
               time_type: 'current_session',
               time_value: 0,
