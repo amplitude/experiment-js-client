@@ -129,11 +129,11 @@ export interface WebExperimentClient {
 
   getExperimentClient(): ExperimentClient;
 
-  applyVariants(options?: ApplyVariantsOptions): void;
+  applyVariants(options?: ApplyVariantsOptions): Promise<void>;
 
   revertVariants(options?: RevertVariantsOptions): void;
 
-  previewVariants(options: PreviewVariantsOptions): void;
+  previewVariants(options: PreviewVariantsOptions): Promise<void>;
 
   getVariants(): Variants;
 
