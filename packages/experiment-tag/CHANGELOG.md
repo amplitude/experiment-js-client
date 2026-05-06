@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.23.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.0...@amplitude/experiment-tag@0.23.1) (2026-05-06)
+
+
+### Bug Fixes
+
+* specify DEVICE_IFRAME_ID for iframe check ([#314](https://github.com/amplitude/experiment-js-client/issues/314)) ([28bce1d](https://github.com/amplitude/experiment-js-client/commit/28bce1d6088846c31489836aa62a9c97c1ab8557))
+
+
+
+
+
 # [0.23.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.22.0...@amplitude/experiment-tag@0.23.0) (2026-05-05)
 
 

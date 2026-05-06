@@ -51,7 +51,7 @@ import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
-import { buildShell, isMobileModeActive } from './util/shell';
+import { DEVICE_IFRAME_ID, buildShell, isMobileModeActive } from './util/shell';
 import { installSpaLinkInterceptor } from './util/spa-link-interceptor';
 import {
   getStorageItem,
@@ -212,13 +212,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     installSpaLinkInterceptor();
     const urlParams = getUrlParams();
 
-    // When running inside an iframe (mobile shell), skip overlay loading and
-    // expose dom-mutator on the window so the overlay in the parent frame can
-    // apply and control mutations against this document.
-    if (
-      this.globalScope.self !== this.globalScope.top &&
-      isMobileModeActive()
-    ) {
+    // When running inside the mobile-shell iframe (i.e. the iframe that
+    // buildShell created on the parent page), skip overlay loading and expose
+    // dom-mutator on the window so the overlay in the parent frame can apply
+    // and control mutations against this document.
+    let isInsideDeviceIframe = false;
+    try {
+      isInsideDeviceIframe =
+        this.globalScope.frameElement?.id === DEVICE_IFRAME_ID;
+    } catch {
+      isInsideDeviceIframe = false;
+    }
+    if (isInsideDeviceIframe && isMobileModeActive()) {
       (this.globalScope as any).ampDomMutator = domMutatorExports;
       this.isRunning = true;
       return;
