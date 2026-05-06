@@ -482,16 +482,18 @@ describe('initializeExperiment', () => {
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      JSON.stringify([
-        createRedirectFlag(
-          'test',
-          'treatment',
-          'http://subdomain2.example.com/target',
-          undefined,
-          DEFAULT_REDIRECT_SCOPE,
-        ),
-      ]),
-      JSON.stringify(pageObjects),
+      {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://subdomain2.example.com/target',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify(pageObjects),
+      },
     );
 
     await client.start();
@@ -527,16 +529,18 @@ describe('initializeExperiment', () => {
     // Create new client instance on subdomain2
     const client2 = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      JSON.stringify([
-        createRedirectFlag(
-          'test',
-          'treatment',
-          'http://subdomain2.example.com/target',
-          undefined,
-          DEFAULT_REDIRECT_SCOPE,
-        ),
-      ]),
-      JSON.stringify(pageObjects),
+      {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://subdomain2.example.com/target',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify(pageObjects),
+      },
     );
 
     await client2.start();
@@ -584,16 +588,18 @@ describe('initializeExperiment', () => {
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      JSON.stringify([
-        createRedirectFlag(
-          'test',
-          'treatment',
-          'http://different.com/target', // Different root domain
-          undefined,
-          DEFAULT_REDIRECT_SCOPE,
-        ),
-      ]),
-      JSON.stringify(pageObjects),
+      {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://different.com/target', // Different root domain
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify(pageObjects),
+      },
     );
 
     await client.start();
@@ -638,16 +644,18 @@ describe('initializeExperiment', () => {
 
     const client = DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
-      JSON.stringify([
-        createRedirectFlag(
-          'test',
-          'treatment',
-          'http://sign.localhost:3000/target',
-          undefined,
-          DEFAULT_REDIRECT_SCOPE,
-        ),
-      ]),
-      JSON.stringify(pageObjects),
+      {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://sign.localhost:3000/target',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify(pageObjects),
+      },
     );
 
     await client.start();
@@ -1322,6 +1330,7 @@ describe('initializeExperiment', () => {
       },
     });
     (client as any).messageBus.publish('url_change', {});
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(activePages).toEqual({ 'test-2': test2Page });
     expect(mockExposure).toHaveBeenCalledTimes(2);
     expect(mockExposure).toHaveBeenCalledWith('test-2');

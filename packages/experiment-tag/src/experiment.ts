@@ -359,17 +359,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
     }
 
-    // apply local variants
-    this.applyVariants({ flagKeys: this.localFlagKeys });
-    this.previewVariants({
-      keyToVariant: this.previewFlags,
-    });
-
-    // fire stored redirect impressions upon startup
+    // fire stored redirect impressions upon startup (must run before applyVariants
+    // so the current URL is checked before any redirect changes location.href)
     this.fireStoredRedirectImpressions().catch();
     // Subscribe directly to url_change events to fire redirect impressions
     this.messageBus.subscribe('url_change', () => {
       this.fireStoredRedirectImpressions().catch();
+    });
+
+    // apply local variants
+    await this.applyVariants({ flagKeys: this.localFlagKeys });
+    await this.previewVariants({
+      keyToVariant: this.previewFlags,
     });
 
     if (
@@ -385,7 +386,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
-    this.applyVariants({ flagKeys: this.remoteFlagKeys });
+    await this.applyVariants({ flagKeys: this.remoteFlagKeys });
     this.isRunning = true;
     flushEventBuffer(this);
   }
@@ -452,7 +453,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Apply evaluated variants to the page.
    * @param options
    */
-  public applyVariants(options?: ApplyVariantsOptions) {
+  public async applyVariants(options?: ApplyVariantsOptions) {
     const { flagKeys } = options || {};
     const variants = this.getVariants();
     if (Object.keys(variants).length === 0) {
@@ -507,7 +508,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         }
 
         if (payloadIsArray) {
-          this.handleVariantAction(key, variant);
+          await this.handleVariantAction(key, variant);
         }
       }
     }
@@ -547,7 +548,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Preview the effect of a variant on the page.
    * @param options
    */
-  public previewVariants(options: PreviewVariantsOptions) {
+  public async previewVariants(options: PreviewVariantsOptions) {
     const { keyToVariant } = options;
     if (!keyToVariant) {
       return;
@@ -575,7 +576,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (!payload || !Array.isArray(payload)) {
         return;
       }
-      this.handleVariantAction(key, variantObject);
+      await this.handleVariantAction(key, variantObject);
     }
   }
 
@@ -810,10 +811,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private handleVariantAction(key: string, variant: Variant) {
+  private async handleVariantAction(key: string, variant: Variant) {
     for (const action of variant.payload) {
       if (action.action === REDIRECT_ACTION) {
-        this.handleRedirect(action, key, variant);
+        await this.handleRedirect(action, key, variant);
       } else if (action.action === MUTATE_ACTION) {
         this.handleMutate(action, key, variant);
       } else if (action.action === INJECT_ACTION) {
