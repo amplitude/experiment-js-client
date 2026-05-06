@@ -1,5 +1,5 @@
 const MOBILE_MODE_SESSION_KEY = 'amp-visual-editor-mobile-mode';
-const DEVICE_IFRAME_ID = 'amp-device-iframe';
+export const DEVICE_IFRAME_ID = 'amp-device-iframe';
 const DEVICE_CONTAINER_ID = 'amp-overlay-device-iframe-container';
 const OVERLAY_HOST_ID = 'overlay-shadow-host';
 
