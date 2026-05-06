@@ -264,6 +264,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
             VISUAL_EDITOR_PARAM,
           ]),
         );
+        // Prevent re-initialization; the SDK won't load in this session.
         this.isRunning = true;
         return;
       }
