@@ -81,6 +81,7 @@ export const createMockGlobal = (overrides?: Record<string, unknown>) => {
     location: createLocationMock(),
     innerHeight: 768,
     innerWidth: 1024,
+    opener: { closed: false },
   };
 
   // Apply overrides with smart merging for nested objects
