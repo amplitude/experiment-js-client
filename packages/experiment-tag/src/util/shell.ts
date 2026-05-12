@@ -1,3 +1,5 @@
+import { cspSafeStyleSheet } from './csp-safe-stylesheet';
+
 const MOBILE_MODE_SESSION_KEY = 'amp-visual-editor-mobile-mode';
 export const DEVICE_IFRAME_ID = 'amp-device-iframe';
 const DEVICE_CONTAINER_ID = 'amp-overlay-device-iframe-container';
@@ -112,15 +114,14 @@ export function buildShell(globalScope: typeof globalThis): Promise<void> {
   const doc = globalScope.document;
 
   const run = () => {
-    // Inject a CSS rule that hides any direct children of <body> except the
-    // device-iframe container and the overlay host. This prevents third-party
-    // scripts from rendering visible elements in the shell.
-    const shellGuard = doc.createElement('style');
-    shellGuard.setAttribute('data-amp-shell-guard', '');
-    shellGuard.textContent =
-      `body > *:not(#${DEVICE_CONTAINER_ID}):not(#${OVERLAY_HOST_ID}) ` +
-      `{ display: none !important; }`;
-    doc.head.appendChild(shellGuard);
+    // Adopt a CSS rule that hides any direct children of <body> except the
+    // device-iframe container and the overlay host. CSP-safe via constructable
+    // stylesheet — the inline <style> form would be blocked on customer pages
+    // with strict style-src CSPs.
+    cspSafeStyleSheet(
+      doc,
+      `body > *:not(#${DEVICE_CONTAINER_ID}):not(#${OVERLAY_HOST_ID}) { display: none !important; }`,
+    );
 
     while (doc.body.firstChild) {
       doc.body.removeChild(doc.body.firstChild);
