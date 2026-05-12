@@ -45,6 +45,10 @@ import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
 import { applyAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
+import {
+  cspSafeStyleSheet,
+  type StyleSheetHandle,
+} from './util/csp-safe-stylesheet';
 import { DebugRecorder } from './util/debug-recorder';
 import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
@@ -979,16 +983,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         this.globalScope.document.head.appendChild(script);
       }
     }
-    // Create CSS
+    // Adopt CSS as a constructable stylesheet (CSP-safe; works on strict
+    // style-src customer pages where <style> elements would be blocked)
     const rawCss = action.data.css;
-    let style: HTMLStyleElement | undefined;
+    let sheetHandle: StyleSheetHandle | undefined;
     if (rawCss) {
-      style = this.globalScope.document.createElement('style');
-      if (style) {
-        style.innerHTML = rawCss;
-        style.id = `css-${id}`;
-        this.globalScope.document.head.appendChild(style);
-      }
+      sheetHandle = cspSafeStyleSheet(this.globalScope.document, rawCss);
     }
     // Create HTML
     const rawHtml = action.data.html;
@@ -1024,7 +1024,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       revert: () => {
         state.cancelled = true;
         utils.remove?.();
-        style?.remove();
+        sheetHandle?.revert();
         script?.remove();
         this.appliedInjections.delete(id);
       },
