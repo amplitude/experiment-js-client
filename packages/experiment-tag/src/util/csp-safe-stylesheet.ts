@@ -5,13 +5,11 @@
  * works on customer pages with strict nonce/hash CSP policies where `<style>`
  * element injection would be blocked.
  *
- * Returns idempotent revert/reapply handles for hide-and-restore use cases
- * (e.g. temporarily hiding then restoring a page's styles).
+ * Returns an idempotent revert handle to remove the sheet.
  */
 
 export type StyleSheetHandle = {
   revert: () => void;
-  reapply: () => void;
 };
 
 /**
@@ -39,24 +37,17 @@ export function cspSafeStyleSheet(
   const SheetCtor = ownerDoc.defaultView?.CSSStyleSheet ?? CSSStyleSheet;
   const sheet = new SheetCtor();
   sheet.replaceSync(css);
-  let adopted = false;
 
-  const adopt = () => {
-    if (adopted) return;
-    target.adoptedStyleSheets = [...target.adoptedStyleSheets, sheet];
-    adopted = true;
-  };
-
-  adopt();
+  target.adoptedStyleSheets = [...target.adoptedStyleSheets, sheet];
+  let reverted = false;
 
   return {
     revert: () => {
-      if (!adopted) return;
+      if (reverted) return;
       target.adoptedStyleSheets = target.adoptedStyleSheets.filter(
         (s) => s !== sheet,
       );
-      adopted = false;
+      reverted = true;
     },
-    reapply: adopt,
   };
 }

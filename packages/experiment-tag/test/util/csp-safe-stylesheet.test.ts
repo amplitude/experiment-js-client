@@ -42,26 +42,6 @@ describe('cspSafeStyleSheet', () => {
     expect(document.adoptedStyleSheets).toHaveLength(0);
   });
 
-  it('reapply re-adopts the same sheet after revert', () => {
-    const handle = cspSafeStyleSheet(document, '.foo {}');
-    const originalSheet = document.adoptedStyleSheets[0];
-
-    handle.revert();
-    handle.reapply();
-
-    expect(document.adoptedStyleSheets).toHaveLength(1);
-    expect(document.adoptedStyleSheets[0]).toBe(originalSheet);
-  });
-
-  it('reapply is idempotent (no-op when already adopted)', () => {
-    const handle = cspSafeStyleSheet(document, '.foo {}');
-    handle.reapply();
-    handle.reapply();
-    expect(document.adoptedStyleSheets).toHaveLength(1);
-
-    handle.revert();
-  });
-
   it('preserves other adopted sheets when reverting (filters by identity)', () => {
     const otherSheet = new CSSStyleSheet();
     otherSheet.replaceSync('.other {}');
