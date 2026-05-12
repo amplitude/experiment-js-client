@@ -5,7 +5,7 @@ import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
 import { InitConfigs, WebExperimentConfig } from './types';
-import { applyAntiFlickerCss } from './util/anti-flicker';
+import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { isPreviewMode } from './util/url';
 
 const eventBuffer: Array<{
@@ -57,8 +57,7 @@ export const initialize = (
         startClient(apiKey, initConfigs, config);
       })
       .finally(() => {
-        // Remove anti-flicker css if it exists
-        document.getElementById('amp-exp-css')?.remove();
+        removeAntiFlickerCss();
       });
   } else {
     startClient(apiKey, initConfigs, config);
@@ -73,8 +72,7 @@ const startClient = (
   DefaultWebExperimentClient.getInstance(apiKey, initConfigs, config)
     .start()
     .finally(() => {
-      // Remove anti-flicker css if it exists
-      document.getElementById('amp-exp-css')?.remove();
+      removeAntiFlickerCss();
     });
 };
 

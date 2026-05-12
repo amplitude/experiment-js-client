@@ -2,6 +2,13 @@
  * Lightweight floating dismissable modal for experiment preview mode
  */
 
+import {
+  cspSafeStyleSheet,
+  type StyleSheetHandle,
+} from '../util/csp-safe-stylesheet';
+
+let modalStylesHandle: StyleSheetHandle | undefined;
+
 interface PreviewModeModalOptions {
   flags: Record<string, string>;
   onDismiss?: () => void;
@@ -113,13 +120,11 @@ export class PreviewModeModal {
   }
 
   private injectStyles(): void {
-    if (document.getElementById('amp-preview-modal-styles')) {
+    if (modalStylesHandle) {
       return;
     }
 
-    const style = document.createElement('style');
-    style.id = 'amp-preview-modal-styles';
-    style.textContent = `
+    const css = `
       .amp-preview-modal {
         position: fixed;
         top: 20px;
@@ -311,7 +316,7 @@ export class PreviewModeModal {
       }
     `;
 
-    document.head.appendChild(style);
+    modalStylesHandle = cspSafeStyleSheet(document, css);
   }
 }
 
