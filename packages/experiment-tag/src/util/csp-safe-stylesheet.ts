@@ -18,7 +18,13 @@ export function cspSafeStyleSheet(
   target: Document | ShadowRoot,
   css: string,
 ): StyleSheetHandle {
-  const sheet = new CSSStyleSheet();
+  // CSSStyleSheets are realm-bound — adopting one cross-realm throws
+  // NotAllowedError. Construct the sheet via the target's owning realm so it
+  // can be adopted into an iframe's contentDocument.
+  const ownerDoc: Document =
+    (target as Document).ownerDocument ?? (target as Document);
+  const SheetCtor = ownerDoc.defaultView?.CSSStyleSheet ?? CSSStyleSheet;
+  const sheet = new SheetCtor();
   sheet.replaceSync(css);
   let adopted = false;
 
