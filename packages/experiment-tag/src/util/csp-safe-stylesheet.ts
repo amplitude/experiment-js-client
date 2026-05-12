@@ -21,7 +21,7 @@ export type StyleSheetHandle = {
  * Document constructor.
  */
 function isDocument(node: Document | ShadowRoot): node is Document {
-  return node.nodeType === /* Node.DOCUMENT_NODE */ 9;
+  return node.nodeType === Node.DOCUMENT_NODE;
 }
 
 export function cspSafeStyleSheet(
