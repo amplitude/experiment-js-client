@@ -42,7 +42,7 @@ import {
   BehavioralTargetingRules,
 } from './types';
 import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
-import { applyAntiFlickerCss } from './util/anti-flicker';
+import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
 import {
@@ -388,8 +388,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.updateUserWithBehaviors();
 
     if (!this.isRemoteBlocking) {
-      // Remove anti-flicker css if remote flags are not blocking
-      this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
+      removeAntiFlickerCss();
     }
 
     // apply local variants
