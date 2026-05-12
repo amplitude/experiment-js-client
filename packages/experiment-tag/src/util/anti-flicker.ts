@@ -22,10 +22,16 @@ export const applyAntiFlickerCss = () => {
   const globalScope = getGlobalScope();
   const targetDoc = globalScope?.document ?? document;
 
-  activeHandle = cspSafeStyleSheet(targetDoc, ANTI_FLICKER_CSS);
+  const handle = cspSafeStyleSheet(targetDoc, ANTI_FLICKER_CSS);
+  activeHandle = handle;
 
   globalScope?.window.setTimeout(() => {
-    removeAntiFlickerCss();
+    // Capture-by-identity: only revert if the handle we scheduled for is still
+    // active. Without this guard, an apply→remove→apply within TIMEOUT_MS
+    // would let the first timeout prematurely revert the second apply.
+    if (activeHandle === handle) {
+      removeAntiFlickerCss();
+    }
   }, TIMEOUT_MS);
 };
 

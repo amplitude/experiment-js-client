@@ -67,4 +67,28 @@ describe('applyAntiFlickerCss / removeAntiFlickerCss', () => {
 
     expect(document.adoptedStyleSheets).toHaveLength(1);
   });
+
+  it('safety-net timeout from a previous apply does not revert a later apply', () => {
+    // T=0: first apply, schedules timeout for T=1000
+    applyAntiFlickerCss();
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+
+    // T=200: cleanup arrives early
+    jest.advanceTimersByTime(200);
+    removeAntiFlickerCss();
+    expect(document.adoptedStyleSheets).toHaveLength(0);
+
+    // T=300: second apply, schedules its own timeout for T=1300
+    jest.advanceTimersByTime(100);
+    applyAntiFlickerCss();
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+
+    // T=1000: first timeout fires. It must NOT revert the second apply.
+    jest.advanceTimersByTime(700);
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+
+    // T=1300: second timeout fires. Now the second apply gets cleaned up.
+    jest.advanceTimersByTime(300);
+    expect(document.adoptedStyleSheets).toHaveLength(0);
+  });
 });
