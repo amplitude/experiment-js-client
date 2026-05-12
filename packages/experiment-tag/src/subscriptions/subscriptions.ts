@@ -860,7 +860,7 @@ export class SubscriptionManager {
         // navigation cycle before we apply DOM mutations. Running synchronously
         // inside pushState interleaves with framework rendering and can corrupt
         // component bindings (e.g. Angular async pipe receiving non-Observable
-        // values — SKY-9617).
+        // values).
         setTimeout(handleUrlChange, 0);
         return result;
       };
