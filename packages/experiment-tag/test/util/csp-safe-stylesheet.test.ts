@@ -1,5 +1,18 @@
 import { cspSafeStyleSheet } from '../../src/util/csp-safe-stylesheet';
 
+/**
+ * Cross-realm coverage gap: these tests do NOT exercise the cross-realm
+ * CSSStyleSheet adoption scenario. In real browsers, a sheet constructed in
+ * one realm cannot be adopted into a Document/ShadowRoot from a different
+ * realm — the browser throws NotAllowedError. construct-style-sheets-polyfill
+ * (used here under jsdom) doesn't enforce that invariant, so these tests
+ * would pass even if the helper regressed to constructing sheets in the
+ * wrong realm.
+ *
+ * The helper's realm-derivation logic
+ * (`target.ownerDocument.defaultView?.CSSStyleSheet`) is exercised manually
+ * via the visual editor's mobile-mode device-iframe scenario.
+ */
 describe('cspSafeStyleSheet', () => {
   beforeEach(() => {
     document.adoptedStyleSheets = [];

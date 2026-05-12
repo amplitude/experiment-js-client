@@ -14,6 +14,16 @@ export type StyleSheetHandle = {
   reapply: () => void;
 };
 
+/**
+ * Discriminates Document from ShadowRoot via nodeType. We avoid
+ * `instanceof Document` because `instanceof` lies across realms — an iframe's
+ * contentDocument IS a Document but isn't an instance of THIS realm's
+ * Document constructor.
+ */
+function isDocument(node: Document | ShadowRoot): node is Document {
+  return node.nodeType === /* Node.DOCUMENT_NODE */ 9;
+}
+
 export function cspSafeStyleSheet(
   target: Document | ShadowRoot,
   css: string,
@@ -21,8 +31,11 @@ export function cspSafeStyleSheet(
   // CSSStyleSheets are realm-bound — adopting one cross-realm throws
   // NotAllowedError. Construct the sheet via the target's owning realm so it
   // can be adopted into an iframe's contentDocument.
-  const ownerDoc: Document =
-    (target as Document).ownerDocument ?? (target as Document);
+  // ShadowRoot.ownerDocument is always a Document per spec; the `?? document`
+  // is purely a TS-narrowing concession (the lib.dom type is nullable).
+  const ownerDoc: Document = isDocument(target)
+    ? target
+    : target.ownerDocument ?? document;
   const SheetCtor = ownerDoc.defaultView?.CSSStyleSheet ?? CSSStyleSheet;
   const sheet = new SheetCtor();
   sheet.replaceSync(css);
