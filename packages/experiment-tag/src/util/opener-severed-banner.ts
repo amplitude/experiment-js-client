@@ -1,5 +1,4 @@
 const BANNER_ID = 'amp-exp-opener-severed';
-const AMPLITUDE_BRAND_COLOR = '#1e61f0';
 
 /**
  * Modal shown when `window.opener` is unreachable, so the visual editor
@@ -28,6 +27,20 @@ export const showOpenerSeveredBanner = () => {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
       }
 
+      /* Defensive resets — host pages often style h2/h3/p with
+       * text-transform, letter-spacing, etc. that would otherwise leak in. */
+      #${BANNER_ID} h2,
+      #${BANNER_ID} h3,
+      #${BANNER_ID} p,
+      #${BANNER_ID} button,
+      #${BANNER_ID} code,
+      #${BANNER_ID} hr {
+        text-transform: none !important;
+        letter-spacing: normal !important;
+        text-decoration: none !important;
+        font-style: normal !important;
+      }
+
       #${BANNER_ID} {
         border: none;
         padding: 0;
@@ -43,13 +56,42 @@ export const showOpenerSeveredBanner = () => {
       }
 
       #${BANNER_ID} .modal {
+        position: relative;
         padding: 32px;
+      }
+
+      #${BANNER_ID} .close-icon {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        color: #5a5e68;
+        cursor: pointer;
+      }
+
+      #${BANNER_ID} .close-icon:hover {
+        background: #f3f4f6;
+        color: #212124;
+      }
+
+      #${BANNER_ID} .close-icon svg {
+        width: 16px;
+        height: 16px;
       }
 
       #${BANNER_ID} .title {
         font-size: 18px;
         font-weight: 600;
         margin: 0 0 12px 0;
+        padding-right: 24px;
       }
 
       #${BANNER_ID} .body {
@@ -57,6 +99,19 @@ export const showOpenerSeveredBanner = () => {
         line-height: 1.5;
         margin: 0 0 12px 0;
         color: #5a5e68;
+      }
+
+      #${BANNER_ID} .divider {
+        border: none;
+        border-top: 1px solid #e5e7eb;
+        margin: 20px 0;
+      }
+
+      #${BANNER_ID} .subtitle {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+        color: #212124;
       }
 
       #${BANNER_ID} code {
@@ -70,30 +125,17 @@ export const showOpenerSeveredBanner = () => {
         display: flex;
         justify-content: flex-end;
         gap: 8px;
-        margin-top: 20px;
-      }
-
-      #${BANNER_ID} button {
-        font-size: 14px;
-        padding: 8px 16px;
-        border-radius: 6px;
-        border: 1px solid transparent;
-        cursor: pointer;
-      }
-
-      #${BANNER_ID} .primary {
-        background: ${AMPLITUDE_BRAND_COLOR};
-        color: white;
-      }
-
-      #${BANNER_ID} .primary:hover {
-        filter: brightness(0.95);
+        margin-top: 24px;
       }
 
       #${BANNER_ID} .secondary {
+        font-size: 14px;
+        padding: 8px 16px;
+        border-radius: 6px;
         background: white;
         color: #212124;
-        border-color: #d1d5db;
+        border: 1px solid #d1d5db;
+        cursor: pointer;
       }
 
       #${BANNER_ID} .secondary:hover {
@@ -102,17 +144,30 @@ export const showOpenerSeveredBanner = () => {
     </style>
 
     <div class="modal">
-      <h2 id="${BANNER_ID}-title" class="title">Visual Editor can't open on this page</h2>
+      <button
+        type="button"
+        class="close-icon"
+        data-action="close"
+        aria-label="Close"
+      >
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M3 3 L13 13 M13 3 L3 13" />
+        </svg>
+      </button>
+      <h2 id="${BANNER_ID}-title" class="title">Can't connect to this page</h2>
       <p class="body">
-        This page has been isolated from the window that opened it, so the
-        visual editor can't communicate with Amplitude here.
+        The Visual Editor lost its connection to this page and can't make
+        edits here. This is usually a configuration issue on the site.
+      </p>
+      <hr class="divider" />
+      <h3 class="subtitle">Technical Details</h3>
+      <p class="body">
+        This page sends a <code>Cross-Origin-Opener-Policy</code> header that
+        isolates it from the editor window. To resolve this:
       </p>
       <p class="body">
-        This is most often caused by a <code>Cross-Origin-Opener-Policy</code>
-        response header on this page. To use the visual editor, ask the site
-        owner to remove the header (or set it to <code>unsafe-none</code>) on
-        the pages you want to edit, or launch the editor on a staging build
-        that doesn't ship the header.
+        Remove the <code>Cross-Origin-Opener-Policy</code> header, or set its
+        value to <code>unsafe-none</code> on pages you want to edit.
       </p>
       <div class="actions">
         <button type="button" class="secondary" data-action="close">Close</button>
@@ -134,11 +189,13 @@ export const showOpenerSeveredBanner = () => {
 
     // TODO: switch to `command="close"` + `commandfor` once `last 5 firefox`
     // is entirely Firefox 144+ (when invoker commands shipped).
-    const closeButton = dialog.querySelector<HTMLButtonElement>(
+    const closeButtons = dialog.querySelectorAll<HTMLButtonElement>(
       'button[data-action="close"]',
     );
-    closeButton?.addEventListener('click', () => {
-      hideOpenerSeveredBanner();
+    closeButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        hideOpenerSeveredBanner();
+      });
     });
   };
 
