@@ -3624,9 +3624,9 @@ doctrine@^3.0.0:
   dependencies:
     esutils "^2.0.2"
 
-"dom-mutator@git+ssh://git@github.com/amplitude/dom-mutator#0294e723c6a8f85d448bdfa59999591f2ae9e476":
+"dom-mutator@git+ssh://git@github.com/amplitude/dom-mutator#07a72dddbc2969ea826bdfe2b55d461d5d340992":
   version "0.7.1"
-  resolved "git+ssh://git@github.com/amplitude/dom-mutator#0294e723c6a8f85d448bdfa59999591f2ae9e476"
+  resolved "git+ssh://git@github.com/amplitude/dom-mutator#07a72dddbc2969ea826bdfe2b55d461d5d340992"
 
 domexception@^4.0.0:
   version "4.0.0"
