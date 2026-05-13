@@ -50,6 +50,7 @@ import {
   type StyleSheetHandle,
 } from './util/csp-safe-stylesheet';
 import { DebugRecorder } from './util/debug-recorder';
+import { extractAndAdoptStyles } from './util/extract-and-adopt-styles';
 import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
@@ -889,6 +890,26 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.globalScope.location.replace(targetUrl);
   }
 
+  private applyDeclarativeMutation(m: any): MutationController {
+    const isHtmlMutation =
+      m.attribute === 'html' && (m.action === 'set' || m.action === 'append');
+    if (!isHtmlMutation) return mutate.declarative(m);
+
+    const { html, handle } = extractAndAdoptStyles(
+      m.value ?? '',
+      this.globalScope.document,
+    );
+    const downstream = mutate.declarative({ ...m, value: html });
+    if (!handle) return downstream;
+    return {
+      ...downstream,
+      revert: () => {
+        downstream.revert();
+        handle.revert();
+      },
+    };
+  }
+
   private handleMutate(action, flagKey: string, variant: Variant) {
     const mutations = action.data?.mutations || [];
     const variantKey = variant.key || '';
@@ -923,7 +944,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           ]
         ) {
           // Apply mutation
-          mutationControllers[index] = mutate.declarative(m);
+          mutationControllers[index] = this.applyDeclarativeMutation(m);
         }
       }
     });

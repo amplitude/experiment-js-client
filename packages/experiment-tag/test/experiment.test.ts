@@ -1435,3 +1435,110 @@ describe('helper methods', () => {
     expect(variants['flag-2'].key).toEqual('control');
   });
 });
+
+describe('applyDeclarativeMutation (Site 2 — html-mutation strip-and-adopt)', () => {
+  const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
+  let client: any;
+  let mockGlobal: any;
+
+  beforeEach(() => {
+    apiKey++;
+    jest.clearAllMocks();
+    jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
+    document.adoptedStyleSheets = [];
+    document.body.innerHTML = '<div id="t">original</div>';
+    mockGlobal = newMockGlobal();
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([]),
+      pageObjects: JSON.stringify({}),
+    });
+    // applyDeclarativeMutation reads `this.globalScope.document` for the
+    // adoption target; override to use the live jsdom document so
+    // dom-mutator and adoptedStyleSheets target the same Document.
+    (client as any).globalScope = { document, location: window.location };
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    document.adoptedStyleSheets = [];
+  });
+
+  it('passes through non-html mutations unchanged', () => {
+    const ctrl = (client as any).applyDeclarativeMutation({
+      action: 'append',
+      attribute: 'style',
+      selector: '#t',
+      value: 'color: red;',
+    });
+
+    const target = document.querySelector<HTMLElement>('#t');
+    expect(target?.style.color).toBe('red');
+    expect(document.adoptedStyleSheets).toHaveLength(0);
+    ctrl.revert();
+  });
+
+  it('passes through html mutations without <style> unchanged', () => {
+    const ctrl = (client as any).applyDeclarativeMutation({
+      action: 'set',
+      attribute: 'html',
+      selector: '#t',
+      value: '<span>plain</span>',
+    });
+
+    const target = document.querySelector<HTMLElement>('#t');
+    expect(target?.innerHTML).toBe('<span>plain</span>');
+    expect(document.adoptedStyleSheets).toHaveLength(0);
+    ctrl.revert();
+  });
+
+  it('strips <style> from html mutations and adopts as a sheet', () => {
+    const ctrl = (client as any).applyDeclarativeMutation({
+      action: 'set',
+      attribute: 'html',
+      selector: '#t',
+      value: '<span class="ai">new</span><style>.ai { color: red; }</style>',
+    });
+
+    const target = document.querySelector<HTMLElement>('#t');
+    expect(target?.innerHTML).toBe('<span class="ai">new</span>');
+    expect(target?.querySelector('style')).toBeNull();
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+    expect(document.adoptedStyleSheets[0]).toBeInstanceOf(CSSStyleSheet);
+
+    ctrl.revert();
+  });
+
+  it('reverting reverts both the html change and the adopted sheet', () => {
+    const ctrl = (client as any).applyDeclarativeMutation({
+      action: 'set',
+      attribute: 'html',
+      selector: '#t',
+      value: '<span class="ai">new</span><style>.ai { color: red; }</style>',
+    });
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+
+    ctrl.revert();
+
+    const target = document.querySelector<HTMLElement>('#t');
+    expect(target?.innerHTML).toBe('original');
+    expect(document.adoptedStyleSheets).toHaveLength(0);
+  });
+
+  it('also handles html mutations with action="append"', () => {
+    const ctrl = (client as any).applyDeclarativeMutation({
+      action: 'append',
+      attribute: 'html',
+      selector: '#t',
+      value: '<span class="b">b</span><style>.b { color: blue; }</style>',
+    });
+
+    const target = document.querySelector<HTMLElement>('#t');
+    expect(target?.innerHTML).toContain('<span class="b">b</span>');
+    expect(target?.querySelector('style')).toBeNull();
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+
+    ctrl.revert();
+  });
+});
