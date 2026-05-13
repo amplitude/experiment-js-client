@@ -1010,12 +1010,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (rawCss) {
       sheetHandle = cspSafeStyleSheet(this.globalScope.document, rawCss);
     }
-    // Create HTML
+    // Create HTML — strip any embedded <style> elements (legacy widget data
+    // shape from inside-widget AI stylize) and adopt their CSS as a separate
+    // sheet so strict-CSP customer pages don't block style application.
     const rawHtml = action.data.html;
     let html: Element | undefined;
+    let htmlSheetHandle: StyleSheetHandle | null = null;
     if (rawHtml) {
+      const result = extractAndAdoptStyles(rawHtml, this.globalScope.document);
+      htmlSheetHandle = result.handle;
       html =
-        new DOMParser().parseFromString(rawHtml, 'text/html').body
+        new DOMParser().parseFromString(result.html, 'text/html').body
           .firstElementChild ?? undefined;
     }
     // Inject
@@ -1045,6 +1050,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         state.cancelled = true;
         utils.remove?.();
         sheetHandle?.revert();
+        htmlSheetHandle?.revert();
         script?.remove();
         this.appliedInjections.delete(id);
       },
