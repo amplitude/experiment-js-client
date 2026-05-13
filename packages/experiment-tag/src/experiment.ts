@@ -82,6 +82,7 @@ const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
 type StoredRedirectImpression = {
   redirectUrl: string;
   variantKey: string;
+  variantValue?: string;
   expKey?: string;
   metadata?: Record<string, unknown>;
 };
@@ -887,14 +888,19 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     urlPayload[flagKey] = {
       redirectUrl,
       variantKey: variant.key || '',
+      ...(variant.value !== undefined ? { variantValue: variant.value } : {}),
       ...(variant.expKey !== undefined ? { expKey: variant.expKey } : {}),
       ...(variant.metadata !== undefined ? { metadata: variant.metadata } : {}),
     };
-    targetUrlObj.searchParams.set(
-      REDIRECT_IMPRESSION_PARAM,
-      btoa(JSON.stringify(urlPayload)),
-    );
-    targetUrl = targetUrlObj.toString();
+    try {
+      targetUrlObj.searchParams.set(
+        REDIRECT_IMPRESSION_PARAM,
+        btoa(JSON.stringify(urlPayload)),
+      );
+      targetUrl = targetUrlObj.toString();
+    } catch {
+      // btoa throws on non-ASCII characters; proceed without URL param fallback
+    }
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
@@ -1145,6 +1151,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         redirects[flagKey] = {
           redirectUrl,
           variantKey: variant.key || '',
+          ...(variant.value !== undefined ? { variantValue: variant.value } : {}),
           ...(variant.expKey !== undefined ? { expKey: variant.expKey } : {}),
           ...(variant.metadata !== undefined
             ? { metadata: variant.metadata }
@@ -1207,11 +1214,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       // Fire impressions for entries matching the current URL.
       for (const flagKey in merged) {
-        const { redirectUrl, variantKey, expKey, metadata } = merged[flagKey];
+        const { redirectUrl, variantKey, variantValue, expKey, metadata } =
+          merged[flagKey];
         const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
 
         if (matchesUrl([currentUrl], strippedRedirectUrl)) {
-          const variant: Variant = { key: variantKey, expKey, metadata };
+          const variant: Variant = {
+            key: variantKey,
+            value: variantValue,
+            expKey,
+            metadata,
+          };
           this.exposureWithDedupe(flagKey, variant, true);
           delete merged[flagKey];
         }
@@ -1222,8 +1235,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         this.globalScope.setTimeout(async () => {
           try {
             for (const flagKey in merged) {
-              const { variantKey, expKey, metadata } = merged[flagKey];
-              const variant: Variant = { key: variantKey, expKey, metadata };
+              const { variantKey, variantValue, expKey, metadata } =
+                merged[flagKey];
+              const variant: Variant = {
+                key: variantKey,
+                value: variantValue,
+                expKey,
+                metadata,
+              };
               this.exposureWithDedupe(flagKey, variant, true);
             }
             await storage.remove(storageKey);
