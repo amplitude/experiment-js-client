@@ -592,7 +592,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         return;
       }
       if (this.isPreviewMode) {
-        this.exposureWithDedupe(key, variantObject, true);
+        if (this.isActionActiveOnPage(key, undefined)) {
+          this.exposureWithDedupe(key, variantObject, true);
+        }
         showPreviewModeModal({
           flags: this.previewFlags,
         });
