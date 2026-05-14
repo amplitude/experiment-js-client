@@ -56,7 +56,6 @@ import { installSpaLinkInterceptor } from './util/spa-link-interceptor';
 import {
   getStorageItem,
   setStorageItem,
-  removeStorageItem,
 } from './util/storage';
 import {
   getUrlParams,
