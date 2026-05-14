@@ -118,6 +118,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private isRemoteBlocking = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
   public isRunning = false;
+  public pluginAddedToAnalytics = false;
   private readonly messageBus: MessageBus;
   private pageObjects: PageObjects;
   private activePages: PageObjects = {};
@@ -792,7 +793,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       type: 'enrichment',
 
       setup: async (): Promise<void> => {
-        // No setup required
+        this.pluginAddedToAnalytics = true;
       },
 
       execute: async (context: Event): Promise<Event> => {

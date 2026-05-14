@@ -13,6 +13,8 @@ const eventBuffer: Array<{
   event_properties?: Record<string, unknown>;
 }> = [];
 
+let pendingPluginAddedToAnalytics = false;
+
 export const initialize = (
   apiKey: string,
   initConfigs: InitConfigs,
@@ -89,6 +91,16 @@ const fetchLatestConfigs = async (apiKey: string, serverZone?: string) => {
 export const createPlugin = (): Plugin => ({
   name: '@amplitude/experiment-tag',
   type: 'enrichment',
+  setup: async (): Promise<void> => {
+    const globalScope = getGlobalScope();
+    const client = globalScope?.webExperiment as DefaultWebExperimentClient;
+    if (client && typeof client.pluginAddedToAnalytics === 'boolean') {
+      client.pluginAddedToAnalytics = true;
+    } else {
+      // Client not yet initialized; apply the flag when flushEventBuffer runs.
+      pendingPluginAddedToAnalytics = true;
+    }
+  },
   execute: async (context: Event): Promise<Event> => {
     const globalScope = getGlobalScope();
     const client = globalScope?.webExperiment as DefaultWebExperimentClient;
@@ -115,6 +127,10 @@ export const createPlugin = (): Plugin => ({
 
 // Internal function to flush buffered events
 export const flushEventBuffer = (client: DefaultWebExperimentClient): void => {
+  if (pendingPluginAddedToAnalytics) {
+    client.pluginAddedToAnalytics = true;
+    pendingPluginAddedToAnalytics = false;
+  }
   if (eventBuffer.length > 0) {
     eventBuffer.forEach(({ event_type, event_properties }) => {
       client.trackEvent(event_type, event_properties);
