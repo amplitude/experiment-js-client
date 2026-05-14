@@ -10,10 +10,6 @@
  * Returns the cleaned HTML and a handle whose lifecycle the caller MUST tie
  * to the surrounding mutation/inject controller's revert. Returns
  * `handle: null` when the input has no <style> tags.
- *
- * NOTE: A copy of this file ships in the visual editor at
- *   apps/experiment-overlay/src/lib/extract-and-adopt-styles.ts
- * If you change one, change the other.
  */
 
 import {
