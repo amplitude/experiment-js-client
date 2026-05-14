@@ -28,6 +28,6 @@ export function extractAndAdoptStyles(
   target: Document | ShadowRoot,
 ): ExtractAndAdoptResult {
   const { html: cleanedHtml, css } = extractStylesFromHtml(html);
-  if (css === '') return { html, handle: null };
+  if (css === '') return { html: cleanedHtml, handle: null };
   return { html: cleanedHtml, handle: cspSafeStyleSheet(target, css) };
 }
