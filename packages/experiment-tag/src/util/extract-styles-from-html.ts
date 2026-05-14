@@ -8,19 +8,13 @@
  *
  * Used by:
  *   - extractAndAdoptStyles (composes adoption on top)
- *   - the visual editor's WidgetRenderer normalization, which migrates the
- *     css into widget.content.css instead of adopting at this point
+ *   - callers that want to migrate the extracted CSS into a separate
+ *     persistent storage layer instead of adopting it as a stylesheet
  *
  * Implementation note: <style> elements are removed wholesale; any attributes
  * on them (nonce, media, scoped, etc.) are dropped along with the element.
  * CSS source contents are preserved verbatim, so in-source @media queries
  * continue to work.
- *
- * NOTE: A copy of this file ships in the visual editor at
- *   apps/experiment-overlay/src/lib/extract-styles-from-html.ts
- *   (https://github.com/amplitude/javascript)
- * If you change one, change the other. Keep the public copy free of internal
- * product names and references to that repo.
  */
 
 export type ExtractedStyles = {
