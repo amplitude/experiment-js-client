@@ -117,7 +117,7 @@ export interface WebExperimentConfig extends ExperimentConfig {
   /**
    * When true, redirect experiment impression data is encoded as a query
    * parameter (AMP_REDIRECT) on the redirect destination URL. This enables impression tracking in cross-domain
-   redirect scenarios and in environments where cookies are blocked.
+   * redirect scenarios and in environments where cookies are blocked.
    */
   storeRedirectDataInUrlParam?: boolean;
 }
