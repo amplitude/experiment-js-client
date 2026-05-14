@@ -13,6 +13,9 @@ const eventBuffer: Array<{
   event_properties?: Record<string, unknown>;
 }> = [];
 
+// Tracks if the early-binding plugin's setup was called before client initialization
+let earlyPluginSetupCalled = false;
+
 export const initialize = (
   apiKey: string,
   initConfigs: InitConfigs,
@@ -89,6 +92,15 @@ const fetchLatestConfigs = async (apiKey: string, serverZone?: string) => {
 export const createPlugin = (): Plugin => ({
   name: '@amplitude/experiment-tag',
   type: 'enrichment',
+  setup: async (): Promise<void> => {
+    const globalScope = getGlobalScope();
+    const client = globalScope?.webExperiment as DefaultWebExperimentClient;
+    if (client && !client.isStub) {
+      client.pluginAddedToAnalytics = true;
+    } else {
+      earlyPluginSetupCalled = true;
+    }
+  },
   execute: async (context: Event): Promise<Event> => {
     const globalScope = getGlobalScope();
     const client = globalScope?.webExperiment as DefaultWebExperimentClient;
@@ -112,6 +124,9 @@ export const createPlugin = (): Plugin => ({
     return context;
   },
 });
+
+// Check if the early-binding plugin was set up before client initialization
+export const wasEarlyPluginSetupCalled = (): boolean => earlyPluginSetupCalled;
 
 // Internal function to flush buffered events
 export const flushEventBuffer = (client: DefaultWebExperimentClient): void => {

@@ -73,7 +73,7 @@ import {
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
 
-import { flushEventBuffer } from './index';
+import { flushEventBuffer, wasEarlyPluginSetupCalled } from './index';
 
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
@@ -452,6 +452,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     );
     // Set the real client instance
     globalScope.webExperiment = webExperiment;
+
+    // If the early-binding plugin was set up before client initialization, mark it
+    if (wasEarlyPluginSetupCalled()) {
+      webExperiment.pluginAddedToAnalytics = true;
+    }
 
     // Note: Don't flush buffer here - wait until start() completes and isRunning = true
     // The buffer will be flushed when isRunning becomes true
