@@ -598,7 +598,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
       const payload = variantObject.payload;
       if (!payload || !Array.isArray(payload)) {
-        if (this.isPreviewMode && this.isActionActiveOnPage(key, undefined)) {
+        if (this.isActionActiveOnPage(key, undefined)) {
           this.exposureWithDedupe(key, variantObject);
         }
         return;
