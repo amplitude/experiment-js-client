@@ -43,13 +43,19 @@ import {
   BehavioralTargetingRules,
 } from './types';
 import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
-import { applyAntiFlickerCss } from './util/anti-flicker';
+import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
+import {
+  cspSafeStyleSheet,
+  type StyleSheetHandle,
+} from './util/csp-safe-stylesheet';
 import { DebugRecorder } from './util/debug-recorder';
 import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
+import { isOpenerChannelBroken } from './util/opener-channel';
+import { showOpenerSeveredBanner } from './util/opener-severed-banner';
 import { patchRemoveChild } from './util/patch';
 import { DEVICE_IFRAME_ID, buildShell, isMobileModeActive } from './util/shell';
 import { installSpaLinkInterceptor } from './util/spa-link-interceptor';
@@ -265,6 +271,36 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
+      const veSource =
+        urlParams[VISUAL_EDITOR_PARAM] === 'true'
+          ? 'url_param'
+          : 'session_storage';
+      DebugRecorder.push('ve_mode_detected', `source=${veSource}`);
+
+      // The overlay is loaded by skylab postMessaging OpenOverlay through the
+      // window.opener channel. If it's broken (COOP, or explicit
+      // window.opener = null), that message never arrives and the editor
+      // never loads — show a banner instead.
+      if (isOpenerChannelBroken()) {
+        DebugRecorder.push(
+          'opener_check',
+          'FAIL: window.opener is null, closed, or inaccessible',
+        );
+        DebugRecorder.setMessengerState('error');
+        showOpenerSeveredBanner();
+        this.globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(this.globalScope.location.href, [
+            VISUAL_EDITOR_PARAM,
+          ]),
+        );
+        // Prevent re-initialization; the SDK won't load in this session.
+        this.isRunning = true;
+        return;
+      }
+      DebugRecorder.push('opener_check', 'PASS');
+
       if (isMobileModeActive()) {
         // In mobile mode, build the shell first and load the overlay after.
         // The overlay must render into the already-built shell to avoid a
@@ -273,12 +309,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         await buildShell(this.globalScope);
       }
       WindowMessenger.setup();
-
-      const veSource =
-        urlParams[VISUAL_EDITOR_PARAM] === 'true'
-          ? 'url_param'
-          : 'session_storage';
-      DebugRecorder.push('ve_mode_detected', `source=${veSource}`);
       this.globalScope.history.replaceState(
         {},
         '',
@@ -360,8 +390,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.updateUserWithBehaviors();
 
     if (!this.isRemoteBlocking) {
-      // Remove anti-flicker css if remote flags are not blocking
-      this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
+      removeAntiFlickerCss();
     }
 
     // fire stored redirect impressions upon startup (must run before applyVariants
@@ -572,13 +601,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         return;
       }
       if (this.isPreviewMode) {
-        this.exposureWithDedupe(key, variantObject, true);
         showPreviewModeModal({
           flags: this.previewFlags,
         });
       }
       const payload = variantObject.payload;
       if (!payload || !Array.isArray(payload)) {
+        if (this.isActionActiveOnPage(key, undefined)) {
+          this.exposureWithDedupe(key, variantObject);
+        }
         return;
       }
       await this.handleVariantAction(key, variantObject);
@@ -968,16 +999,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         this.globalScope.document.head.appendChild(script);
       }
     }
-    // Create CSS
+    // Adopt CSS as a constructable stylesheet (CSP-safe; works on strict
+    // style-src customer pages where <style> elements would be blocked)
     const rawCss = action.data.css;
-    let style: HTMLStyleElement | undefined;
+    let sheetHandle: StyleSheetHandle | undefined;
     if (rawCss) {
-      style = this.globalScope.document.createElement('style');
-      if (style) {
-        style.innerHTML = rawCss;
-        style.id = `css-${id}`;
-        this.globalScope.document.head.appendChild(style);
-      }
+      sheetHandle = cspSafeStyleSheet(this.globalScope.document, rawCss);
     }
     // Create HTML
     const rawHtml = action.data.html;
@@ -1013,7 +1040,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       revert: () => {
         state.cancelled = true;
         utils.remove?.();
-        style?.remove();
+        sheetHandle?.revert();
         script?.remove();
         this.appliedInjections.delete(id);
       },
@@ -1035,7 +1062,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache?.[currentUrl]?.[key] === variant.key;
 
     if (!hasTrackedVariant) {
-      if (forceVariant) {
+      if (forceVariant || !!this.previewFlags[key]) {
         const variantAndSource = {
           variant: variant,
           source: 'local-evaluation',
