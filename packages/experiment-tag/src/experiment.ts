@@ -868,7 +868,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       redirectUrl,
     );
 
-    if (this.config.storeRedirectDataInUrlParam) {
+    if (this.config.encodeRedirectInUrl) {
       // Embed impression data in redirect URL for cross-domain and
       // cookie-blocked environments. Merge with any existing param in case
       // multiple redirect experiments fire in sequence.
@@ -1163,7 +1163,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
   private async fireStoredRedirectImpressions() {
     let urlImpressions: Record<string, StoredRedirectImpression> = {};
-    if (this.config.storeRedirectDataInUrlParam) {
+    if (this.config.encodeRedirectInUrl) {
       const urlParams = getUrlParams();
       const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
       if (encoded) {

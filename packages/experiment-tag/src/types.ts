@@ -119,11 +119,12 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * parameter (AMP_REDIRECT) on the redirect destination URL. This enables impression tracking in cross-domain
    * redirect scenarios and in environments where cookies are blocked.
    */
-  storeRedirectDataInUrlParam?: boolean;
+  encodeRedirectInUrl?: boolean;
 }
 
 export const Defaults: WebExperimentConfig = {
   useDefaultNavigationHandler: true,
+  encodeRedirectInUrl: false,
 };
 
 /**
