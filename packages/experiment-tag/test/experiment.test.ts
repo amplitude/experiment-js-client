@@ -1351,7 +1351,7 @@ describe('initializeExperiment', () => {
     // Set up stored redirect data in cookie store
     const storedRedirects = {
       'test-redirect': {
-        variant: { key: 'treatment' },
+        variantKey: 'treatment',
         redirectUrl: 'http://test.com/2',
       },
     };

@@ -53,11 +53,7 @@ import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
 import { DEVICE_IFRAME_ID, buildShell, isMobileModeActive } from './util/shell';
 import { installSpaLinkInterceptor } from './util/spa-link-interceptor';
-import {
-  getStorageItem,
-  setStorageItem,
-  removeStorageItem,
-} from './util/storage';
+import { getStorageItem, setStorageItem } from './util/storage';
 import {
   getUrlParams,
   removeQueryParams,
@@ -77,6 +73,14 @@ const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
+const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
+
+type StoredRedirectImpression = {
+  redirectUrl: string;
+  variantKey: string;
+  expKey?: string;
+  metadata?: Record<string, unknown>;
+};
 
 safeGlobal.Experiment = FeatureExperiment;
 
@@ -847,7 +851,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    const targetUrl = concatenateQueryParamsOf(
+    let targetUrl = concatenateQueryParamsOf(
       this.globalScope.location.href,
       redirectUrl,
     );
@@ -863,6 +867,35 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       currentDomain,
       redirectUrl,
     );
+
+    if (this.config.encodeRedirectInUrl) {
+      // Embed impression data in redirect URL for cross-domain and
+      // cookie-blocked environments. Merge with any existing param in case
+      // multiple redirect experiments fire in sequence.
+      const targetUrlObj = new URL(targetUrl);
+      let urlPayload: Record<string, StoredRedirectImpression> = {};
+      const existingEncoded = targetUrlObj.searchParams.get(
+        REDIRECT_IMPRESSION_PARAM,
+      );
+      if (existingEncoded) {
+        try {
+          urlPayload = JSON.parse(atob(existingEncoded));
+        } catch {} // eslint-disable-line no-empty
+      }
+      urlPayload[flagKey] = {
+        redirectUrl,
+        variantKey: variant.key || '',
+        ...(variant.expKey !== undefined ? { expKey: variant.expKey } : {}),
+        ...(variant.metadata !== undefined
+          ? { metadata: variant.metadata }
+          : {}),
+      };
+      targetUrlObj.searchParams.set(
+        REDIRECT_IMPRESSION_PARAM,
+        btoa(JSON.stringify(urlPayload)),
+      );
+      targetUrl = targetUrlObj.toString();
+    }
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
@@ -1097,20 +1130,27 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    const storage = new CookieStorage<
-      Record<string, { redirectUrl: string; variant: Variant }>
-    >({
-      domain: redirectDomain,
-      sameSite: 'Lax',
-      expirationDays: 1 / 1440, // 1 minute
-    });
+    const storage = new CookieStorage<Record<string, StoredRedirectImpression>>(
+      {
+        domain: redirectDomain,
+        sameSite: 'Lax',
+        expirationDays: 1 / 1440, // 1 minute
+      },
+    );
 
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
     return storage
       .get(storageKey)
       .then((storedRedirects) => {
         const redirects = storedRedirects || {};
-        redirects[flagKey] = { redirectUrl, variant };
+        redirects[flagKey] = {
+          redirectUrl,
+          variantKey: variant.key || '',
+          ...(variant.expKey !== undefined ? { expKey: variant.expKey } : {}),
+          ...(variant.metadata !== undefined
+            ? { metadata: variant.metadata }
+            : {}),
+        };
         storage.set(storageKey, redirects).catch();
       })
       .catch((error) => {
@@ -1122,18 +1162,44 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private async fireStoredRedirectImpressions() {
-    const storage = new CookieStorage<
-      Record<string, { redirectUrl: string; variant: Variant }>
-    >({
-      domain: getCookieDomain(this.globalScope.location.href),
-      sameSite: 'Lax',
-    });
+    let urlImpressions: Record<string, StoredRedirectImpression> = {};
+    if (this.config.encodeRedirectInUrl) {
+      const urlParams = getUrlParams();
+      const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
+      if (encoded) {
+        try {
+          urlImpressions = JSON.parse(atob(encoded));
+        } catch {} // eslint-disable-line no-empty
+        this.globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(this.globalScope.location.href, [
+            REDIRECT_IMPRESSION_PARAM,
+          ]),
+        );
+      }
+    }
+
+    const storage = new CookieStorage<Record<string, StoredRedirectImpression>>(
+      {
+        domain: getCookieDomain(this.globalScope.location.href),
+        sameSite: 'Lax',
+      },
+    );
 
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
 
     try {
-      const storedRedirects = (await storage.get(storageKey)) || {};
-      if (Object.keys(storedRedirects).length === 0) {
+      const cookieImpressions = (await storage.get(storageKey)) || {};
+
+      // Union cookie and URL param; URL param wins on collision since it was
+      // embedded at redirect time and directly reflects the served variant.
+      const merged: Record<string, StoredRedirectImpression> = {
+        ...cookieImpressions,
+        ...urlImpressions,
+      };
+
+      if (Object.keys(merged).length === 0) {
         return;
       }
 
@@ -1141,28 +1207,26 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         this.globalScope.location.href,
       );
 
-      // Track exposures for redirects that match current URL
-      for (const flagKey in storedRedirects) {
-        const { redirectUrl, variant } = storedRedirects[flagKey];
+      // Fire impressions for entries matching the current URL.
+      for (const flagKey in merged) {
+        const { redirectUrl, variantKey, expKey, metadata } = merged[flagKey];
         const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
 
         if (matchesUrl([currentUrl], strippedRedirectUrl)) {
+          const variant: Variant = { key: variantKey, expKey, metadata };
           this.exposureWithDedupe(flagKey, variant, true);
-          delete storedRedirects[flagKey];
+          delete merged[flagKey];
         }
       }
 
-      // Track remaining redirects after timeout, then cleanup
-      if (Object.keys(storedRedirects).length > 0) {
+      // Fire remaining unmatched entries after timeout, then cleanup cookie.
+      if (Object.keys(merged).length > 0) {
         this.globalScope.setTimeout(async () => {
           try {
-            const redirects = (await storage.get(storageKey)) || {};
-            for (const flagKey in redirects) {
-              this.exposureWithDedupe(
-                flagKey,
-                redirects[flagKey].variant,
-                true,
-              );
+            for (const flagKey in merged) {
+              const { variantKey, expKey, metadata } = merged[flagKey];
+              const variant: Variant = { key: variantKey, expKey, metadata };
+              this.exposureWithDedupe(flagKey, variant, true);
             }
             await storage.remove(storageKey);
           } catch (error) {
