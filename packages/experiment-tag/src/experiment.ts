@@ -872,29 +872,34 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       redirectUrl,
     );
 
-    // Embed impression data in redirect URL for cross-domain and cookie-blocked environments.
-    // Merge with any existing param in case multiple redirect experiments fire in sequence.
-    const targetUrlObj = new URL(targetUrl);
-    let urlPayload: Record<string, StoredRedirectImpression> = {};
-    const existingEncoded = targetUrlObj.searchParams.get(
-      REDIRECT_IMPRESSION_PARAM,
-    );
-    if (existingEncoded) {
-      try {
-        urlPayload = JSON.parse(atob(existingEncoded));
-      } catch {} // eslint-disable-line no-empty
+    if (this.config.storeRedirectDataInUrlParam) {
+      // Embed impression data in redirect URL for cross-domain and
+      // cookie-blocked environments. Merge with any existing param in case
+      // multiple redirect experiments fire in sequence.
+      const targetUrlObj = new URL(targetUrl);
+      let urlPayload: Record<string, StoredRedirectImpression> = {};
+      const existingEncoded = targetUrlObj.searchParams.get(
+        REDIRECT_IMPRESSION_PARAM,
+      );
+      if (existingEncoded) {
+        try {
+          urlPayload = JSON.parse(atob(existingEncoded));
+        } catch {} // eslint-disable-line no-empty
+      }
+      urlPayload[flagKey] = {
+        redirectUrl,
+        variantKey: variant.key || '',
+        ...(variant.expKey !== undefined ? { expKey: variant.expKey } : {}),
+        ...(variant.metadata !== undefined
+          ? { metadata: variant.metadata }
+          : {}),
+      };
+      targetUrlObj.searchParams.set(
+        REDIRECT_IMPRESSION_PARAM,
+        btoa(JSON.stringify(urlPayload)),
+      );
+      targetUrl = targetUrlObj.toString();
     }
-    urlPayload[flagKey] = {
-      redirectUrl,
-      variantKey: variant.key || '',
-      ...(variant.expKey !== undefined ? { expKey: variant.expKey } : {}),
-      ...(variant.metadata !== undefined ? { metadata: variant.metadata } : {}),
-    };
-    targetUrlObj.searchParams.set(
-      REDIRECT_IMPRESSION_PARAM,
-      btoa(JSON.stringify(urlPayload)),
-    );
-    targetUrl = targetUrlObj.toString();
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
@@ -1161,21 +1166,22 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private async fireStoredRedirectImpressions() {
-    // Read URL param and strip it from the URL immediately.
-    const urlParams = getUrlParams();
     let urlImpressions: Record<string, StoredRedirectImpression> = {};
-    const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
-    if (encoded) {
-      try {
-        urlImpressions = JSON.parse(atob(encoded));
-      } catch {} // eslint-disable-line no-empty
-      this.globalScope.history.replaceState(
-        {},
-        '',
-        removeQueryParams(this.globalScope.location.href, [
-          REDIRECT_IMPRESSION_PARAM,
-        ]),
-      );
+    if (this.config.storeRedirectDataInUrlParam) {
+      const urlParams = getUrlParams();
+      const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
+      if (encoded) {
+        try {
+          urlImpressions = JSON.parse(atob(encoded));
+        } catch {} // eslint-disable-line no-empty
+        this.globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(this.globalScope.location.href, [
+            REDIRECT_IMPRESSION_PARAM,
+          ]),
+        );
+      }
     }
 
     const storage = new CookieStorage<Record<string, StoredRedirectImpression>>(

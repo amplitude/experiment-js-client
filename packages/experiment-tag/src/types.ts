@@ -114,6 +114,12 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * 2. Custom handling of navigation {@link setRedirectHandler} should be implemented such that variant actions applied on the site reflect the latest context
    */
   useDefaultNavigationHandler?: boolean;
+  /**
+   * When true, redirect experiment impression data is encoded as a query
+   * parameter (AMP_REDIRECT) on the redirect destination URL. This enables impression tracking in cross-domain
+   redirect scenarios and in environments where cookies are blocked.
+   */
+  storeRedirectDataInUrlParam?: boolean;
 }
 
 export const Defaults: WebExperimentConfig = {
