@@ -94,7 +94,7 @@ export const createPlugin = (): Plugin => ({
   setup: async (): Promise<void> => {
     const globalScope = getGlobalScope();
     const client = globalScope?.webExperiment as DefaultWebExperimentClient;
-    if (client && !client.isStub) {
+    if (client && typeof client.pluginAddedToAnalytics === 'boolean') {
       client.pluginAddedToAnalytics = true;
     } else {
       // Client not yet initialized; apply the flag when flushEventBuffer runs.
