@@ -2,6 +2,7 @@ import * as coreUtil from '@amplitude/experiment-core';
 
 import {
   concatenateQueryParamsOf,
+  getCookieDomain,
   getUrlParams,
   matchesUrl,
   removeQueryParams,
@@ -248,6 +249,99 @@ describe('removeQueryParams', () => {
       expect(removeQueryParams(url, paramsToRemove)).toBe(
         'https://example.com/page?param1=value1',
       );
+    });
+  });
+});
+
+describe('getCookieDomain', () => {
+  describe('regular domains', () => {
+    it('should return root domain with leading dot for standard domain', () => {
+      expect(getCookieDomain('https://example.com')).toBe('.example.com');
+    });
+
+    it('should return root domain with leading dot for subdomain', () => {
+      expect(getCookieDomain('https://subdomain.example.com')).toBe(
+        '.example.com',
+      );
+    });
+
+    it('should return root domain with leading dot for multiple subdomains', () => {
+      expect(getCookieDomain('https://sub1.sub2.example.com')).toBe(
+        '.example.com',
+      );
+    });
+
+    it('should handle domain with path and query parameters', () => {
+      expect(
+        getCookieDomain('https://subdomain.example.com/path?param=value'),
+      ).toBe('.example.com');
+    });
+
+    it('should handle domain with port', () => {
+      expect(getCookieDomain('https://subdomain.example.com:3000')).toBe(
+        '.example.com',
+      );
+    });
+  });
+
+  describe('localhost', () => {
+    it('should return .localhost for localhost', () => {
+      expect(getCookieDomain('http://localhost')).toBe('.localhost');
+      expect(getCookieDomain('http://localhost:3000')).toBe('.localhost');
+    });
+
+    it('should return .localhost for subdomains of localhost', () => {
+      expect(getCookieDomain('http://app.localhost')).toBe('.localhost');
+      expect(getCookieDomain('http://app.localhost:3000')).toBe('.localhost');
+      expect(getCookieDomain('http://sub1.sub2.localhost')).toBe('.localhost');
+    });
+  });
+
+  describe('public suffix domains', () => {
+    it('should return full hostname with leading dot for vercel.app subdomain', () => {
+      expect(getCookieDomain('https://myapp.vercel.app')).toBe(
+        '.myapp.vercel.app',
+      );
+    });
+
+    it('should return full hostname with leading dot for netlify.app subdomain', () => {
+      expect(getCookieDomain('https://myapp.netlify.app')).toBe(
+        '.myapp.netlify.app',
+      );
+    });
+
+    it('should return full hostname with leading dot for pages.dev subdomain', () => {
+      expect(getCookieDomain('https://myapp.pages.dev')).toBe(
+        '.myapp.pages.dev',
+      );
+    });
+
+    it('should return full hostname with leading dot for nested public suffix subdomains', () => {
+      expect(getCookieDomain('https://feature-branch.myapp.vercel.app')).toBe(
+        '.feature-branch.myapp.vercel.app',
+      );
+      expect(getCookieDomain('https://preview.myapp.netlify.app')).toBe(
+        '.preview.myapp.netlify.app',
+      );
+      expect(getCookieDomain('https://staging.myapp.pages.dev')).toBe(
+        '.staging.myapp.pages.dev',
+      );
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should return undefined for invalid URL', () => {
+      expect(getCookieDomain('not-a-valid-url')).toBeUndefined();
+      expect(getCookieDomain('')).toBeUndefined();
+    });
+
+    it('should handle two-part domain', () => {
+      expect(getCookieDomain('https://example.co')).toBe('.example.co');
+    });
+
+    it('should handle three-part top-level domain', () => {
+      expect(getCookieDomain('https://example.co.uk')).toBe('.co.uk');
+      expect(getCookieDomain('https://subdomain.example.co.uk')).toBe('.co.uk');
     });
   });
 });
