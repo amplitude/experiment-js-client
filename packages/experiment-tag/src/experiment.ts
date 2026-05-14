@@ -53,10 +53,7 @@ import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { patchRemoveChild } from './util/patch';
 import { DEVICE_IFRAME_ID, buildShell, isMobileModeActive } from './util/shell';
 import { installSpaLinkInterceptor } from './util/spa-link-interceptor';
-import {
-  getStorageItem,
-  setStorageItem,
-} from './util/storage';
+import { getStorageItem, setStorageItem } from './util/storage';
 import {
   getUrlParams,
   removeQueryParams,
