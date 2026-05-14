@@ -592,13 +592,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         return;
       }
       if (this.isPreviewMode) {
-        this.exposureWithDedupe(key, variantObject, true);
         showPreviewModeModal({
           flags: this.previewFlags,
         });
       }
       const payload = variantObject.payload;
       if (!payload || !Array.isArray(payload)) {
+        if (this.isActionActiveOnPage(key, undefined)) {
+          this.exposureWithDedupe(key, variantObject);
+        }
         return;
       }
       this.handleVariantAction(key, variantObject);
@@ -1045,7 +1047,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache?.[currentUrl]?.[key] === variant.key;
 
     if (!hasTrackedVariant) {
-      if (forceVariant) {
+      if (forceVariant || !!this.previewFlags[key]) {
         const variantAndSource = {
           variant: variant,
           source: 'local-evaluation',
