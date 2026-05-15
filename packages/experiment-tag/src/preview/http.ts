@@ -16,7 +16,7 @@ export interface HttpClient {
   ): Promise<SimpleResponse>;
 }
 
-const fetch = safeGlobal.fetch || unfetch;
+const fetch = safeGlobal?.fetch || unfetch;
 
 const withTimeout = (
   promise: Promise<SimpleResponse>,
