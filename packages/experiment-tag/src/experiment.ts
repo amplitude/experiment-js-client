@@ -50,6 +50,7 @@ import {
   type StyleSheetHandle,
 } from './util/csp-safe-stylesheet';
 import { DebugRecorder } from './util/debug-recorder';
+import { extractAndAdoptStyles } from './util/extract-and-adopt-styles';
 import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
@@ -891,6 +892,26 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.globalScope.location.replace(targetUrl);
   }
 
+  private applyDeclarativeMutation(m: any): MutationController {
+    const isHtmlMutation =
+      m.attribute === 'html' && (m.action === 'set' || m.action === 'append');
+    if (!isHtmlMutation) return mutate.declarative(m);
+
+    const { html, handle } = extractAndAdoptStyles(
+      m.value ?? '',
+      this.globalScope.document,
+    );
+    const downstream = mutate.declarative({ ...m, value: html });
+    if (!handle) return downstream;
+    return {
+      ...downstream,
+      revert: () => {
+        downstream.revert();
+        handle.revert();
+      },
+    };
+  }
+
   private handleMutate(action, flagKey: string, variant: Variant) {
     const mutations = action.data?.mutations || [];
     const variantKey = variant.key || '';
@@ -925,7 +946,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           ]
         ) {
           // Apply mutation
-          mutationControllers[index] = mutate.declarative(m);
+          mutationControllers[index] = this.applyDeclarativeMutation(m);
         }
       }
     });
@@ -991,12 +1012,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (rawCss) {
       sheetHandle = cspSafeStyleSheet(this.globalScope.document, rawCss);
     }
-    // Create HTML
+    // Create HTML — strip any embedded <style> elements (legacy widget data
+    // shape from inside-widget AI stylize) and adopt their CSS as a separate
+    // sheet so strict-CSP customer pages don't block style application.
     const rawHtml = action.data.html;
     let html: Element | undefined;
+    let htmlSheetHandle: StyleSheetHandle | null = null;
     if (rawHtml) {
+      const result = extractAndAdoptStyles(rawHtml, this.globalScope.document);
+      htmlSheetHandle = result.handle;
       html =
-        new DOMParser().parseFromString(rawHtml, 'text/html').body
+        new DOMParser().parseFromString(result.html, 'text/html').body
           .firstElementChild ?? undefined;
     }
     // Inject
@@ -1026,6 +1052,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         state.cancelled = true;
         utils.remove?.();
         sheetHandle?.revert();
+        htmlSheetHandle?.revert();
         script?.remove();
         this.appliedInjections.delete(id);
       },
