@@ -32,7 +32,7 @@ export type ExtractedStyles = {
 const STYLE_TAG_RE = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
 
 export function extractStylesFromHtml(html: string): ExtractedStyles {
-  if (!html.includes('<style')) return { html, css: '' };
+  if (!html.toLowerCase().includes('<style')) return { html, css: '' };
 
   const cssChunks: string[] = [];
   const cleanedHtml = html.replace(STYLE_TAG_RE, (_match, content: string) => {
