@@ -38,6 +38,14 @@ describe('extractStylesFromHtml', () => {
     expect(() => extractStylesFromHtml('<div><style>.a{}')).not.toThrow();
   });
 
+  it('strips <style> elements with attributes (nonce, media, etc.)', () => {
+    const html =
+      '<div>x</div><style media="print" nonce="abc">.a{}</style><style>.b{}</style>';
+    const result = extractStylesFromHtml(html);
+    expect(result.html).toBe('<div>x</div>');
+    expect(result.css).toBe('.a{}\n.b{}');
+  });
+
   it('preserves CSS source verbatim including @media queries and pseudo-classes', () => {
     const css =
       '.btn:hover { color: red; }\n@media (max-width: 600px) { .btn { font-size: 12px; } }';

@@ -11,10 +11,17 @@
  *   - callers that want to migrate the extracted CSS into a separate
  *     persistent storage layer instead of adopting it as a stylesheet
  *
- * Implementation note: <style> elements are removed wholesale; any attributes
- * on them (nonce, media, scoped, etc.) are dropped along with the element.
- * CSS source contents are preserved verbatim, so in-source @media queries
- * continue to work.
+ * Implementation notes:
+ *   - <style> elements are removed wholesale; any attributes on them (nonce,
+ *     media, scoped, etc.) are dropped along with the element. CSS source
+ *     contents are preserved verbatim, so in-source @media queries continue
+ *     to work.
+ *   - We deliberately use a regex (not DOMParser) because DOMParser
+ *     materializes <style> elements as it parses, which constructs their
+ *     CSSStyleSheet and triggers CSP `style-src` enforcement on strict
+ *     customer pages — even when the elements live in a detached document
+ *     and are never inserted into the live DOM. The whole point of this
+ *     helper is to avoid that very violation.
  */
 
 export type ExtractedStyles = {
@@ -22,17 +29,17 @@ export type ExtractedStyles = {
   css: string;
 };
 
+const STYLE_TAG_RE = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
+
 export function extractStylesFromHtml(html: string): ExtractedStyles {
   if (!html.includes('<style')) return { html, css: '' };
 
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const styleElements = doc.querySelectorAll('style');
-  if (styleElements.length === 0) return { html, css: '' };
+  const cssChunks: string[] = [];
+  const cleanedHtml = html.replace(STYLE_TAG_RE, (_match, content: string) => {
+    cssChunks.push(content);
+    return '';
+  });
 
-  const css = Array.from(styleElements)
-    .map((el) => el.textContent ?? '')
-    .join('\n');
-  styleElements.forEach((el) => el.remove());
-
-  return { html: doc.body.innerHTML, css };
+  if (cssChunks.length === 0) return { html, css: '' };
+  return { html: cleanedHtml, css: cssChunks.join('\n') };
 }
