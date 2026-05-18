@@ -30,3 +30,15 @@ packages/experiment-tag/example/
 
 # dotenv files
 .env*
+
+# Superpowers local scratch
+.superpowers/
+**/.superpowers/
+superpowers/
+**/superpowers/
+docs/superpowers/
+**/docs/superpowers/
+
+# Git worktrees
+.worktrees/
+

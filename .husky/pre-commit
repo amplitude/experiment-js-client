@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+
+# Exit immediately if any command fails. Otherwise, errors in any command except
+# the last one will be masked.
+set -e
+
+# Skip hooks for merge commits (when MERGE_HEAD is present)
+if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+  echo "Skipping pre-commit hooks for merge commit"
+  exit 0
+fi
+
+yarn lint-staged --concurrent false
