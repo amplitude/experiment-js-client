@@ -915,7 +915,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (existingEncoded) {
         try {
           urlPayload = JSON.parse(atob(existingEncoded));
-        } catch {} // eslint-disable-line no-empty
+        } catch (error) {
+          console.error('Failed to decode existing AMP_REDIRECT param:', error);
+        }
       }
       urlPayload[flagKey] = {
         redirectUrl,
