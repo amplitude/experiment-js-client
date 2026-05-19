@@ -182,6 +182,22 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     });
 
+    // Flags that depend on at least one remote flag are also considered remote.
+    // Iterate to fixed point to handle transitive dependencies.
+    let changed = true;
+    while (changed) {
+      changed = false;
+      this.initialFlags.forEach((flag: EvaluationFlag) => {
+        if (
+          !this.remoteFlagKeys.includes(flag.key) &&
+          flag.dependencies?.some((dep) => this.remoteFlagKeys.includes(dep))
+        ) {
+          this.remoteFlagKeys.push(flag.key);
+          changed = true;
+        }
+      });
+    }
+
     const initialFlagsString = JSON.stringify(this.initialFlags);
 
     // initialize the experiment
