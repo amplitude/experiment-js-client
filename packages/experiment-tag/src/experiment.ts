@@ -1182,7 +1182,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         return;
       }
 
-      const storage = new CookieStorage<Record<string, StoredRedirectImpression>>({
+      const storage = new CookieStorage<
+        Record<string, StoredRedirectImpression>
+      >({
         domain: redirectDomain,
         sameSite: 'Lax',
         expirationDays: 1 / 1440, // 1 minute
@@ -1235,9 +1237,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // Read cookie impressions (lowest priority) when opted in
     let cookieImpressions: Record<string, StoredRedirectImpression> = {};
-    let cookieStorage: CookieStorage<Record<string, StoredRedirectImpression>> | undefined;
+    let cookieStorage:
+      | CookieStorage<Record<string, StoredRedirectImpression>>
+      | undefined;
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
-      cookieStorage = new CookieStorage<Record<string, StoredRedirectImpression>>({
+      cookieStorage = new CookieStorage<
+        Record<string, StoredRedirectImpression>
+      >({
         domain: getCookieDomain(this.globalScope.location.href),
         sameSite: 'Lax',
       });
@@ -1262,12 +1268,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    const currentUrl = urlWithoutParamsAndAnchor(this.globalScope.location.href);
+    const currentUrl = urlWithoutParamsAndAnchor(
+      this.globalScope.location.href,
+    );
 
     for (const flagKey in merged) {
       const { redirectUrl, variantKey, expKey, metadata } = merged[flagKey];
       if (matchesUrl([currentUrl], urlWithoutParamsAndAnchor(redirectUrl))) {
-        this.exposureWithDedupe(flagKey, { key: variantKey, expKey, metadata }, true);
+        this.exposureWithDedupe(
+          flagKey,
+          { key: variantKey, expKey, metadata },
+          true,
+        );
         delete merged[flagKey];
       }
     }
@@ -1288,7 +1300,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.globalScope.setTimeout(async () => {
         for (const flagKey in merged) {
           const { variantKey, expKey, metadata } = merged[flagKey];
-          this.exposureWithDedupe(flagKey, { key: variantKey, expKey, metadata }, true);
+          this.exposureWithDedupe(
+            flagKey,
+            { key: variantKey, expKey, metadata },
+            true,
+          );
         }
         await cleanup();
       }, 500);
