@@ -168,7 +168,7 @@ describe('initializeExperiment', () => {
     expect(mockGlobal.localStorage.getItem).toHaveBeenCalledTimes(0);
   });
 
-  test('treatment variant on control page - should redirect and store in cookies', async () => {
+  test('treatment variant on control page - should redirect and store in sessionStorage', async () => {
     // Create a fresh mock global for this test
     mockGlobal = newMockGlobal();
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -177,8 +177,8 @@ describe('initializeExperiment', () => {
 
     const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
-    // Verify cookie store is empty before test
-    expect(getCookieStore()[redirectStorageKey]).toBeUndefined();
+    // Verify sessionStorage is empty before test
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
 
     const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
       initialFlags: JSON.stringify([
@@ -201,35 +201,36 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
 
-    // Directly check if the value was stored in cookies
-    const storedRedirects = getCookieStore()[redirectStorageKey];
-    expect(storedRedirects).toBeDefined();
+    // Directly check if the value was stored in sessionStorage
+    const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
+    expect(storedValue).not.toBeNull();
 
-    if (storedRedirects) {
+    if (storedValue) {
+      const storedRedirects = JSON.parse(storedValue);
       expect(storedRedirects).toHaveProperty('test');
     }
 
     // Clear exposure tracking before simulating URL change
     mockExposureInternal.mockClear();
 
-    // Simulate URL change event after redirect
-    (client as any).messageBus.publish('url_change', {});
+    // Ensure messageBus exists before publishing
+    if ((client as any).messageBus) {
+      // Simulate URL change event after redirect
+      (client as any).messageBus.publish('url_change', {});
 
-    // Wait for async operations to complete
-    await new Promise((resolve) => setTimeout(resolve, 10));
+      // Verify exposureInternal was called with the correct flag key
+      expect(mockExposureInternal).toHaveBeenCalledTimes(1);
+      expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
 
-    // Verify exposureInternal was called with the correct flag key
-    expect(mockExposureInternal).toHaveBeenCalledTimes(1);
-    expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
+      // Check that the sourceVariant parameter contains the expected properties
+      const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
+      expect(sourceVariant).toBeDefined();
+      expect(sourceVariant.variant).toBeDefined();
+      expect(sourceVariant.variant.key).toBe('treatment');
 
-    // Check that the sourceVariant parameter contains the expected properties
-    const sourceVariant: any = mockExposureInternal.mock.calls[0][1];
-    expect(sourceVariant).toBeDefined();
-    expect(sourceVariant.variant).toBeDefined();
-    expect(sourceVariant.variant.key).toBe('treatment');
-
-    // Verify sessionStorage was cleared after tracking
-    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
+      // Verify sessionStorage was cleared after tracking
+      expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
+    }
   });
 
   test('control variant on control page - should not redirect but call exposure', async () => {
@@ -328,11 +329,12 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
 
-    // Check if redirect info was stored in cookies
-    const storedRedirects = getCookieStore()[redirectStorageKey];
-    expect(storedRedirects).toBeDefined();
+    // Check if redirect info was stored in sessionStorage
+    const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
+    expect(storedValue).not.toBeNull();
 
-    if (storedRedirects) {
+    if (storedValue) {
+      const storedRedirects = JSON.parse(storedValue);
       expect(storedRedirects).toHaveProperty('test');
     }
 
@@ -342,9 +344,6 @@ describe('initializeExperiment', () => {
 
     // Simulate URL change event after redirect
     (client as any).messageBus.publish('url_change', {});
-
-    // Wait for async operations to complete
-    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Verify exposureInternal was called with the correct flag key
     expect(mockExposureInternal).toHaveBeenCalledTimes(1);
@@ -356,8 +355,8 @@ describe('initializeExperiment', () => {
     expect(sourceVariant.variant).toBeDefined();
     expect(sourceVariant.variant.key).toBe('treatment'); // Preview forces treatment
 
-    // Verify cookie store was cleared after tracking
-    expect(getCookieStore()[redirectStorageKey]).toBeUndefined();
+    // Verify sessionStorage was cleared after tracking
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
   test('preview - force treatment variant when on treatment page', () => {
@@ -423,11 +422,12 @@ describe('initializeExperiment', () => {
       'http://test.com/2?param3=c&param1=a&param2=b',
     );
 
-    // Check if redirect info was stored in cookies
-    const storedRedirects = getCookieStore()[redirectStorageKey];
-    expect(storedRedirects).toBeDefined();
+    // Check if redirect info was stored in sessionStorage
+    const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
+    expect(storedValue).not.toBeNull();
 
-    if (storedRedirects) {
+    if (storedValue) {
+      const storedRedirects = JSON.parse(storedValue);
       expect(storedRedirects).toHaveProperty('test');
     }
 
@@ -437,9 +437,6 @@ describe('initializeExperiment', () => {
 
     // Simulate URL change event after redirect
     (client as any).messageBus.publish('url_change', {});
-
-    // Wait for async operations to complete
-    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Verify exposureInternal was called with the correct flag key
     expect(mockExposureInternal).toHaveBeenCalledTimes(1);
@@ -451,8 +448,8 @@ describe('initializeExperiment', () => {
     expect(sourceVariant.variant).toBeDefined();
     expect(sourceVariant.variant.key).toBe('treatment');
 
-    // Verify cookie store was cleared after tracking
-    expect(getCookieStore()[redirectStorageKey]).toBeUndefined();
+    // Verify sessionStorage was cleared after tracking
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
   test('cross-subdomain redirect - should store and fire impressions', async () => {
@@ -480,18 +477,22 @@ describe('initializeExperiment', () => {
       ),
     };
 
-    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
-      initialFlags: JSON.stringify([
-        createRedirectFlag(
-          'test',
-          'treatment',
-          'http://subdomain2.example.com/target',
-          undefined,
-          DEFAULT_REDIRECT_SCOPE,
-        ),
-      ]),
-      pageObjects: JSON.stringify(pageObjects),
-    });
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://subdomain2.example.com/target',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify(pageObjects),
+      },
+      { redirectConfig: { encodeRedirectInCookie: true } },
+    );
 
     await client.start();
 
@@ -524,18 +525,22 @@ describe('initializeExperiment', () => {
     mockGetGlobalScope.mockReturnValue(mockGlobal2);
 
     // Create new client instance on subdomain2
-    const client2 = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
-      initialFlags: JSON.stringify([
-        createRedirectFlag(
-          'test',
-          'treatment',
-          'http://subdomain2.example.com/target',
-          undefined,
-          DEFAULT_REDIRECT_SCOPE,
-        ),
-      ]),
-      pageObjects: JSON.stringify(pageObjects),
-    });
+    const client2 = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://subdomain2.example.com/target',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify(pageObjects),
+      },
+      { redirectConfig: { encodeRedirectInCookie: true } },
+    );
 
     await client2.start();
 
@@ -633,18 +638,22 @@ describe('initializeExperiment', () => {
       ),
     };
 
-    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
-      initialFlags: JSON.stringify([
-        createRedirectFlag(
-          'test',
-          'treatment',
-          'http://sign.localhost:3000/target',
-          undefined,
-          DEFAULT_REDIRECT_SCOPE,
-        ),
-      ]),
-      pageObjects: JSON.stringify(pageObjects),
-    });
+    const client = DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://sign.localhost:3000/target',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify(pageObjects),
+      },
+      { redirectConfig: { encodeRedirectInCookie: true } },
+    );
 
     await client.start();
 
@@ -718,11 +727,12 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
 
-    // Check if redirect info was stored in cookies
-    const storedRedirects = getCookieStore()[redirectStorageKey];
-    expect(storedRedirects).toBeDefined();
+    // Check if redirect info was stored in sessionStorage
+    const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
+    expect(storedValue).not.toBeNull();
 
-    if (storedRedirects) {
+    if (storedValue) {
+      const storedRedirects = JSON.parse(storedValue);
       expect(storedRedirects).toHaveProperty('test');
     }
 
@@ -734,9 +744,6 @@ describe('initializeExperiment', () => {
     if ((client as any).messageBus) {
       // Simulate URL change event after redirect
       (client as any).messageBus.publish('url_change', {});
-
-      // Wait for async operations to complete
-      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Verify exposureInternal was called with the correct flag key
       expect(mockExposureInternal).toHaveBeenCalledTimes(1);
@@ -1036,11 +1043,12 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
 
-    // Check if redirect info was stored in cookies
-    const storedRedirects = getCookieStore()[redirectStorageKey];
-    expect(storedRedirects).toBeDefined();
+    // Check if redirect info was stored in sessionStorage
+    const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
+    expect(storedValue).not.toBeNull();
 
-    if (storedRedirects) {
+    if (storedValue) {
+      const storedRedirects = JSON.parse(storedValue);
       expect(storedRedirects).toHaveProperty('test');
     }
 
@@ -1050,9 +1058,6 @@ describe('initializeExperiment', () => {
 
     // Simulate URL change event after redirect
     (client as any).messageBus.publish('url_change', {});
-
-    // Wait for async operations to complete
-    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Verify exposureInternal was called with the correct flag key
     expect(mockExposureInternal).toHaveBeenCalledTimes(1);
@@ -1064,8 +1069,8 @@ describe('initializeExperiment', () => {
     expect(sourceVariant.variant).toBeDefined();
     expect(sourceVariant.variant.key).toBe('treatment');
 
-    // Verify cookie store was cleared after tracking
-    expect(getCookieStore()[redirectStorageKey]).toBeUndefined();
+    // Verify sessionStorage was cleared after tracking
+    expect(mockGlobal.sessionStorage.getItem(redirectStorageKey)).toBeNull();
   });
 
   test('scoped mutations - experiment active, both mutations active on same page', async () => {
@@ -1348,14 +1353,17 @@ describe('initializeExperiment', () => {
 
     const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
 
-    // Set up stored redirect data in cookie store
+    // Set up stored redirect data in sessionStorage using the lean StoredRedirectImpression format
     const storedRedirects = {
       'test-redirect': {
         variantKey: 'treatment',
         redirectUrl: 'http://test.com/2',
       },
     };
-    getCookieStore()[redirectStorageKey] = storedRedirects;
+    mockGlobal.sessionStorage.setItem(
+      redirectStorageKey,
+      JSON.stringify(storedRedirects),
+    );
 
     // Create client with some flags (not the stored redirect flag)
     const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {

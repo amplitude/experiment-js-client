@@ -43,17 +43,27 @@ import {
   BehavioralTargetingRules,
 } from './types';
 import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
-import { applyAntiFlickerCss } from './util/anti-flicker';
+import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { setMarketingCookie } from './util/cookie';
+import {
+  cspSafeStyleSheet,
+  type StyleSheetHandle,
+} from './util/csp-safe-stylesheet';
 import { DebugRecorder } from './util/debug-recorder';
 import { getInjectUtils } from './util/inject-utils';
 import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
+import { isOpenerChannelBroken } from './util/opener-channel';
+import { showOpenerSeveredBanner } from './util/opener-severed-banner';
 import { patchRemoveChild } from './util/patch';
 import { DEVICE_IFRAME_ID, buildShell, isMobileModeActive } from './util/shell';
 import { installSpaLinkInterceptor } from './util/spa-link-interceptor';
-import { getStorageItem, setStorageItem } from './util/storage';
+import {
+  getStorageItem,
+  setStorageItem,
+  removeStorageItem,
+} from './util/storage';
 import {
   getUrlParams,
   removeQueryParams,
@@ -269,6 +279,36 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // if in visual edit mode, remove the query param
     if (this.isVisualEditorMode) {
+      const veSource =
+        urlParams[VISUAL_EDITOR_PARAM] === 'true'
+          ? 'url_param'
+          : 'session_storage';
+      DebugRecorder.push('ve_mode_detected', `source=${veSource}`);
+
+      // The overlay is loaded by skylab postMessaging OpenOverlay through the
+      // window.opener channel. If it's broken (COOP, or explicit
+      // window.opener = null), that message never arrives and the editor
+      // never loads — show a banner instead.
+      if (isOpenerChannelBroken()) {
+        DebugRecorder.push(
+          'opener_check',
+          'FAIL: window.opener is null, closed, or inaccessible',
+        );
+        DebugRecorder.setMessengerState('error');
+        showOpenerSeveredBanner();
+        this.globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(this.globalScope.location.href, [
+            VISUAL_EDITOR_PARAM,
+          ]),
+        );
+        // Prevent re-initialization; the SDK won't load in this session.
+        this.isRunning = true;
+        return;
+      }
+      DebugRecorder.push('opener_check', 'PASS');
+
       if (isMobileModeActive()) {
         // In mobile mode, build the shell first and load the overlay after.
         // The overlay must render into the already-built shell to avoid a
@@ -277,12 +317,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         await buildShell(this.globalScope);
       }
       WindowMessenger.setup();
-
-      const veSource =
-        urlParams[VISUAL_EDITOR_PARAM] === 'true'
-          ? 'url_param'
-          : 'session_storage';
-      DebugRecorder.push('ve_mode_detected', `source=${veSource}`);
       this.globalScope.history.replaceState(
         {},
         '',
@@ -364,8 +398,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.updateUserWithBehaviors();
 
     if (!this.isRemoteBlocking) {
-      // Remove anti-flicker css if remote flags are not blocking
-      this.globalScope.document.getElementById?.('amp-exp-css')?.remove();
+      removeAntiFlickerCss();
     }
 
     // fire stored redirect impressions upon startup (must run before applyVariants
@@ -576,13 +609,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         return;
       }
       if (this.isPreviewMode) {
-        this.exposureWithDedupe(key, variantObject, true);
         showPreviewModeModal({
           flags: this.previewFlags,
         });
       }
       const payload = variantObject.payload;
       if (!payload || !Array.isArray(payload)) {
+        if (this.isActionActiveOnPage(key, undefined)) {
+          this.exposureWithDedupe(key, variantObject);
+        }
         return;
       }
       await this.handleVariantAction(key, variantObject);
@@ -1001,16 +1036,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         this.globalScope.document.head.appendChild(script);
       }
     }
-    // Create CSS
+    // Adopt CSS as a constructable stylesheet (CSP-safe; works on strict
+    // style-src customer pages where <style> elements would be blocked)
     const rawCss = action.data.css;
-    let style: HTMLStyleElement | undefined;
+    let sheetHandle: StyleSheetHandle | undefined;
     if (rawCss) {
-      style = this.globalScope.document.createElement('style');
-      if (style) {
-        style.innerHTML = rawCss;
-        style.id = `css-${id}`;
-        this.globalScope.document.head.appendChild(style);
-      }
+      sheetHandle = cspSafeStyleSheet(this.globalScope.document, rawCss);
     }
     // Create HTML
     const rawHtml = action.data.html;
@@ -1046,7 +1077,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       revert: () => {
         state.cancelled = true;
         utils.remove?.();
-        style?.remove();
+        sheetHandle?.revert();
         script?.remove();
         this.appliedInjections.delete(id);
       },
@@ -1068,7 +1099,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache?.[currentUrl]?.[key] === variant.key;
 
     if (!hasTrackedVariant) {
-      if (forceVariant) {
+      if (forceVariant || !!this.previewFlags[key]) {
         const variantAndSource = {
           variant: variant,
           source: 'local-evaluation',
@@ -1120,48 +1151,61 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     currentDomain: string | undefined,
     redirectUrl: string,
   ) {
-    const redirectDomain = getCookieDomain(redirectUrl);
+    const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+    const impression: StoredRedirectImpression = {
+      redirectUrl,
+      variantKey: variant.key || '',
+      ...(variant.expKey !== undefined ? { expKey: variant.expKey } : {}),
+      ...(variant.metadata !== undefined ? { metadata: variant.metadata } : {}),
+    };
 
-    // Only allow redirects to same root domain for security
-    if (currentDomain !== redirectDomain) {
-      console.warn(
-        `Redirect impressions are only supported for same root domain. Current: ${currentDomain}, Redirect: ${redirectDomain}`,
-      );
-      return;
-    }
+    // Always write to sessionStorage
+    const stored =
+      getStorageItem<Record<string, StoredRedirectImpression>>(
+        'sessionStorage',
+        storageKey,
+      ) || {};
+    stored[flagKey] = impression;
+    setStorageItem('sessionStorage', storageKey, stored);
 
-    const storage = new CookieStorage<Record<string, StoredRedirectImpression>>(
-      {
+    // Also write to cookie when opted in, enabling cross-subdomain tracking
+    if (this.config.redirectConfig?.encodeRedirectInCookie) {
+      const redirectDomain = getCookieDomain(redirectUrl);
+
+      // Only allow redirects to same root domain for security
+      if (currentDomain !== redirectDomain) {
+        console.warn(
+          `Cookie-based redirect impressions are only supported for same root domain. Current: ${currentDomain}, Redirect: ${redirectDomain}`,
+        );
+        return;
+      }
+
+      const storage = new CookieStorage<Record<string, StoredRedirectImpression>>({
         domain: redirectDomain,
         sameSite: 'Lax',
         expirationDays: 1 / 1440, // 1 minute
-      },
-    );
-
-    const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
-    return storage
-      .get(storageKey)
-      .then((storedRedirects) => {
-        const redirects = storedRedirects || {};
-        redirects[flagKey] = {
-          redirectUrl,
-          variantKey: variant.key || '',
-          ...(variant.expKey !== undefined ? { expKey: variant.expKey } : {}),
-          ...(variant.metadata !== undefined
-            ? { metadata: variant.metadata }
-            : {}),
-        };
-        storage.set(storageKey, redirects).catch();
-      })
-      .catch((error) => {
-        console.error(
-          `Failed to store redirect impression for ${flagKey}:`,
-          error,
-        );
       });
+
+      return storage
+        .get(storageKey)
+        .then((storedRedirects) => {
+          const redirects = storedRedirects || {};
+          redirects[flagKey] = impression;
+          storage.set(storageKey, redirects).catch();
+        })
+        .catch((error) => {
+          console.error(
+            `Failed to store redirect impression in cookie for ${flagKey}:`,
+            error,
+          );
+        });
+    }
   }
 
   private async fireStoredRedirectImpressions() {
+    const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+
+    // Read URL param impressions (highest priority)
     let urlImpressions: Record<string, StoredRedirectImpression> = {};
     if (this.config.encodeRedirectInUrl) {
       const urlParams = getUrlParams();
@@ -1180,70 +1224,74 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
-    const storage = new CookieStorage<Record<string, StoredRedirectImpression>>(
-      {
+    // Read sessionStorage impressions
+    const sessionImpressions =
+      getStorageItem<Record<string, StoredRedirectImpression>>(
+        'sessionStorage',
+        storageKey,
+      ) || {};
+
+    // Read cookie impressions (lowest priority) when opted in
+    let cookieImpressions: Record<string, StoredRedirectImpression> = {};
+    let cookieStorage: CookieStorage<Record<string, StoredRedirectImpression>> | undefined;
+    if (this.config.redirectConfig?.encodeRedirectInCookie) {
+      cookieStorage = new CookieStorage<Record<string, StoredRedirectImpression>>({
         domain: getCookieDomain(this.globalScope.location.href),
         sameSite: 'Lax',
-      },
-    );
-
-    const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
-
-    try {
-      const cookieImpressions = (await storage.get(storageKey)) || {};
-
-      // Union cookie and URL param; URL param wins on collision since it was
-      // embedded at redirect time and directly reflects the served variant.
-      const merged: Record<string, StoredRedirectImpression> = {
-        ...cookieImpressions,
-        ...urlImpressions,
-      };
-
-      if (Object.keys(merged).length === 0) {
-        return;
+      });
+      try {
+        cookieImpressions = (await cookieStorage.get(storageKey)) || {};
+      } catch (error) {
+        console.error(
+          `Failed to retrieve redirect impressions from cookie ${storageKey}:`,
+          error,
+        );
       }
+    }
 
-      const currentUrl = urlWithoutParamsAndAnchor(
-        this.globalScope.location.href,
-      );
+    // Merge with priority: url > session > cookie
+    const merged: Record<string, StoredRedirectImpression> = {
+      ...cookieImpressions,
+      ...sessionImpressions,
+      ...urlImpressions,
+    };
 
-      // Fire impressions for entries matching the current URL.
-      for (const flagKey in merged) {
-        const { redirectUrl, variantKey, expKey, metadata } = merged[flagKey];
-        const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
+    if (Object.keys(merged).length === 0) {
+      return;
+    }
 
-        if (matchesUrl([currentUrl], strippedRedirectUrl)) {
-          const variant: Variant = { key: variantKey, expKey, metadata };
-          this.exposureWithDedupe(flagKey, variant, true);
-          delete merged[flagKey];
+    const currentUrl = urlWithoutParamsAndAnchor(this.globalScope.location.href);
+
+    for (const flagKey in merged) {
+      const { redirectUrl, variantKey, expKey, metadata } = merged[flagKey];
+      if (matchesUrl([currentUrl], urlWithoutParamsAndAnchor(redirectUrl))) {
+        this.exposureWithDedupe(flagKey, { key: variantKey, expKey, metadata }, true);
+        delete merged[flagKey];
+      }
+    }
+
+    const cleanup = async () => {
+      removeStorageItem('sessionStorage', storageKey);
+      if (cookieStorage) {
+        await cookieStorage.remove(storageKey).catch((error) => {
+          console.error(
+            `Failed to remove redirect impressions from cookie ${storageKey}:`,
+            error,
+          );
+        });
+      }
+    };
+
+    if (Object.keys(merged).length > 0) {
+      this.globalScope.setTimeout(async () => {
+        for (const flagKey in merged) {
+          const { variantKey, expKey, metadata } = merged[flagKey];
+          this.exposureWithDedupe(flagKey, { key: variantKey, expKey, metadata }, true);
         }
-      }
-
-      // Fire remaining unmatched entries after timeout, then cleanup cookie.
-      if (Object.keys(merged).length > 0) {
-        this.globalScope.setTimeout(async () => {
-          try {
-            for (const flagKey in merged) {
-              const { variantKey, expKey, metadata } = merged[flagKey];
-              const variant: Variant = { key: variantKey, expKey, metadata };
-              this.exposureWithDedupe(flagKey, variant, true);
-            }
-            await storage.remove(storageKey);
-          } catch (error) {
-            console.error(
-              `Failed to remove redirect impressions from ${storageKey}:`,
-              error,
-            );
-          }
-        }, 500);
-      } else {
-        await storage.remove(storageKey);
-      }
-    } catch (error) {
-      console.error(
-        `Failed to retrieve redirect impressions from ${storageKey}:`,
-        error,
-      );
+        await cleanup();
+      }, 500);
+    } else {
+      await cleanup();
     }
   }
 
