@@ -109,10 +109,16 @@ export type BehavioralTargetingRules = {
 export interface RedirectConfig {
   /**
    * When true, redirect impression data is stored in a cookie scoped to the root domain
-   * instead of sessionStorage, enabling impression tracking across subdomains.
+   * in addition to sessionStorage, enabling impression tracking across subdomains.
    * Defaults to false.
    */
   encodeRedirectInCookie?: boolean;
+  /**
+   * When true, redirect impression data is base64-encoded as an AMP_REDIRECT query
+   * parameter on the destination URL, enabling tracking in cross-domain redirects
+   * and cookie-blocked environments. Defaults to false.
+   */
+  encodeRedirectInUrl?: boolean;
 }
 
 export interface WebExperimentConfig extends ExperimentConfig {
@@ -123,18 +129,11 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * 2. Custom handling of navigation {@link setRedirectHandler} should be implemented such that variant actions applied on the site reflect the latest context
    */
   useDefaultNavigationHandler?: boolean;
-  /**
-   * When true, redirect experiment impression data is encoded as a query
-   * parameter (AMP_REDIRECT) on the redirect destination URL. This enables impression tracking in cross-domain
-   * redirect scenarios and in environments where cookies are blocked.
-   */
-  encodeRedirectInUrl?: boolean;
   redirectConfig?: RedirectConfig;
 }
 
 export const Defaults: WebExperimentConfig = {
   useDefaultNavigationHandler: true,
-  encodeRedirectInUrl: false,
 };
 
 /**
