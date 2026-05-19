@@ -106,6 +106,15 @@ export type BehavioralTargetingRules = {
   [flagKey: string]: { [id: string]: BehavioralTargeting };
 };
 
+export interface RedirectConfig {
+  /**
+   * When true, redirect impression data is stored in a cookie scoped to the root domain
+   * instead of sessionStorage, enabling impression tracking across subdomains.
+   * Defaults to false.
+   */
+  encodeRedirectInCookie?: boolean;
+}
+
 export interface WebExperimentConfig extends ExperimentConfig {
   /**
    * Determines whether the default implementation for handling navigation  will be used
@@ -114,6 +123,7 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * 2. Custom handling of navigation {@link setRedirectHandler} should be implemented such that variant actions applied on the site reflect the latest context
    */
   useDefaultNavigationHandler?: boolean;
+  redirectConfig?: RedirectConfig;
 }
 
 export const Defaults: WebExperimentConfig = {

@@ -84,6 +84,13 @@ export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 
+type StoredRedirectImpression = {
+  redirectUrl: string;
+  variantKey: string;
+  expKey?: string;
+  metadata?: Record<string, unknown>;
+};
+
 safeGlobal.Experiment = FeatureExperiment;
 
 export class DefaultWebExperimentClient implements WebExperimentClient {
@@ -1114,99 +1121,143 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     currentDomain: string | undefined,
     redirectUrl: string,
   ) {
-    const redirectDomain = getCookieDomain(redirectUrl);
-
-    // Only allow redirects to same root domain for security
-    if (currentDomain !== redirectDomain) {
-      console.warn(
-        `Redirect impressions are only supported for same root domain. Current: ${currentDomain}, Redirect: ${redirectDomain}`,
-      );
-      return;
-    }
-
-    const storage = new CookieStorage<
-      Record<string, { redirectUrl: string; variant: Variant }>
-    >({
-      domain: redirectDomain,
-      sameSite: 'Lax',
-      expirationDays: 1 / 1440, // 1 minute
-    });
-
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
-    return storage
-      .get(storageKey)
-      .then((storedRedirects) => {
-        const redirects = storedRedirects || {};
-        redirects[flagKey] = { redirectUrl, variant };
-        storage.set(storageKey, redirects).catch();
-      })
-      .catch((error) => {
-        console.error(
-          `Failed to store redirect impression for ${flagKey}:`,
-          error,
+    const impression: StoredRedirectImpression = {
+      redirectUrl,
+      variantKey: variant.key || '',
+      ...(variant.expKey !== undefined ? { expKey: variant.expKey } : {}),
+      ...(variant.metadata !== undefined ? { metadata: variant.metadata } : {}),
+    };
+
+    // Always write to sessionStorage
+    const stored =
+      getStorageItem<Record<string, StoredRedirectImpression>>(
+        'sessionStorage',
+        storageKey,
+      ) || {};
+    stored[flagKey] = impression;
+    setStorageItem('sessionStorage', storageKey, stored);
+
+    // Also write to cookie when opted in, enabling cross-subdomain tracking
+    if (this.config.redirectConfig?.encodeRedirectInCookie) {
+      const redirectDomain = getCookieDomain(redirectUrl);
+
+      // Only allow redirects to same root domain for security
+      if (currentDomain !== redirectDomain) {
+        console.warn(
+          `Cookie-based redirect impressions are only supported for same root domain. Current: ${currentDomain}, Redirect: ${redirectDomain}`,
         );
-      });
-  }
-
-  private async fireStoredRedirectImpressions() {
-    const storage = new CookieStorage<
-      Record<string, { redirectUrl: string; variant: Variant }>
-    >({
-      domain: getCookieDomain(this.globalScope.location.href),
-      sameSite: 'Lax',
-    });
-
-    const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
-
-    try {
-      const storedRedirects = (await storage.get(storageKey)) || {};
-      if (Object.keys(storedRedirects).length === 0) {
         return;
       }
 
-      const currentUrl = urlWithoutParamsAndAnchor(
-        this.globalScope.location.href,
-      );
+      const storage = new CookieStorage<
+        Record<string, StoredRedirectImpression>
+      >({
+        domain: redirectDomain,
+        sameSite: 'Lax',
+        expirationDays: 1 / 1440, // 1 minute
+      });
 
-      // Track exposures for redirects that match current URL
-      for (const flagKey in storedRedirects) {
-        const { redirectUrl, variant } = storedRedirects[flagKey];
-        const strippedRedirectUrl = urlWithoutParamsAndAnchor(redirectUrl);
+      return storage
+        .get(storageKey)
+        .then((storedRedirects) => {
+          const redirects = storedRedirects || {};
+          redirects[flagKey] = impression;
+          storage.set(storageKey, redirects).catch();
+        })
+        .catch((error) => {
+          console.error(
+            `Failed to store redirect impression in cookie for ${flagKey}:`,
+            error,
+          );
+        });
+    }
+  }
 
-        if (matchesUrl([currentUrl], strippedRedirectUrl)) {
-          this.exposureWithDedupe(flagKey, variant, true);
-          delete storedRedirects[flagKey];
+  private async fireStoredRedirectImpressions() {
+    const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
+
+    // Read from sessionStorage
+    const sessionImpressions =
+      getStorageItem<Record<string, StoredRedirectImpression>>(
+        'sessionStorage',
+        storageKey,
+      ) || {};
+
+    // If cookie opted in, also read from cookie and merge; cookie wins on collision
+    // since it may be the only source on cross-subdomain destination pages
+    let merged: Record<string, StoredRedirectImpression> = {
+      ...sessionImpressions,
+    };
+    let cookieStorage:
+      | CookieStorage<Record<string, StoredRedirectImpression>>
+      | undefined;
+
+    if (this.config.redirectConfig?.encodeRedirectInCookie) {
+      cookieStorage = new CookieStorage<
+        Record<string, StoredRedirectImpression>
+      >({
+        domain: getCookieDomain(this.globalScope.location.href),
+        sameSite: 'Lax',
+      });
+
+      try {
+        const cookieImpressions = (await cookieStorage.get(storageKey)) || {};
+        merged = { ...sessionImpressions, ...cookieImpressions };
+      } catch (error) {
+        console.error(
+          `Failed to retrieve redirect impressions from cookie ${storageKey}:`,
+          error,
+        );
+      }
+    }
+
+    if (Object.keys(merged).length === 0) {
+      return;
+    }
+
+    const currentUrl = urlWithoutParamsAndAnchor(
+      this.globalScope.location.href,
+    );
+
+    for (const flagKey in merged) {
+      const { redirectUrl, variantKey, expKey, metadata } = merged[flagKey];
+      if (matchesUrl([currentUrl], urlWithoutParamsAndAnchor(redirectUrl))) {
+        this.exposureWithDedupe(
+          flagKey,
+          { key: variantKey, expKey, metadata },
+          true,
+        );
+        delete merged[flagKey];
+      }
+    }
+
+    const cleanup = async () => {
+      removeStorageItem('sessionStorage', storageKey);
+      if (cookieStorage) {
+        await cookieStorage.remove(storageKey).catch((error) => {
+          console.error(
+            `Failed to remove redirect impressions from cookie ${storageKey}:`,
+            error,
+          );
+        });
+      }
+    };
+
+    if (Object.keys(merged).length > 0) {
+      this.globalScope.setTimeout(async () => {
+        for (const flagKey in merged) {
+          const { variantKey, expKey, metadata } = merged[flagKey];
+          this.exposureWithDedupe(
+            flagKey,
+            { key: variantKey, expKey, metadata },
+            true,
+          );
         }
-      }
-
-      // Track remaining redirects after timeout, then cleanup
-      if (Object.keys(storedRedirects).length > 0) {
-        this.globalScope.setTimeout(async () => {
-          try {
-            const redirects = (await storage.get(storageKey)) || {};
-            for (const flagKey in redirects) {
-              this.exposureWithDedupe(
-                flagKey,
-                redirects[flagKey].variant,
-                true,
-              );
-            }
-            await storage.remove(storageKey);
-          } catch (error) {
-            console.error(
-              `Failed to remove redirect impressions from ${storageKey}:`,
-              error,
-            );
-          }
-        }, 500);
-      } else {
-        await storage.remove(storageKey);
-      }
-    } catch (error) {
-      console.error(
-        `Failed to retrieve redirect impressions from ${storageKey}:`,
-        error,
-      );
+        await cleanup();
+      }, 500);
+    } else {
+      await cleanup();
     }
   }
 
