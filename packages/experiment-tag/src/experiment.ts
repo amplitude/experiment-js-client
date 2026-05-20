@@ -1165,8 +1165,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         storageKey,
       ) || {};
 
-    // If cookie opted in, also read from cookie and merge; cookie wins on collision
-    // since it may be the only source on cross-subdomain destination pages
+    // If cookie opted in, also read from cookie and merge;
     let merged: Record<string, StoredRedirectImpression> = {
       ...sessionImpressions,
     };
@@ -1185,7 +1184,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
       try {
         const cookieImpressions = (await cookieStorage.get(storageKey)) || {};
-        merged = { ...sessionImpressions, ...cookieImpressions };
+        merged = { ...cookieImpressions, ...sessionImpressions };
       } catch (error) {
         console.error(
           `Failed to retrieve redirect impressions from cookie ${storageKey}:`,
