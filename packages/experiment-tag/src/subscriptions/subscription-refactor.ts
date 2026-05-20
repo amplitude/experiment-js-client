@@ -186,7 +186,7 @@ export class SubscriptionManager {
 
     // Set up group callbacks (one per trigger type)
     for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
-      this.messageBus.groupSubscribe(triggerType as MessageType, (payload) => {
+      this.messageBus.groupSubscribe(triggerType as MessageType, async (payload) => {
         const isUrlChange = triggerType === 'url_change';
 
         // Handle URL change: reset state and revert injections
@@ -217,7 +217,7 @@ export class SubscriptionManager {
             : Array.from(triggerTypeExperimentMap[triggerType] || []);
 
           // Apply non-preview variants
-          this.webExperimentClient.applyVariants({
+          await this.webExperimentClient.applyVariants({
             flagKeys: relevantFlags?.filter(
               (flag) => !this.webExperimentClient.previewFlags[flag],
             ),
@@ -233,7 +233,7 @@ export class SubscriptionManager {
                 )
               : this.webExperimentClient.previewFlags;
 
-            this.webExperimentClient.previewVariants({
+            await this.webExperimentClient.previewVariants({
               keyToVariant: previewFlags,
             });
           }
