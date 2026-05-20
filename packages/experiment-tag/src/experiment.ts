@@ -401,10 +401,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // fire stored redirect impressions upon startup (must run before applyVariants
     // so the current URL is checked before any redirect changes location.href)
-    this.fireStoredRedirectImpressions().catch();
+    this.fireStoredRedirectImpressions().catch(() => {});
     // Subscribe directly to url_change events to fire redirect impressions
     this.messageBus.subscribe('url_change', () => {
-      this.fireStoredRedirectImpressions().catch();
+      this.fireStoredRedirectImpressions().catch(() => {});
     });
 
     // apply local variants
@@ -508,7 +508,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache[currentUrl] = {};
     }
 
-    await this.fireStoredRedirectImpressions().catch();
+    await this.fireStoredRedirectImpressions().catch(() => {});
     for (const key in variants) {
       // preview actions are handled by previewVariants
       if ((flagKeys && !flagKeys.includes(key)) || this.previewFlags[key]) {
