@@ -6,6 +6,7 @@ import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
 import { InitConfigs, WebExperimentConfig } from './types';
 import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
+import { isStagingServerEnvironment } from './util/server-environment';
 import { isPreviewMode } from './util/url';
 
 const eventBuffer: Array<{
@@ -77,10 +78,14 @@ const startClient = (
 };
 
 const fetchLatestConfigs = async (apiKey: string, serverZone?: string) => {
-  const serverUrl =
-    serverZone === 'EU'
-      ? 'https://api.lab.eu.amplitude.com'
-      : 'https://api.lab.amplitude.com';
+  let serverUrl: string;
+  if (isStagingServerEnvironment()) {
+    serverUrl = 'https://api.lab.stag2.amplitude.com';
+  } else if (serverZone === 'EU') {
+    serverUrl = 'https://api.lab.eu.amplitude.com';
+  } else {
+    serverUrl = 'https://api.lab.amplitude.com';
+  }
   const api = new SdkPreviewApi(apiKey, serverUrl, HttpClient);
   return api.getPreviewFlagsAndPageViewObjects();
 };
