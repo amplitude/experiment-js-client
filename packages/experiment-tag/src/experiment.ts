@@ -508,7 +508,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache[currentUrl] = {};
     }
 
-    this.fireStoredRedirectImpressions();
+    await this.fireStoredRedirectImpressions();
     for (const key in variants) {
       // preview actions are handled by previewVariants
       if ((flagKeys && !flagKeys.includes(key)) || this.previewFlags[key]) {
