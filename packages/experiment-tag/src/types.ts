@@ -110,7 +110,6 @@ export interface RedirectConfig {
   /**
    * When true, redirect impression data is stored in a cookie scoped to the root domain
    * instead of sessionStorage, enabling impression tracking across subdomains.
-   * Defaults to false.
    */
   encodeRedirectInCookie?: boolean;
 }
