@@ -108,15 +108,14 @@ export type BehavioralTargetingRules = {
 
 export interface RedirectConfig {
   /**
-   * When true, redirect impression data is stored in a cookie scoped to the root domain
-   * in addition to sessionStorage, enabling impression tracking across subdomains.
-   * Defaults to false.
+   * When true, redirect impression data is stored in a cookie scoped to the root domain,
+   * enabling impression tracking across subdomains.
    */
   encodeRedirectInCookie?: boolean;
   /**
    * When true, redirect impression data is base64-encoded as an AMP_REDIRECT query
    * parameter on the destination URL, enabling tracking in cross-domain redirects
-   * and cookie-blocked environments. Defaults to false.
+   * and cookie-blocked environments.
    */
   encodeRedirectInUrl?: boolean;
 }
