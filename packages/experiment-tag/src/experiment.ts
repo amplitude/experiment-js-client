@@ -184,6 +184,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // Flags that depend on at least one remote flag are also considered remote.
     // Iterate to fixed point to handle transitive dependencies.
+    // Track which keys were promoted so we can exclude only those from
+    // localFlagKeys — flags that are directly 'remote' but cached in session
+    // storage as 'local' should still be applied locally (fast-path rendering).
+    const transitivelyPromotedKeys = new Set<string>();
     let changed = true;
     while (changed) {
       changed = false;
@@ -193,6 +197,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           flag.dependencies?.some((dep) => this.remoteFlagKeys.includes(dep))
         ) {
           this.remoteFlagKeys.push(flag.key);
+          transitivelyPromotedKeys.add(flag.key);
           changed = true;
         }
       });
@@ -214,9 +219,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ...this.config,
     });
     // Get all the locally available flag keys from the SDK.
+    // Exclude flags promoted to remoteFlagKeys via the dependency loop above —
+    // their remote dependencies must be fetched first or mutex/holdout bucketing
+    // will run against stale parent-flag state and assign the wrong variant.
     const variants = this.experimentClient.all();
     this.localFlagKeys = Object.keys(variants).filter(
-      (key) => variants[key]?.metadata?.evaluationMode === 'local',
+      (key) =>
+        variants[key]?.metadata?.evaluationMode === 'local' &&
+        !transitivelyPromotedKeys.has(key),
     );
     this.messageBus = new MessageBus();
   }
