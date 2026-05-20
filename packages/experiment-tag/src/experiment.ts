@@ -82,6 +82,7 @@ const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
+const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
 
 type StoredRedirectImpression = {
   redirectUrl: string;
@@ -884,7 +885,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    const targetUrl = concatenateQueryParamsOf(
+    let targetUrl = concatenateQueryParamsOf(
       this.globalScope.location.href,
       redirectUrl,
     );
@@ -894,6 +895,37 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     await this.storeRedirectImpressions(flagKey, variant, redirectUrl);
+
+    if (this.config.redirectConfig?.encodeRedirectInUrl) {
+      // Embed impression data in redirect URL for cross-domain and
+      // cookie-blocked environments. Merge with any existing param in case
+      // multiple redirect experiments fire in sequence.
+      const targetUrlObj = new URL(targetUrl);
+      let urlPayload: Record<string, StoredRedirectImpression> = {};
+      const existingEncoded = targetUrlObj.searchParams.get(
+        REDIRECT_IMPRESSION_PARAM,
+      );
+      if (existingEncoded) {
+        try {
+          urlPayload = JSON.parse(atob(existingEncoded));
+        } catch (error) {
+          console.error('Failed to decode existing AMP_REDIRECT param:', error);
+        }
+      }
+      urlPayload[flagKey] = {
+        redirectUrl,
+        variantKey: variant.key || '',
+        ...(variant.expKey !== undefined ? { expKey: variant.expKey } : {}),
+        ...(variant.metadata !== undefined
+          ? { metadata: variant.metadata }
+          : {}),
+      };
+      targetUrlObj.searchParams.set(
+        REDIRECT_IMPRESSION_PARAM,
+        btoa(JSON.stringify(urlPayload)),
+      );
+      targetUrl = targetUrlObj.toString();
+    }
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
@@ -1158,21 +1190,37 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private async fireStoredRedirectImpressions() {
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
 
-    // Read from sessionStorage
+    // Read URL param impressions (highest priority)
+    let urlImpressions: Record<string, StoredRedirectImpression> = {};
+    if (this.config.redirectConfig?.encodeRedirectInUrl) {
+      const urlParams = getUrlParams();
+      const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
+      if (encoded) {
+        try {
+          urlImpressions = JSON.parse(atob(encoded));
+        } catch {} // eslint-disable-line no-empty
+        this.globalScope.history.replaceState(
+          {},
+          '',
+          removeQueryParams(this.globalScope.location.href, [
+            REDIRECT_IMPRESSION_PARAM,
+          ]),
+        );
+      }
+    }
+
+    // Read sessionStorage impressions
     const sessionImpressions =
       getStorageItem<Record<string, StoredRedirectImpression>>(
         'sessionStorage',
         storageKey,
       ) || {};
 
-    // If cookie opted in, also read from cookie and merge;
-    let merged: Record<string, StoredRedirectImpression> = {
-      ...sessionImpressions,
-    };
+    // Read cookie impressions (lowest priority) when opted in
+    let cookieImpressions: Record<string, StoredRedirectImpression> = {};
     let cookieStorage:
       | CookieStorage<Record<string, StoredRedirectImpression>>
       | undefined;
-
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
       const domain = await getTopLevelDomain();
       cookieStorage = new CookieStorage<
@@ -1181,10 +1229,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         ...(domain && { domain }),
         sameSite: 'Lax',
       });
-
       try {
-        const cookieImpressions = (await cookieStorage.get(storageKey)) || {};
-        merged = { ...cookieImpressions, ...sessionImpressions };
+        cookieImpressions = (await cookieStorage.get(storageKey)) || {};
       } catch (error) {
         console.error(
           `Failed to retrieve redirect impressions from cookie ${storageKey}:`,
@@ -1192,6 +1238,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         );
       }
     }
+
+    // Merge with priority: url > session > cookie
+    const merged: Record<string, StoredRedirectImpression> = {
+      ...cookieImpressions,
+      ...sessionImpressions,
+      ...urlImpressions,
+    };
 
     if (Object.keys(merged).length === 0) {
       return;
