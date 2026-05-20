@@ -45,7 +45,7 @@ import {
 import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
 import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
-import { setMarketingCookie } from './util/cookie';
+import { getTopLevelDomain, setMarketingCookie } from './util/cookie';
 import {
   cspSafeStyleSheet,
   type StyleSheetHandle,
@@ -70,7 +70,6 @@ import {
   urlWithoutParamsAndAnchor,
   concatenateQueryParamsOf,
   matchesUrl,
-  getCookieDomain,
 } from './util/url';
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
@@ -894,17 +893,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    const currentDomain = getCookieDomain(this.globalScope.location.href);
-    await this.storeRedirectImpressions(
-      flagKey,
-      variant,
-      currentDomain,
-      redirectUrl,
-    );
+    await this.storeRedirectImpressions(flagKey, variant, redirectUrl);
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    await setMarketingCookie(this.apiKey, currentDomain);
+    await setMarketingCookie(this.apiKey);
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
@@ -1115,10 +1108,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     return scope.some((pageId) => flagPages?.[pageId] ?? false);
   }
 
-  private storeRedirectImpressions(
+  private async storeRedirectImpressions(
     flagKey: string,
     variant: Variant,
-    currentDomain: string | undefined,
     redirectUrl: string,
   ) {
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
@@ -1140,37 +1132,26 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // Also write to cookie when opted in, enabling cross-subdomain tracking
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
-      const redirectDomain = getCookieDomain(redirectUrl);
-
-      // Only allow redirects to same root domain for security
-      if (currentDomain !== redirectDomain) {
-        console.warn(
-          `Cookie-based redirect impressions are only supported for same root domain. Current: ${currentDomain}, Redirect: ${redirectDomain}`,
-        );
-        return;
-      }
-
+      const domain = await getTopLevelDomain();
       const storage = new CookieStorage<
         Record<string, StoredRedirectImpression>
       >({
-        domain: redirectDomain,
+        ...(domain && { domain }),
         sameSite: 'Lax',
         expirationDays: 1 / 1440, // 1 minute
       });
 
-      return storage
-        .get(storageKey)
-        .then((storedRedirects) => {
-          const redirects = storedRedirects || {};
-          redirects[flagKey] = impression;
-          storage.set(storageKey, redirects).catch();
-        })
-        .catch((error) => {
-          console.error(
-            `Failed to store redirect impression in cookie for ${flagKey}:`,
-            error,
-          );
-        });
+      try {
+        const storedRedirects = await storage.get(storageKey);
+        const redirects = storedRedirects || {};
+        redirects[flagKey] = impression;
+        await storage.set(storageKey, redirects);
+      } catch (error) {
+        console.error(
+          `Failed to store redirect impression in cookie for ${flagKey}:`,
+          error,
+        );
+      }
     }
   }
 
@@ -1194,10 +1175,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       | undefined;
 
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
+      const domain = await getTopLevelDomain();
       cookieStorage = new CookieStorage<
         Record<string, StoredRedirectImpression>
       >({
-        domain: getCookieDomain(this.globalScope.location.href),
+        ...(domain && { domain }),
         sameSite: 'Lax',
       });
 
