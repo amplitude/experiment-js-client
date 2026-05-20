@@ -374,119 +374,121 @@ export class SubscriptionManager {
 
     // Set up groupCallbacks (one per trigger type)
     for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
-      this.messageBus.groupSubscribe(triggerType as MessageType, async (payload) => {
-        const isUrlChange = triggerType === 'url_change';
-        const isAnalyticsEvent = triggerType === 'analytics_event';
+      this.messageBus.groupSubscribe(
+        triggerType as MessageType,
+        async (payload) => {
+          const isUrlChange = triggerType === 'url_change';
+          const isAnalyticsEvent = triggerType === 'analytics_event';
 
-        // Handle URL change: reset state and revert injections
-        if (isUrlChange) {
-          DebugRecorder.push(
-            'url_change',
-            `navigated to ${this.globalScope.location.href}`,
-          );
-          this.resetTriggerStates();
-          this.revertInjections();
-        }
-
-        // Get current page state and check if it changed
-        const activePages = this.webExperimentClient.getActivePages();
-        const pagesChanged = !arePageObjectsEqual(
-          activePages,
-          this.lastNotifiedActivePages,
-        );
-
-        // Get current behavioral state and check if it changed
-        const activeBehavioralFlags =
-          this.webExperimentClient.behavioralTargetingManager?.getMatchedBehaviors();
-
-        const behaviorsChanged =
-          isAnalyticsEvent &&
-          !areBehaviorsEqual(
-            activeBehavioralFlags,
-            this.lastNotifiedActiveBehavioralFlags,
-          );
-        if (behaviorsChanged) {
-          this.webExperimentClient.updateUserWithBehaviors();
-        }
-        // Skip processing in visual editor mode or internal updates
-        const isInternalUpdate =
-          'updateActivePages' in payload && payload.updateActivePages;
-        const shouldApplyVariants =
-          !isInternalUpdate &&
-          !this.options.isVisualEditorMode &&
-          (pagesChanged || behaviorsChanged || isUrlChange);
-
-        if (shouldApplyVariants) {
-          // Determine which experiments to apply variants for
-          let relevantFlags: string[] | undefined;
-
+          // Handle URL change: reset state and revert injections
           if (isUrlChange) {
-            relevantFlags = undefined; // All experiments
-          } else {
-            // Combine flags from both page triggers and behavioral changes
-            const pageTriggerFlags = Array.from(
-              triggerTypeExperimentMap[triggerType] || [],
+            DebugRecorder.push(
+              'url_change',
+              `navigated to ${this.globalScope.location.href}`,
             );
-            const behaviorFlags = behaviorsChanged
-              ? Array.from(
-                  new Set([
-                    ...Array.from(activeBehavioralFlags?.keys() || []),
-                    ...Array.from(
-                      this.lastNotifiedActiveBehavioralFlags?.keys() || [],
-                    ),
-                  ]),
-                )
-              : [];
-            relevantFlags = Array.from(
-              new Set([...pageTriggerFlags, ...behaviorFlags]),
-            );
+            this.resetTriggerStates();
+            this.revertInjections();
           }
 
-          // Apply non-preview variants
-          await this.webExperimentClient.applyVariants({
-            flagKeys: relevantFlags?.filter(
-              (flag) => !this.webExperimentClient.previewFlags[flag],
-            ),
-          });
-
-          // Apply preview variants if in preview mode
-          if (this.webExperimentClient.isPreviewMode) {
-            const previewFlags = relevantFlags
-              ? Object.fromEntries(
-                  Object.entries(this.webExperimentClient.previewFlags).filter(
-                    ([flag]) => relevantFlags.includes(flag),
-                  ),
-                )
-              : this.webExperimentClient.previewFlags;
-
-            await this.webExperimentClient.previewVariants({
-              keyToVariant: previewFlags,
-            });
-          }
-        }
-
-        // Notify subscribers if pages actually changed
-        this.lastNotifiedActivePages = clonePageObjects(activePages);
-        for (const subscriber of this.pageChangeSubscribers) {
-          subscriber({ activePages });
-        }
-
-        // Debug subscribers fire on any URL change or page change,
-        // since the debugger cares about currentUrl and trigger state too.
-        if (pagesChanged || isUrlChange) {
-          this.scheduleDebugNotification();
-        }
-
-        // Update last notified behaviors if they changed
-        if (behaviorsChanged && activeBehavioralFlags) {
-          this.lastNotifiedActiveBehavioralFlags = new Map(
-            Array.from(activeBehavioralFlags.entries()).map(([key, value]) => [
-              key,
-              new Set(value),
-            ]),
+          // Get current page state and check if it changed
+          const activePages = this.webExperimentClient.getActivePages();
+          const pagesChanged = !arePageObjectsEqual(
+            activePages,
+            this.lastNotifiedActivePages,
           );
-        }
-      });
+
+          // Get current behavioral state and check if it changed
+          const activeBehavioralFlags =
+            this.webExperimentClient.behavioralTargetingManager?.getMatchedBehaviors();
+
+          const behaviorsChanged =
+            isAnalyticsEvent &&
+            !areBehaviorsEqual(
+              activeBehavioralFlags,
+              this.lastNotifiedActiveBehavioralFlags,
+            );
+          if (behaviorsChanged) {
+            this.webExperimentClient.updateUserWithBehaviors();
+          }
+          // Skip processing in visual editor mode or internal updates
+          const isInternalUpdate =
+            'updateActivePages' in payload && payload.updateActivePages;
+          const shouldApplyVariants =
+            !isInternalUpdate &&
+            !this.options.isVisualEditorMode &&
+            (pagesChanged || behaviorsChanged || isUrlChange);
+
+          if (shouldApplyVariants) {
+            // Determine which experiments to apply variants for
+            let relevantFlags: string[] | undefined;
+
+            if (isUrlChange) {
+              relevantFlags = undefined; // All experiments
+            } else {
+              // Combine flags from both page triggers and behavioral changes
+              const pageTriggerFlags = Array.from(
+                triggerTypeExperimentMap[triggerType] || [],
+              );
+              const behaviorFlags = behaviorsChanged
+                ? Array.from(
+                    new Set([
+                      ...Array.from(activeBehavioralFlags?.keys() || []),
+                      ...Array.from(
+                        this.lastNotifiedActiveBehavioralFlags?.keys() || [],
+                      ),
+                    ]),
+                  )
+                : [];
+              relevantFlags = Array.from(
+                new Set([...pageTriggerFlags, ...behaviorFlags]),
+              );
+            }
+
+            // Apply non-preview variants
+            await this.webExperimentClient.applyVariants({
+              flagKeys: relevantFlags?.filter(
+                (flag) => !this.webExperimentClient.previewFlags[flag],
+              ),
+            });
+
+            // Apply preview variants if in preview mode
+            if (this.webExperimentClient.isPreviewMode) {
+              const previewFlags = relevantFlags
+                ? Object.fromEntries(
+                    Object.entries(
+                      this.webExperimentClient.previewFlags,
+                    ).filter(([flag]) => relevantFlags.includes(flag)),
+                  )
+                : this.webExperimentClient.previewFlags;
+
+              await this.webExperimentClient.previewVariants({
+                keyToVariant: previewFlags,
+              });
+            }
+          }
+
+          // Notify subscribers if pages actually changed
+          this.lastNotifiedActivePages = clonePageObjects(activePages);
+          for (const subscriber of this.pageChangeSubscribers) {
+            subscriber({ activePages });
+          }
+
+          // Debug subscribers fire on any URL change or page change,
+          // since the debugger cares about currentUrl and trigger state too.
+          if (pagesChanged || isUrlChange) {
+            this.scheduleDebugNotification();
+          }
+
+          // Update last notified behaviors if they changed
+          if (behaviorsChanged && activeBehavioralFlags) {
+            this.lastNotifiedActiveBehavioralFlags = new Map(
+              Array.from(activeBehavioralFlags.entries()).map(
+                ([key, value]) => [key, new Set(value)],
+              ),
+            );
+          }
+        },
+      );
     }
   };
 
