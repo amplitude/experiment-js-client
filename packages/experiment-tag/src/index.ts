@@ -35,7 +35,7 @@ export const initialize = (
     applyAntiFlickerCss();
 
     // Fetch latest configs and create client
-    fetchLatestConfigs(apiKey, config.serverZone)
+    fetchLatestConfigs(apiKey, config.serverUrl, config.serverZone)
       .then((previewState) => {
         const initialFlags = JSON.stringify(previewState.flags);
         const pageObjects = JSON.stringify(previewState.pageViewObjects);
@@ -76,12 +76,17 @@ const startClient = (
     });
 };
 
-const fetchLatestConfigs = async (apiKey: string, serverZone?: string) => {
-  const serverUrl =
-    serverZone === 'EU'
+const fetchLatestConfigs = async (
+  apiKey: string,
+  serverUrl?: string,
+  serverZone?: string,
+) => {
+  const resolvedServerUrl =
+    serverUrl ||
+    (serverZone?.toLowerCase() === 'eu'
       ? 'https://api.lab.eu.amplitude.com'
-      : 'https://api.lab.amplitude.com';
-  const api = new SdkPreviewApi(apiKey, serverUrl, HttpClient);
+      : 'https://api.lab.amplitude.com');
+  const api = new SdkPreviewApi(apiKey, resolvedServerUrl, HttpClient);
   return api.getPreviewFlagsAndPageViewObjects();
 };
 
