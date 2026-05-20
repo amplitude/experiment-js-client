@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.23.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.2...@amplitude/experiment-tag@0.23.3) (2026-05-14)
+
+
+### Bug Fixes
+
+* track preview variant impressions only if page object matches ([#322](https://github.com/amplitude/experiment-js-client/issues/322)) ([54abedf](https://github.com/amplitude/experiment-js-client/commit/54abedf08d373567cdb64e284da51996af88335f))
+
+
+
+
+
+## [0.23.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.1...@amplitude/experiment-tag@0.23.2) (2026-05-13)
+
+
+### Bug Fixes
+
+* **experiment-tag:** CSP-safe widget CSS injection [WEB-6] ([#313](https://github.com/amplitude/experiment-js-client/issues/313)) ([e3fba3f](https://github.com/amplitude/experiment-js-client/commit/e3fba3f450f935ba89d546dc9bcd9f736e661230))
+* **experiment-tag:** extend CSP-safe style injection to non-widget paths [WEB-7] ([#317](https://github.com/amplitude/experiment-js-client/issues/317)) ([910826b](https://github.com/amplitude/experiment-js-client/commit/910826b20dc3b458e4a29ab297570d128469d966))
+* **experiment-tag:** polish opener-severed modal copy and close affordance ([#316](https://github.com/amplitude/experiment-js-client/issues/316)) ([6046d6d](https://github.com/amplitude/experiment-js-client/commit/6046d6dc2ef82c28417bbcc179ceb6c251a25a3e))
+* **experiment-tag:** show modal when window.opener is severed in visual editor ([#310](https://github.com/amplitude/experiment-js-client/issues/310)) ([4a63560](https://github.com/amplitude/experiment-js-client/commit/4a63560dbc68cfc32f2fc82b569cdc6a7c3c0dbb))
+* **mutations:** update dom-mutator version ([#315](https://github.com/amplitude/experiment-js-client/issues/315)) ([fcf445a](https://github.com/amplitude/experiment-js-client/commit/fcf445a901d642b2d498ed4a6623cac6f31743ee))
+
+
+
+
+
 ## [0.23.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.0...@amplitude/experiment-tag@0.23.1) (2026-05-06)
 
 

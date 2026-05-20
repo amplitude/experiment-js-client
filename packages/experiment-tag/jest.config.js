@@ -9,6 +9,7 @@ module.exports = {
   testEnvironment: 'jsdom',
   displayName: package.name,
   rootDir: '.',
+  setupFilesAfterEnv: ['<rootDir>/test/jest.setup.ts'],
   moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, {
     prefix: '<rootDir>/',
   }),
