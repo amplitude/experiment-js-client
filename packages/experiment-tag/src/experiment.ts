@@ -935,7 +935,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
-    await setMarketingCookie(this.apiKey);
+    await setMarketingCookie(this.apiKey, this.globalScope);
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
@@ -1170,7 +1170,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // Also write to cookie when opted in, enabling cross-subdomain tracking
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
-      const domain = await getTopLevelDomain();
+      const domain = await getTopLevelDomain(this.globalScope);
       const storage = new CookieStorage<
         Record<string, StoredRedirectImpression>
       >({
@@ -1228,7 +1228,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       | CookieStorage<Record<string, StoredRedirectImpression>>
       | undefined;
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
-      const domain = await getTopLevelDomain();
+      const domain = await getTopLevelDomain(this.globalScope);
       cookieStorage = new CookieStorage<
         Record<string, StoredRedirectImpression>
       >({

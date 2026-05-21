@@ -2,6 +2,7 @@ import { CampaignParser } from '@amplitude/analytics-core';
 import { CookieStorage } from '@amplitude/analytics-core';
 import { MKTG } from '@amplitude/analytics-core';
 import type { Campaign } from '@amplitude/analytics-core';
+import { getGlobalScope } from '@amplitude/experiment-core';
 
 const KNOWN_2LDS = [
   'ac.in',
@@ -122,9 +123,12 @@ const KNOWN_2LDS = [
 
 let cachedDomain: string | undefined;
 
-export async function getTopLevelDomain(): Promise<string> {
+export async function getTopLevelDomain(
+  globalScope: typeof globalThis | undefined = getGlobalScope(),
+): Promise<string> {
   if (cachedDomain !== undefined) return cachedDomain;
-  if (typeof location === 'undefined' || !location.hostname) {
+  const location = globalScope?.location;
+  if (!location?.hostname) {
     return (cachedDomain = '');
   }
   const host = location.hostname;
@@ -144,8 +148,11 @@ export async function getTopLevelDomain(): Promise<string> {
   return (cachedDomain = '');
 }
 
-export async function setMarketingCookie(apiKey: string) {
-  const domain = await getTopLevelDomain();
+export async function setMarketingCookie(
+  apiKey: string,
+  globalScope: typeof globalThis | undefined = getGlobalScope(),
+) {
+  const domain = await getTopLevelDomain(globalScope);
   const storage = new CookieStorage<Campaign>({
     sameSite: 'Lax',
     ...(domain && { domain }),
