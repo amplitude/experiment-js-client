@@ -30,27 +30,34 @@ export const clearCookieStore = () => {
 jest.mock('@amplitude/analytics-core', () => {
   const actual = jest.requireActual('@amplitude/analytics-core');
 
+  const MockCookieStorage = jest.fn().mockImplementation(() => ({
+    get: jest.fn((key: string) => Promise.resolve(cookieStore[key])),
+    set: jest.fn((key: string, value: any) => {
+      cookieStore[key] = value;
+      return Promise.resolve();
+    }),
+    remove: jest.fn((key: string) => {
+      delete cookieStore[key];
+      return Promise.resolve();
+    }),
+    getRaw: jest.fn((key: string) =>
+      Promise.resolve(JSON.stringify(cookieStore[key])),
+    ),
+    isEnabled: jest.fn(() => Promise.resolve(true)),
+    reset: jest.fn(() => {
+      Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
+      return Promise.resolve();
+    }),
+  }));
+  // isDomainWritable is a static method; return false so getTopLevelDomain
+  // resolves to '' in all tests (consistent cache, no jsdom cookie probing)
+  (MockCookieStorage as any).isDomainWritable = jest
+    .fn()
+    .mockResolvedValue(false);
+
   return {
     ...actual,
-    CookieStorage: jest.fn().mockImplementation(() => ({
-      get: jest.fn((key: string) => Promise.resolve(cookieStore[key])),
-      set: jest.fn((key: string, value: any) => {
-        cookieStore[key] = value;
-        return Promise.resolve();
-      }),
-      remove: jest.fn((key: string) => {
-        delete cookieStore[key];
-        return Promise.resolve();
-      }),
-      getRaw: jest.fn((key: string) =>
-        Promise.resolve(JSON.stringify(cookieStore[key])),
-      ),
-      isEnabled: jest.fn(() => Promise.resolve(true)),
-      reset: jest.fn(() => {
-        Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
-        return Promise.resolve();
-      }),
-    })),
+    CookieStorage: MockCookieStorage,
   };
 });
 

@@ -122,16 +122,17 @@ const KNOWN_2LDS = [
 
 let cachedDomain: string | undefined;
 
-export async function getTopLevelDomain(): Promise<string> {
+export async function getTopLevelDomain(hostname: string): Promise<string> {
   if (cachedDomain !== undefined) return cachedDomain;
-  if (typeof location === 'undefined' || !location.hostname) {
+  if (!hostname) {
     return (cachedDomain = '');
   }
-  const host = location.hostname;
-  const parts = host.split('.');
+  const parts = hostname.split('.');
   if (parts.length === 1) return (cachedDomain = '');
 
-  const skipLevel = KNOWN_2LDS.some((tld) => host.endsWith(`.${tld}`)) ? 2 : 1;
+  const skipLevel = KNOWN_2LDS.some((tld) => hostname.endsWith(`.${tld}`))
+    ? 2
+    : 1;
   const levels: string[] = [];
   for (let i = parts.length - skipLevel - 1; i >= 0; --i) {
     levels.push(parts.slice(i).join('.'));
@@ -144,8 +145,8 @@ export async function getTopLevelDomain(): Promise<string> {
   return (cachedDomain = '');
 }
 
-export async function setMarketingCookie(apiKey: string) {
-  const domain = await getTopLevelDomain();
+export async function setMarketingCookie(apiKey: string, hostname: string) {
+  const domain = await getTopLevelDomain(hostname);
   const storage = new CookieStorage<Campaign>({
     sameSite: 'Lax',
     ...(domain && { domain }),
