@@ -1206,14 +1206,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (encoded) {
         try {
           urlImpressions = JSON.parse(atob(encoded));
+          this.globalScope.history.replaceState(
+            {},
+            '',
+            removeQueryParams(this.globalScope.location.href, [
+              REDIRECT_IMPRESSION_PARAM,
+            ]),
+          );
         } catch {} // eslint-disable-line no-empty
-        this.globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(this.globalScope.location.href, [
-            REDIRECT_IMPRESSION_PARAM,
-          ]),
-        );
       }
     }
 
