@@ -4,14 +4,12 @@ import { getGlobalScope } from '@amplitude/experiment-core';
  * Runs `callback` once `document.body` is available.
  *
  * Polls via `requestAnimationFrame` instead of waiting on a
- * `DOMContentLoaded` / `load` listener because third-party scripts on
- * customer pages (e.g. Cloudflare Rocket Loader) proxy `addEventListener`
- * and can swallow those events — see #299. Callers can assume
- * `document.body` is truthy inside the callback.
+ * `DOMContentLoaded` / `load` listener because third-party scripts that
+ * proxy global event listeners can swallow those events — see #299.
  *
- * If `requestAnimationFrame` is unavailable (effectively no modern
- * browser), the callback never fires — silent no-op is preferable to
- * invoking with a null body and crashing the caller.
+ * In the (effectively impossible) case where `requestAnimationFrame` is
+ * unavailable, the callback is invoked immediately rather than never —
+ * callers that would crash on a null body should guard inside.
  */
 export const whenBodyReady = (callback: () => void): void => {
   if (document.body) {
@@ -20,6 +18,7 @@ export const whenBodyReady = (callback: () => void): void => {
   }
   const globalScope = getGlobalScope();
   if (!globalScope?.requestAnimationFrame) {
+    callback();
     return;
   }
   const poll = () => {

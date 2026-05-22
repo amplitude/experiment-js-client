@@ -71,6 +71,7 @@ export const showLoadingIndicator = () => {
   whenBodyReady(() => {
     // Re-check in case the indicator was hidden while we were waiting.
     if (
+      !document.body ||
       document.getElementById(LOADING_INDICATOR_ID) ||
       loadingTimeout === undefined
     ) {

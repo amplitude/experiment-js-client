@@ -178,7 +178,7 @@ export const showOpenerSeveredBanner = () => {
   `;
 
   const mount = () => {
-    if (document.getElementById(BANNER_ID)) {
+    if (!document.body || document.getElementById(BANNER_ID)) {
       return;
     }
     document.body.appendChild(dialog);

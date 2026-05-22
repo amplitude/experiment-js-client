@@ -62,7 +62,7 @@ describe('whenBodyReady', () => {
     rafSpy.mockRestore();
   });
 
-  it('does not invoke the callback when body is missing and rAF is unavailable', () => {
+  it('invokes the callback immediately when rAF is unavailable', () => {
     setBody(null);
     const originalRaf = window.requestAnimationFrame;
     Object.defineProperty(window, 'requestAnimationFrame', {
@@ -73,7 +73,7 @@ describe('whenBodyReady', () => {
     try {
       const cb = jest.fn();
       whenBodyReady(cb);
-      expect(cb).not.toHaveBeenCalled();
+      expect(cb).toHaveBeenCalledTimes(1);
     } finally {
       Object.defineProperty(window, 'requestAnimationFrame', {
         configurable: true,
