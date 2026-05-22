@@ -7,6 +7,7 @@ import {
 } from './loading-indicator';
 import { isOpenerChannelBroken } from './opener-channel';
 import { getStorageItem } from './storage';
+import { whenBodyReady } from './when-body-ready';
 
 interface VisualEditorSession {
   injectSrc: string;
@@ -216,20 +217,8 @@ export const asyncLoadScript = (url: string) => {
 
     DebugRecorder.push('readyState', document.readyState);
 
-    // Wait for document.body — the overlay's top-level setup calls
-    // document.body.appendChild and throws when body is null. rAF polling
-    // instead of addEventListener('load') because third-party scripts can
-    // proxy addEventListener and suppress those handlers.
-    const globalScope = getGlobalScope();
-    const waitForBody = () => {
-      if (document.body) {
-        loadScript();
-      } else if (globalScope?.requestAnimationFrame) {
-        globalScope.requestAnimationFrame(waitForBody);
-      } else {
-        loadScript();
-      }
-    };
-    waitForBody();
+    // The overlay's top-level setup calls document.body.appendChild and
+    // throws when body is null.
+    whenBodyReady(loadScript);
   });
 };

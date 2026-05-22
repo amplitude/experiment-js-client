@@ -1,3 +1,5 @@
+import { whenBodyReady } from './when-body-ready';
+
 const LOADING_INDICATOR_ID = 'amp-exp-loading';
 const AMPLITUDE_BRAND_COLOR = '#1e61f0';
 const LOADING_TIMEOUT_MS = 10000;
@@ -66,8 +68,8 @@ export const showLoadingIndicator = () => {
     </div>
   `;
 
-  const appendToBody = () => {
-    // Check again in case it was added while waiting or hidden before body was ready
+  whenBodyReady(() => {
+    // Re-check in case the indicator was hidden while we were waiting.
     if (
       document.getElementById(LOADING_INDICATOR_ID) ||
       loadingTimeout === undefined
@@ -75,14 +77,7 @@ export const showLoadingIndicator = () => {
       return;
     }
     document.body.appendChild(loadingContainer);
-  };
-
-  // Defer if body doesn't exist yet
-  if (document.body) {
-    appendToBody();
-  } else {
-    document.addEventListener('DOMContentLoaded', appendToBody, { once: true });
-  }
+  });
 };
 
 export const hideLoadingIndicator = () => {

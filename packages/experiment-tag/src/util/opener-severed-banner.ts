@@ -1,3 +1,5 @@
+import { whenBodyReady } from './when-body-ready';
+
 const BANNER_ID = 'amp-exp-opener-severed';
 
 /**
@@ -199,11 +201,7 @@ export const showOpenerSeveredBanner = () => {
     });
   };
 
-  if (document.body) {
-    mount();
-  } else {
-    document.addEventListener('DOMContentLoaded', mount, { once: true });
-  }
+  whenBodyReady(mount);
 };
 
 export const hideOpenerSeveredBanner = () => {
