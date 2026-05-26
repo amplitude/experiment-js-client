@@ -872,6 +872,20 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
+  private stringToBase64(str: string): string {
+    const bytes = new TextEncoder().encode(str);
+    const binString = Array.from(bytes, (byte) =>
+      String.fromCodePoint(byte),
+    ).join('');
+    return btoa(binString);
+  }
+
+  private base64ToString(base64: string): string {
+    const binString = atob(base64);
+    const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0) ?? 0);
+    return new TextDecoder().decode(bytes);
+  }
+
   private async handleRedirect(action, flagKey: string, variant: Variant) {
     if (!this.isActionActiveOnPage(flagKey, action?.data?.metadata?.scope)) {
       return;
@@ -913,7 +927,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
       if (existingEncoded) {
         try {
-          urlPayload = JSON.parse(atob(existingEncoded));
+          urlPayload = JSON.parse(this.base64ToString(existingEncoded));
         } catch (error) {
           console.error('Failed to decode existing AMP_REDIRECT param:', error);
         }
@@ -928,7 +942,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       };
       targetUrlObj.searchParams.set(
         REDIRECT_IMPRESSION_PARAM,
-        btoa(JSON.stringify(urlPayload)),
+        this.stringToBase64(JSON.stringify(urlPayload)),
       );
       targetUrl = targetUrlObj.toString();
     }
@@ -1205,7 +1219,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
       if (encoded) {
         try {
-          urlImpressions = JSON.parse(atob(encoded));
+          urlImpressions = JSON.parse(this.base64ToString(encoded));
         } catch {} // eslint-disable-line no-empty
         this.globalScope.history.replaceState(
           {},
