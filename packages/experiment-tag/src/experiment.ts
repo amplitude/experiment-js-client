@@ -1179,11 +1179,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       const redirects = storedRedirects || {};
       redirects[flagKey] = impression;
       await storage.set(storageKey, redirects);
-    } catch (error) {
-      console.error(
-        `Failed to store redirect impression in cookie for ${flagKey}:`,
-        error,
-      );
+    } catch {
+      // Fail silently - cookie storage is a fallback mechanism
     }
   }
 
@@ -1225,11 +1222,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
     try {
       cookieImpressions = (await cookieStorage.get(storageKey)) || {};
-    } catch (error) {
-      console.error(
-        `Failed to retrieve redirect impressions from cookie ${storageKey}:`,
-        error,
-      );
+    } catch {
+      // Fail silently - cookie storage is a fallback mechanism
     }
 
     // Merge with priority: url > session > cookie
@@ -1261,11 +1255,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     const cleanup = async () => {
       removeStorageItem('sessionStorage', storageKey);
-      await cookieStorage.remove(storageKey).catch((error) => {
-        console.error(
-          `Failed to remove redirect impressions from cookie ${storageKey}:`,
-          error,
-        );
+      await cookieStorage.remove(storageKey).catch(() => {
+        // Fail silently - cookie storage is a fallback mechanism
       });
     };
 
