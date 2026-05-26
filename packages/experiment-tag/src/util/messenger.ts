@@ -7,6 +7,7 @@ import {
 } from './loading-indicator';
 import { isOpenerChannelBroken } from './opener-channel';
 import { getStorageItem } from './storage';
+import { whenBodyReady } from './when-body-ready';
 
 interface VisualEditorSession {
   injectSrc: string;
@@ -215,6 +216,9 @@ export const asyncLoadScript = (url: string) => {
     };
 
     DebugRecorder.push('readyState', document.readyState);
-    loadScript();
+
+    // The overlay's top-level setup calls document.body.appendChild and
+    // throws when body is null.
+    whenBodyReady(loadScript);
   });
 };
