@@ -413,6 +413,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.experimentClient.setUser(enrichedUser);
     this.updateUserWithBehaviors();
 
+    // Wait for the integration's setup() to complete before evaluating local
+    // flags — otherwise bucketing runs against incomplete user identity.
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    await this.experimentClient.integrationManager.ready();
+
     if (!this.isRemoteBlocking) {
       removeAntiFlickerCss();
     }
