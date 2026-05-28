@@ -396,10 +396,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.experimentClient.setUser(enrichedUser);
     this.updateUserWithBehaviors();
 
-    if (!this.isRemoteBlocking) {
-      removeAntiFlickerCss();
-    }
-
     // fire stored redirect impressions upon startup (must run before applyVariants
     // so the current URL is checked before any redirect changes location.href)
     this.fireStoredRedirectImpressions().catch(() => {
@@ -417,6 +413,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     await this.previewVariants({
       keyToVariant: this.previewFlags,
     });
+
+    if (!this.isRemoteBlocking) {
+      removeAntiFlickerCss();
+    }
 
     if (
       // do not fetch remote flags if all remote flags are in preview mode
