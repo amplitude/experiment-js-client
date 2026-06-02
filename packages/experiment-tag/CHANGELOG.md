@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.23.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.3...@amplitude/experiment-tag@0.23.4) (2026-05-22)
+
+
+### Bug Fixes
+
+* **experiment-tag:** wait for document.body before loading overlay script ([#326](https://github.com/amplitude/experiment-js-client/issues/326)) ([5e5da81](https://github.com/amplitude/experiment-js-client/commit/5e5da819dccd9677a832e0ea158a63da5c5b6fa1)), closes [#299](https://github.com/amplitude/experiment-js-client/issues/299)
+
+
+
+
+
 ## [0.23.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.2...@amplitude/experiment-tag@0.23.3) (2026-05-14)
 
 

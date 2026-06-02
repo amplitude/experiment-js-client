@@ -6,6 +6,7 @@ import {
   cspSafeStyleSheet,
   type StyleSheetHandle,
 } from '../util/csp-safe-stylesheet';
+import { whenBodyReady } from '../util/when-body-ready';
 
 let modalStylesHandle: StyleSheetHandle | undefined;
 
@@ -328,23 +329,19 @@ export function showPreviewModeModal(
 ): PreviewModeModal {
   const modal = new PreviewModeModal(options);
 
-  let documentReady = false;
+  let bodyReady = false;
   let timeoutReady = false;
 
   const tryShow = () => {
-    if (documentReady && timeoutReady) {
+    if (bodyReady && timeoutReady) {
       modal.show();
     }
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      documentReady = true;
-      tryShow();
-    });
-  } else {
-    documentReady = true;
-  }
+  whenBodyReady(() => {
+    bodyReady = true;
+    tryShow();
+  });
 
   setTimeout(() => {
     timeoutReady = true;
