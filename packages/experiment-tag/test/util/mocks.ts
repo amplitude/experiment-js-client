@@ -26,6 +26,7 @@ export const createDocumentMock = (overrides?: Record<string, unknown>) => ({
   },
   querySelector: jest.fn(),
   createElement: jest.fn(),
+  getElementById: jest.fn().mockReturnValue(null),
   head: {
     appendChild: jest.fn(),
   },

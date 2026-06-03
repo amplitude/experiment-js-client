@@ -16,8 +16,12 @@ import {
   Variants,
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
-import mutate, { MutationController } from 'dom-mutator';
+import mutate from 'dom-mutator';
 import * as domMutatorExports from 'dom-mutator';
+// `MutationController` (and the rest of the type definitions) moved out
+// of `dom-mutator`'s public entry in canonical PR #28; pull the type from
+// the dist subpath so this keeps compiling against the new bb5f4b5 pin.
+import type { MutationController } from 'dom-mutator/dist/types';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { showPreviewModeModal } from './preview/preview';
