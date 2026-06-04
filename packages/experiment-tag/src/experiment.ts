@@ -186,6 +186,27 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     });
 
+    // Flags that depend on at least one remote flag are also considered remote.
+    // Iterate to fixed point to handle transitive dependencies.
+    // Track which keys were promoted so we can exclude only those from
+    // localFlagKeys — flags that are directly 'remote' but cached in session
+    // storage as 'local' should still be applied locally (fast-path rendering).
+    const transitivelyPromotedKeys = new Set<string>();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      this.initialFlags.forEach((flag: EvaluationFlag) => {
+        if (
+          !this.remoteFlagKeys.includes(flag.key) &&
+          flag.dependencies?.some((dep) => this.remoteFlagKeys.includes(dep))
+        ) {
+          this.remoteFlagKeys.push(flag.key);
+          transitivelyPromotedKeys.add(flag.key);
+          changed = true;
+        }
+      });
+    }
+
     const initialFlagsString = JSON.stringify(this.initialFlags);
 
     // initialize the experiment
@@ -202,9 +223,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ...this.config,
     });
     // Get all the locally available flag keys from the SDK.
+    // Exclude flags promoted to remoteFlagKeys via the dependency loop above —
+    // their remote dependencies must be fetched first or mutex/holdout bucketing
+    // will run against stale parent-flag state and assign the wrong variant.
     const variants = this.experimentClient.all();
     this.localFlagKeys = Object.keys(variants).filter(
-      (key) => variants[key]?.metadata?.evaluationMode === 'local',
+      (key) =>
+        variants[key]?.metadata?.evaluationMode === 'local' &&
+        !transitivelyPromotedKeys.has(key),
     );
     this.messageBus = new MessageBus();
   }
@@ -390,6 +416,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(enrichedUser);
     this.updateUserWithBehaviors();
+
+    // Holdout/mutex bucketing requires user identity (user_id,
+    // device_id) — wait for the integration's setup() only when present.
+    const hasHoldoutOrMutex = this.initialFlags.some(
+      (flag: EvaluationFlag) =>
+        flag.key.startsWith('holdout-') || flag.key.startsWith('mutex-'),
+    );
+    if (hasHoldoutOrMutex) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      await this.experimentClient.integrationManager.ready();
+    }
 
     if (!this.isRemoteBlocking) {
       removeAntiFlickerCss();
