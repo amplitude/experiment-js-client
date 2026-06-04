@@ -609,6 +609,79 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledWith('test-2');
   });
 
+  test('remote evaluation - local flag with remote dependency not applied before remote fetch', async () => {
+    // Depth-2 chain: local-grandchild → local-dep → remote-parent.
+    // initialFlags ordered [grandchild, dep, parent] — the adversarial ordering
+    // that a single forEach pass would fail on, proving the fixed-point loop is needed.
+    const remoteParentFlag = {
+      ...createMutateFlag('remote-parent', 'treatment', [], [], 'remote'),
+    };
+    const localDepFlag = {
+      ...createMutateFlag('local-dep', 'treatment', []),
+      dependencies: ['remote-parent'],
+    };
+    const localGrandchildFlag = {
+      ...createMutateFlag('local-grandchild', 'treatment', [
+        DEFAULT_MUTATE_SCOPE,
+      ]),
+      dependencies: ['local-dep'],
+    };
+    const initialFlags = [localGrandchildFlag, localDepFlag, remoteParentFlag];
+    const remoteFlags = [
+      createMutateFlag('remote-parent', 'treatment', [], [], 'remote'),
+    ];
+    const mockHttpClient = new MockHttpClient(JSON.stringify(remoteFlags));
+
+    const applyVariantsSpy = jest.spyOn(
+      DefaultWebExperimentClient.prototype as any,
+      'applyVariants',
+    );
+
+    await DefaultWebExperimentClient.getInstance(
+      stringify(apiKey),
+      {
+        initialFlags: JSON.stringify(initialFlags),
+        pageObjects: JSON.stringify({
+          'remote-parent': createPageObject(
+            'A',
+            'url_change',
+            undefined,
+            'http://test.com',
+          ),
+          'local-dep': createPageObject(
+            'A',
+            'url_change',
+            undefined,
+            'http://test.com',
+          ),
+          'local-grandchild': createPageObject(
+            'A',
+            'url_change',
+            undefined,
+            'http://test.com',
+          ),
+        }),
+      },
+      {
+        httpClient: mockHttpClient,
+      },
+    ).start();
+
+    // The first applyVariants call (for local flags) must not include either transitive dep
+    const firstCallFlagKeys: string[] =
+      (applyVariantsSpy.mock.calls[0]?.[0] as { flagKeys?: string[] })
+        ?.flagKeys ?? [];
+    expect(firstCallFlagKeys).not.toContain('local-dep');
+    expect(firstCallFlagKeys).not.toContain('local-grandchild');
+
+    // Both should be applied in the remote pass (after fetch)
+    const allCalledKeys: string[] = applyVariantsSpy.mock.calls.flatMap(
+      (call) => (call[0] as { flagKeys?: string[] })?.flagKeys ?? [],
+    );
+    expect(allCalledKeys).toContain('local-dep');
+    expect(allCalledKeys).toContain('local-grandchild');
+  });
+
   test('remote evaluation - fetch fail, locally evaluate remote and local flags success', async () => {
     const initialFlags = [
       // remote flag

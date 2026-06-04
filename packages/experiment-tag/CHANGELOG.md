@@ -3,6 +3,35 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.24.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.4...@amplitude/experiment-tag@0.24.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **experiment-tag:** share whenBodyReady helper across overlay loaders ([#327](https://github.com/amplitude/experiment-js-client/issues/327)) ([7498c3d](https://github.com/amplitude/experiment-js-client/commit/7498c3d4c5a061066b77d072437d5f2a56787408)), closes [#326](https://github.com/amplitude/experiment-js-client/issues/326) [#299](https://github.com/amplitude/experiment-js-client/issues/299) [#326](https://github.com/amplitude/experiment-js-client/issues/326)
+* **mutations:** update dom-mutator version [WEB-72] ([#330](https://github.com/amplitude/experiment-js-client/issues/330)) ([47ebf36](https://github.com/amplitude/experiment-js-client/commit/47ebf368631004333181c9f0b8ecf928f2f4fb9f)), closes [#28](https://github.com/amplitude/experiment-js-client/issues/28)
+* removeAntiFlickerCss should remove amp-exp-css element ([#331](https://github.com/amplitude/experiment-js-client/issues/331)) ([58f98e7](https://github.com/amplitude/experiment-js-client/commit/58f98e7b4e2196ec28e048eb9b5f8f998f628ea8))
+
+
+### Features
+
+* support Mutex and Holdout groups for web experiment ([#324](https://github.com/amplitude/experiment-js-client/issues/324)) ([95bd81a](https://github.com/amplitude/experiment-js-client/commit/95bd81ab3d09c8f7da357d6d985363bef8775059))
+
+
+
+
+
+## [0.23.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.3...@amplitude/experiment-tag@0.23.4) (2026-05-22)
+
+
+### Bug Fixes
+
+* **experiment-tag:** wait for document.body before loading overlay script ([#326](https://github.com/amplitude/experiment-js-client/issues/326)) ([5e5da81](https://github.com/amplitude/experiment-js-client/commit/5e5da819dccd9677a832e0ea158a63da5c5b6fa1)), closes [#299](https://github.com/amplitude/experiment-js-client/issues/299)
+
+
+
+
+
 ## [0.23.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.2...@amplitude/experiment-tag@0.23.3) (2026-05-14)
 
 
