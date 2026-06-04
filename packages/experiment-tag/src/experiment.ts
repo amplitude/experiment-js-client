@@ -417,11 +417,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.experimentClient.setUser(enrichedUser);
     this.updateUserWithBehaviors();
 
-    // Wait for the integration's setup() to complete before evaluating local
-    // flags — otherwise bucketing runs against incomplete user identity.
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    await this.experimentClient.integrationManager.ready();
+    // Holdout/mutex bucketing requires user identity (user_id,
+    // device_id) — wait for the integration's setup() only when present.
+    const hasHoldoutOrMutex = this.initialFlags.some(
+      (flag) =>
+        flag.key.startsWith('holdout-') || flag.key.startsWith('mutex-'),
+    );
+    if (hasHoldoutOrMutex) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      await this.experimentClient.integrationManager.ready();
+    }
 
     if (!this.isRemoteBlocking) {
       removeAntiFlickerCss();
