@@ -158,7 +158,10 @@ const allPromises = packagesToUpload.flatMap((packageConfig) => {
         .send(headObject)
         .then(() => {
           // If branch name is provided, always overwrite to ensure latest branch version
-          if (branchName) {
+          if (
+            branchName ||
+            packageConfig.name === availablePackages['chrome-extension'].name
+          ) {
             console.log(
               `[Publish to AWS S3] ${key} exists in target bucket. Overwriting for branch deployment...`,
             );
