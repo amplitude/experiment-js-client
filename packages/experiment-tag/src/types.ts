@@ -135,7 +135,7 @@ export const Defaults: WebExperimentConfig = {
   useDefaultNavigationHandler: true,
   redirectConfig: {
     encodeRedirectInUrl: false,
-    encodeRedirectInCookie: true,
+    encodeRedirectInCookie: false,
   },
 };
 
