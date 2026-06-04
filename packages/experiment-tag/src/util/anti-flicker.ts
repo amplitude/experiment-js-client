@@ -36,10 +36,13 @@ export const applyAntiFlickerCss = () => {
 };
 
 /**
- * Revert the anti-flicker stylesheet immediately. Idempotent — safe to call
- * even when no sheet is active.
+ * Revert the anti-flicker stylesheet immediately. Also removes any
+ * <style id="amp-exp-css"> element injected by customer snippets.
+ * Idempotent — safe to call even when no sheet is active.
  */
 export const removeAntiFlickerCss = (): void => {
   activeHandle?.revert();
   activeHandle = undefined;
+  const globalScope = getGlobalScope();
+  globalScope?.document.getElementById('amp-exp-css')?.remove();
 };
