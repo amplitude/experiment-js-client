@@ -1207,13 +1207,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         try {
           urlImpressions = JSON.parse(atob(encoded));
         } catch {} // eslint-disable-line no-empty
-        this.globalScope.history.replaceState(
-          {},
-          '',
-          removeQueryParams(this.globalScope.location.href, [
-            REDIRECT_IMPRESSION_PARAM,
-          ]),
-        );
+        const cleanedUrl = removeQueryParams(this.globalScope.location.href, [
+          REDIRECT_IMPRESSION_PARAM,
+        ]);
+        // Pre-register the cleaned URL so the replaceState wrapper doesn't
+        // publish a spurious url_change (which would reset urlExposureCache
+        // and cause duplicate impression events).
+        this.subscriptionManager?.markUrlAsPublished(cleanedUrl);
+        this.globalScope.history.replaceState({}, '', cleanedUrl);
       }
     }
 
