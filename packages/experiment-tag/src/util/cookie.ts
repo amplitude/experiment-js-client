@@ -127,10 +127,13 @@ export async function getTopLevelDomain(hostname: string): Promise<string> {
   if (!hostname) {
     return (cachedDomain = '');
   }
-  const parts = hostname.split('.');
+  const normalizedHostname = hostname.toLowerCase();
+  const parts = normalizedHostname.split('.');
   if (parts.length === 1) return (cachedDomain = '');
 
-  const skipLevel = KNOWN_2LDS.some((tld) => hostname.endsWith(`.${tld}`))
+  const skipLevel = KNOWN_2LDS.some((tld) =>
+    normalizedHostname.endsWith(`.${tld}`),
+  )
     ? 2
     : 1;
   const levels: string[] = [];

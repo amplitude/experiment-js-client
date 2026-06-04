@@ -468,9 +468,11 @@ export class SubscriptionManager {
           }
 
           // Notify subscribers if pages actually changed
-          this.lastNotifiedActivePages = clonePageObjects(activePages);
-          for (const subscriber of this.pageChangeSubscribers) {
-            subscriber({ activePages });
+          if (pagesChanged) {
+            this.lastNotifiedActivePages = clonePageObjects(activePages);
+            for (const subscriber of this.pageChangeSubscribers) {
+              subscriber({ activePages });
+            }
           }
 
           // Debug subscribers fire on any URL change or page change,
