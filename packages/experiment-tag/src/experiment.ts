@@ -420,7 +420,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Holdout/mutex bucketing requires user identity (user_id,
     // device_id) — wait for the integration's setup() only when present.
     const hasHoldoutOrMutex = this.initialFlags.some(
-      (flag) =>
+      (flag: EvaluationFlag) =>
         flag.key.startsWith('holdout-') || flag.key.startsWith('mutex-'),
     );
     if (hasHoldoutOrMutex) {
