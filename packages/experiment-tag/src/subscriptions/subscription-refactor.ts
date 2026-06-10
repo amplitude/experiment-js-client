@@ -186,67 +186,70 @@ export class SubscriptionManager {
 
     // Set up group callbacks (one per trigger type)
     for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
-      this.messageBus.groupSubscribe(triggerType as MessageType, (payload) => {
-        const isUrlChange = triggerType === 'url_change';
+      this.messageBus.groupSubscribe(
+        triggerType as MessageType,
+        async (payload) => {
+          const isUrlChange = triggerType === 'url_change';
 
-        // Handle URL change: reset state and revert injections
-        if (isUrlChange) {
-          this.resetAllTriggers();
-          this.revertInjections();
-        }
+          // Handle URL change: reset state and revert injections
+          if (isUrlChange) {
+            this.resetAllTriggers();
+            this.revertInjections();
+          }
 
-        // Get current page state and check if it changed
-        const activePages = this.webExperimentClient.getActivePages();
-        const pagesChanged = !arePageObjectsEqual(
-          activePages,
-          this.lastNotifiedActivePages,
-        );
+          // Get current page state and check if it changed
+          const activePages = this.webExperimentClient.getActivePages();
+          const pagesChanged = !arePageObjectsEqual(
+            activePages,
+            this.lastNotifiedActivePages,
+          );
 
-        // Skip processing in visual editor mode or internal updates
-        const isInternalUpdate =
-          'updateActivePages' in payload && payload.updateActivePages;
-        const shouldApplyVariants =
-          !isInternalUpdate &&
-          !this.options.isVisualEditorMode &&
-          (pagesChanged || isUrlChange);
+          // Skip processing in visual editor mode or internal updates
+          const isInternalUpdate =
+            'updateActivePages' in payload && payload.updateActivePages;
+          const shouldApplyVariants =
+            !isInternalUpdate &&
+            !this.options.isVisualEditorMode &&
+            (pagesChanged || isUrlChange);
 
-        if (shouldApplyVariants) {
-          // Determine which experiments to apply variants for
-          const relevantFlags = isUrlChange
-            ? undefined // All experiments
-            : Array.from(triggerTypeExperimentMap[triggerType] || []);
+          if (shouldApplyVariants) {
+            // Determine which experiments to apply variants for
+            const relevantFlags = isUrlChange
+              ? undefined // All experiments
+              : Array.from(triggerTypeExperimentMap[triggerType] || []);
 
-          // Apply non-preview variants
-          this.webExperimentClient.applyVariants({
-            flagKeys: relevantFlags?.filter(
-              (flag) => !this.webExperimentClient.previewFlags[flag],
-            ),
-          });
-
-          // Apply preview variants if in preview mode
-          if (this.webExperimentClient.isPreviewMode) {
-            const previewFlags = relevantFlags
-              ? Object.fromEntries(
-                  Object.entries(this.webExperimentClient.previewFlags).filter(
-                    ([flag]) => relevantFlags.includes(flag),
-                  ),
-                )
-              : this.webExperimentClient.previewFlags;
-
-            this.webExperimentClient.previewVariants({
-              keyToVariant: previewFlags,
+            // Apply non-preview variants
+            await this.webExperimentClient.applyVariants({
+              flagKeys: relevantFlags?.filter(
+                (flag) => !this.webExperimentClient.previewFlags[flag],
+              ),
             });
-          }
-        }
 
-        // Notify subscribers if pages actually changed
-        if (pagesChanged) {
-          this.lastNotifiedActivePages = clonePageObjects(activePages);
-          for (const subscriber of this.pageChangeSubscribers) {
-            subscriber({ activePages });
+            // Apply preview variants if in preview mode
+            if (this.webExperimentClient.isPreviewMode) {
+              const previewFlags = relevantFlags
+                ? Object.fromEntries(
+                    Object.entries(
+                      this.webExperimentClient.previewFlags,
+                    ).filter(([flag]) => relevantFlags.includes(flag)),
+                  )
+                : this.webExperimentClient.previewFlags;
+
+              await this.webExperimentClient.previewVariants({
+                keyToVariant: previewFlags,
+              });
+            }
           }
-        }
-      });
+
+          // Notify subscribers if pages actually changed
+          if (pagesChanged) {
+            this.lastNotifiedActivePages = clonePageObjects(activePages);
+            for (const subscriber of this.pageChangeSubscribers) {
+              subscriber({ activePages });
+            }
+          }
+        },
+      );
     }
   };
 

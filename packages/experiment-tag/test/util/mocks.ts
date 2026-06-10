@@ -83,6 +83,12 @@ export const createMockGlobal = (overrides?: Record<string, unknown>) => {
     innerHeight: 768,
     innerWidth: 1024,
     opener: { closed: false },
+    experimentConfig: {
+      redirectConfig: {
+        encodeRedirectInCookie: false,
+        encodeRedirectInUrl: false,
+      },
+    },
   };
 
   // Apply overrides with smart merging for nested objects
