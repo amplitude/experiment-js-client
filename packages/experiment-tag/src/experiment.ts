@@ -129,6 +129,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly localFlagKeys: string[] = [];
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
+  private isRedirecting = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
   public isRunning = false;
   private readonly messageBus: MessageBus;
@@ -456,11 +457,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       keyToVariant: this.previewFlags,
     });
 
-    if (!this.isRemoteBlocking) {
+    if (!this.isRemoteBlocking && !this.isRedirecting) {
       removeAntiFlickerCss();
     }
 
     if (
+      this.isRedirecting ||
       // do not fetch remote flags if all remote flags are in preview mode
       this.remoteFlagKeys.every((key) =>
         Object.keys(this.previewFlags).includes(key),
@@ -993,16 +995,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
     await setMarketingCookie(this.apiKey, this.globalScope.location.hostname);
+    // Mark redirect as in-flight so start() skips removeAntiFlickerCss and
+    // further processing after applyVariants returns.
+    this.isRedirecting = true;
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
       return;
     }
     this.globalScope.location.replace(targetUrl);
-    // location.replace() queues navigation but JS continues — stall so applyVariants
-    // never resolves and removeAntiFlickerCss() is never called during the unload window.
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    await new Promise(() => {});
   }
 
   private handleMutate(action, flagKey: string, variant: Variant) {
