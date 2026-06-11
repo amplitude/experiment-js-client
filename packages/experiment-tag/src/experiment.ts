@@ -410,6 +410,26 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
+    // Initialize web_exp_id_v2 as a root-domain cookie for cross-subdomain identity.
+    // Unlike web_exp_id (localStorage, per-origin), web_exp_id_v2 is shared across
+    // all subdomains of the same root domain (e.g. www.example.com and app.example.com).
+    // New experiments created after the cutover use web_exp_id_v2 for bucketing.
+    const v2CookieKey = `${experimentStorageName}_id_v2`;
+    const rootDomain = await getTopLevelDomain(
+      this.globalScope.location.hostname,
+    );
+    const v2CookieStorage = new CookieStorage<string>({
+      ...(rootDomain && { domain: rootDomain }),
+      sameSite: 'Lax',
+      expirationDays: 365,
+    });
+    let webExpIdV2 = await v2CookieStorage.get(v2CookieKey);
+    if (!webExpIdV2) {
+      webExpIdV2 = UUID();
+      await v2CookieStorage.set(v2CookieKey, webExpIdV2);
+    }
+    user.web_exp_id_v2 = webExpIdV2;
+
     const enrichedUser = await enrichUserWithCampaignData(this.apiKey, user);
 
     // If no integration has been set, use an Amplitude integration.

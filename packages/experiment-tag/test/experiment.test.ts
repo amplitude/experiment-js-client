@@ -112,9 +112,12 @@ describe('initializeExperiment', () => {
       initialFlags: JSON.stringify([]),
       pageObjects: JSON.stringify({}),
     }).start();
-    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
-      web_exp_id: 'mock',
-    });
+    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        web_exp_id: 'mock',
+        web_exp_id_v2: expect.any(String),
+      }),
+    );
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       'EXP_' + stringify(apiKey),
       JSON.stringify({ web_exp_id: 'mock' }),
