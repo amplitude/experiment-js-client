@@ -942,9 +942,24 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    await this.storeRedirectImpressions(flagKey, variant, redirectUrl);
+    const isCrossSubdomain = (() => {
+      try {
+        return (
+          new URL(targetUrl).hostname !== this.globalScope.location.hostname
+        );
+      } catch {
+        return false;
+      }
+    })();
 
-    if (this.config.redirectConfig?.encodeRedirectInUrl) {
+    await this.storeRedirectImpressions(
+      flagKey,
+      variant,
+      redirectUrl,
+      isCrossSubdomain,
+    );
+
+    if (this.config.redirectConfig?.encodeRedirectInUrl && isCrossSubdomain) {
       // Embed impression data in redirect URL for cross-domain and
       // cookie-blocked environments. Merge with any existing param in case
       // multiple redirect experiments fire in sequence.
@@ -1192,6 +1207,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     flagKey: string,
     variant: Variant,
     redirectUrl: string,
+    isCrossSubdomain: boolean,
   ) {
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
     const impression: StoredRedirectImpression = {
@@ -1210,8 +1226,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     stored[flagKey] = impression;
     setStorageItem('sessionStorage', storageKey, stored);
 
-    // Also write to cookie when opted in, enabling cross-subdomain tracking
-    if (this.config.redirectConfig?.encodeRedirectInCookie) {
+    // Also write to cookie when opted in and redirect crosses subdomains
+    if (
+      this.config.redirectConfig?.encodeRedirectInCookie &&
+      isCrossSubdomain
+    ) {
       const domain = await getTopLevelDomain(
         this.globalScope.location.hostname,
       );
