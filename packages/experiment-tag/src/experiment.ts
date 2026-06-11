@@ -999,10 +999,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     this.globalScope.location.replace(targetUrl);
-    // location.replace() queues navigation but JS continues — stall so applyVariants
-    // never resolves and removeAntiFlickerCss() is never called during the unload window.
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    await new Promise(() => {});
+    return;
   }
 
   private handleMutate(action, flagKey: string, variant: Variant) {
