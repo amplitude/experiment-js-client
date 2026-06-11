@@ -995,14 +995,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
     await setMarketingCookie(this.apiKey, this.globalScope.location.hostname);
-    // Mark redirect as in-flight so start() skips removeAntiFlickerCss and
-    // further processing after applyVariants returns.
-    this.isRedirecting = true;
     // perform redirection
     if (this.customRedirectHandler) {
+      // Custom redirect handlers may perform client-side routing without a
+      // page reload, so we should NOT set isRedirecting. This allows start()
+      // to continue and fetch remote flags after the SPA navigation.
       this.customRedirectHandler(targetUrl);
       return;
     }
+    // Mark redirect as in-flight so start() skips removeAntiFlickerCss and
+    // further processing after applyVariants returns. Only set for full-page
+    // navigation since the page will unload anyway.
+    this.isRedirecting = true;
     this.globalScope.location.replace(targetUrl);
   }
 
