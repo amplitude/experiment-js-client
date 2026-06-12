@@ -148,6 +148,27 @@ export async function getTopLevelDomain(hostname: string): Promise<string> {
   return (cachedDomain = '');
 }
 
+/**
+ * Resolves a cross-subdomain value using cookie storage as the authoritative
+ * source. Falls back to a provided localStorage value (migration path), then
+ * generates a new value if neither exists. Always ensures the cookie is set.
+ * Callers are responsible for syncing the returned value back to localStorage.
+ */
+export async function resolveCrossSubdomainValue(
+  cookieStorage: CookieStorage<string>,
+  cookieKey: string,
+  localStorageValue: string | undefined,
+  generateNew: () => string,
+): Promise<string> {
+  const cookieValue = await cookieStorage.get(cookieKey);
+  if (cookieValue) {
+    return cookieValue;
+  }
+  const value = localStorageValue ?? generateNew();
+  await cookieStorage.set(cookieKey, value);
+  return value;
+}
+
 export async function setMarketingCookie(apiKey: string, hostname: string) {
   const domain = await getTopLevelDomain(hostname);
   const storage = new CookieStorage<Campaign>({

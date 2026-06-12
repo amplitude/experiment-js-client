@@ -49,7 +49,11 @@ import {
 import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
 import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
-import { getTopLevelDomain, setMarketingCookie } from './util/cookie';
+import {
+  getTopLevelDomain,
+  resolveCrossSubdomainValue,
+  setMarketingCookie,
+} from './util/cookie';
 import {
   cspSafeStyleSheet,
   type StyleSheetHandle,
@@ -410,25 +414,48 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
-    // Initialize web_exp_id_v2 as a root-domain cookie for cross-subdomain identity.
-    // Unlike web_exp_id (localStorage, per-origin), web_exp_id_v2 is shared across
-    // all subdomains of the same root domain (e.g. www.example.com and app.example.com).
-    // New experiments created after the cutover use web_exp_id_v2 for bucketing.
-    const v2CookieKey = `${experimentStorageName}_id_v2`;
+    // Resolve web_exp_id_v2 and web_exp_first_seen as root-domain cookies for
+    // cross-subdomain identity. Cookie is authoritative; localStorage is the
+    // migration source / backup when no cookie exists yet.
     const rootDomain = await getTopLevelDomain(
       this.globalScope.location.hostname,
     );
-    const v2CookieStorage = new CookieStorage<string>({
+    const crossSubdomainCookieStorage = new CookieStorage<string>({
       ...(rootDomain && { domain: rootDomain }),
       sameSite: 'Lax',
       expirationDays: 365,
     });
-    let webExpIdV2 = await v2CookieStorage.get(v2CookieKey);
-    if (!webExpIdV2) {
-      webExpIdV2 = UUID();
-      await v2CookieStorage.set(v2CookieKey, webExpIdV2);
-    }
+
+    const webExpIdV2 = await resolveCrossSubdomainValue(
+      crossSubdomainCookieStorage,
+      `${experimentStorageName}_id_v2`,
+      user.web_exp_id_v2,
+      UUID,
+    );
     user.web_exp_id_v2 = webExpIdV2;
+    setStorageItem('localStorage', experimentStorageName, user);
+
+    const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
+    const defaultUserProviderData =
+      getStorageItem<{ first_seen?: string }>(
+        'localStorage',
+        defaultUserProviderStorageKey,
+      ) || {};
+    const firstSeen = await resolveCrossSubdomainValue(
+      crossSubdomainCookieStorage,
+      `${experimentStorageName}_first_seen`,
+      defaultUserProviderData.first_seen,
+      () => (Date.now() / 1000).toString(),
+    );
+    if (firstSeen !== defaultUserProviderData.first_seen) {
+      defaultUserProviderData.first_seen = firstSeen;
+      setStorageItem(
+        'localStorage',
+        defaultUserProviderStorageKey,
+        defaultUserProviderData,
+      );
+    }
+    user.first_seen = firstSeen;
 
     const enrichedUser = await enrichUserWithCampaignData(this.apiKey, user);
 
