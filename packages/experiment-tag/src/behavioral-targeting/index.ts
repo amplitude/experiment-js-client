@@ -4,3 +4,5 @@ export {
   BehavioralCondition,
   BehavioralConditionSet,
 } from './types';
+export * from './relay-protocol';
+export * from './relay-client';
