@@ -133,6 +133,67 @@ describe('RelayClient', () => {
     );
   });
 
+  test('does not double-send writes when relay is available', async () => {
+    const { client, iframeWindow, postMessage } = setupClient();
+    const initPromise = client.init();
+    signalRelayReady(iframeWindow);
+    await initPromise;
+
+    const event: RelayEventRecord = {
+      id: 1,
+      event_type: 'page_view',
+      timestamp: 100,
+      session_id: 's1',
+      properties: { page: 'home' },
+    };
+    client.writeEvent(event);
+    client.flush();
+
+    const writeCalls = postMessage.mock.calls.filter(
+      ([payload]) => payload.type === 'WRITE_EVENT',
+    );
+    expect(writeCalls).toHaveLength(1);
+  });
+
+  test('concurrent init creates only one iframe', async () => {
+    const { client, iframeWindow } = setupClient();
+    const first = client.init();
+    const second = client.init();
+
+    signalRelayReady(iframeWindow);
+    await Promise.all([first, second]);
+
+    expect(document.querySelectorAll('iframe')).toHaveLength(1);
+  });
+
+  test('accepts late ready after init timeout', async () => {
+    const { client, iframeWindow } = setupClient();
+    const initPromise = client.init();
+
+    jest.advanceTimersByTime(RELAY_RPC_TIMEOUT_MS + 1);
+    await initPromise;
+    expect(client.relayAvailable).toBe(false);
+
+    signalRelayReady(iframeWindow);
+    expect(client.relayAvailable).toBe(true);
+  });
+
+  test('destroy during init allows re-init', async () => {
+    const { client } = setupClient();
+    const initPromise = client.init();
+
+    client.destroy();
+    await initPromise;
+
+    const { client: client2, iframeWindow } = setupClient();
+    const reinitPromise = client2.init();
+    signalRelayReady(iframeWindow);
+    await reinitPromise;
+
+    expect(client2.relayAvailable).toBe(true);
+    expect(document.querySelectorAll('iframe')).toHaveLength(1);
+  });
+
   test('supports rpc read/check/migrate requests', async () => {
     const { client, iframeWindow } = setupClient();
     const initPromise = client.init();

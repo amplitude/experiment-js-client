@@ -45,6 +45,9 @@ export class RelayClient {
   >();
 
   private messageListener: ((event: MessageEvent) => void) | null = null;
+  private initPromise: Promise<void> | null = null;
+  private initTimeoutId: number | null = null;
+  private initResolve: (() => void) | null = null;
 
   constructor(
     private readonly apiKey: string,
@@ -58,11 +61,12 @@ export class RelayClient {
   }
 
   async init(): Promise<void> {
-    if (this.ready) {
-      return;
+    if (this.initPromise) {
+      return this.initPromise;
     }
 
-    return new Promise((resolve) => {
+    this.initPromise = new Promise((resolve) => {
+      this.initResolve = resolve;
       const iframe = document.createElement('iframe');
       iframe.src = this.relayUrl;
       iframe.style.display = 'none';
@@ -75,11 +79,15 @@ export class RelayClient {
           return;
         }
 
-        if (!this.ready && isRelayReadyMessage(event.data)) {
+        if (!this.available && isRelayReadyMessage(event.data)) {
           this.iframeWindow = iframe.contentWindow;
           this.available = true;
           this.ready = true;
-          window.clearTimeout(timeoutId);
+          if (this.initTimeoutId !== null) {
+            window.clearTimeout(this.initTimeoutId);
+            this.initTimeoutId = null;
+          }
+          this.initResolve = null;
           resolve();
           return;
         }
@@ -96,15 +104,18 @@ export class RelayClient {
         pending.resolve(response);
       };
 
-      const timeoutId = window.setTimeout(() => {
-        this.available = false;
+      this.initTimeoutId = window.setTimeout(() => {
+        this.initTimeoutId = null;
         this.ready = true;
+        this.initResolve = null;
         resolve();
       }, RELAY_RPC_TIMEOUT_MS);
 
       window.addEventListener('message', onMessage);
       this.messageListener = onMessage;
     });
+
+    return this.initPromise;
   }
 
   private sendRequest(request: RelayRequest): Promise<RelayResponse> {
@@ -140,8 +151,8 @@ export class RelayClient {
   }
 
   writeEvent(event: RelayEventRecord): void {
-    this.pendingWrites.push(event);
     if (!this.available || !this.iframeWindow) {
+      this.pendingWrites.push(event);
       return;
     }
     void this.sendRequest({
@@ -199,6 +210,14 @@ export class RelayClient {
   }
 
   destroy(): void {
+    if (this.initTimeoutId !== null) {
+      window.clearTimeout(this.initTimeoutId);
+      this.initTimeoutId = null;
+    }
+    if (this.initResolve) {
+      this.initResolve();
+      this.initResolve = null;
+    }
     if (this.messageListener) {
       window.removeEventListener('message', this.messageListener);
       this.messageListener = null;
@@ -208,5 +227,6 @@ export class RelayClient {
     this.iframeWindow = null;
     this.available = false;
     this.ready = false;
+    this.initPromise = null;
   }
 }
