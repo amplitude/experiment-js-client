@@ -189,15 +189,24 @@ export class RelayClient {
     if (this.destroyed) {
       return;
     }
+
+    // Queue until async write confirms — flush() can resend in-flight events on unload.
+    this.pendingWrites.push(event);
+
     if (!this.available || !this.iframeWindow) {
-      this.pendingWrites.push(event);
       return;
     }
-    void this.sendRequest(
-      this.createRelayRequest('WRITE_EVENT', { event }),
-    ).catch(() => {
-      // fire-and-forget
-    });
+
+    void this.sendRequest(this.createRelayRequest('WRITE_EVENT', { event }))
+      .then(() => {
+        const idx = this.pendingWrites.indexOf(event);
+        if (idx !== -1) {
+          this.pendingWrites.splice(idx, 1);
+        }
+      })
+      .catch(() => {
+        // Keep in pendingWrites for flush()
+      });
   }
 
   flush(): void {

@@ -202,12 +202,26 @@ describe('RelayClient', () => {
     await initReady(client, iframeWindow);
 
     client.writeEvent(sampleEvent(1, { page: 'home' }));
+    await Promise.resolve();
     client.flush();
 
     const writeCalls = postMessage.mock.calls.filter(
       ([payload]) => payload.type === 'WRITE_EVENT',
     );
     expect(writeCalls).toHaveLength(1);
+  });
+
+  test('flush includes in-flight writes not yet confirmed', async () => {
+    const { client, iframeWindow, postMessage } = setupClient();
+    await initReady(client, iframeWindow);
+
+    client.writeEvent(sampleEvent(1, { page: 'home' }));
+    client.flush();
+
+    const writeCalls = postMessage.mock.calls.filter(
+      ([payload]) => payload.type === 'WRITE_EVENT',
+    );
+    expect(writeCalls).toHaveLength(2);
   });
 
   test('concurrent init creates only one iframe', async () => {
