@@ -729,17 +729,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     this.relayClient?.destroy();
-    this.relayClient = new RelayClient(
+    const relayClient = new RelayClient(
       this.apiKey,
       webExpIdV2,
       getRelayUrl(this.apiKey),
     );
+    this.relayClient = relayClient;
 
     void this.behavioralTargetingManager
-      .beginRelaySync(this.relayClient)
+      .beginRelaySync(relayClient)
       .then((behaviorsChanged) => {
-        if (!this.relayClient?.relayAvailable) {
-          this.relayClient?.destroy();
+        if (this.relayClient !== relayClient) {
+          return;
+        }
+        if (!relayClient.relayAvailable) {
+          relayClient.destroy();
           this.relayClient = null;
           return;
         }
@@ -748,7 +752,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         });
       })
       .catch(() => {
-        this.relayClient?.destroy();
+        if (this.relayClient !== relayClient) {
+          return;
+        }
+        relayClient.destroy();
         this.relayClient = null;
       });
   }
