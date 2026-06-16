@@ -50,6 +50,7 @@ export class RelayClient {
   private initPromise: Promise<void> | null = null;
   private initTimeoutId: number | null = null;
   private initResolve: (() => void) | null = null;
+  private cancelBodyReadyPoll: (() => void) | null = null;
   private destroyed = false;
 
   constructor(
@@ -91,7 +92,8 @@ export class RelayClient {
         finishInit();
       }, RELAY_RPC_TIMEOUT_MS);
 
-      whenBodyReady(() => {
+      this.cancelBodyReadyPoll?.();
+      this.cancelBodyReadyPoll = whenBodyReady(() => {
         if (this.destroyed || this.iframe) {
           return;
         }
@@ -238,6 +240,8 @@ export class RelayClient {
 
   destroy(): void {
     this.destroyed = true;
+    this.cancelBodyReadyPoll?.();
+    this.cancelBodyReadyPoll = null;
     if (this.initTimeoutId !== null) {
       window.clearTimeout(this.initTimeoutId);
       this.initTimeoutId = null;

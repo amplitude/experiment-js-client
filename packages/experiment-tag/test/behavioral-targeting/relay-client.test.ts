@@ -29,6 +29,17 @@ describe('RelayClient', () => {
     jest.clearAllMocks();
   });
 
+  const sampleEvent = (
+    id: number,
+    properties: Record<string, unknown> = {},
+  ): RelayEventRecord => ({
+    id,
+    event_type: 'page_view',
+    timestamp: 100,
+    session_id: 's1',
+    properties,
+  });
+
   const setupClient = (relayUrl = RELAY_URL) => {
     const postMessage = jest.fn(
       (payload: { requestId?: string; type?: string }) => {
@@ -36,15 +47,7 @@ describe('RelayClient', () => {
           let responsePayload: unknown;
           if (payload.type === 'READ_EVENTS') {
             responsePayload = {
-              events: [
-                {
-                  id: 1,
-                  event_type: 'page_view',
-                  timestamp: 1,
-                  session_id: 's1',
-                  properties: {},
-                },
-              ],
+              events: [sampleEvent(1)],
               nextId: 2,
             };
           } else if (payload.type === 'CHECK_MIGRATED') {
@@ -86,12 +89,81 @@ describe('RelayClient', () => {
     );
   };
 
-  test('injects iframe and marks relay available after ready message', async () => {
-    const { client, iframeWindow } = setupClient();
+  const initReady = async (
+    client: RelayClient,
+    iframeWindow: { postMessage: jest.Mock },
+  ) => {
     const initPromise = client.init();
-
     signalRelayReady(iframeWindow);
     await initPromise;
+  };
+
+  const expectNoWrite = (postMessage: jest.Mock, id: number) => {
+    expect(postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'WRITE_EVENT',
+        payload: { event: expect.objectContaining({ id }) },
+      }),
+    );
+  };
+
+  const withDeferredBody = async (
+    run: (ctx: {
+      flushRaf: () => void;
+      makeBodyAvailable: () => void;
+      rafSpy: jest.SpyInstance;
+    }) => Promise<void>,
+  ) => {
+    const originalBody = document.body;
+    const bodyDescriptor = Object.getOwnPropertyDescriptor(
+      Document.prototype,
+      'body',
+    );
+    Object.defineProperty(document, 'body', {
+      configurable: true,
+      get: () => null,
+    });
+
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = jest
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb) => {
+        rafCallbacks.push(cb);
+        return rafCallbacks.length;
+      });
+
+    const restore = () => {
+      rafSpy.mockRestore();
+      Object.defineProperty(document, 'body', {
+        configurable: true,
+        value: originalBody,
+      });
+      if (bodyDescriptor) {
+        Object.defineProperty(Document.prototype, 'body', bodyDescriptor);
+      }
+    };
+
+    try {
+      await run({
+        flushRaf: () => {
+          rafCallbacks.shift()?.(0);
+        },
+        makeBodyAvailable: () => {
+          Object.defineProperty(document, 'body', {
+            configurable: true,
+            get: () => originalBody,
+          });
+        },
+        rafSpy,
+      });
+    } finally {
+      restore();
+    }
+  };
+
+  test('injects iframe and marks relay available after ready message', async () => {
+    const { client, iframeWindow } = setupClient();
+    await initReady(client, iframeWindow);
 
     const iframe = document.querySelector('iframe') as HTMLIFrameElement;
     expect(client.relayAvailable).toBe(true);
@@ -110,42 +182,21 @@ describe('RelayClient', () => {
 
   test('queues writes and flushes pending events when relay becomes ready', async () => {
     const { client, iframeWindow, postMessage } = setupClient();
-    const pendingEvent: RelayEventRecord = {
-      id: 1,
-      event_type: 'page_view',
-      timestamp: 100,
-      session_id: 's1',
-      properties: { page: 'home' },
-    };
-    client.writeEvent(pendingEvent);
+    client.writeEvent(sampleEvent(1, { page: 'home' }));
 
-    const initPromise = client.init();
-    signalRelayReady(iframeWindow);
-    await initPromise;
+    await initReady(client, iframeWindow);
 
     expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'WRITE_EVENT',
-        apiKey: API_KEY,
-      }),
+      expect.objectContaining({ type: 'WRITE_EVENT', apiKey: API_KEY }),
       RELAY_ORIGIN,
     );
   });
 
   test('does not double-send writes when relay is available', async () => {
     const { client, iframeWindow, postMessage } = setupClient();
-    const initPromise = client.init();
-    signalRelayReady(iframeWindow);
-    await initPromise;
+    await initReady(client, iframeWindow);
 
-    const event: RelayEventRecord = {
-      id: 1,
-      event_type: 'page_view',
-      timestamp: 100,
-      session_id: 's1',
-      properties: { page: 'home' },
-    };
-    client.writeEvent(event);
+    client.writeEvent(sampleEvent(1, { page: 'home' }));
     client.flush();
 
     const writeCalls = postMessage.mock.calls.filter(
@@ -184,125 +235,71 @@ describe('RelayClient', () => {
     client.destroy();
     await initPromise;
 
-    const reinitPromise = client.init();
-    signalRelayReady(iframeWindow);
-    await reinitPromise;
+    await initReady(client, iframeWindow);
 
     expect(client.relayAvailable).toBe(true);
     expect(document.querySelectorAll('iframe')).toHaveLength(1);
   });
 
-  test('queued writes before destroy are cleared on teardown', async () => {
-    const { client, iframeWindow, postMessage } = setupClient();
-    client.writeEvent({
-      id: 42,
-      event_type: 'page_view',
-      timestamp: 100,
-      session_id: 's1',
-      properties: {},
+  describe('destroy write handling', () => {
+    test('clears writes queued before destroy', async () => {
+      const { client, iframeWindow, postMessage } = setupClient();
+      client.writeEvent(sampleEvent(42));
+
+      const initPromise = client.init();
+      client.destroy();
+      await initPromise;
+
+      await initReady(client, iframeWindow);
+      expectNoWrite(postMessage, 42);
     });
 
-    const initPromise = client.init();
-    client.destroy();
-    await initPromise;
+    test('drops writes after destroy', async () => {
+      const { client, iframeWindow, postMessage } = setupClient();
+      await initReady(client, iframeWindow);
+      postMessage.mockClear();
 
-    const reinitPromise = client.init();
-    signalRelayReady(iframeWindow);
-    await reinitPromise;
+      client.destroy();
+      client.writeEvent(sampleEvent(99));
 
-    expect(postMessage).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'WRITE_EVENT',
-        payload: { event: expect.objectContaining({ id: 42 }) },
-      }),
-    );
+      await initReady(client, iframeWindow);
+      expectNoWrite(postMessage, 99);
+    });
   });
 
-  test('writeEvent after destroy is dropped', async () => {
-    const { client, iframeWindow, postMessage } = setupClient();
-    const initPromise = client.init();
-    signalRelayReady(iframeWindow);
-    await initPromise;
-    postMessage.mockClear();
+  test('destroy cancels body poll before body is available', async () => {
+    await withDeferredBody(async ({ flushRaf, rafSpy }) => {
+      const { client } = setupClient();
+      client.init();
+      flushRaf();
+      expect(rafSpy).toHaveBeenCalledTimes(2);
 
-    client.destroy();
-    client.writeEvent({
-      id: 99,
-      event_type: 'page_view',
-      timestamp: 100,
-      session_id: 's1',
-      properties: {},
+      client.destroy();
+      flushRaf();
+      expect(rafSpy).toHaveBeenCalledTimes(2);
     });
-
-    const reinitPromise = client.init();
-    signalRelayReady(iframeWindow);
-    await reinitPromise;
-
-    expect(postMessage).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'WRITE_EVENT',
-        payload: { event: expect.objectContaining({ id: 99 }) },
-      }),
-    );
   });
 
   test('defers iframe injection until document.body is available', async () => {
-    const originalBody = document.body;
-    const bodyDescriptor = Object.getOwnPropertyDescriptor(
-      Document.prototype,
-      'body',
-    );
-    Object.defineProperty(document, 'body', {
-      configurable: true,
-      get: () => null,
+    await withDeferredBody(async ({ flushRaf, makeBodyAvailable }) => {
+      const { client, iframeWindow } = setupClient();
+      const initPromise = client.init();
+      expect(document.querySelector('iframe')).toBeNull();
+
+      makeBodyAvailable();
+      flushRaf();
+      await Promise.resolve();
+
+      signalRelayReady(iframeWindow);
+      await initPromise;
+
+      expect(document.querySelector('iframe')).not.toBeNull();
+      expect(client.relayAvailable).toBe(true);
     });
-
-    const rafCallbacks: FrameRequestCallback[] = [];
-    const rafSpy = jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb) => {
-        rafCallbacks.push(cb);
-        return rafCallbacks.length;
-      });
-
-    const { client, iframeWindow } = setupClient();
-    const initPromise = client.init();
-    expect(document.querySelector('iframe')).toBeNull();
-
-    Object.defineProperty(document, 'body', {
-      configurable: true,
-      get: () => originalBody,
-    });
-    rafCallbacks.shift()?.(0);
-    await Promise.resolve();
-
-    signalRelayReady(iframeWindow);
-    await initPromise;
-
-    expect(document.querySelector('iframe')).not.toBeNull();
-
-    rafSpy.mockRestore();
-    if (bodyDescriptor) {
-      Object.defineProperty(Document.prototype, 'body', bodyDescriptor);
-    }
   });
 
   test('times out init when document.body never appears', async () => {
-    const originalBody = document.body;
-    Object.defineProperty(document, 'body', {
-      configurable: true,
-      get: () => null,
-    });
-
-    const rafCallbacks: FrameRequestCallback[] = [];
-    const rafSpy = jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb) => {
-        rafCallbacks.push(cb);
-        return rafCallbacks.length;
-      });
-
-    try {
+    await withDeferredBody(async () => {
       const { client } = setupClient();
       const initPromise = client.init();
 
@@ -311,13 +308,7 @@ describe('RelayClient', () => {
 
       expect(client.relayAvailable).toBe(false);
       expect(document.querySelector('iframe')).toBeNull();
-    } finally {
-      rafSpy.mockRestore();
-      Object.defineProperty(document, 'body', {
-        configurable: true,
-        value: originalBody,
-      });
-    }
+    });
   });
 
   test('does not throw when body is still null in whenBodyReady callback', async () => {
@@ -353,21 +344,7 @@ describe('RelayClient', () => {
   });
 
   test('creates iframe when body appears after init timeout', async () => {
-    const originalBody = document.body;
-    Object.defineProperty(document, 'body', {
-      configurable: true,
-      get: () => null,
-    });
-
-    const rafCallbacks: FrameRequestCallback[] = [];
-    const rafSpy = jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((cb) => {
-        rafCallbacks.push(cb);
-        return rafCallbacks.length;
-      });
-
-    try {
+    await withDeferredBody(async ({ flushRaf, makeBodyAvailable }) => {
       const { client, iframeWindow } = setupClient();
       const initPromise = client.init();
 
@@ -376,23 +353,14 @@ describe('RelayClient', () => {
       expect(client.relayAvailable).toBe(false);
       expect(document.querySelector('iframe')).toBeNull();
 
-      Object.defineProperty(document, 'body', {
-        configurable: true,
-        get: () => originalBody,
-      });
-      rafCallbacks.shift()?.(0);
+      makeBodyAvailable();
+      flushRaf();
       await Promise.resolve();
 
       expect(document.querySelector('iframe')).not.toBeNull();
       signalRelayReady(iframeWindow);
       expect(client.relayAvailable).toBe(true);
-    } finally {
-      rafSpy.mockRestore();
-      Object.defineProperty(document, 'body', {
-        configurable: true,
-        value: originalBody,
-      });
-    }
+    });
   });
 
   test('ignores ready messages from unrelated frames', async () => {
@@ -415,9 +383,7 @@ describe('RelayClient', () => {
 
   test('supports rpc read/check/migrate requests', async () => {
     const { client, iframeWindow } = setupClient();
-    const initPromise = client.init();
-    signalRelayReady(iframeWindow);
-    await initPromise;
+    await initReady(client, iframeWindow);
 
     const events = await client.readEvents();
     expect(events.events).toHaveLength(1);
