@@ -2,6 +2,7 @@ import { BehavioralTargetingRules } from '../types';
 
 import { BehavioralTargetingEvaluator } from './evaluator';
 import { EventStorageManager } from './event-storage';
+import { RelayClient } from './relay-client';
 import { SessionManager } from './session-manager';
 import { BehavioralTargeting } from './types';
 
@@ -49,6 +50,55 @@ export class BehavioralTargetingManager {
     this.eventStorage.addEvent(eventType, properties);
     // Update active behavior state for flags affected by this event
     this.evaluateEvent(eventType);
+  }
+
+  /**
+   * Attach the relay client for cross-subdomain event dual-write (#334).
+   */
+  public setRelayClient(relayClient: RelayClient | null): void {
+    (
+      this.eventStorage as {
+        setRelayClient?: (client: RelayClient | null) => void;
+      }
+    ).setRelayClient?.(relayClient);
+  }
+
+  /**
+   * Pass 2: migrate local events to relay if needed, merge relay store, re-evaluate.
+   * Returns true when relay store was merged (#334).
+   */
+  public async syncFromRelay(): Promise<boolean> {
+    const sync = (
+      this.eventStorage as { syncFromRelay?: () => Promise<boolean> }
+    ).syncFromRelay;
+    if (!sync) {
+      return false;
+    }
+    const synced = await sync.call(this.eventStorage);
+    if (synced) {
+      this.evaluateAll();
+    }
+    return synced;
+  }
+
+  /**
+   * WEB-130: inject relay iframe (non-blocking init) and run Pass 2 sync when
+   * event-storage relay hooks are present (#334).
+   *
+   * @returns true when matched behaviors changed after relay sync
+   */
+  public async beginRelaySync(relayClient: RelayClient): Promise<boolean> {
+    const behaviorsBefore = this.serializeMatchedBehaviors();
+    await relayClient.init();
+    if (!relayClient.relayAvailable) {
+      return false;
+    }
+    this.setRelayClient(relayClient);
+    const synced = await this.syncFromRelay();
+    if (!synced) {
+      return false;
+    }
+    return behaviorsBefore !== this.serializeMatchedBehaviors();
   }
 
   /**
@@ -175,6 +225,14 @@ export class BehavioralTargetingManager {
    * @param flagKey The flag key to evaluate
    * @param behaviorId The specific behavior ID to evaluate
    */
+  private serializeMatchedBehaviors(): string {
+    const snapshot: Record<string, string[]> = {};
+    for (const [flagKey, behaviorIds] of this.matchedBehaviors.entries()) {
+      snapshot[flagKey] = [...behaviorIds].sort();
+    }
+    return JSON.stringify(snapshot);
+  }
+
   private evaluateBehaviorId(flagKey: string, behaviorId: string): void {
     const rulesByIds = this.rules[flagKey];
     if (!rulesByIds || !rulesByIds[behaviorId]) {

@@ -24,6 +24,8 @@ import * as domMutatorExports from 'dom-mutator';
 import type { MutationController } from 'dom-mutator/dist/types';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
+import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
+import { WEB_EXP_ID_V2_PATTERN } from './behavioral-targeting/relay-protocol';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -138,6 +140,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   public readonly behavioralTargetingManager:
     | BehavioralTargetingManager
     | undefined;
+  private relayClient: RelayClient | null = null;
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
   private isDebugActive = false;
@@ -466,6 +469,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         Object.keys(this.previewFlags).includes(key),
       )
     ) {
+      this.scheduleRelaySync(enrichedUser);
       this.isRunning = true;
       flushEventBuffer(this);
       return;
@@ -474,6 +478,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
     await this.applyVariants({ flagKeys: this.remoteFlagKeys });
+    this.scheduleRelaySync(enrichedUser);
     this.isRunning = true;
     flushEventBuffer(this);
   }
@@ -707,6 +712,61 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   ): (() => void) | undefined {
     if (this.subscriptionManager) {
       return this.subscriptionManager.addPageChangeSubscriber(callback);
+    }
+  }
+
+  /**
+   * Non-blocking WEB-130 relay iframe init + Pass 2 sync (requires #334 storage hooks).
+   */
+  private scheduleRelaySync(user: WebExperimentUser): void {
+    if (!this.behavioralTargetingManager || this.isVisualEditorMode) {
+      return;
+    }
+
+    const webExpIdV2 = user.web_exp_id_v2 ?? user.web_exp_id;
+    if (!webExpIdV2 || !WEB_EXP_ID_V2_PATTERN.test(webExpIdV2)) {
+      return;
+    }
+
+    this.relayClient?.destroy();
+    this.relayClient = new RelayClient(
+      this.apiKey,
+      webExpIdV2,
+      getRelayUrl(this.apiKey),
+    );
+
+    void this.behavioralTargetingManager
+      .beginRelaySync(this.relayClient)
+      .then((behaviorsChanged) => this.handleRelayPass2(behaviorsChanged))
+      .catch(() => {
+        // relay failure is local-only fallback
+      });
+  }
+
+  /**
+   * Pass 2: re-apply variants when relay sync changes matched behaviors.
+   */
+  private async handleRelayPass2(behaviorsChanged: boolean): Promise<void> {
+    if (!behaviorsChanged || !this.behavioralTargetingManager) {
+      return;
+    }
+
+    this.updateUserWithBehaviors();
+
+    const flagKeys = Object.keys(this.behavioralTargetingRules);
+    const localKeys = flagKeys.filter((key) =>
+      this.localFlagKeys.includes(key),
+    );
+    const remoteKeys = flagKeys.filter((key) =>
+      this.remoteFlagKeys.includes(key),
+    );
+
+    if (localKeys.length > 0) {
+      await this.applyVariants({ flagKeys: localKeys });
+    }
+    if (remoteKeys.length > 0) {
+      await this.fetchRemoteFlags();
+      await this.applyVariants({ flagKeys: remoteKeys });
     }
   }
 
