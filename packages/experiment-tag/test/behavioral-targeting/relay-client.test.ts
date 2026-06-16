@@ -398,12 +398,6 @@ describe('RelayClient', () => {
 });
 
 describe('getRelayUrl', () => {
-  test('returns local dev relay url', () => {
-    expect(getRelayUrl('abc123', true)).toBe(
-      'http://localhost:3036/script/abc123.relay.html',
-    );
-  });
-
   test('returns production relay url', () => {
     expect(getRelayUrl('abc123')).toBe(
       'https://cdn.amplitude.com/script/abc123.relay.html',

@@ -9,10 +9,7 @@ import {
   RelayResponse,
 } from './relay-protocol';
 
-export function getRelayUrl(apiKey: string, dev = false): string {
-  if (dev) {
-    return `http://localhost:3036/script/${apiKey}.relay.html`;
-  }
+export function getRelayUrl(apiKey: string): string {
   return `https://cdn.amplitude.com/script/${apiKey}.relay.html`;
 }
 
