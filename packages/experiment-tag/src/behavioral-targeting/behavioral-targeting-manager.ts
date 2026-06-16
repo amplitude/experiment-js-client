@@ -2,6 +2,7 @@ import { BehavioralTargetingRules } from '../types';
 
 import { BehavioralTargetingEvaluator } from './evaluator';
 import { EventStorageManager } from './event-storage';
+import { RelayClient } from './relay-client';
 import { SessionManager } from './session-manager';
 import { BehavioralTargeting } from './types';
 
@@ -49,6 +50,24 @@ export class BehavioralTargetingManager {
     this.eventStorage.addEvent(eventType, properties);
     // Update active behavior state for flags affected by this event
     this.evaluateEvent(eventType);
+  }
+
+  /**
+   * Attach the relay client for cross-subdomain event dual-write.
+   */
+  public setRelayClient(relayClient: RelayClient | null): void {
+    this.eventStorage.setRelayClient(relayClient);
+  }
+
+  /**
+   * Pass 2: migrate local events to relay if needed, merge relay store, re-evaluate.
+   */
+  public async syncFromRelay(): Promise<boolean> {
+    const synced = await this.eventStorage.syncFromRelay();
+    if (synced) {
+      this.evaluateAll();
+    }
+    return synced;
   }
 
   /**

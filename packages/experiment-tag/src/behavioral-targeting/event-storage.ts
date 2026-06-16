@@ -1,4 +1,16 @@
+import { RelayClient } from './relay-client';
+import { RelayEventStorage } from './relay-protocol';
 import { SessionManager } from './session-manager';
+
+/**
+ * Dedup key for cross-subdomain merge (matches relay.js MIGRATE_EVENTS).
+ */
+export function eventDedupKey(event: {
+  event_type: string;
+  timestamp: number;
+}): string {
+  return `${event.event_type}:${event.timestamp}`;
+}
 
 /**
  * Represents a stored event record.
@@ -33,15 +45,18 @@ export class EventStorageManager {
   private hasPendingWrites = false; // Track if cache has unsaved changes
   private persistedEvents?: Set<string>; // Optional set of event types to persist
   private storageKey: string;
+  private relayClient: RelayClient | null = null;
 
   constructor(
     apiKey: string,
     sessionManager: SessionManager,
     persistedEvents?: Set<string>,
+    relayClient?: RelayClient | null,
   ) {
     this.storageKey = `EXP_${apiKey.slice(0, 10)}_rtbt_events`;
     this.sessionManager = sessionManager;
     this.persistedEvents = persistedEvents;
+    this.relayClient = relayClient ?? null;
 
     // Load from localStorage into memory on initialization
     this.memoryCache = this.loadFromLocalStorage();
@@ -86,6 +101,83 @@ export class EventStorageManager {
 
     // Trigger debounced write to localStorage
     this.scheduleDebouncedWrite();
+
+    // Fire-and-forget relay write when cross-subdomain sync is enabled
+    this.relayClient?.writeEvent(event);
+  }
+
+  /**
+   * Attach or detach the relay client for cross-subdomain dual-write.
+   */
+  setRelayClient(relayClient: RelayClient | null): void {
+    this.relayClient = relayClient;
+  }
+
+  /**
+   * Flushes pending relay writes (e.g. on page unload).
+   */
+  flushRelay(): void {
+    this.relayClient?.flush();
+  }
+
+  /**
+   * Merges relay events into the in-memory cache. Relay wins on dedup conflicts.
+   */
+  mergeFromRelay(relayStore: RelayEventStorage): void {
+    const byKey = new Map<string, EventRecord>();
+    for (const event of this.memoryCache.events) {
+      byKey.set(eventDedupKey(event), event);
+    }
+    for (const event of relayStore.events) {
+      byKey.set(eventDedupKey(event), event);
+    }
+
+    let events = Array.from(byKey.values()).sort(
+      (a, b) => a.timestamp - b.timestamp,
+    );
+    if (events.length > EventStorageManager.MAX_EVENTS) {
+      events = events.slice(-EventStorageManager.MAX_EVENTS);
+    }
+
+    let nextId = Math.max(this.memoryCache.nextId, relayStore.nextId);
+    for (const event of events) {
+      if (event.id + 1 > nextId) {
+        nextId = event.id + 1;
+      }
+    }
+
+    this.memoryCache = { events, nextId };
+    this.hasPendingWrites = true;
+    this.scheduleDebouncedWrite();
+  }
+
+  /**
+   * Pass 2 sync: migrate local store to relay if needed, then merge relay events.
+   * Returns true when sync completed; false when relay unavailable or RPC failed.
+   */
+  async syncFromRelay(): Promise<boolean> {
+    const relay = this.relayClient;
+    if (!relay?.relayAvailable) {
+      return false;
+    }
+
+    try {
+      const origin = window.location.origin;
+      const migrated = await relay.checkMigrated(origin);
+
+      if (!migrated && this.memoryCache.events.length > 0) {
+        await relay.migrateEvents(origin, {
+          events: [...this.memoryCache.events],
+          nextId: this.memoryCache.nextId,
+        });
+      }
+
+      const relayStore = await relay.readEvents();
+      this.mergeFromRelay(relayStore);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -148,6 +240,7 @@ export class EventStorageManager {
    */
   flush(): void {
     this.flushToLocalStorage();
+    this.flushRelay();
   }
 
   /**
@@ -254,6 +347,7 @@ export class EventStorageManager {
    */
   private handleBeforeUnload = (): void => {
     this.flushToLocalStorage();
+    this.flushRelay();
   };
 
   /**
@@ -262,6 +356,7 @@ export class EventStorageManager {
   private handleVisibilityChange = (): void => {
     if (document.visibilityState === 'hidden') {
       this.flushToLocalStorage();
+      this.flushRelay();
     }
   };
 
@@ -272,6 +367,7 @@ export class EventStorageManager {
   cleanup(): void {
     // Flush any pending writes
     this.flushToLocalStorage();
+    this.flushRelay();
 
     // Clear debounce timeout
     if (this.debouncedWriteTimeout) {
