@@ -68,6 +68,8 @@ export class RelayClient {
       return this.initPromise;
     }
 
+    this.destroyed = false;
+
     this.initPromise = new Promise((resolve) => {
       this.initResolve = resolve;
 
@@ -173,6 +175,9 @@ export class RelayClient {
   }
 
   writeEvent(event: RelayEventRecord): void {
+    if (this.destroyed) {
+      return;
+    }
     if (!this.available || !this.iframeWindow) {
       this.pendingWrites.push(event);
       return;

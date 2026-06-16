@@ -177,20 +177,47 @@ describe('RelayClient', () => {
     expect(client.relayAvailable).toBe(true);
   });
 
-  test('destroy during init allows re-init', async () => {
-    const { client } = setupClient();
+  test('destroy during init allows re-init on same instance', async () => {
+    const { client, iframeWindow } = setupClient();
     const initPromise = client.init();
 
     client.destroy();
     await initPromise;
 
-    const { client: client2, iframeWindow } = setupClient();
-    const reinitPromise = client2.init();
+    const reinitPromise = client.init();
     signalRelayReady(iframeWindow);
     await reinitPromise;
 
-    expect(client2.relayAvailable).toBe(true);
+    expect(client.relayAvailable).toBe(true);
     expect(document.querySelectorAll('iframe')).toHaveLength(1);
+  });
+
+  test('writeEvent after destroy is dropped', async () => {
+    const { client, iframeWindow, postMessage } = setupClient();
+    const initPromise = client.init();
+    signalRelayReady(iframeWindow);
+    await initPromise;
+    postMessage.mockClear();
+
+    client.destroy();
+    client.writeEvent({
+      id: 99,
+      event_type: 'page_view',
+      timestamp: 100,
+      session_id: 's1',
+      properties: {},
+    });
+
+    const reinitPromise = client.init();
+    signalRelayReady(iframeWindow);
+    await reinitPromise;
+
+    expect(postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'WRITE_EVENT',
+        payload: { event: expect.objectContaining({ id: 99 }) },
+      }),
+    );
   });
 
   test('defers iframe injection until document.body is available', async () => {
