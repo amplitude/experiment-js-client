@@ -5,16 +5,6 @@ import {
 import { RelayClient } from 'src/behavioral-targeting/relay-client';
 import { SessionManager } from 'src/behavioral-targeting/session-manager';
 
-type MockRelayClient = Pick<
-  RelayClient,
-  | 'relayAvailable'
-  | 'writeEvent'
-  | 'flush'
-  | 'readEvents'
-  | 'checkMigrated'
-  | 'migrateEvents'
->;
-
 describe('EventStorageManager', () => {
   let eventStorage: EventStorageManager;
   let sessionManager: SessionManager;
