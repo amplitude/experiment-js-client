@@ -120,7 +120,39 @@ describe('initializeExperiment', () => {
     );
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       'EXP_' + stringify(apiKey),
-      JSON.stringify({ web_exp_id: 'mock' }),
+      JSON.stringify({ web_exp_id: 'mock', web_exp_id_v2: 'mock' }),
+    );
+  });
+
+  test('seeds web_exp_id_v2 from existing web_exp_id when cookie is missing', async () => {
+    const key = stringify(apiKey);
+    const storageKey = 'EXP_' + key;
+    const cookieKey = storageKey + '_id_v2';
+    mockGlobal.localStorage.getItem.mockImplementation((name: string) => {
+      if (name === storageKey) {
+        return JSON.stringify({ web_exp_id: 'existing-id' });
+      }
+      return null;
+    });
+
+    await DefaultWebExperimentClient.getInstance(key, {
+      initialFlags: JSON.stringify([]),
+      pageObjects: JSON.stringify({}),
+    }).start();
+
+    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        web_exp_id: 'existing-id',
+        web_exp_id_v2: 'existing-id',
+      }),
+    );
+    expect(cookieStore[cookieKey]).toBe('existing-id');
+    expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
+      storageKey,
+      JSON.stringify({
+        web_exp_id: 'existing-id',
+        web_exp_id_v2: 'existing-id',
+      }),
     );
   });
 

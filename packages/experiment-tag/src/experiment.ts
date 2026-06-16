@@ -416,7 +416,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // Resolve web_exp_id_v2 and web_exp_first_seen as root-domain cookies for
     // cross-subdomain identity. Cookie is authoritative; localStorage is the
-    // migration source / backup when no cookie exists yet.
+    // migration / backup source when no cookie exists yet. When seeding v2,
+    // prefer existing web_exp_id_v2 local value, then web_exp_id; if neither
+    // exists, generate one UUID and assign to both.
     const rootDomain = await getTopLevelDomain(
       this.globalScope.location.hostname,
     );
@@ -426,13 +428,23 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       expirationDays: 365,
     });
 
+    const webExpIdV2CookieKey = `${experimentStorageName}_id_v2`;
+    const webExpIdV2LocalFallback = user.web_exp_id_v2 ?? user.web_exp_id;
+    let generatedSharedId: string | undefined;
     const webExpIdV2 = await resolveCrossSubdomainValue(
       crossSubdomainCookieStorage,
-      `${experimentStorageName}_id_v2`,
-      user.web_exp_id_v2,
-      UUID,
+      webExpIdV2CookieKey,
+      webExpIdV2LocalFallback,
+      () => {
+        generatedSharedId = UUID();
+        return generatedSharedId;
+      },
     );
     user.web_exp_id_v2 = webExpIdV2;
+    if (generatedSharedId) {
+      user.web_exp_id = generatedSharedId;
+      delete user.device_id;
+    }
     setStorageItem('localStorage', experimentStorageName, user);
 
     const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
