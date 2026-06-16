@@ -1,7 +1,5 @@
 export const RELAY_READY_MESSAGE = 'AMP_RELAY_READY';
 export const RELAY_RPC_TIMEOUT_MS = 2000;
-/** Matches relay.js WEB_EXP_ID_V2_PATTERN — safe for localStorage key segments. */
-export const WEB_EXP_ID_V2_PATTERN = /^[a-zA-Z0-9-]{8,64}$/;
 
 export type RelayMessageType =
   | 'WRITE_EVENT'
