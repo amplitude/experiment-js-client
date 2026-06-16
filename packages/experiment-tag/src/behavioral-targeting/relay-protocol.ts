@@ -1,8 +1,7 @@
-export const RELAY_STORAGE_KEY = 'EXP_EventStore';
-export const RELAY_MIGRATED_KEY = 'EXP_MigratedOrigins';
-export const RELAY_LOCK_KEY = 'EXP_WriteLock';
 export const RELAY_READY_MESSAGE = 'AMP_RELAY_READY';
 export const RELAY_RPC_TIMEOUT_MS = 2000;
+/** Matches relay.js WEB_EXP_ID_V2_PATTERN — safe for localStorage key segments. */
+export const WEB_EXP_ID_V2_PATTERN = /^[a-zA-Z0-9-]{8,64}$/;
 
 export type RelayMessageType =
   | 'WRITE_EVENT'
@@ -28,6 +27,7 @@ export interface RelayRequest {
   type: RelayMessageType;
   requestId: string;
   apiKey: string;
+  web_exp_id_v2: string;
   payload?: unknown;
 }
 

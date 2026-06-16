@@ -52,9 +52,23 @@ export class RelayClient {
 
   constructor(
     private readonly apiKey: string,
+    private readonly webExpIdV2: string,
     private readonly relayUrl: string,
   ) {
     this.relayOrigin = new URL(relayUrl).origin;
+  }
+
+  private createRelayRequest(
+    type: RelayRequest['type'],
+    payload?: unknown,
+  ): RelayRequest {
+    return {
+      type,
+      requestId: createRequestId(),
+      apiKey: this.apiKey,
+      web_exp_id_v2: this.webExpIdV2,
+      payload,
+    };
   }
 
   get relayAvailable(): boolean {
@@ -162,11 +176,9 @@ export class RelayClient {
   }
 
   async readEvents(): Promise<RelayEventStorage> {
-    const response = await this.sendRequest({
-      type: 'READ_EVENTS',
-      requestId: createRequestId(),
-      apiKey: this.apiKey,
-    });
+    const response = await this.sendRequest(
+      this.createRelayRequest('READ_EVENTS'),
+    );
     if (!response.ok) {
       throw new Error(response.error ?? 'read events failed');
     }
@@ -181,12 +193,9 @@ export class RelayClient {
       this.pendingWrites.push(event);
       return;
     }
-    void this.sendRequest({
-      type: 'WRITE_EVENT',
-      requestId: createRequestId(),
-      apiKey: this.apiKey,
-      payload: { event },
-    }).catch(() => {
+    void this.sendRequest(
+      this.createRelayRequest('WRITE_EVENT', { event }),
+    ).catch(() => {
       // fire-and-forget
     });
   }
@@ -199,24 +208,16 @@ export class RelayClient {
     this.pendingWrites = [];
     for (const event of writes) {
       this.iframeWindow.postMessage(
-        {
-          type: 'WRITE_EVENT',
-          requestId: createRequestId(),
-          apiKey: this.apiKey,
-          payload: { event },
-        } satisfies RelayRequest,
+        this.createRelayRequest('WRITE_EVENT', { event }),
         this.relayOrigin,
       );
     }
   }
 
   async checkMigrated(origin: string): Promise<boolean> {
-    const response = await this.sendRequest({
-      type: 'CHECK_MIGRATED',
-      requestId: createRequestId(),
-      apiKey: this.apiKey,
-      payload: { sourceOrigin: origin },
-    });
+    const response = await this.sendRequest(
+      this.createRelayRequest('CHECK_MIGRATED', { sourceOrigin: origin }),
+    );
     if (!response.ok) {
       throw new Error(response.error ?? 'check migrated failed');
     }
@@ -224,12 +225,12 @@ export class RelayClient {
   }
 
   async migrateEvents(origin: string, store: RelayEventStorage): Promise<void> {
-    const response = await this.sendRequest({
-      type: 'MIGRATE_EVENTS',
-      requestId: createRequestId(),
-      apiKey: this.apiKey,
-      payload: { sourceOrigin: origin, store },
-    });
+    const response = await this.sendRequest(
+      this.createRelayRequest('MIGRATE_EVENTS', {
+        sourceOrigin: origin,
+        store,
+      }),
+    );
     if (!response.ok) {
       throw new Error(response.error ?? 'migrate events failed');
     }

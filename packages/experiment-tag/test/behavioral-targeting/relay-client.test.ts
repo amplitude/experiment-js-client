@@ -9,6 +9,7 @@ import {
 } from 'src/behavioral-targeting/relay-protocol';
 
 const API_KEY = 'api-key';
+const WEB_EXP_ID_V2 = 'oeu1383080393924r0-5047421827912331';
 const RELAY_URL = getRelayUrl(API_KEY);
 const RELAY_ORIGIN = 'https://cdn.amplitude.com';
 
@@ -69,7 +70,7 @@ describe('RelayClient', () => {
       },
     );
     const iframeWindow = { postMessage };
-    const client = new RelayClient(API_KEY, relayUrl);
+    const client = new RelayClient(API_KEY, WEB_EXP_ID_V2, relayUrl);
     clients.push(client);
     return { client, iframeWindow, postMessage };
   };
@@ -187,7 +188,11 @@ describe('RelayClient', () => {
     await initReady(client, iframeWindow);
 
     expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'WRITE_EVENT', apiKey: API_KEY }),
+      expect.objectContaining({
+        type: 'WRITE_EVENT',
+        apiKey: API_KEY,
+        web_exp_id_v2: WEB_EXP_ID_V2,
+      }),
       RELAY_ORIGIN,
     );
   });
