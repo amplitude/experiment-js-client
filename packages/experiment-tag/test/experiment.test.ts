@@ -1039,7 +1039,7 @@ describe('initializeExperiment', () => {
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
-  test('remote evaluation - fetch fail, test initialFlags variant actions called', () => {
+  test('remote evaluation - fetch fail, test initialFlags variant actions called', async () => {
     const initialFlags = [
       // remote flag
       createMutateFlag(
@@ -1053,7 +1053,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient('', 404);
 
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       {
         initialFlags: JSON.stringify(initialFlags),
@@ -1062,15 +1062,10 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        // check remote variant actions applied
-        expect(mockExposure).toHaveBeenCalledTimes(1);
-        expect(mockExposure).toHaveBeenCalledWith('test');
-      });
-    // check local flag variant actions called
-    expect(mockExposure).toHaveBeenCalledTimes(0);
+    ).start();
+    // check remote variant actions applied
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 

@@ -395,30 +395,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       setStorageItem('localStorage', experimentStorageName, user);
     }
 
-    // evaluate variants for page targeting
-    const variants: Variants = this.getVariants();
-
-    for (const [flagKey, variant] of Object.entries(variants)) {
-      // only apply anti-flicker for remote flags active on the page
-      if (
-        this.remoteFlagKeys.includes(flagKey) &&
-        variant.metadata?.blockingEvaluation &&
-        Object.keys(this.activePages).includes(flagKey) &&
-        !this.remoteFlagKeys.every((key) =>
-          Object.keys(this.previewFlags).includes(key),
-        )
-      ) {
-        this.isRemoteBlocking = true;
-        // Apply anti-flicker CSS to prevent UI flicker
-        applyAntiFlickerCss();
-      }
-    }
-
-    // Resolve web_exp_id_v2 and web_exp_first_seen as root-domain cookies for
-    // cross-subdomain identity. Cookie is authoritative; localStorage is the
-    // migration / backup source when no cookie exists yet. When seeding v2,
-    // prefer existing web_exp_id_v2 local value, then web_exp_id; if neither
-    // exists, generate one UUID and assign to both.
+    // Resolve web_exp_id_v2 and first_seen as root-domain cookies for
+    // cross-subdomain identity before getVariants() so anti-flicker and
+    // local evaluation use the shared first_seen, not a subdomain-local mint.
     const rootDomain = await getTopLevelDomain(
       this.globalScope.location.hostname,
     );
@@ -468,6 +447,26 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     user.first_seen = firstSeen;
+    this.experimentClient.setUser(user);
+
+    // evaluate variants for page targeting
+    const variants: Variants = this.getVariants();
+
+    for (const [flagKey, variant] of Object.entries(variants)) {
+      // only apply anti-flicker for remote flags active on the page
+      if (
+        this.remoteFlagKeys.includes(flagKey) &&
+        variant.metadata?.blockingEvaluation &&
+        Object.keys(this.activePages).includes(flagKey) &&
+        !this.remoteFlagKeys.every((key) =>
+          Object.keys(this.previewFlags).includes(key),
+        )
+      ) {
+        this.isRemoteBlocking = true;
+        // Apply anti-flicker CSS to prevent UI flicker
+        applyAntiFlickerCss();
+      }
+    }
 
     const enrichedUser = await enrichUserWithCampaignData(this.apiKey, user);
 
