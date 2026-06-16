@@ -246,6 +246,20 @@ describe('RelayClient', () => {
     expect(document.querySelectorAll('iframe')).toHaveLength(1);
   });
 
+  test('destroy rejects in-flight rpc requests', async () => {
+    const postMessage = jest.fn();
+    const iframeWindow = { postMessage };
+    const client = new RelayClient(API_KEY, WEB_EXP_ID_V2, RELAY_URL);
+    clients.push(client);
+    await initReady(client, iframeWindow);
+
+    const readPromise = client.readEvents();
+    expect(postMessage).toHaveBeenCalled();
+    client.destroy();
+
+    await expect(readPromise).rejects.toThrow('relay destroyed');
+  });
+
   describe('destroy write handling', () => {
     test('clears writes queued before destroy', async () => {
       const { client, iframeWindow, postMessage } = setupClient();

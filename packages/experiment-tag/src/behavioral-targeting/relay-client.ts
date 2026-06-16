@@ -252,6 +252,10 @@ export class RelayClient {
       window.removeEventListener('message', this.messageListener);
       this.messageListener = null;
     }
+    for (const pending of this.pendingRequests.values()) {
+      pending.reject(new Error('relay destroyed'));
+    }
+    this.pendingRequests.clear();
     this.iframe?.remove();
     this.iframe = null;
     this.iframeWindow = null;
