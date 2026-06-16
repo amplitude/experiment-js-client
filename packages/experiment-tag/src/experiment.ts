@@ -25,7 +25,6 @@ import type { MutationController } from 'dom-mutator/dist/types';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
-import { WEB_EXP_ID_V2_PATTERN } from './behavioral-targeting/relay-protocol';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -724,7 +723,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     const webExpIdV2 = user.web_exp_id_v2 ?? user.web_exp_id;
-    if (!webExpIdV2 || !WEB_EXP_ID_V2_PATTERN.test(webExpIdV2)) {
+    if (!webExpIdV2) {
       return;
     }
 
