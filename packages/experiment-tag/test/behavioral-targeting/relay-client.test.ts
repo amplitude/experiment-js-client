@@ -234,6 +234,71 @@ describe('RelayClient', () => {
     }
   });
 
+  test('times out init when document.body never appears', async () => {
+    const originalBody = document.body;
+    Object.defineProperty(document, 'body', {
+      configurable: true,
+      get: () => null,
+    });
+
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = jest
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb) => {
+        rafCallbacks.push(cb);
+        return rafCallbacks.length;
+      });
+
+    try {
+      const { client } = setupClient();
+      const initPromise = client.init();
+
+      jest.advanceTimersByTime(RELAY_RPC_TIMEOUT_MS + 1);
+      await initPromise;
+
+      expect(client.relayAvailable).toBe(false);
+      expect(document.querySelector('iframe')).toBeNull();
+    } finally {
+      rafSpy.mockRestore();
+      Object.defineProperty(document, 'body', {
+        configurable: true,
+        value: originalBody,
+      });
+    }
+  });
+
+  test('does not throw when body is still null in whenBodyReady callback', async () => {
+    const originalBody = document.body;
+    Object.defineProperty(document, 'body', {
+      configurable: true,
+      get: () => null,
+    });
+
+    const originalRaf = window.requestAnimationFrame;
+    Object.defineProperty(window, 'requestAnimationFrame', {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      const { client } = setupClient();
+      const initPromise = client.init();
+
+      jest.advanceTimersByTime(RELAY_RPC_TIMEOUT_MS + 1);
+      await expect(initPromise).resolves.toBeUndefined();
+      expect(document.querySelector('iframe')).toBeNull();
+    } finally {
+      Object.defineProperty(document, 'body', {
+        configurable: true,
+        value: originalBody,
+      });
+      Object.defineProperty(window, 'requestAnimationFrame', {
+        configurable: true,
+        value: originalRaf,
+      });
+    }
+  });
+
   test('supports rpc read/check/migrate requests', async () => {
     const { client, iframeWindow } = setupClient();
     const initPromise = client.init();

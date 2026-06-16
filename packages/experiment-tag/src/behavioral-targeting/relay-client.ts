@@ -70,8 +70,29 @@ export class RelayClient {
     this.initPromise = new Promise((resolve) => {
       this.initResolve = resolve;
 
+      const finishInit = () => {
+        if (!this.initResolve) {
+          return;
+        }
+        if (this.initTimeoutId !== null) {
+          window.clearTimeout(this.initTimeoutId);
+          this.initTimeoutId = null;
+        }
+        this.initResolve = null;
+        this.ready = true;
+        resolve();
+      };
+
+      this.initTimeoutId = window.setTimeout(() => {
+        this.initTimeoutId = null;
+        finishInit();
+      }, RELAY_RPC_TIMEOUT_MS);
+
       whenBodyReady(() => {
         if (!this.initResolve) {
+          return;
+        }
+        if (!document.body) {
           return;
         }
 
@@ -90,14 +111,8 @@ export class RelayClient {
           if (!this.available && isRelayReadyMessage(event.data)) {
             this.iframeWindow = iframe.contentWindow;
             this.available = true;
-            this.ready = true;
-            if (this.initTimeoutId !== null) {
-              window.clearTimeout(this.initTimeoutId);
-              this.initTimeoutId = null;
-            }
-            this.initResolve = null;
             this.flush();
-            resolve();
+            finishInit();
             return;
           }
 
@@ -112,13 +127,6 @@ export class RelayClient {
           this.pendingRequests.delete(response.requestId);
           pending.resolve(response);
         };
-
-        this.initTimeoutId = window.setTimeout(() => {
-          this.initTimeoutId = null;
-          this.ready = true;
-          this.initResolve = null;
-          resolve();
-        }, RELAY_RPC_TIMEOUT_MS);
 
         window.addEventListener('message', onMessage);
         this.messageListener = onMessage;
