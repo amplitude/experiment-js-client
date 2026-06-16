@@ -61,6 +61,7 @@ export class BehavioralTargetingManager {
 
   /**
    * Pass 2: migrate local events to relay if needed, merge relay store, re-evaluate.
+   * Returns true when relay store was merged.
    */
   public async syncFromRelay(): Promise<boolean> {
     const synced = await this.eventStorage.syncFromRelay();
@@ -71,7 +72,7 @@ export class BehavioralTargetingManager {
   }
 
   /**
-   * WEB-130: inject relay iframe (non-blocking init) and run Pass 2 sync.
+   * Inject relay iframe (non-blocking init) and run Pass 2 sync.
    *
    * @returns true when matched behaviors changed after relay sync
    */

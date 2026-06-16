@@ -25,7 +25,7 @@ jest.mock('src/behavioral-targeting/relay-client', () => {
 
 setupGlobalObservers();
 
-describe('DefaultWebExperimentClient relay iframe (WEB-130)', () => {
+describe('DefaultWebExperimentClient relay iframe', () => {
   let apiKey = 0;
   const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
   let mockGlobal: ReturnType<typeof createMockGlobal>;

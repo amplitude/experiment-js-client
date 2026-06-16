@@ -715,7 +715,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   /**
-   * Non-blocking WEB-130 relay iframe init + Pass 2 sync (requires #334 storage hooks).
+   * Non-blocking relay iframe init + Pass 2 sync.
    */
   private scheduleRelaySync(user: WebExperimentUser): void {
     if (!this.behavioralTargetingManager || this.isVisualEditorMode) {
