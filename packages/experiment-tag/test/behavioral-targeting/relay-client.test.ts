@@ -224,6 +224,45 @@ describe('RelayClient', () => {
     expect(writeCalls).toHaveLength(2);
   });
 
+  test('keeps failed write in pending queue for flush retry', async () => {
+    const postMessage = jest.fn(
+      (payload: { requestId?: string; type?: string }) => {
+        if (payload.requestId && payload.type === 'WRITE_EVENT') {
+          window.dispatchEvent(
+            new MessageEvent('message', {
+              data: {
+                requestId: payload.requestId,
+                ok: false,
+                error: 'write rejected',
+              },
+              source: iframeWindow as unknown as MessageEventSource,
+              origin: RELAY_ORIGIN,
+            }),
+          );
+        }
+      },
+    );
+    const iframeWindow = { postMessage };
+    const client = new RelayClient(API_KEY, WEB_EXP_ID_V2, RELAY_URL);
+    clients.push(client);
+    await initReady(client, iframeWindow);
+
+    client.writeEvent(sampleEvent(1, { page: 'home' }));
+    await Promise.resolve();
+
+    const writeCallsBeforeFlush = postMessage.mock.calls.filter(
+      ([payload]) => payload.type === 'WRITE_EVENT',
+    );
+    expect(writeCallsBeforeFlush).toHaveLength(1);
+
+    client.flush();
+
+    const writeCalls = postMessage.mock.calls.filter(
+      ([payload]) => payload.type === 'WRITE_EVENT',
+    );
+    expect(writeCalls).toHaveLength(2);
+  });
+
   test('concurrent init creates only one iframe', async () => {
     const { client, iframeWindow } = setupClient();
     const first = client.init();

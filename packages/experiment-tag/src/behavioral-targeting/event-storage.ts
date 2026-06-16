@@ -170,6 +170,17 @@ export class EventStorageManager {
           events: [...this.memoryCache.events],
           nextId: this.memoryCache.nextId,
         });
+      } else if (migrated && this.memoryCache.events.length > 0) {
+        const existingRelayStore = await relay.readEvents();
+        const relayKeys = new Set(
+          existingRelayStore.events.map((e) => eventDedupKey(e)),
+        );
+        for (const event of this.memoryCache.events) {
+          if (!relayKeys.has(eventDedupKey(event))) {
+            relay.writeEvent(event);
+          }
+        }
+        relay.flush();
       }
 
       const relayStore = await relay.readEvents();

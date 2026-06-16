@@ -198,7 +198,10 @@ export class RelayClient {
     }
 
     void this.sendRequest(this.createRelayRequest('WRITE_EVENT', { event }))
-      .then(() => {
+      .then((response) => {
+        if (!response.ok) {
+          return;
+        }
         const idx = this.pendingWrites.indexOf(event);
         if (idx !== -1) {
           this.pendingWrites.splice(idx, 1);

@@ -529,6 +529,43 @@ describe('EventStorageManager', () => {
       expect(relay.readEvents).toHaveBeenCalled();
     });
 
+    test('uploads local-only events when origin already migrated', async () => {
+      eventStorage.addEvent('click', {}, 1000);
+      const relay = {
+        relayAvailable: true,
+        writeEvent: jest.fn(),
+        flush: jest.fn(),
+        checkMigrated: jest.fn().mockResolvedValue(true),
+        migrateEvents: jest.fn(),
+        readEvents: jest
+          .fn()
+          .mockResolvedValueOnce({ events: [], nextId: 1 })
+          .mockResolvedValueOnce({
+            events: [
+              {
+                id: 1,
+                event_type: 'click',
+                timestamp: 1000,
+                session_id: 's1',
+                properties: {},
+              },
+            ],
+            nextId: 2,
+          }),
+      };
+      eventStorage.setRelayClient(relay as unknown as RelayClient);
+
+      const synced = await eventStorage.syncFromRelay();
+
+      expect(synced).toBe(true);
+      expect(relay.migrateEvents).not.toHaveBeenCalled();
+      expect(relay.writeEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ event_type: 'click', timestamp: 1000 }),
+      );
+      expect(relay.flush).toHaveBeenCalled();
+      expect(relay.readEvents).toHaveBeenCalledTimes(2);
+    });
+
     test('returns false when relay is unavailable', async () => {
       const relay = {
         relayAvailable: false,
