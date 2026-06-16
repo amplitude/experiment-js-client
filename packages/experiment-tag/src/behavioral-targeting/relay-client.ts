@@ -49,6 +49,7 @@ export class RelayClient {
   private initResolve: (() => void) | null = null;
   private cancelBodyReadyPoll: (() => void) | null = null;
   private destroyed = false;
+  private readonly availableWaiters: Array<() => void> = [];
 
   constructor(
     private readonly apiKey: string,
@@ -73,6 +74,46 @@ export class RelayClient {
 
   get relayAvailable(): boolean {
     return this.available;
+  }
+
+  private notifyAvailable(): void {
+    const waiters = [...this.availableWaiters];
+    this.availableWaiters.length = 0;
+    for (const waiter of waiters) {
+      waiter();
+    }
+  }
+
+  /**
+   * Resolves when the relay becomes available, or after timeout.
+   * Use after init() when the init timer may have fired before RELAY_READY.
+   */
+  waitForAvailable(timeoutMs = RELAY_RPC_TIMEOUT_MS): Promise<boolean> {
+    if (this.destroyed) {
+      return Promise.resolve(false);
+    }
+    if (this.available) {
+      return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timeoutId);
+        const idx = this.availableWaiters.indexOf(onAvailable);
+        if (idx !== -1) {
+          this.availableWaiters.splice(idx, 1);
+        }
+        resolve(this.available && !this.destroyed);
+      };
+      const onAvailable = () => finish();
+      this.availableWaiters.push(onAvailable);
+      const timeoutId = window.setTimeout(() => finish(), timeoutMs);
+    });
   }
 
   async init(): Promise<void> {
@@ -131,6 +172,7 @@ export class RelayClient {
             this.iframeWindow = iframe.contentWindow;
             this.available = true;
             this.flush();
+            this.notifyAvailable();
             finishInit();
             return;
           }
@@ -268,6 +310,7 @@ export class RelayClient {
       pending.reject(new Error('relay destroyed'));
     }
     this.pendingRequests.clear();
+    this.availableWaiters.length = 0;
     this.iframe?.remove();
     this.iframe = null;
     this.iframeWindow = null;

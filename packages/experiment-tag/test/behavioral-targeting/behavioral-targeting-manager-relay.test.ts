@@ -74,4 +74,19 @@ describe('BehavioralTargetingManager relay wiring', () => {
     expect(document.querySelector('iframe')).not.toBeNull();
     expect(relayClient.relayAvailable).toBe(true);
   });
+
+  test('beginRelaySync waits for late relay ready after init timeout', async () => {
+    const manager = new BehavioralTargetingManager(API_KEY, {});
+
+    relayClient = new RelayClient(API_KEY, WEB_EXP_ID_V2, RELAY_URL);
+    const syncPromise = manager.beginRelaySync(relayClient);
+
+    await jest.runAllTimersAsync();
+    expect(relayClient.relayAvailable).toBe(false);
+
+    signalRelayReady();
+    await syncPromise;
+
+    expect(relayClient.relayAvailable).toBe(true);
+  });
 });

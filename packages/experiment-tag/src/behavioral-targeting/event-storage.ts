@@ -93,17 +93,23 @@ export class EventStorageManager {
     this.memoryCache.events.push(event);
 
     // Apply FIFO limit
+    let fifoTrimmed = false;
     if (this.memoryCache.events.length > EventStorageManager.MAX_EVENTS) {
       this.memoryCache.events = this.memoryCache.events.slice(
         -EventStorageManager.MAX_EVENTS,
       );
+      fifoTrimmed = true;
     }
 
     // Trigger debounced write to localStorage
     this.scheduleDebouncedWrite();
 
     // Fire-and-forget relay write when cross-subdomain sync is enabled
-    this.relayClient?.writeEvent(event);
+    if (fifoTrimmed) {
+      this.syncRelayCacheAfterFifoTrim();
+    } else {
+      this.relayClient?.writeEvent(event);
+    }
   }
 
   /**
@@ -180,7 +186,6 @@ export class EventStorageManager {
             relay.writeEvent(event);
           }
         }
-        relay.flush();
       }
 
       const relayStore = await relay.readEvents();
@@ -305,6 +310,21 @@ export class EventStorageManager {
    * Schedules a debounced write to localStorage.
    * Resets the timer on each call to batch multiple writes together.
    */
+  private syncRelayCacheAfterFifoTrim(): void {
+    const relay = this.relayClient;
+    if (!relay?.relayAvailable) {
+      return;
+    }
+    void relay
+      .migrateEvents(window.location.origin, {
+        events: [...this.memoryCache.events],
+        nextId: this.memoryCache.nextId,
+      })
+      .catch(() => {
+        // fire-and-forget
+      });
+  }
+
   private scheduleDebouncedWrite(): void {
     this.hasPendingWrites = true;
 

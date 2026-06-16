@@ -78,13 +78,18 @@ export class BehavioralTargetingManager {
    */
   public async beginRelaySync(relayClient: RelayClient): Promise<boolean> {
     const behaviorsBefore = this.serializeMatchedBehaviors();
+    this.setRelayClient(relayClient);
     await relayClient.init();
     if (!relayClient.relayAvailable) {
+      await relayClient.waitForAvailable();
+    }
+    if (!relayClient.relayAvailable) {
+      this.setRelayClient(null);
       return false;
     }
-    this.setRelayClient(relayClient);
     const synced = await this.syncFromRelay();
     if (!synced) {
+      this.setRelayClient(null);
       return false;
     }
     return behaviorsBefore !== this.serializeMatchedBehaviors();

@@ -286,6 +286,18 @@ describe('RelayClient', () => {
     expect(client.relayAvailable).toBe(true);
   });
 
+  test('waitForAvailable resolves after late ready', async () => {
+    const { client, iframeWindow } = setupClient();
+    const initPromise = client.init();
+
+    jest.advanceTimersByTime(RELAY_RPC_TIMEOUT_MS + 1);
+    await initPromise;
+
+    const waitPromise = client.waitForAvailable();
+    signalRelayReady(iframeWindow);
+    await expect(waitPromise).resolves.toBe(true);
+  });
+
   test('destroy during init allows re-init on same instance', async () => {
     const { client, iframeWindow } = setupClient();
     const initPromise = client.init();

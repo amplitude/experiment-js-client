@@ -460,6 +460,26 @@ describe('EventStorageManager', () => {
       eventStorage.flush();
       expect(relay.flush).toHaveBeenCalled();
     });
+
+    test('re-migrates relay cache when FIFO trim evicts local events', () => {
+      for (let i = 0; i < 500; i++) {
+        eventStorage.addEvent('test', { index: i });
+      }
+
+      const relay = createMockRelay();
+      eventStorage.setRelayClient(relay as unknown as RelayClient);
+      eventStorage.addEvent('test', { index: 500 });
+
+      expect(relay.migrateEvents).toHaveBeenCalledWith(
+        window.location.origin,
+        expect.objectContaining({
+          events: expect.arrayContaining([
+            expect.objectContaining({ properties: { index: 500 } }),
+          ]),
+        }),
+      );
+      expect(relay.writeEvent).not.toHaveBeenCalled();
+    });
   });
 
   describe('mergeFromRelay', () => {
@@ -562,7 +582,7 @@ describe('EventStorageManager', () => {
       expect(relay.writeEvent).toHaveBeenCalledWith(
         expect.objectContaining({ event_type: 'click', timestamp: 1000 }),
       );
-      expect(relay.flush).toHaveBeenCalled();
+      expect(relay.flush).not.toHaveBeenCalled();
       expect(relay.readEvents).toHaveBeenCalledTimes(2);
     });
 
