@@ -108,7 +108,7 @@ describe('RelayClient', () => {
     expect(client.relayAvailable).toBe(false);
   });
 
-  test('queues writes and flushes pending events synchronously', async () => {
+  test('queues writes and flushes pending events when relay becomes ready', async () => {
     const { client, iframeWindow, postMessage } = setupClient();
     const pendingEvent: RelayEventRecord = {
       id: 1,
@@ -123,7 +123,6 @@ describe('RelayClient', () => {
     signalRelayReady(iframeWindow);
     await initPromise;
 
-    client.flush();
     expect(postMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'WRITE_EVENT',
@@ -192,6 +191,47 @@ describe('RelayClient', () => {
 
     expect(client2.relayAvailable).toBe(true);
     expect(document.querySelectorAll('iframe')).toHaveLength(1);
+  });
+
+  test('defers iframe injection until document.body is available', async () => {
+    const originalBody = document.body;
+    const bodyDescriptor = Object.getOwnPropertyDescriptor(
+      Document.prototype,
+      'body',
+    );
+    Object.defineProperty(document, 'body', {
+      configurable: true,
+      get: () => null,
+    });
+
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = jest
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb) => {
+        rafCallbacks.push(cb);
+        return rafCallbacks.length;
+      });
+
+    const { client, iframeWindow } = setupClient();
+    const initPromise = client.init();
+    expect(document.querySelector('iframe')).toBeNull();
+
+    Object.defineProperty(document, 'body', {
+      configurable: true,
+      get: () => originalBody,
+    });
+    rafCallbacks.shift()?.(0);
+    await Promise.resolve();
+
+    signalRelayReady(iframeWindow);
+    await initPromise;
+
+    expect(document.querySelector('iframe')).not.toBeNull();
+
+    rafSpy.mockRestore();
+    if (bodyDescriptor) {
+      Object.defineProperty(Document.prototype, 'body', bodyDescriptor);
+    }
   });
 
   test('supports rpc read/check/migrate requests', async () => {

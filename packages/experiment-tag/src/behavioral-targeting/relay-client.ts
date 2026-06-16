@@ -1,3 +1,5 @@
+import { whenBodyReady } from '../util/when-body-ready';
+
 import {
   RELAY_READY_MESSAGE,
   RELAY_RPC_TIMEOUT_MS,
@@ -67,52 +69,60 @@ export class RelayClient {
 
     this.initPromise = new Promise((resolve) => {
       this.initResolve = resolve;
-      const iframe = document.createElement('iframe');
-      iframe.src = this.relayUrl;
-      iframe.style.display = 'none';
-      iframe.setAttribute('aria-hidden', 'true');
-      document.body.appendChild(iframe);
-      this.iframe = iframe;
 
-      const onMessage = (event: MessageEvent) => {
-        if (event.origin !== this.relayOrigin) {
+      whenBodyReady(() => {
+        if (!this.initResolve) {
           return;
         }
 
-        if (!this.available && isRelayReadyMessage(event.data)) {
-          this.iframeWindow = iframe.contentWindow;
-          this.available = true;
-          this.ready = true;
-          if (this.initTimeoutId !== null) {
-            window.clearTimeout(this.initTimeoutId);
-            this.initTimeoutId = null;
+        const iframe = document.createElement('iframe');
+        iframe.src = this.relayUrl;
+        iframe.style.display = 'none';
+        iframe.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(iframe);
+        this.iframe = iframe;
+
+        const onMessage = (event: MessageEvent) => {
+          if (event.origin !== this.relayOrigin) {
+            return;
           }
+
+          if (!this.available && isRelayReadyMessage(event.data)) {
+            this.iframeWindow = iframe.contentWindow;
+            this.available = true;
+            this.ready = true;
+            if (this.initTimeoutId !== null) {
+              window.clearTimeout(this.initTimeoutId);
+              this.initTimeoutId = null;
+            }
+            this.initResolve = null;
+            this.flush();
+            resolve();
+            return;
+          }
+
+          const response = event.data as RelayResponse;
+          if (!response?.requestId) {
+            return;
+          }
+          const pending = this.pendingRequests.get(response.requestId);
+          if (!pending) {
+            return;
+          }
+          this.pendingRequests.delete(response.requestId);
+          pending.resolve(response);
+        };
+
+        this.initTimeoutId = window.setTimeout(() => {
+          this.initTimeoutId = null;
+          this.ready = true;
           this.initResolve = null;
           resolve();
-          return;
-        }
+        }, RELAY_RPC_TIMEOUT_MS);
 
-        const response = event.data as RelayResponse;
-        if (!response?.requestId) {
-          return;
-        }
-        const pending = this.pendingRequests.get(response.requestId);
-        if (!pending) {
-          return;
-        }
-        this.pendingRequests.delete(response.requestId);
-        pending.resolve(response);
-      };
-
-      this.initTimeoutId = window.setTimeout(() => {
-        this.initTimeoutId = null;
-        this.ready = true;
-        this.initResolve = null;
-        resolve();
-      }, RELAY_RPC_TIMEOUT_MS);
-
-      window.addEventListener('message', onMessage);
-      this.messageListener = onMessage;
+        window.addEventListener('message', onMessage);
+        this.messageListener = onMessage;
+      });
     });
 
     return this.initPromise;
