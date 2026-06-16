@@ -127,7 +127,7 @@ describe('initializeExperiment', () => {
   test('seeds web_exp_id_v2 from existing web_exp_id when cookie is missing', async () => {
     const key = stringify(apiKey);
     const storageKey = 'EXP_' + key;
-    const cookieKey = storageKey + '_id_v2';
+    const cookieKey = storageKey + '_web_exp_id_v2';
     mockGlobal.localStorage.getItem.mockImplementation((name: string) => {
       if (name === storageKey) {
         return JSON.stringify({ web_exp_id: 'existing-id' });

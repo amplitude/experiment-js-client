@@ -407,7 +407,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       expirationDays: 365,
     });
 
-    const webExpIdV2CookieKey = `${experimentStorageName}_id_v2`;
+    const webExpIdV2CookieKey = `${experimentStorageName}_web_exp_id_v2`;
     const webExpIdV2LocalFallback = user.web_exp_id_v2 ?? user.web_exp_id;
     let generatedSharedId: string | undefined;
     const webExpIdV2 = await resolveCrossSubdomainValue(
