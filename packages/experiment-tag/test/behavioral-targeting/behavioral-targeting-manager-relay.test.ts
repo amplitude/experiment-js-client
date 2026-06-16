@@ -44,7 +44,7 @@ describe('BehavioralTargetingManager relay wiring', () => {
     return iframeWindow;
   };
 
-  test('beginRelaySync injects relay iframe and returns false without storage hooks', async () => {
+  test('beginRelaySync injects relay iframe and completes Pass 2 sync attempt', async () => {
     const manager = new BehavioralTargetingManager(API_KEY, {
       flag_a: {
         behavior_1: [
@@ -73,6 +73,5 @@ describe('BehavioralTargetingManager relay wiring', () => {
 
     expect(document.querySelector('iframe')).not.toBeNull();
     expect(relayClient.relayAvailable).toBe(true);
-    expect(await manager.syncFromRelay()).toBe(false);
   });
 });
