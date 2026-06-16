@@ -737,9 +737,19 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     void this.behavioralTargetingManager
       .beginRelaySync(this.relayClient)
-      .then((behaviorsChanged) => this.handleRelayPass2(behaviorsChanged))
+      .then((behaviorsChanged) => {
+        if (!this.relayClient?.relayAvailable) {
+          this.relayClient?.destroy();
+          this.relayClient = null;
+          return;
+        }
+        return this.handleRelayPass2(behaviorsChanged).catch((pass2Error) => {
+          console.warn('Experiment relay Pass 2 failed:', pass2Error);
+        });
+      })
       .catch(() => {
-        // relay failure is local-only fallback
+        this.relayClient?.destroy();
+        this.relayClient = null;
       });
   }
 

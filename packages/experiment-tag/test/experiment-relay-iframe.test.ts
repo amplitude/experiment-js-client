@@ -97,6 +97,8 @@ describe('DefaultWebExperimentClient relay iframe (WEB-130)', () => {
       expect.stringContaining('.relay.html'),
     );
     expect(mockRelayInit).toHaveBeenCalled();
+    await Promise.resolve();
+    expect(mockRelayDestroy).toHaveBeenCalled();
   });
 
   test('skips relay sync when there are no behavioral targeting rules', async () => {
