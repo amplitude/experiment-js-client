@@ -10,6 +10,7 @@ import { createMockGlobal, setupGlobalObservers } from './util/mocks';
 
 const mockRelayInit = jest.fn().mockResolvedValue(undefined);
 const mockRelayDestroy = jest.fn();
+const mockRelayWaitForAvailable = jest.fn().mockResolvedValue(false);
 
 jest.mock('src/behavioral-targeting/relay-client', () => {
   const actual = jest.requireActual('src/behavioral-targeting/relay-client');
@@ -19,6 +20,7 @@ jest.mock('src/behavioral-targeting/relay-client', () => {
       init: mockRelayInit,
       destroy: mockRelayDestroy,
       relayAvailable: false,
+      waitForAvailable: mockRelayWaitForAvailable,
     })),
   };
 });
@@ -90,6 +92,7 @@ describe('DefaultWebExperimentClient relay iframe', () => {
     });
 
     await client.start();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(RelayClient).toHaveBeenCalledWith(
       key,
@@ -97,7 +100,7 @@ describe('DefaultWebExperimentClient relay iframe', () => {
       expect.stringContaining('.relay.html'),
     );
     expect(mockRelayInit).toHaveBeenCalled();
-    await Promise.resolve();
+    expect(mockRelayWaitForAvailable).toHaveBeenCalled();
     expect(mockRelayDestroy).toHaveBeenCalled();
   });
 

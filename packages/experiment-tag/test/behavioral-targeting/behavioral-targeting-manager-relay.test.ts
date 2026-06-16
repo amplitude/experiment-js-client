@@ -44,7 +44,7 @@ describe('BehavioralTargetingManager relay wiring', () => {
     return iframeWindow;
   };
 
-  test('beginRelaySync injects relay iframe and returns false without storage hooks', async () => {
+  test('beginRelaySync injects relay iframe and completes Pass 2 sync attempt', async () => {
     const manager = new BehavioralTargetingManager(API_KEY, {
       flag_a: {
         behavior_1: [
@@ -73,6 +73,20 @@ describe('BehavioralTargetingManager relay wiring', () => {
 
     expect(document.querySelector('iframe')).not.toBeNull();
     expect(relayClient.relayAvailable).toBe(true);
-    expect(await manager.syncFromRelay()).toBe(false);
+  });
+
+  test('beginRelaySync waits for late relay ready after init timeout', async () => {
+    const manager = new BehavioralTargetingManager(API_KEY, {});
+
+    relayClient = new RelayClient(API_KEY, WEB_EXP_ID_V2, RELAY_URL);
+    const syncPromise = manager.beginRelaySync(relayClient);
+
+    await jest.runAllTimersAsync();
+    expect(relayClient.relayAvailable).toBe(false);
+
+    signalRelayReady();
+    await syncPromise;
+
+    expect(relayClient.relayAvailable).toBe(true);
   });
 });
