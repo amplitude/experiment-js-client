@@ -53,7 +53,7 @@ export class BehavioralTargetingManager {
   }
 
   /**
-   * Attach the relay client for cross-subdomain event dual-write (#334).
+   * Attach the relay client for cross-subdomain event dual-write.
    */
   public setRelayClient(relayClient: RelayClient | null): void {
     (
@@ -65,7 +65,7 @@ export class BehavioralTargetingManager {
 
   /**
    * Pass 2: migrate local events to relay if needed, merge relay store, re-evaluate.
-   * Returns true when relay store was merged (#334).
+   * Returns true when relay store was merged.
    */
   public async syncFromRelay(): Promise<boolean> {
     const sync = (
@@ -82,8 +82,7 @@ export class BehavioralTargetingManager {
   }
 
   /**
-   * WEB-130: inject relay iframe (non-blocking init) and run Pass 2 sync when
-   * event-storage relay hooks are present (#334).
+   * Inject relay iframe (non-blocking init) and run Pass 2 sync.
    *
    * @returns true when matched behaviors changed after relay sync
    */
