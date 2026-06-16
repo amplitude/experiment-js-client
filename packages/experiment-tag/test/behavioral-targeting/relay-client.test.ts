@@ -192,6 +192,32 @@ describe('RelayClient', () => {
     expect(document.querySelectorAll('iframe')).toHaveLength(1);
   });
 
+  test('queued writes before destroy are cleared on teardown', async () => {
+    const { client, iframeWindow, postMessage } = setupClient();
+    client.writeEvent({
+      id: 42,
+      event_type: 'page_view',
+      timestamp: 100,
+      session_id: 's1',
+      properties: {},
+    });
+
+    const initPromise = client.init();
+    client.destroy();
+    await initPromise;
+
+    const reinitPromise = client.init();
+    signalRelayReady(iframeWindow);
+    await reinitPromise;
+
+    expect(postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'WRITE_EVENT',
+        payload: { event: expect.objectContaining({ id: 42 }) },
+      }),
+    );
+  });
+
   test('writeEvent after destroy is dropped', async () => {
     const { client, iframeWindow, postMessage } = setupClient();
     const initPromise = client.init();

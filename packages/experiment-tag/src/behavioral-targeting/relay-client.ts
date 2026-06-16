@@ -255,6 +255,7 @@ export class RelayClient {
     this.iframeWindow = null;
     this.available = false;
     this.ready = false;
+    this.pendingWrites = [];
     this.initPromise = null;
   }
 }
