@@ -58,7 +58,7 @@ describe('RelayClient', () => {
                 ok: true,
                 payload: responsePayload,
               },
-              source: window,
+              source: iframeWindow as unknown as MessageEventSource,
               origin: RELAY_ORIGIN,
             }),
           );
@@ -80,7 +80,7 @@ describe('RelayClient', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         data: { type: RELAY_READY_MESSAGE },
-        source: window,
+        source: iframeWindow as unknown as MessageEventSource,
         origin: RELAY_ORIGIN,
       }),
     );
@@ -297,6 +297,67 @@ describe('RelayClient', () => {
         value: originalRaf,
       });
     }
+  });
+
+  test('creates iframe when body appears after init timeout', async () => {
+    const originalBody = document.body;
+    Object.defineProperty(document, 'body', {
+      configurable: true,
+      get: () => null,
+    });
+
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = jest
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb) => {
+        rafCallbacks.push(cb);
+        return rafCallbacks.length;
+      });
+
+    try {
+      const { client, iframeWindow } = setupClient();
+      const initPromise = client.init();
+
+      jest.advanceTimersByTime(RELAY_RPC_TIMEOUT_MS + 1);
+      await initPromise;
+      expect(client.relayAvailable).toBe(false);
+      expect(document.querySelector('iframe')).toBeNull();
+
+      Object.defineProperty(document, 'body', {
+        configurable: true,
+        get: () => originalBody,
+      });
+      rafCallbacks.shift()?.(0);
+      await Promise.resolve();
+
+      expect(document.querySelector('iframe')).not.toBeNull();
+      signalRelayReady(iframeWindow);
+      expect(client.relayAvailable).toBe(true);
+    } finally {
+      rafSpy.mockRestore();
+      Object.defineProperty(document, 'body', {
+        configurable: true,
+        value: originalBody,
+      });
+    }
+  });
+
+  test('ignores ready messages from unrelated frames', async () => {
+    const { client, iframeWindow } = setupClient();
+    const initPromise = client.init();
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: RELAY_READY_MESSAGE },
+        source: window,
+        origin: RELAY_ORIGIN,
+      }),
+    );
+    expect(client.relayAvailable).toBe(false);
+
+    signalRelayReady(iframeWindow);
+    await initPromise;
+    expect(client.relayAvailable).toBe(true);
   });
 
   test('supports rpc read/check/migrate requests', async () => {

@@ -50,6 +50,7 @@ export class RelayClient {
   private initPromise: Promise<void> | null = null;
   private initTimeoutId: number | null = null;
   private initResolve: (() => void) | null = null;
+  private destroyed = false;
 
   constructor(
     private readonly apiKey: string,
@@ -89,7 +90,7 @@ export class RelayClient {
       }, RELAY_RPC_TIMEOUT_MS);
 
       whenBodyReady(() => {
-        if (!this.initResolve) {
+        if (this.destroyed || this.iframe) {
           return;
         }
         if (!document.body) {
@@ -105,6 +106,9 @@ export class RelayClient {
 
         const onMessage = (event: MessageEvent) => {
           if (event.origin !== this.relayOrigin) {
+            return;
+          }
+          if (event.source !== iframe.contentWindow) {
             return;
           }
 
@@ -228,6 +232,7 @@ export class RelayClient {
   }
 
   destroy(): void {
+    this.destroyed = true;
     if (this.initTimeoutId !== null) {
       window.clearTimeout(this.initTimeoutId);
       this.initTimeoutId = null;
