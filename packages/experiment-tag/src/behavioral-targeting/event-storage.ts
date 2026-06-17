@@ -95,22 +95,20 @@ export class EventStorageManager {
     this.memoryCache.events.push(event);
 
     // Apply FIFO limit
-    let fifoTrimmed = false;
-    if (this.memoryCache.events.length > EventStorageManager.MAX_EVENTS) {
+    const fifoTrimmed =
+      this.memoryCache.events.length > EventStorageManager.MAX_EVENTS;
+    if (fifoTrimmed) {
       this.memoryCache.events = this.memoryCache.events.slice(
         -EventStorageManager.MAX_EVENTS,
       );
-      fifoTrimmed = true;
     }
 
     // Trigger debounced write to localStorage
     this.scheduleDebouncedWrite();
 
-    // Fire-and-forget relay write when cross-subdomain sync is enabled
+    this.relayClient?.writeEvent(event);
     if (fifoTrimmed) {
-      this.syncRelayCacheAfterFifoTrim();
-    } else {
-      this.relayClient?.writeEvent(event);
+      this.reconcileRelayAfterFifoTrim();
     }
   }
 
@@ -163,8 +161,8 @@ export class EventStorageManager {
    * Pass 2 sync: migrate local store to relay if needed, then merge relay events.
    * Returns true when sync completed; false when relay unavailable or RPC failed.
    */
-  async syncFromRelay(): Promise<boolean> {
-    const relay = this.relayClient;
+  async syncFromRelay(relayClient?: RelayClient): Promise<boolean> {
+    const relay = relayClient ?? this.relayClient;
     if (!relay?.relayAvailable) {
       return false;
     }
@@ -312,14 +310,21 @@ export class EventStorageManager {
    * Schedules a debounced write to localStorage.
    * Resets the timer on each call to batch multiple writes together.
    */
-  private syncRelayCacheAfterFifoTrim(): void {
+  private reconcileRelayAfterFifoTrim(): void {
     const relay = this.relayClient;
     if (!relay?.relayAvailable) {
       return;
     }
-    for (const event of this.memoryCache.events) {
-      relay.writeEvent(event);
-    }
+    void relay
+      .migrateEvents(window.location.origin, {
+        events: [...this.memoryCache.events],
+        nextId: this.memoryCache.nextId,
+      })
+      .catch(() => {
+        for (const cached of this.memoryCache.events) {
+          relay.writeEvent(cached);
+        }
+      });
   }
 
   private scheduleDebouncedWrite(): void {
@@ -374,8 +379,7 @@ export class EventStorageManager {
    * Handler for beforeunload event.
    */
   private handleBeforeUnload = (): void => {
-    this.flushToLocalStorage();
-    this.flushRelay();
+    this.flush();
   };
 
   /**
@@ -383,8 +387,7 @@ export class EventStorageManager {
    */
   private handleVisibilityChange = (): void => {
     if (document.visibilityState === 'hidden') {
-      this.flushToLocalStorage();
-      this.flushRelay();
+      this.flush();
     }
   };
 

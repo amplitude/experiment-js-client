@@ -197,6 +197,21 @@ describe('RelayClient', () => {
     );
   });
 
+  test('does not enqueue duplicate pending writes for the same event', async () => {
+    const { client, iframeWindow, postMessage } = setupClient();
+    await initReady(client, iframeWindow);
+
+    const event = sampleEvent(1, { page: 'home' });
+    client.writeEvent(event);
+    client.writeEvent(event);
+    client.flush();
+
+    const writeCalls = postMessage.mock.calls.filter(
+      ([payload]) => payload.type === 'WRITE_EVENT',
+    );
+    expect(writeCalls).toHaveLength(3);
+  });
+
   test('does not double-send writes when relay is available', async () => {
     const { client, iframeWindow, postMessage } = setupClient();
     await initReady(client, iframeWindow);

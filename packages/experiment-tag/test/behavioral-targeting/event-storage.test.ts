@@ -461,7 +461,7 @@ describe('EventStorageManager', () => {
       expect(relay.flush).toHaveBeenCalled();
     });
 
-    test('re-writes relay cache via writeEvent when FIFO trim evicts local events', () => {
+    test('reconciles relay cache when FIFO trim evicts local events', () => {
       for (let i = 0; i < 500; i++) {
         eventStorage.addEvent('test', { index: i });
       }
@@ -471,12 +471,17 @@ describe('EventStorageManager', () => {
       relay.writeEvent.mockClear();
       eventStorage.addEvent('test', { index: 500 });
 
-      expect(relay.writeEvent).toHaveBeenCalled();
-      expect(
-        relay.writeEvent.mock.calls.some(
-          ([event]) => event.properties?.index === 500,
-        ),
-      ).toBe(true);
+      expect(relay.writeEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ properties: { index: 500 } }),
+      );
+      expect(relay.migrateEvents).toHaveBeenCalledWith(
+        window.location.origin,
+        expect.objectContaining({
+          events: expect.arrayContaining([
+            expect.objectContaining({ properties: { index: 500 } }),
+          ]),
+        }),
+      );
     });
   });
 

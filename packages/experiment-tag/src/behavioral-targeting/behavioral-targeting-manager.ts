@@ -3,6 +3,7 @@ import { BehavioralTargetingRules } from '../types';
 import { BehavioralTargetingEvaluator } from './evaluator';
 import { EventStorageManager } from './event-storage';
 import { RelayClient } from './relay-client';
+import { RelaySyncResult } from './relay-sync-result';
 import { SessionManager } from './session-manager';
 import { BehavioralTargeting } from './types';
 
@@ -74,24 +75,33 @@ export class BehavioralTargetingManager {
   /**
    * Inject relay iframe (non-blocking init) and run Pass 2 sync.
    *
-   * @returns true when matched behaviors changed after relay sync
+   * Relay is attached to storage only after init succeeds so Pass 2 migration
+   * does not duplicate events dual-written during iframe startup.
    */
-  public async beginRelaySync(relayClient: RelayClient): Promise<boolean> {
+  public async beginRelaySync(
+    relayClient: RelayClient,
+  ): Promise<RelaySyncResult> {
     const behaviorsBefore = this.serializeMatchedBehaviors();
-    this.setRelayClient(relayClient);
+
     await relayClient.init();
     if (!relayClient.relayAvailable) {
       await relayClient.waitForAvailable();
     }
     if (!relayClient.relayAvailable) {
-      this.setRelayClient(null);
-      return false;
+      return { status: 'unavailable' };
     }
-    const synced = await this.syncFromRelay();
+
+    const synced = await this.eventStorage.syncFromRelay(relayClient);
+    this.setRelayClient(relayClient);
+
     if (!synced) {
-      return false;
+      return { status: 'sync_failed' };
     }
-    return behaviorsBefore !== this.serializeMatchedBehaviors();
+
+    this.evaluateAll();
+    return behaviorsBefore !== this.serializeMatchedBehaviors()
+      ? { status: 'behaviors_changed' }
+      : { status: 'unchanged' };
   }
 
   /**
