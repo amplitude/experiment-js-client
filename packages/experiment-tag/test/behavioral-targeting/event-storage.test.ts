@@ -461,7 +461,7 @@ describe('EventStorageManager', () => {
       expect(relay.flush).toHaveBeenCalled();
     });
 
-    test('reconciles relay cache when FIFO trim evicts local events', () => {
+    test('FIFO trim only dual-writes the new event, no relay reconciliation', () => {
       for (let i = 0; i < 500; i++) {
         eventStorage.addEvent('test', { index: i });
       }
@@ -471,17 +471,13 @@ describe('EventStorageManager', () => {
       relay.writeEvent.mockClear();
       eventStorage.addEvent('test', { index: 500 });
 
+      // The relay already holds prior events; a local eviction must not
+      // re-migrate or re-send the whole cache.
+      expect(relay.writeEvent).toHaveBeenCalledTimes(1);
       expect(relay.writeEvent).toHaveBeenCalledWith(
         expect.objectContaining({ properties: { index: 500 } }),
       );
-      expect(relay.migrateEvents).toHaveBeenCalledWith(
-        window.location.origin,
-        expect.objectContaining({
-          events: expect.arrayContaining([
-            expect.objectContaining({ properties: { index: 500 } }),
-          ]),
-        }),
-      );
+      expect(relay.migrateEvents).not.toHaveBeenCalled();
     });
   });
 
@@ -574,21 +570,7 @@ describe('EventStorageManager', () => {
         flush: jest.fn(),
         checkMigrated: jest.fn().mockResolvedValue(true),
         migrateEvents: jest.fn(),
-        readEvents: jest
-          .fn()
-          .mockResolvedValueOnce({ events: [], nextId: 1 })
-          .mockResolvedValueOnce({
-            events: [
-              {
-                id: 1,
-                event_type: 'click',
-                timestamp: 1000,
-                session_id: 's1',
-                properties: {},
-              },
-            ],
-            nextId: 2,
-          }),
+        readEvents: jest.fn().mockResolvedValue({ events: [], nextId: 1 }),
       };
       eventStorage.setRelayClient(relay as unknown as RelayClient);
 
@@ -600,7 +582,8 @@ describe('EventStorageManager', () => {
         expect.objectContaining({ event_type: 'click', timestamp: 1000 }),
       );
       expect(relay.flush).not.toHaveBeenCalled();
-      expect(relay.readEvents).toHaveBeenCalledTimes(2);
+      // Already-migrated origins read the relay exactly once for dedupe + merge.
+      expect(relay.readEvents).toHaveBeenCalledTimes(1);
     });
 
     test('returns false when relay is unavailable', async () => {

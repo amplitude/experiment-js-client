@@ -740,19 +740,26 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     void this.behavioralTargetingManager
       .beginRelaySync(relayClient)
       .then((result) => {
+        // A newer scheduleRelaySync may have torn this client down and taken
+        // ownership; never attach or tear down a client we no longer own.
         if (this.relayClient !== relayClient) {
           return;
         }
-        if (result.status === 'unavailable') {
+        if (
+          result.status === 'unavailable' ||
+          result.status === 'sync_failed'
+        ) {
           this.teardownRelay(relayClient);
           return;
         }
-        if (result.status !== 'behaviors_changed') {
-          return;
+        // Sync succeeded and this client still owns the relay: attach it for
+        // ongoing dual-write.
+        this.behavioralTargetingManager?.setRelayClient(relayClient);
+        if (result.status === 'behaviors_changed') {
+          return this.handleRelayPass2(true).catch((pass2Error) => {
+            console.warn('Experiment relay Pass 2 failed:', pass2Error);
+          });
         }
-        return this.handleRelayPass2(true).catch((pass2Error) => {
-          console.warn('Experiment relay Pass 2 failed:', pass2Error);
-        });
       })
       .catch(() => {
         if (this.relayClient !== relayClient) {

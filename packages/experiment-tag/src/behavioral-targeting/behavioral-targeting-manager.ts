@@ -61,22 +61,12 @@ export class BehavioralTargetingManager {
   }
 
   /**
-   * Pass 2: migrate local events to relay if needed, merge relay store, re-evaluate.
-   * Returns true when relay store was merged.
-   */
-  public async syncFromRelay(): Promise<boolean> {
-    const synced = await this.eventStorage.syncFromRelay();
-    if (synced) {
-      this.evaluateAll();
-    }
-    return synced;
-  }
-
-  /**
-   * Inject relay iframe (non-blocking init) and run Pass 2 sync.
+   * Inject relay iframe (non-blocking init) and run the Pass 2 relay merge.
    *
-   * Relay is attached to storage only after init succeeds so Pass 2 migration
-   * does not duplicate events dual-written during iframe startup.
+   * This only reads/merges relay state and reports the outcome; it never
+   * attaches the relay for dual-write. The caller owns relay lifecycle and
+   * decides whether to attach (via {@link setRelayClient}) based on the
+   * result and whether this client is still the active one.
    */
   public async beginRelaySync(
     relayClient: RelayClient,
@@ -92,8 +82,6 @@ export class BehavioralTargetingManager {
     }
 
     const synced = await this.eventStorage.syncFromRelay(relayClient);
-    this.setRelayClient(relayClient);
-
     if (!synced) {
       return { status: 'sync_failed' };
     }

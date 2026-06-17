@@ -94,10 +94,10 @@ export class EventStorageManager {
 
     this.memoryCache.events.push(event);
 
-    // Apply FIFO limit
-    const fifoTrimmed =
-      this.memoryCache.events.length > EventStorageManager.MAX_EVENTS;
-    if (fifoTrimmed) {
+    // Apply FIFO limit. This bounds local memory only; the relay keeps its own
+    // copy (the event was already dual-written below), so no relay
+    // reconciliation is needed when local entries are evicted.
+    if (this.memoryCache.events.length > EventStorageManager.MAX_EVENTS) {
       this.memoryCache.events = this.memoryCache.events.slice(
         -EventStorageManager.MAX_EVENTS,
       );
@@ -107,9 +107,6 @@ export class EventStorageManager {
     this.scheduleDebouncedWrite();
 
     this.relayClient?.writeEvent(event);
-    if (fifoTrimmed) {
-      this.reconcileRelayAfterFifoTrim();
-    }
   }
 
   /**
@@ -171,15 +168,20 @@ export class EventStorageManager {
       const origin = window.location.origin;
       const migrated = await relay.checkMigrated(origin);
 
+      // First-time origins migrate their local store in bulk; already-migrated
+      // origins read once and push only the events the relay is missing.
       if (!migrated && this.memoryCache.events.length > 0) {
         await relay.migrateEvents(origin, {
           events: [...this.memoryCache.events],
           nextId: this.memoryCache.nextId,
         });
-      } else if (migrated && this.memoryCache.events.length > 0) {
-        const existingRelayStore = await relay.readEvents();
+      }
+
+      const relayStore = await relay.readEvents();
+
+      if (migrated && this.memoryCache.events.length > 0) {
         const relayKeys = new Set(
-          existingRelayStore.events.map((e) => eventDedupKey(e)),
+          relayStore.events.map((e) => eventDedupKey(e)),
         );
         for (const event of this.memoryCache.events) {
           if (!relayKeys.has(eventDedupKey(event))) {
@@ -188,7 +190,6 @@ export class EventStorageManager {
         }
       }
 
-      const relayStore = await relay.readEvents();
       this.mergeFromRelay(relayStore);
       return true;
     } catch {
@@ -310,23 +311,6 @@ export class EventStorageManager {
    * Schedules a debounced write to localStorage.
    * Resets the timer on each call to batch multiple writes together.
    */
-  private reconcileRelayAfterFifoTrim(): void {
-    const relay = this.relayClient;
-    if (!relay?.relayAvailable) {
-      return;
-    }
-    void relay
-      .migrateEvents(window.location.origin, {
-        events: [...this.memoryCache.events],
-        nextId: this.memoryCache.nextId,
-      })
-      .catch(() => {
-        for (const cached of this.memoryCache.events) {
-          relay.writeEvent(cached);
-        }
-      });
-  }
-
   private scheduleDebouncedWrite(): void {
     this.hasPendingWrites = true;
 
