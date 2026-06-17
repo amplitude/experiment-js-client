@@ -65,6 +65,7 @@ describe('BehavioralTargetingManager relay wiring', () => {
       },
     });
 
+    const attachSpy = jest.spyOn(manager, 'setRelayClient');
     relayClient = new RelayClient(API_KEY, WEB_EXP_ID_V2, RELAY_URL);
     const initPromise = manager.beginRelaySync(relayClient);
     await jest.runAllTimersAsync();
@@ -73,6 +74,8 @@ describe('BehavioralTargetingManager relay wiring', () => {
 
     expect(document.querySelector('iframe')).not.toBeNull();
     expect(relayClient.relayAvailable).toBe(true);
+    // Attach is the caller's responsibility, never done inside beginRelaySync.
+    expect(attachSpy).not.toHaveBeenCalled();
   });
 
   test('beginRelaySync waits for late relay ready after init timeout', async () => {
