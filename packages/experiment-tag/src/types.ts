@@ -173,6 +173,7 @@ export interface WebExperimentClient {
 
 export type WebExperimentUser = {
   web_exp_id?: string;
+  web_exp_id_v2?: string;
 } & ExperimentUser;
 
 export type InitConfigs = {
