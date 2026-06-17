@@ -234,23 +234,29 @@ export class RelayClient {
 
     // Queue until async write confirms — flush() can resend in-flight events on unload.
     this.pendingWrites.push(event);
+    this.sendPendingWrite(event);
+  }
 
+  private removeConfirmedWrite(event: RelayEventRecord): void {
+    const idx = this.pendingWrites.indexOf(event);
+    if (idx !== -1) {
+      this.pendingWrites.splice(idx, 1);
+    }
+  }
+
+  private sendPendingWrite(event: RelayEventRecord): void {
     if (!this.available || !this.iframeWindow) {
       return;
     }
 
     void this.sendRequest(this.createRelayRequest('WRITE_EVENT', { event }))
       .then((response) => {
-        if (!response.ok) {
-          return;
-        }
-        const idx = this.pendingWrites.indexOf(event);
-        if (idx !== -1) {
-          this.pendingWrites.splice(idx, 1);
+        if (response.ok) {
+          this.removeConfirmedWrite(event);
         }
       })
       .catch(() => {
-        // Keep in pendingWrites for flush()
+        // Keep in pendingWrites for a later flush()
       });
   }
 
@@ -258,13 +264,8 @@ export class RelayClient {
     if (!this.available || !this.iframeWindow) {
       return;
     }
-    const writes = [...this.pendingWrites];
-    this.pendingWrites = [];
-    for (const event of writes) {
-      this.iframeWindow.postMessage(
-        this.createRelayRequest('WRITE_EVENT', { event }),
-        this.relayOrigin,
-      );
+    for (const event of [...this.pendingWrites]) {
+      this.sendPendingWrite(event);
     }
   }
 
