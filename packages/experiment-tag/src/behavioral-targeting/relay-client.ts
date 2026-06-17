@@ -129,7 +129,16 @@ export class RelayClient {
       return this.initPromise;
     }
 
+    // Reset transient state so a re-init never inherits a stale listener,
+    // iframe window, or availability flag from a prior lifecycle.
     this.destroyed = false;
+    this.available = false;
+    this.ready = false;
+    this.iframeWindow = null;
+    if (this.messageListener) {
+      window.removeEventListener('message', this.messageListener);
+      this.messageListener = null;
+    }
 
     this.initPromise = new Promise((resolve) => {
       this.initResolve = resolve;
@@ -169,6 +178,9 @@ export class RelayClient {
         this.iframe = iframe;
 
         const onMessage = (event: MessageEvent) => {
+          if (this.destroyed) {
+            return;
+          }
           if (event.origin !== this.relayOrigin) {
             return;
           }
