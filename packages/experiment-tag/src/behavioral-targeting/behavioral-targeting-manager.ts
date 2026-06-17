@@ -89,7 +89,6 @@ export class BehavioralTargetingManager {
     }
     const synced = await this.syncFromRelay();
     if (!synced) {
-      this.setRelayClient(null);
       return false;
     }
     return behaviorsBefore !== this.serializeMatchedBehaviors();

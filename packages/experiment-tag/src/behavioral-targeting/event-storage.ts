@@ -3,13 +3,15 @@ import { RelayEventStorage } from './relay-protocol';
 import { SessionManager } from './session-manager';
 
 /**
- * Dedup key for cross-subdomain merge (matches relay.js MIGRATE_EVENTS).
+ * Dedup key for cross-subdomain merge (matches relay.js MIGRATE_EVENTS for
+ * migration; includes id so same-millisecond events do not collapse on merge).
  */
 export function eventDedupKey(event: {
   event_type: string;
   timestamp: number;
+  id: number;
 }): string {
-  return `${event.event_type}:${event.timestamp}`;
+  return `${event.event_type}:${event.timestamp}:${event.id}`;
 }
 
 /**
@@ -315,14 +317,9 @@ export class EventStorageManager {
     if (!relay?.relayAvailable) {
       return;
     }
-    void relay
-      .migrateEvents(window.location.origin, {
-        events: [...this.memoryCache.events],
-        nextId: this.memoryCache.nextId,
-      })
-      .catch(() => {
-        // fire-and-forget
-      });
+    for (const event of this.memoryCache.events) {
+      relay.writeEvent(event);
+    }
   }
 
   private scheduleDebouncedWrite(): void {

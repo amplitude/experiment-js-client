@@ -417,10 +417,10 @@ describe('EventStorageManager', () => {
   });
 
   describe('eventDedupKey', () => {
-    test('uses event_type and timestamp', () => {
-      expect(eventDedupKey({ event_type: 'click', timestamp: 1000 })).toBe(
-        'click:1000',
-      );
+    test('uses event_type, timestamp, and id', () => {
+      expect(
+        eventDedupKey({ event_type: 'click', timestamp: 1000, id: 1 }),
+      ).toBe('click:1000:1');
     });
   });
 
@@ -461,24 +461,22 @@ describe('EventStorageManager', () => {
       expect(relay.flush).toHaveBeenCalled();
     });
 
-    test('re-migrates relay cache when FIFO trim evicts local events', () => {
+    test('re-writes relay cache via writeEvent when FIFO trim evicts local events', () => {
       for (let i = 0; i < 500; i++) {
         eventStorage.addEvent('test', { index: i });
       }
 
       const relay = createMockRelay();
       eventStorage.setRelayClient(relay as unknown as RelayClient);
+      relay.writeEvent.mockClear();
       eventStorage.addEvent('test', { index: 500 });
 
-      expect(relay.migrateEvents).toHaveBeenCalledWith(
-        window.location.origin,
-        expect.objectContaining({
-          events: expect.arrayContaining([
-            expect.objectContaining({ properties: { index: 500 } }),
-          ]),
-        }),
-      );
-      expect(relay.writeEvent).not.toHaveBeenCalled();
+      expect(relay.writeEvent).toHaveBeenCalled();
+      expect(
+        relay.writeEvent.mock.calls.some(
+          ([event]) => event.properties?.index === 500,
+        ),
+      ).toBe(true);
     });
   });
 
@@ -508,6 +506,20 @@ describe('EventStorageManager', () => {
       expect(events).toHaveLength(2);
       expect(events[0].properties).toEqual({ source: 'relay' });
       expect(events[1].event_type).toBe('view');
+    });
+
+    test('keeps same-millisecond events with different ids', () => {
+      eventStorage.addEvent('click', {}, 1000);
+      eventStorage.addEvent('click', {}, 1000);
+
+      expect(eventStorage.getAllEvents()).toHaveLength(2);
+
+      eventStorage.mergeFromRelay({
+        events: [],
+        nextId: 1,
+      });
+
+      expect(eventStorage.getAllEvents()).toHaveLength(2);
     });
   });
 
