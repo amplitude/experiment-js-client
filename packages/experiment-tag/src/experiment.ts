@@ -408,22 +408,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
 
     const webExpIdV2CookieKey = `${experimentStorageName}_web_exp_id_v2`;
-    const webExpIdV2LocalFallback = user.web_exp_id_v2 ?? user.web_exp_id;
-    let generatedSharedId: string | undefined;
-    const webExpIdV2 = await resolveCrossSubdomainValue(
+    // web_exp_id is guaranteed above; seed v2 from it when no cookie or local v2 exists.
+    user.web_exp_id_v2 = await resolveCrossSubdomainValue(
       crossSubdomainCookieStorage,
       webExpIdV2CookieKey,
-      webExpIdV2LocalFallback,
-      () => {
-        generatedSharedId = UUID();
-        return generatedSharedId;
-      },
+      user.web_exp_id_v2 ?? user.web_exp_id,
+      UUID,
     );
-    user.web_exp_id_v2 = webExpIdV2;
-    if (generatedSharedId) {
-      user.web_exp_id = generatedSharedId;
-      delete user.device_id;
-    }
     setStorageItem('localStorage', experimentStorageName, user);
 
     const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
