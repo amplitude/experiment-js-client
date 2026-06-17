@@ -239,6 +239,61 @@ describe('RelayClient', () => {
     expect(writeCalls).toHaveLength(2);
   });
 
+  test('removes queued entry when logically duplicate write confirms', async () => {
+    const pendingWriteResponses: string[] = [];
+    const postMessage = jest.fn(
+      (payload: { requestId?: string; type?: string }) => {
+        if (payload.requestId && payload.type === 'WRITE_EVENT') {
+          pendingWriteResponses.push(payload.requestId);
+          return;
+        }
+        if (payload.requestId) {
+          window.dispatchEvent(
+            new MessageEvent('message', {
+              data: {
+                requestId: payload.requestId,
+                ok: true,
+              },
+              source: iframeWindow as unknown as MessageEventSource,
+              origin: RELAY_ORIGIN,
+            }),
+          );
+        }
+      },
+    );
+    const iframeWindow = { postMessage };
+    const client = new RelayClient(API_KEY, WEB_EXP_ID_V2, RELAY_URL);
+    clients.push(client);
+    await initReady(client, iframeWindow);
+    postMessage.mockClear();
+    pendingWriteResponses.length = 0;
+
+    const event = sampleEvent(7);
+    client.writeEvent(event);
+    client.writeEvent({ ...event, properties: { ...event.properties } });
+    expect(pendingWriteResponses).toHaveLength(2);
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          requestId: pendingWriteResponses[1],
+          ok: true,
+        },
+        source: iframeWindow as unknown as MessageEventSource,
+        origin: RELAY_ORIGIN,
+      }),
+    );
+    await Promise.resolve();
+
+    postMessage.mockClear();
+    client.flush();
+
+    const writeCalls = postMessage.mock.calls.filter(
+      ([payload]) => payload.type === 'WRITE_EVENT',
+    );
+    expect(writeCalls).toHaveLength(0);
+  });
+
   test('keeps failed write in pending queue for flush retry', async () => {
     const postMessage = jest.fn(
       (payload: { requestId?: string; type?: string }) => {
@@ -311,6 +366,20 @@ describe('RelayClient', () => {
     const waitPromise = client.waitForAvailable();
     signalRelayReady(iframeWindow);
     await expect(waitPromise).resolves.toBe(true);
+  });
+
+  test('destroy settles waitForAvailable without waiting for timeout', async () => {
+    const { client } = setupClient();
+    const initPromise = client.init();
+
+    jest.advanceTimersByTime(RELAY_RPC_TIMEOUT_MS + 1);
+    await initPromise;
+
+    const waitPromise = client.waitForAvailable(60_000);
+    client.destroy();
+
+    await expect(waitPromise).resolves.toBe(false);
+    expect(jest.getTimerCount()).toBe(0);
   });
 
   test('destroy during init allows re-init on same instance', async () => {

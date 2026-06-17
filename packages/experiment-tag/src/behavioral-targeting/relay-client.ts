@@ -28,6 +28,14 @@ function createRequestId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function isSameRelayEvent(a: RelayEventRecord, b: RelayEventRecord): boolean {
+  return (
+    a.id === b.id &&
+    a.event_type === b.event_type &&
+    a.timestamp === b.timestamp
+  );
+}
+
 export class RelayClient {
   private iframe: HTMLIFrameElement | null = null;
   private iframeWindow: Window | null = null;
@@ -232,11 +240,8 @@ export class RelayClient {
       return;
     }
 
-    const alreadyQueued = this.pendingWrites.some(
-      (queued) =>
-        queued.id === event.id &&
-        queued.event_type === event.event_type &&
-        queued.timestamp === event.timestamp,
+    const alreadyQueued = this.pendingWrites.some((queued) =>
+      isSameRelayEvent(queued, event),
     );
     if (!alreadyQueued) {
       this.pendingWrites.push(event);
@@ -245,7 +250,9 @@ export class RelayClient {
   }
 
   private removeConfirmedWrite(event: RelayEventRecord): void {
-    const idx = this.pendingWrites.indexOf(event);
+    const idx = this.pendingWrites.findIndex((queued) =>
+      isSameRelayEvent(queued, event),
+    );
     if (idx !== -1) {
       this.pendingWrites.splice(idx, 1);
     }
@@ -318,7 +325,7 @@ export class RelayClient {
       pending.reject(new Error('relay destroyed'));
     }
     this.pendingRequests.clear();
-    this.availableWaiters.length = 0;
+    this.notifyAvailable();
     this.iframe?.remove();
     this.iframe = null;
     this.iframeWindow = null;

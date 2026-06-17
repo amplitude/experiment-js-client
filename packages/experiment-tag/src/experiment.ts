@@ -727,7 +727,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    this.relayClient?.destroy();
+    if (this.relayClient) {
+      this.teardownRelay(this.relayClient);
+    }
     const relayClient = new RelayClient(
       this.apiKey,
       webExpIdV2,
