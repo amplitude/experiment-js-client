@@ -1,3 +1,4 @@
+import { RelayClient } from './relay-client';
 import { SessionManager } from './session-manager';
 
 /**
@@ -148,6 +149,21 @@ export class EventStorageManager {
    */
   flush(): void {
     this.flushToLocalStorage();
+  }
+
+  /**
+   * Relay dual-write hook — implemented in the storage sync PR.
+   */
+  setRelayClient(relayClient: RelayClient | null): void {
+    void relayClient;
+  }
+
+  /**
+   * Pass 2 relay merge hook — no-op until storage sync lands.
+   */
+  async syncFromRelay(relayClient?: RelayClient): Promise<boolean> {
+    void relayClient;
+    return true;
   }
 
   /**

@@ -737,16 +737,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     void this.behavioralTargetingManager
       .beginRelaySync(relayClient)
-      .then((behaviorsChanged) => {
+      .then((result) => {
         if (this.relayClient !== relayClient) {
           return;
         }
-        if (!relayClient.relayAvailable) {
-          relayClient.destroy();
-          this.relayClient = null;
+        if (result.status === 'unavailable') {
+          this.teardownRelay(relayClient);
           return;
         }
-        return this.handleRelayPass2(behaviorsChanged).catch((pass2Error) => {
+        if (result.status !== 'behaviors_changed') {
+          return;
+        }
+        return this.handleRelayPass2(true).catch((pass2Error) => {
           console.warn('Experiment relay Pass 2 failed:', pass2Error);
         });
       })
@@ -754,9 +756,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         if (this.relayClient !== relayClient) {
           return;
         }
-        relayClient.destroy();
-        this.relayClient = null;
+        this.teardownRelay(relayClient);
       });
+  }
+
+  private teardownRelay(relayClient: RelayClient): void {
+    relayClient.destroy();
+    this.relayClient = null;
+    this.behavioralTargetingManager?.setRelayClient(null);
   }
 
   /**
