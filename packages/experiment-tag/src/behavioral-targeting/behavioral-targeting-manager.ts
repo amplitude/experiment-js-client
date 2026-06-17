@@ -56,11 +56,7 @@ export class BehavioralTargetingManager {
    * Attach the relay client for cross-subdomain event dual-write.
    */
   public setRelayClient(relayClient: RelayClient | null): void {
-    (
-      this.eventStorage as {
-        setRelayClient?: (client: RelayClient | null) => void;
-      }
-    ).setRelayClient?.(relayClient);
+    this.eventStorage.setRelayClient(relayClient);
   }
 
   /**
@@ -68,13 +64,7 @@ export class BehavioralTargetingManager {
    * Returns true when relay store was merged.
    */
   public async syncFromRelay(): Promise<boolean> {
-    const sync = (
-      this.eventStorage as { syncFromRelay?: () => Promise<boolean> }
-    ).syncFromRelay;
-    if (!sync) {
-      return false;
-    }
-    const synced = await sync.call(this.eventStorage);
+    const synced = await this.eventStorage.syncFromRelay();
     if (synced) {
       this.evaluateAll();
     }
@@ -99,7 +89,6 @@ export class BehavioralTargetingManager {
     }
     const synced = await this.syncFromRelay();
     if (!synced) {
-      this.setRelayClient(null);
       return false;
     }
     return behaviorsBefore !== this.serializeMatchedBehaviors();
