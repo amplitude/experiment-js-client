@@ -232,8 +232,15 @@ export class RelayClient {
       return;
     }
 
-    // Queue until async write confirms — flush() can resend in-flight events on unload.
-    this.pendingWrites.push(event);
+    const alreadyQueued = this.pendingWrites.some(
+      (queued) =>
+        queued.id === event.id &&
+        queued.event_type === event.event_type &&
+        queued.timestamp === event.timestamp,
+    );
+    if (!alreadyQueued) {
+      this.pendingWrites.push(event);
+    }
     this.sendPendingWrite(event);
   }
 
