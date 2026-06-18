@@ -122,6 +122,54 @@ const KNOWN_2LDS = [
 
 let cachedDomain: string | undefined;
 
+/**
+ * Synchronously probes whether a cookie can be written to `.<domain>` by
+ * setting a throwaway cookie and reading it back via `document.cookie`.
+ */
+function isDomainWritableSync(domain: string): boolean {
+  if (typeof document === 'undefined') return false;
+  const testKey = `AMP_TLD_TEST_${Date.now()}`;
+  try {
+    document.cookie = `${testKey}=1; domain=.${domain}; path=/; SameSite=Lax`;
+    const written = document.cookie.indexOf(`${testKey}=`) !== -1;
+    // Clean up the probe cookie regardless of the result.
+    document.cookie = `${testKey}=; domain=.${domain}; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    return written;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Synchronous variant of {@link getTopLevelDomain}. Resolves the registrable
+ * (root) domain for `hostname` so callers can set a cookie shared across
+ * subdomains, without the async `CookieStorage.isDomainWritable` round-trip.
+ * Returns a leading-dot domain (e.g. `.example.com`) or `''` when no
+ * cross-subdomain domain is writable (single-label hosts, IPs, blocked I/O).
+ */
+export function getTopLevelDomainSync(hostname: string): string {
+  if (!hostname) return '';
+  const normalizedHostname = hostname.toLowerCase();
+  const parts = normalizedHostname.split('.');
+  if (parts.length <= 1) return '';
+
+  const skipLevel = KNOWN_2LDS.some((tld) =>
+    normalizedHostname.endsWith(`.${tld}`),
+  )
+    ? 2
+    : 1;
+  const levels: string[] = [];
+  for (let i = parts.length - skipLevel - 1; i >= 0; --i) {
+    levels.push(parts.slice(i).join('.'));
+  }
+  for (const domain of levels) {
+    if (isDomainWritableSync(domain)) {
+      return '.' + domain;
+    }
+  }
+  return '';
+}
+
 export async function getTopLevelDomain(hostname: string): Promise<string> {
   if (cachedDomain !== undefined) return cachedDomain;
   if (!hostname) {

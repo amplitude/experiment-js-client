@@ -65,7 +65,7 @@ export class EventStorageManager {
       return;
     }
 
-    const sessionId = this.sessionManager.getOrCreateSessionId();
+    const sessionId = this.sessionManager.getCurrentSessionId();
 
     const event: EventRecord = {
       id: this.memoryCache.nextId++,
@@ -116,7 +116,7 @@ export class EventStorageManager {
     );
 
     if (timeType === 'current_session') {
-      const currentSessionId = this.sessionManager.getOrCreateSessionId();
+      const currentSessionId = this.sessionManager.getCurrentSessionId();
       events = events.filter((e) => e.session_id === currentSessionId);
     } else {
       // Rolling time window

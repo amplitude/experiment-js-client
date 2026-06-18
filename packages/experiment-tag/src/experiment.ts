@@ -168,19 +168,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ? JSON.parse(initConfigs.behavioralTargetingRules)
       : {};
 
-    // Initialize behavioral targeting infrastructure only if there are rules
-    if (Object.keys(this.behavioralTargetingRules).length > 0) {
-      this.behavioralTargetingManager = new BehavioralTargetingManager(
-        this.apiKey,
-        this.behavioralTargetingRules,
-      );
-    }
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
       ...config,
       ...(this.globalScope.experimentConfig ?? {}),
     };
+
+    // Initialize behavioral targeting infrastructure only if there are rules
+    if (Object.keys(this.behavioralTargetingRules).length > 0) {
+      this.behavioralTargetingManager = new BehavioralTargetingManager(
+        this.apiKey,
+        this.behavioralTargetingRules,
+        this.config.rtbtSessionTimeout,
+      );
+    }
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;

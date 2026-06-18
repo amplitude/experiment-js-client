@@ -6,11 +6,16 @@ describe('EventStorageManager', () => {
   let sessionManager: SessionManager;
   const testApiKey = 'test-api-key';
   const storageKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_events`;
+  const sessionCookieKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_session`;
+  const clearSessionCookie = () => {
+    document.cookie = `${sessionCookieKey}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  };
 
   beforeEach(() => {
     // Clear storage before each test
     localStorage.clear();
     sessionStorage.clear();
+    clearSessionCookie();
     sessionManager = new SessionManager(testApiKey);
     eventStorage = new EventStorageManager(testApiKey, sessionManager);
   });
@@ -18,6 +23,7 @@ describe('EventStorageManager', () => {
   afterEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    clearSessionCookie();
   });
 
   describe('addEvent', () => {

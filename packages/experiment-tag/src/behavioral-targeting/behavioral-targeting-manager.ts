@@ -20,9 +20,13 @@ export class BehavioralTargetingManager {
     Array<{ id: string; flagKey: string }>
   > = new Map();
 
-  constructor(apiKey: string, initialRules: BehavioralTargetingRules = {}) {
+  constructor(
+    apiKey: string,
+    initialRules: BehavioralTargetingRules = {},
+    sessionTimeoutMs?: number,
+  ) {
     this.rules = initialRules;
-    this.sessionManager = new SessionManager(apiKey);
+    this.sessionManager = new SessionManager(apiKey, sessionTimeoutMs);
     // Build event-to-behavior mapping for efficient lookups
     this.buildEventToBehaviorsMap();
     this.eventStorage = new EventStorageManager(
@@ -46,6 +50,10 @@ export class BehavioralTargetingManager {
     eventType: string,
     properties: Record<string, unknown>,
   ): void {
+    // Any observed Amplitude event keeps the session alive (extends or
+    // rotates it). This runs before the persistedEvents allowlist filter in
+    // addEvent so that non-RTBT events still count as session activity.
+    this.sessionManager.recordActivity();
     this.eventStorage.addEvent(eventType, properties);
     // Update active behavior state for flags affected by this event
     this.evaluateEvent(eventType);
