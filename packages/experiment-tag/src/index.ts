@@ -69,11 +69,21 @@ const startClient = (
   initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): void => {
-  DefaultWebExperimentClient.getInstance(apiKey, initConfigs, config)
-    .start()
-    .finally(() => {
+  const client = DefaultWebExperimentClient.getInstance(
+    apiKey,
+    initConfigs,
+    config,
+  );
+  client.start().finally(() => {
+    // Don't tear down anti-flicker while a redirect is in-flight. start()
+    // resolves immediately after location.replace() is called, but the browser
+    // keeps painting the current page until the destination commits — removing
+    // the overlay (including a customer's #amp-exp-css) here would flash the
+    // source page during the redirect's network wait.
+    if (!client.isRedirecting) {
       removeAntiFlickerCss();
-    });
+    }
+  });
 };
 
 const fetchLatestConfigs = async (apiKey: string, serverZone?: string) => {

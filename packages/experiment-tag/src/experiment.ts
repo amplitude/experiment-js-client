@@ -129,7 +129,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly localFlagKeys: string[] = [];
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
-  private isRedirecting = false;
+  // Public so the bootstrap (index.ts) can avoid removing anti-flicker CSS while
+  // a redirect is in-flight — location.replace() doesn't suspend painting, so
+  // tearing the overlay down before the navigation commits flashes the source page.
+  public isRedirecting = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
   public isRunning = false;
   private readonly messageBus: MessageBus;
