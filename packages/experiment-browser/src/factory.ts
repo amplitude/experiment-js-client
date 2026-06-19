@@ -44,7 +44,7 @@ export const initializeWithAmplitudeAnalytics = (
     new AmplitudeIntegrationPlugin(
       apiKey,
       AnalyticsConnector.getInstance(getInstanceName(config)),
-      10000,
+      config?.fetchTimeoutMillis || 10000,
     );
   return _initialize(apiKey, config, plugin);
 };
