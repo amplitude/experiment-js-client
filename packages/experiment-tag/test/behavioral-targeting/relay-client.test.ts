@@ -566,9 +566,21 @@ describe('RelayClient', () => {
 });
 
 describe('getRelayUrl', () => {
-  test('returns production relay url', () => {
+  test('returns US production relay url by default', () => {
     expect(getRelayUrl('abc123')).toBe(
       'https://cdn.amplitude.com/script/abc123.relay.html',
+    );
+  });
+
+  test('returns US production relay url for US server zone', () => {
+    expect(getRelayUrl('abc123', 'US')).toBe(
+      'https://cdn.amplitude.com/script/abc123.relay.html',
+    );
+  });
+
+  test('returns EU production relay url for EU server zone', () => {
+    expect(getRelayUrl('abc123', 'EU')).toBe(
+      'https://cdn.eu.amplitude.com/script/abc123.relay.html',
     );
   });
 });
