@@ -733,7 +733,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const relayClient = new RelayClient(
       this.apiKey,
       webExpIdV2,
-      getRelayUrl(this.apiKey),
+      getRelayUrl(this.apiKey, this.config.serverZone),
     );
     this.relayClient = relayClient;
 
