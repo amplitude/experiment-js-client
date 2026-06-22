@@ -59,7 +59,8 @@ export class RelayClient {
   private initResolve: (() => void) | null = null;
   private cancelBodyReadyPoll: (() => void) | null = null;
   private destroyed = false;
-  private readonly availableWaiters: Array<() => void> = [];
+  private availablePromise: Promise<void> | null = null;
+  private resolveAvailable: (() => void) | null = null;
 
   constructor(
     private readonly apiKey: string,
@@ -87,11 +88,9 @@ export class RelayClient {
   }
 
   private notifyAvailable(): void {
-    const waiters = [...this.availableWaiters];
-    this.availableWaiters.length = 0;
-    for (const waiter of waiters) {
-      waiter();
-    }
+    this.resolveAvailable?.();
+    this.resolveAvailable = null;
+    this.availablePromise = null;
   }
 
   /**
@@ -106,23 +105,20 @@ export class RelayClient {
       return Promise.resolve(true);
     }
 
+    if (!this.availablePromise) {
+      this.availablePromise = new Promise<void>((resolve) => {
+        this.resolveAvailable = resolve;
+      });
+    }
+    const becameAvailable = this.availablePromise;
+
     return new Promise((resolve) => {
-      let settled = false;
-      const finish = () => {
-        if (settled) {
-          return;
-        }
-        settled = true;
+      const settle = () => resolve(this.available && !this.destroyed);
+      const timeoutId = window.setTimeout(settle, timeoutMs);
+      void becameAvailable.then(() => {
         window.clearTimeout(timeoutId);
-        const idx = this.availableWaiters.indexOf(onAvailable);
-        if (idx !== -1) {
-          this.availableWaiters.splice(idx, 1);
-        }
-        resolve(this.available && !this.destroyed);
-      };
-      const onAvailable = () => finish();
-      this.availableWaiters.push(onAvailable);
-      const timeoutId = window.setTimeout(() => finish(), timeoutMs);
+        settle();
+      });
     });
   }
 
