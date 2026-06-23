@@ -33,7 +33,7 @@ export const patchDOMParser = () => {
   if (!window['__domParserParseFromString'] && detectStyleCSP()) {
     const parseFromString = DOMParser.prototype.parseFromString;
     window['__domParserParseFromString'] = parseFromString;
-  
+
     DOMParser.prototype.parseFromString = function (content, contentType) {
       const doc = parseFromString.apply(this, [content, contentType]);
       if (contentType === 'text/html') {
@@ -42,4 +42,4 @@ export const patchDOMParser = () => {
       return doc;
     };
   }
-}
+};
