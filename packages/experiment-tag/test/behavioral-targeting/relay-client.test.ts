@@ -583,4 +583,22 @@ describe('getRelayUrl', () => {
       'https://cdn.eu.amplitude.com/script/abc123.relay.html',
     );
   });
+
+  test('relayUrl override replaces the origin and keeps the canonical path', () => {
+    expect(getRelayUrl('abc123', 'US', 'https://relay.lvh.me:3036')).toBe(
+      'https://relay.lvh.me:3036/script/abc123.relay.html',
+    );
+  });
+
+  test('relayUrl override takes precedence over server zone', () => {
+    expect(getRelayUrl('abc123', 'EU', 'http://localhost:3036')).toBe(
+      'http://localhost:3036/script/abc123.relay.html',
+    );
+  });
+
+  test('relayUrl override trims trailing slashes before appending the path', () => {
+    expect(getRelayUrl('abc123', undefined, 'https://relay.lvh.me:3036/')).toBe(
+      'https://relay.lvh.me:3036/script/abc123.relay.html',
+    );
+  });
 });
