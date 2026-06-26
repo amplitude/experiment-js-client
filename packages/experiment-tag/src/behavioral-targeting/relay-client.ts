@@ -9,7 +9,16 @@ import {
   RelayResponse,
 } from './relay-protocol';
 
-export function getRelayUrl(apiKey: string, serverZone?: string): string {
+export function getRelayUrl(
+  apiKey: string,
+  serverZone?: string,
+  relayUrl?: string,
+): string {
+  // relayUrl overrides only the origin; the canonical /script/{apiKey}.relay.html
+  // path is preserved so a local/staging host serves the same way the CDN does.
+  if (relayUrl) {
+    return `${relayUrl.replace(/\/+$/, '')}/script/${apiKey}.relay.html`;
+  }
   const cdnHost =
     serverZone === 'EU' ? 'cdn.eu.amplitude.com' : 'cdn.amplitude.com';
   return `https://${cdnHost}/script/${apiKey}.relay.html`;
