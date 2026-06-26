@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.25.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.24.0...@amplitude/experiment-tag@0.25.0) (2026-06-26)
+
+
+### Features
+
+* **experiment-tag:** add cross-subdomain web_exp_id_v2 and first_seen cookies ([#332](https://github.com/amplitude/experiment-js-client/issues/332)) ([f9ee4e3](https://github.com/amplitude/experiment-js-client/commit/f9ee4e3b619956c5a622c0fa7010a3f532e8483c))
+* support cross-subdomain redirect impression tracking ([#238](https://github.com/amplitude/experiment-js-client/issues/238)) ([e4260a3](https://github.com/amplitude/experiment-js-client/commit/e4260a356cae6fa0001879ee03156718dbe5bfc4))
+
+
+
+
+
 # [0.24.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.4...@amplitude/experiment-tag@0.24.0) (2026-06-04)
 
 
