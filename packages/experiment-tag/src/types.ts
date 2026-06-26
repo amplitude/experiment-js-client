@@ -129,6 +129,14 @@ export interface WebExperimentConfig extends ExperimentConfig {
    */
   useDefaultNavigationHandler?: boolean;
   redirectConfig?: RedirectConfig;
+  /**
+   * Overrides the origin the cross-subdomain RTBT relay iframe is loaded from.
+   * Provide a scheme + host (+ optional port), e.g. `https://relay.lvh.me:3036`;
+   * the canonical `/script/{apiKey}.relay.html` path is appended automatically.
+   * When unset, the relay loads from the Amplitude CDN for the configured server
+   * zone. Intended for local/staging testing of the relay serving path.
+   */
+  relayUrl?: string;
 }
 
 export const Defaults: WebExperimentConfig = {
