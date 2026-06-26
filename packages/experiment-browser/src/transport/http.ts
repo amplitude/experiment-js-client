@@ -33,15 +33,21 @@ const timeout = (
   }
   return new Promise(function (resolve, reject) {
     const setTimeoutFn = getSetTimeout();
-    if (setTimeoutFn) {
-      setTimeoutFn(function () {
-        reject(
-          new TimeoutError(
-            'Request timeout after ' + timeoutMillis + ' milliseconds',
-          ),
-        );
-      }, timeoutMillis);
+    if (!setTimeoutFn) {
+      reject(
+        new TimeoutError(
+          'Request timeout after ' + timeoutMillis + ' milliseconds',
+        ),
+      );
+      return;
     }
+    setTimeoutFn(function () {
+      reject(
+        new TimeoutError(
+          'Request timeout after ' + timeoutMillis + ' milliseconds',
+        ),
+      );
+    }, timeoutMillis);
     promise.then(resolve, reject);
   });
 };

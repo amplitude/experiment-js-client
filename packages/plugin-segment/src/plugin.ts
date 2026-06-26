@@ -26,7 +26,7 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
     type: 'integration',
     setup(): Promise<void> {
       const instance = getInstance();
-      return new Promise<void>((resolve) => {
+      return new Promise<void>((resolve, reject) => {
         instance.ready(() => {
           ready = true;
           resolve();
@@ -35,7 +35,10 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
         // package then function calls to the snippet are not respected.
         if (!options.instance) {
           const setInterval = getSetInterval();
-          if (!setInterval) return;
+          if (!setInterval) {
+            reject('setInterval is not available');
+            return;
+          }
           const interval = setInterval(() => {
             const instance = getInstance();
             if (instance.initialized) {
