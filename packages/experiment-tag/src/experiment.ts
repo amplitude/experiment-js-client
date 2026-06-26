@@ -50,7 +50,11 @@ import {
 import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
 import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
-import { getTopLevelDomain, setMarketingCookie } from './util/cookie';
+import {
+  getTopLevelDomain,
+  resolveCrossSubdomainValue,
+  setMarketingCookie,
+} from './util/cookie';
 import {
   cspSafeStyleSheet,
   type StyleSheetHandle,
@@ -392,6 +396,51 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       delete user.device_id;
       setStorageItem('localStorage', experimentStorageName, user);
     }
+
+    // Resolve web_exp_id_v2 and first_seen as root-domain cookies for
+    // cross-subdomain identity before getVariants() so anti-flicker and
+    // local evaluation use the shared first_seen, not a subdomain-local mint.
+    const rootDomain = await getTopLevelDomain(
+      this.globalScope.location.hostname,
+    );
+    const crossSubdomainCookieStorage = new CookieStorage<string>({
+      ...(rootDomain && { domain: rootDomain }),
+      sameSite: 'Lax',
+      expirationDays: 365,
+    });
+
+    const webExpIdV2CookieKey = `${experimentStorageName}_web_exp_id_v2`;
+    // web_exp_id is guaranteed above; seed v2 from it when no cookie or local v2 exists.
+    user.web_exp_id_v2 = await resolveCrossSubdomainValue(
+      crossSubdomainCookieStorage,
+      webExpIdV2CookieKey,
+      user.web_exp_id_v2 ?? user.web_exp_id,
+      UUID,
+    );
+    setStorageItem('localStorage', experimentStorageName, user);
+
+    const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
+    const defaultUserProviderData =
+      getStorageItem<{ first_seen?: string }>(
+        'localStorage',
+        defaultUserProviderStorageKey,
+      ) || {};
+    const firstSeen = await resolveCrossSubdomainValue(
+      crossSubdomainCookieStorage,
+      `${experimentStorageName}_first_seen`,
+      defaultUserProviderData.first_seen,
+      () => (Date.now() / 1000).toString(),
+    );
+    if (firstSeen !== defaultUserProviderData.first_seen) {
+      defaultUserProviderData.first_seen = firstSeen;
+      setStorageItem(
+        'localStorage',
+        defaultUserProviderStorageKey,
+        defaultUserProviderData,
+      );
+    }
+    user.first_seen = firstSeen;
+    this.experimentClient.setUser(user);
 
     // evaluate variants for page targeting
     const variants: Variants = this.getVariants();
