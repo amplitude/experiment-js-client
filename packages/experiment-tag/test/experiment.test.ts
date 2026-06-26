@@ -112,12 +112,47 @@ describe('initializeExperiment', () => {
       initialFlags: JSON.stringify([]),
       pageObjects: JSON.stringify({}),
     }).start();
-    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
-      web_exp_id: 'mock',
-    });
+    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        web_exp_id: 'mock',
+        web_exp_id_v2: expect.any(String),
+      }),
+    );
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       'EXP_' + stringify(apiKey),
-      JSON.stringify({ web_exp_id: 'mock' }),
+      JSON.stringify({ web_exp_id: 'mock', web_exp_id_v2: 'mock' }),
+    );
+  });
+
+  test('seeds web_exp_id_v2 from existing web_exp_id when cookie is missing', async () => {
+    const key = stringify(apiKey);
+    const storageKey = 'EXP_' + key;
+    const cookieKey = storageKey + '_web_exp_id_v2';
+    mockGlobal.localStorage.getItem.mockImplementation((name: string) => {
+      if (name === storageKey) {
+        return JSON.stringify({ web_exp_id: 'existing-id' });
+      }
+      return null;
+    });
+
+    await DefaultWebExperimentClient.getInstance(key, {
+      initialFlags: JSON.stringify([]),
+      pageObjects: JSON.stringify({}),
+    }).start();
+
+    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        web_exp_id: 'existing-id',
+        web_exp_id_v2: 'existing-id',
+      }),
+    );
+    expect(cookieStore[cookieKey]).toBe('existing-id');
+    expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
+      storageKey,
+      JSON.stringify({
+        web_exp_id: 'existing-id',
+        web_exp_id_v2: 'existing-id',
+      }),
     );
   });
 
@@ -1004,7 +1039,7 @@ describe('initializeExperiment', () => {
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
-  test('remote evaluation - fetch fail, test initialFlags variant actions called', () => {
+  test('remote evaluation - fetch fail, test initialFlags variant actions called', async () => {
     const initialFlags = [
       // remote flag
       createMutateFlag(
@@ -1018,7 +1053,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient('', 404);
 
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       {
         initialFlags: JSON.stringify(initialFlags),
@@ -1027,15 +1062,10 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        // check remote variant actions applied
-        expect(mockExposure).toHaveBeenCalledTimes(1);
-        expect(mockExposure).toHaveBeenCalledWith('test');
-      });
-    // check local flag variant actions called
-    expect(mockExposure).toHaveBeenCalledTimes(0);
+    ).start();
+    // check remote variant actions applied
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
