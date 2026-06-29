@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.21.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.21.1...@amplitude/experiment-js-client@1.21.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* harden safeGlobal consumers and SSR location access ([#311](https://github.com/amplitude/experiment-js-client/issues/311)) ([1f55cc1](https://github.com/amplitude/experiment-js-client/commit/1f55cc12c2e0dd0f3f5405857cd19859af99c634)), closes [#253](https://github.com/amplitude/experiment-js-client/issues/253) [#256](https://github.com/amplitude/experiment-js-client/issues/256)
+
+
+
+
+
 ## [1.21.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.21.0...@amplitude/experiment-js-client@1.21.1) (2026-04-28)
 
 **Note:** Version bump only for package @amplitude/experiment-js-client
