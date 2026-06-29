@@ -3,7 +3,11 @@
  * @internal
  */
 
-import { safeGlobal, TimeoutError } from '@amplitude/experiment-core';
+import {
+  getFetch,
+  getSetTimeout,
+  TimeoutError,
+} from '@amplitude/experiment-core';
 import {
   HttpClient as CoreHttpClient,
   HttpRequest,
@@ -13,7 +17,7 @@ import unfetch from 'unfetch';
 
 import { HttpClient, SimpleResponse } from '../types/transport';
 
-const fetch = safeGlobal.fetch || unfetch;
+const fetch = getFetch() || unfetch;
 
 /*
  * Copied from:
@@ -28,13 +32,16 @@ const timeout = (
     return promise;
   }
   return new Promise(function (resolve, reject) {
-    safeGlobal.setTimeout(function () {
-      reject(
-        new TimeoutError(
-          'Request timeout after ' + timeoutMillis + ' milliseconds',
-        ),
-      );
-    }, timeoutMillis);
+    const setTimeoutFn = getSetTimeout();
+    if (setTimeoutFn) {
+      setTimeoutFn(function () {
+        reject(
+          new TimeoutError(
+            'Request timeout after ' + timeoutMillis + ' milliseconds',
+          ),
+        );
+      }, timeoutMillis);
+    }
     promise.then(resolve, reject);
   });
 };
