@@ -1,3 +1,4 @@
+import * as core from '@amplitude/experiment-core';
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentConfig } from 'src/config';
 import { ExperimentClient } from 'src/experimentClient';
@@ -738,5 +739,36 @@ describe('PersistentTrackingQueue', () => {
     queue.push({ eventType: 'test2' });
     expect(queue['inMemoryQueue'].length).toEqual(0);
     expect(success).toEqual(3);
+  });
+});
+
+describe('iOS Safari null-globalThis regression', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('PersistentTrackingQueue.setTracker does not throw when global scope is unavailable', () => {
+    jest.spyOn(core, 'getGlobalScope').mockReturnValue(undefined);
+    const queue = new PersistentTrackingQueue('null-global-test');
+    expect(() => {
+      queue.setTracker(() => true);
+    }).not.toThrow();
+    queue['poller'] = undefined;
+  });
+
+  test('PersistentTrackingQueue.push does not throw when localStorage helper returns undefined', () => {
+    jest.spyOn(core, 'getLocalStorage').mockReturnValue(undefined);
+    const queue = new PersistentTrackingQueue('null-localstorage-test');
+    expect(() => {
+      queue.push({ eventType: 'test' });
+    }).not.toThrow();
+  });
+
+  test('SessionDedupeCache constructor does not throw when sessionStorage helper returns undefined', () => {
+    jest.spyOn(core, 'getSessionStorage').mockReturnValue(undefined);
+    expect(() => {
+      const cache = new SessionDedupeCache('null-session-test');
+      cache.shouldTrack({ flag_key: 'k', variant: 'v' });
+    }).not.toThrow();
   });
 });

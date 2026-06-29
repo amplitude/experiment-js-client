@@ -10,9 +10,9 @@ export const convertUserToContext = (
     return {};
   }
   const context: Record<string, unknown> = { user: user };
-  // add page context
+  // add page context (skip if location is unavailable, e.g. Node SSR)
   const globalScope = getGlobalScope();
-  if (globalScope) {
+  if (globalScope?.location) {
     context.page = {
       url: globalScope.location.href,
     };
