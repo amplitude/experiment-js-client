@@ -242,6 +242,113 @@ export async function resolveCrossSubdomainObject<
   return resolved;
 }
 
+/** Reads a raw cookie value (URL-decoded) synchronously, or `undefined` if absent. */
+export function readRawCookie(key: string): string | undefined {
+  if (typeof document === 'undefined') return undefined;
+  for (const c of document.cookie ? document.cookie.split('; ') : []) {
+    const eq = c.indexOf('=');
+    if ((eq === -1 ? c : c.slice(0, eq)) !== key) continue;
+    const v = eq === -1 ? '' : c.slice(eq + 1);
+    try {
+      return decodeURIComponent(v);
+    } catch {
+      return v;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Writes a cookie (`Path=/; SameSite=Lax`, `Secure` on https), then verifies it
+ * via read-back. Returns `false` on blocked cookie I/O (private mode, ITP, a
+ * wrong domain) so callers can fall back to memory. No `maxAgeSeconds` ⇒ session.
+ */
+export function writeRawCookie(
+  key: string,
+  value: string,
+  options: { domain?: string; maxAgeSeconds?: number } = {},
+): boolean {
+  if (typeof document === 'undefined') return false;
+  const { domain, maxAgeSeconds } = options;
+  try {
+    document.cookie =
+      `${key}=${encodeURIComponent(value)}; path=/; SameSite=Lax` +
+      (domain ? `; domain=${domain}` : '') +
+      (maxAgeSeconds !== undefined ? `; max-age=${maxAgeSeconds}` : '') +
+      (location?.protocol === 'https:' ? '; Secure' : '');
+    return readRawCookie(key) !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+/** Best-effort delete (must match the domain the cookie was written with). */
+export function deleteRawCookie(key: string, domain?: string): void {
+  if (typeof document === 'undefined') return;
+  try {
+    document.cookie =
+      `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT` +
+      (domain ? `; domain=${domain}` : '');
+  } catch {
+    /* best-effort */
+  }
+}
+
+/**
+ * Synchronous two-tier (cookie → in-memory) JSON store. The cookie is the
+ * cross-tab / cross-subdomain source of truth; if writes are blocked (detected
+ * via {@link writeRawCookie}'s read-back) it degrades to a per-page value. The
+ * domain is read lazily per write so it can be resolved after construction.
+ */
+export class SyncJsonCookie<T> {
+  private usable?: boolean;
+  private memory?: T;
+
+  constructor(
+    private readonly key: string,
+    private readonly getDomain: () => string,
+    private readonly options: {
+      maxAgeSeconds?: number;
+      /** Validates/normalizes a parsed payload; return undefined to reject it. */
+      validate?: (value: unknown) => T | undefined;
+    } = {},
+  ) {}
+
+  read(): T | undefined {
+    if (this.usable !== false) {
+      const raw = readRawCookie(this.key);
+      const parsed = raw !== undefined ? this.parse(raw) : undefined;
+      if (parsed !== undefined) return parsed;
+    }
+    return this.memory;
+  }
+
+  write(value: T): void {
+    this.memory = value;
+    this.usable =
+      typeof document !== 'undefined' &&
+      this.usable !== false &&
+      writeRawCookie(this.key, JSON.stringify(value), {
+        domain: this.getDomain() || undefined,
+        maxAgeSeconds: this.options.maxAgeSeconds,
+      });
+  }
+
+  clear(): void {
+    this.memory = undefined;
+    deleteRawCookie(this.key, this.getDomain() || undefined);
+  }
+
+  private parse(raw: string): T | undefined {
+    try {
+      const data = JSON.parse(raw);
+      return this.options.validate ? this.options.validate(data) : (data as T);
+    } catch {
+      return undefined;
+    }
+  }
+}
+
 export async function setMarketingCookie(apiKey: string, hostname: string) {
   const domain = await getTopLevelDomain(hostname);
   const storage = new CookieStorage<Campaign>({

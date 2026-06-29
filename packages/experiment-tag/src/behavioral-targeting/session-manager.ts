@@ -1,4 +1,4 @@
-import { getTopLevelDomainSync } from '../util/cookie';
+import { getTopLevelDomainSync, SyncJsonCookie } from '../util/cookie';
 
 /**
  * Default rolling inactivity window before a session rotates, mirroring
@@ -13,6 +13,39 @@ interface SessionState {
   lastEventTime: number;
 }
 
+function newSession(now: number): SessionState {
+  return {
+    sessionId: `${now}-${Math.random().toString(36).substr(2, 9)}`,
+    sessionStartTime: now,
+    lastEventTime: now,
+  };
+}
+
+/**
+ * Validates a parsed cookie payload as a {@link SessionState}, normalizing a
+ * missing `sessionStartTime` to `lastEventTime` (older cookies). Returns
+ * undefined for anything that isn't a usable session.
+ */
+function validateSessionState(data: unknown): SessionState | undefined {
+  if (
+    data &&
+    typeof data === 'object' &&
+    typeof (data as Record<string, unknown>).sessionId === 'string' &&
+    typeof (data as Record<string, unknown>).lastEventTime === 'number'
+  ) {
+    const d = data as Record<string, unknown>;
+    return {
+      sessionId: d.sessionId as string,
+      sessionStartTime:
+        typeof d.sessionStartTime === 'number'
+          ? (d.sessionStartTime as number)
+          : (d.lastEventTime as number),
+      lastEventTime: d.lastEventTime as number,
+    };
+  }
+  return undefined;
+}
+
 /**
  * Manages the RTBT session ID.
  *
@@ -22,25 +55,26 @@ interface SessionState {
  * uses). When cookies are unavailable (private browsing, ITP, blocked I/O) the
  * session degrades gracefully to an in-memory, per-page session.
  *
- * Two-tier storage: cookie (authoritative, cross-subdomain + cross-tab) →
- * in-memory (per-page fallback / cache).
+ * Cookie I/O + the cookie→memory two-tier fallback are delegated to
+ * {@link SyncJsonCookie}; this class owns the session lifecycle (rotation on
+ * inactivity, validation) on top of it.
  */
 export class SessionManager {
-  private cookieKey: string;
   private sessionTimeoutMs: number;
-  /** In-memory cache and fallback when cookie storage is unavailable. */
-  private memoryState?: SessionState;
+  private store: SyncJsonCookie<SessionState>;
   /** Lazily resolved leading-dot domain (e.g. `.example.com`) or `''`. */
   private resolvedDomain?: string;
-  /** Tri-state: undefined = unknown, true/false = detected via write-back. */
-  private cookiesUsable?: boolean;
 
   constructor(
     apiKey: string,
     sessionTimeoutMs: number = DEFAULT_SESSION_TIMEOUT_MS,
   ) {
-    this.cookieKey = `EXP_${apiKey.slice(0, 10)}_rtbt_session`;
     this.sessionTimeoutMs = sessionTimeoutMs;
+    this.store = new SyncJsonCookie<SessionState>(
+      `EXP_${apiKey.slice(0, 10)}_rtbt_session`,
+      () => this.domain(),
+      { validate: validateSessionState },
+    );
   }
 
   /**
@@ -67,11 +101,11 @@ export class SessionManager {
    */
   recordActivity(): void {
     const now = Date.now();
-    const existing = this.read();
+    const existing = this.store.read();
     if (existing && now - existing.lastEventTime <= this.sessionTimeoutMs) {
-      this.persist({ ...existing, lastEventTime: now });
+      this.store.write({ ...existing, lastEventTime: now });
     } else {
-      this.persist(this.newSession(now));
+      this.store.write(newSession(now));
     }
   }
 
@@ -86,8 +120,7 @@ export class SessionManager {
    * Clears the current session from memory and cookie storage.
    */
   clearSession(): void {
-    this.memoryState = undefined;
-    this.deleteCookie();
+    this.store.clear();
   }
 
   /**
@@ -97,64 +130,13 @@ export class SessionManager {
    */
   private resolve(): SessionState {
     const now = Date.now();
-    const existing = this.read();
+    const existing = this.store.read();
     if (existing && now - existing.lastEventTime <= this.sessionTimeoutMs) {
       return existing;
     }
-    const fresh = this.newSession(now);
-    this.persist(fresh);
+    const fresh = newSession(now);
+    this.store.write(fresh);
     return fresh;
-  }
-
-  private newSession(now: number): SessionState {
-    return {
-      sessionId: `${now}-${Math.random().toString(36).substr(2, 9)}`,
-      sessionStartTime: now,
-      lastEventTime: now,
-    };
-  }
-
-  /**
-   * Reads session state, preferring the cookie (cross-tab / cross-subdomain
-   * source of truth) and falling back to the in-memory copy.
-   */
-  private read(): SessionState | undefined {
-    if (this.cookiesUsable !== false) {
-      const raw = this.readCookie();
-      const parsed = raw !== undefined ? this.parse(raw) : undefined;
-      if (parsed) {
-        return parsed;
-      }
-    }
-    return this.memoryState;
-  }
-
-  private persist(state: SessionState): void {
-    this.memoryState = state;
-    this.writeCookie(state);
-  }
-
-  private parse(raw: string): SessionState | undefined {
-    try {
-      const data = JSON.parse(raw);
-      if (
-        data &&
-        typeof data.sessionId === 'string' &&
-        typeof data.lastEventTime === 'number'
-      ) {
-        return {
-          sessionId: data.sessionId,
-          sessionStartTime:
-            typeof data.sessionStartTime === 'number'
-              ? data.sessionStartTime
-              : data.lastEventTime,
-          lastEventTime: data.lastEventTime,
-        };
-      }
-    } catch {
-      // Invalid JSON; treat as no session.
-    }
-    return undefined;
   }
 
   private domain(): string {
@@ -165,58 +147,5 @@ export class SessionManager {
           : '';
     }
     return this.resolvedDomain;
-  }
-
-  private readCookie(): string | undefined {
-    if (typeof document === 'undefined') return undefined;
-    const cookies = document.cookie ? document.cookie.split('; ') : [];
-    for (const cookie of cookies) {
-      const eq = cookie.indexOf('=');
-      const key = eq === -1 ? cookie : cookie.slice(0, eq);
-      if (key === this.cookieKey) {
-        const value = eq === -1 ? '' : cookie.slice(eq + 1);
-        try {
-          return decodeURIComponent(value);
-        } catch {
-          return value;
-        }
-      }
-    }
-    return undefined;
-  }
-
-  private writeCookie(state: SessionState): void {
-    if (this.cookiesUsable === false || typeof document === 'undefined') {
-      this.cookiesUsable = false;
-      return;
-    }
-    try {
-      const value = encodeURIComponent(JSON.stringify(state));
-      const domain = this.domain();
-      const secure =
-        typeof location !== 'undefined' && location.protocol === 'https:'
-          ? '; Secure'
-          : '';
-      document.cookie =
-        `${this.cookieKey}=${value}; path=/; SameSite=Lax` +
-        (domain ? `; domain=${domain}` : '') +
-        secure;
-      // Verify via read-back: detects blocked cookie I/O (ITP, private mode).
-      this.cookiesUsable = this.readCookie() !== undefined;
-    } catch {
-      this.cookiesUsable = false;
-    }
-  }
-
-  private deleteCookie(): void {
-    if (typeof document === 'undefined') return;
-    try {
-      const domain = this.domain();
-      document.cookie =
-        `${this.cookieKey}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT` +
-        (domain ? `; domain=${domain}` : '');
-    } catch {
-      // Best-effort delete; in-memory state is already cleared.
-    }
   }
 }
