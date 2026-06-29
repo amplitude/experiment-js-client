@@ -19,6 +19,8 @@ const getCommonBrowserConfig = (target) => ({
     replace({
       preventAssignment: true,
       BUILD_BROWSER: true,
+      define: '__amplitude__define__',
+      require: '__amplitude__require__',
     }),
     resolve(),
     json(),
