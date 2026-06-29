@@ -1,10 +1,15 @@
+import {
+  getClearInterval,
+  getGlobalScope,
+  getLocalStorage,
+  getSetInterval,
+} from '@amplitude/experiment-core';
 import type {
   ExperimentEvent,
   ExperimentUser,
   IntegrationPlugin,
 } from '@amplitude/experiment-js-client';
 
-import { safeGlobal } from './global';
 import { snippetInstance } from './snippet';
 import { Options, SegmentIntegrationPlugin } from './types/plugin';
 
@@ -29,11 +34,16 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
         // If the segment SDK is installed via the @segment/analytics-next npm
         // package then function calls to the snippet are not respected.
         if (!options.instance) {
-          const interval = safeGlobal.setInterval(() => {
+          const setInterval = getSetInterval();
+          if (!setInterval) return;
+          const interval = setInterval(() => {
             const instance = getInstance();
             if (instance.initialized) {
               ready = true;
-              safeGlobal.clearInterval(interval);
+              const clearInterval = getClearInterval();
+              if (clearInterval) {
+                clearInterval(interval);
+              }
               resolve();
             }
           }, 50);
@@ -50,7 +60,9 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
         };
       }
       const get = (key: string) => {
-        return JSON.parse(safeGlobal.localStorage.getItem(key)) || undefined;
+        const localStorage = getLocalStorage();
+        if (!localStorage) return undefined;
+        return JSON.parse(localStorage.getItem(key)) || undefined;
       };
       return {
         user_id: get('ajs_user_id'),
@@ -72,4 +84,7 @@ export const segmentIntegrationPlugin: SegmentIntegrationPlugin = (
   return plugin;
 };
 
-safeGlobal.experimentIntegration = segmentIntegrationPlugin();
+const globalScope = getGlobalScope();
+if (globalScope) {
+  globalScope.experimentIntegration = segmentIntegrationPlugin();
+}

@@ -1,6 +1,3 @@
-export const safeGlobal =
-  typeof globalThis !== 'undefined'
-    ? globalThis
-    : typeof global !== 'undefined'
-    ? global
-    : self;
+import { getGlobalScope } from '@amplitude/experiment-core';
+
+export const safeGlobal = getGlobalScope() ?? ({} as typeof globalThis);
