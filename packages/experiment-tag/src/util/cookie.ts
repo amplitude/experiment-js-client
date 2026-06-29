@@ -149,33 +149,49 @@ export async function getTopLevelDomain(hostname: string): Promise<string> {
 }
 
 /**
- * Resolves a cross-subdomain value using cookie storage as the authoritative
- * source. Falls back to a provided localStorage value (migration path), then
- * generates a new value if neither exists. Attempts to set the cookie when
- * missing; cookie I/O failures fall back to localStorage / generateNew.
- * Callers are responsible for syncing the returned value back to localStorage.
+ * Resolves several cross-subdomain fields from a single cookie, using cookie
+ * storage as the authoritative source. Each field falls back to its `fallback`
+ * value (migration path), then its generator. One read + at most one write;
+ * cookie I/O failures degrade to the returned value. Callers are responsible
+ * for mirroring values back to localStorage if needed.
  */
-export async function resolveCrossSubdomainValue(
+export async function resolveCrossSubdomainObject<
+  T extends Record<string, string>,
+>(
   cookieStorage: CookieStorage<string>,
   cookieKey: string,
-  localStorageValue: string | undefined,
-  generateNew: () => string,
-): Promise<string> {
+  fallback: Partial<T>,
+  generators: { [K in keyof T]: () => string },
+): Promise<T> {
+  let current: Partial<T> = {};
   try {
-    const cookieValue = await cookieStorage.get(cookieKey);
-    if (cookieValue) {
-      return cookieValue;
+    // Missing cookie (`undefined`) and malformed JSON both fall back to {}.
+    const parsed = JSON.parse((await cookieStorage.get(cookieKey)) || '{}');
+    if (parsed && typeof parsed === 'object') current = parsed;
+  } catch {
+    /* re-seed below */
+  }
+
+  const resolved = {} as T;
+  let changed = false;
+  for (const key of Object.keys(generators) as (keyof T)[]) {
+    const existing = current[key];
+    if (typeof existing === 'string' && existing) {
+      resolved[key] = existing as T[keyof T];
+    } else {
+      resolved[key] = (fallback[key] ?? generators[key]()) as T[keyof T];
+      changed = true;
     }
-  } catch {
-    // Cookie read blocked; fall through to localStorage / generateNew.
   }
-  const value = localStorageValue ?? generateNew();
-  try {
-    await cookieStorage.set(cookieKey, value);
-  } catch {
-    // Cookie write blocked; return value for localStorage-only persistence.
+
+  if (changed) {
+    try {
+      await cookieStorage.set(cookieKey, JSON.stringify(resolved));
+    } catch {
+      /* write blocked: persist via returned value only */
+    }
   }
-  return value;
+  return resolved;
 }
 
 export async function setMarketingCookie(apiKey: string, hostname: string) {
