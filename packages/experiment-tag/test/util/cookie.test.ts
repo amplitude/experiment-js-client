@@ -122,6 +122,24 @@ describe('raw cookie helpers', () => {
     deleteRawCookie('delk');
     expect(readRawCookie('delk')).toBeUndefined();
   });
+
+  it('reports false when a write is dropped but a stale same-key cookie remains', () => {
+    const original = Object.getOwnPropertyDescriptor(
+      Document.prototype,
+      'cookie',
+    );
+    // Stale value already present; new writes are silently dropped.
+    Object.defineProperty(document, 'cookie', {
+      configurable: true,
+      get: () => `k=${encodeURIComponent('stale')}`,
+      set: () => undefined,
+    });
+    try {
+      expect(writeRawCookie('k', 'fresh')).toBe(false);
+    } finally {
+      if (original) Object.defineProperty(document, 'cookie', original);
+    }
+  });
 });
 
 describe('SyncJsonCookie', () => {
@@ -157,6 +175,27 @@ describe('SyncJsonCookie', () => {
     // After a valid write, read returns it.
     store.write({ ok: true });
     expect(store.read()).toEqual({ ok: true });
+  });
+
+  it('serves fresh in-memory value when a stale cookie shadows a dropped write', () => {
+    const original = Object.getOwnPropertyDescriptor(
+      Document.prototype,
+      'cookie',
+    );
+    // Getter always returns a stale payload; writes are dropped.
+    Object.defineProperty(document, 'cookie', {
+      configurable: true,
+      get: () => `shadow=${encodeURIComponent(JSON.stringify({ t: 1 }))}`,
+      set: () => undefined,
+    });
+    try {
+      const store = new SyncJsonCookie<{ t: number }>('shadow', () => '');
+      store.write({ t: 2 });
+      // Write verification fails (stale != fresh) -> memory wins over cookie.
+      expect(store.read()).toEqual({ t: 2 });
+    } finally {
+      if (original) Object.defineProperty(document, 'cookie', original);
+    }
   });
 
   it('falls back to in-memory when cookie writes are blocked', () => {

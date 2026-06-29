@@ -262,6 +262,11 @@ export function readRawCookie(key: string): string | undefined {
  * Writes a cookie (`Path=/; SameSite=Lax`, `Secure` on https), then verifies it
  * via read-back. Returns `false` on blocked cookie I/O (private mode, ITP, a
  * wrong domain) so callers can fall back to memory. No `maxAgeSeconds` ⇒ session.
+ *
+ * The read-back compares the decoded value, not just key presence: a silently
+ * dropped write that leaves a stale same-key cookie (e.g. a host-only cookie
+ * shadowing a failed `.domain` write) reports `false` so the caller serves its
+ * fresh in-memory value instead of a stale payload.
  */
 export function writeRawCookie(
   key: string,
@@ -276,7 +281,7 @@ export function writeRawCookie(
       (domain ? `; domain=${domain}` : '') +
       (maxAgeSeconds !== undefined ? `; max-age=${maxAgeSeconds}` : '') +
       (location?.protocol === 'https:' ? '; Secure' : '');
-    return readRawCookie(key) !== undefined;
+    return readRawCookie(key) === value;
   } catch {
     return false;
   }
