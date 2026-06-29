@@ -1,5 +1,5 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { safeGlobal } from '@amplitude/experiment-core';
+import { getGlobalScope } from '@amplitude/experiment-core';
 
 import { Defaults, ExperimentConfig } from './config';
 import { ExperimentClient } from './experimentClient';
@@ -7,9 +7,14 @@ import { AmplitudeIntegrationPlugin } from './integration/amplitude';
 import { DefaultUserProvider } from './providers/default';
 import { ExperimentPlugin } from './types/plugin';
 
-// Global instances for debugging.
-safeGlobal.experimentInstances = {};
-const instances = safeGlobal.experimentInstances;
+// Global instances for debugging. Falls back to a module-local map when no
+// global scope is available (e.g. SSR or iOS Safari globalThis === null).
+const globalScope = getGlobalScope();
+if (globalScope) {
+  globalScope.experimentInstances = {};
+}
+const instances: Record<string, ExperimentClient> =
+  globalScope?.experimentInstances ?? {};
 
 /**
  * Initializes a singleton {@link ExperimentClient} identified by the configured

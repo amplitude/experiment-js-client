@@ -4,7 +4,7 @@ import {
   EventBridge,
   IdentityStore,
 } from '@amplitude/analytics-connector';
-import { safeGlobal } from '@amplitude/experiment-core';
+import { getSetTimeout } from '@amplitude/experiment-core';
 
 import { ExperimentConfig } from '../config';
 import { Client } from '../types/client';
@@ -149,7 +149,14 @@ export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
           this.identityStore.addIdentityListener(listener);
         }),
         new Promise<void>((_, reject) => {
-          safeGlobal.setTimeout(
+          const setTimeoutFn = getSetTimeout();
+          if (!setTimeoutFn) {
+            reject(
+              'Timed out waiting for Amplitude Analytics SDK to initialize.',
+            );
+            return;
+          }
+          setTimeoutFn(
             reject,
             ms,
             'Timed out waiting for Amplitude Analytics SDK to initialize.',

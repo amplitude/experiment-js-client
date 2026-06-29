@@ -6,7 +6,6 @@ import {
   FlagEvaluationTrace,
   getGlobalScope,
   isLocalStorageAvailable,
-  safeGlobal,
 } from '@amplitude/experiment-core';
 import {
   Experiment,
@@ -100,7 +99,10 @@ type StoredRedirectImpression = {
   metadata?: Record<string, unknown>;
 };
 
-safeGlobal.Experiment = FeatureExperiment;
+const moduleScope = getGlobalScope();
+if (moduleScope) {
+  moduleScope.Experiment = FeatureExperiment;
+}
 
 export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;

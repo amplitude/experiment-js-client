@@ -109,4 +109,31 @@ describe('convertUserToContext', () => {
       });
     });
   });
+
+  describe('Node SSR regression', () => {
+    test('does not throw and omits page when global has no .location (Node SSR)', () => {
+      const fakeNodeGlobal = {} as typeof globalThis;
+      jest.spyOn(util, 'getGlobalScope').mockReturnValue(fakeNodeGlobal);
+      const user: ExperimentUser = { user_id: 'user_id' };
+      let context: Record<string, unknown> = {};
+      expect(() => {
+        context = convertUserToContext(user);
+      }).not.toThrow();
+      expect(context).toEqual({ user: { user_id: 'user_id' } });
+      expect(context).not.toHaveProperty('page');
+    });
+
+    test('includes page when location is present', () => {
+      const fakeBrowserGlobal = {
+        location: { href: 'https://example.com/path' },
+      } as unknown as typeof globalThis;
+      jest.spyOn(util, 'getGlobalScope').mockReturnValue(fakeBrowserGlobal);
+      const user: ExperimentUser = { user_id: 'user_id' };
+      const context = convertUserToContext(user);
+      expect(context).toEqual({
+        user: { user_id: 'user_id' },
+        page: { url: 'https://example.com/path' },
+      });
+    });
+  });
 });

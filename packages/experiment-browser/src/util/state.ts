@@ -1,4 +1,8 @@
-import { safeGlobal } from '@amplitude/experiment-core';
+import {
+  getDocument,
+  getLocalStorage,
+  getSessionStorage,
+} from '@amplitude/experiment-core';
 
 export type AmplitudeState = {
   deviceId?: string;
@@ -12,7 +16,11 @@ export const parseAmplitudeCookie = (
   // Get the cookie value
   const key = generateKey(apiKey, newFormat);
   let value: string | undefined = undefined;
-  const cookies = safeGlobal.document.cookie.split('; ');
+  const document = getDocument();
+  if (!document) {
+    return;
+  }
+  const cookies = document.cookie.split('; ');
   for (const cookie of cookies) {
     const [cookieKey, cookieValue] = cookie.split('=', 2);
     if (cookieKey === key) {
@@ -49,7 +57,9 @@ export const parseAmplitudeLocalStorage = (
 ): AmplitudeState | undefined => {
   const key = generateKey(apiKey, true);
   try {
-    const value = safeGlobal.localStorage.getItem(key);
+    const localStorage = getLocalStorage();
+    if (!localStorage) return;
+    const value = localStorage.getItem(key);
     if (!value) return;
     const state = JSON.parse(value);
     if (typeof state !== 'object') return;
@@ -64,7 +74,9 @@ export const parseAmplitudeSessionStorage = (
 ): AmplitudeState | undefined => {
   const key = generateKey(apiKey, true);
   try {
-    const value = safeGlobal.sessionStorage.getItem(key);
+    const sessionStorage = getSessionStorage();
+    if (!sessionStorage) return;
+    const value = sessionStorage.getItem(key);
     if (!value) return;
     const state = JSON.parse(value);
     if (typeof state !== 'object') return;
