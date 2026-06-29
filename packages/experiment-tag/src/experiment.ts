@@ -50,7 +50,7 @@ import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import {
   getTopLevelDomain,
-  resolveCrossSubdomainValue,
+  resolveCrossSubdomainObject,
   setMarketingCookie,
 } from './util/cookie';
 import {
@@ -150,6 +150,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, string> = {};
+  // Cross-subdomain cookie domain (leading-dot form or ''); resolved once, early
+  // in start(), and reused by every EXP_ cookie path (identity + RTBT session).
+  private rootDomain = '';
 
   constructor(
     apiKey: string,
@@ -377,6 +380,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
+    // Resolve the cross-subdomain cookie domain as early as possible — but after
+    // the synchronous url_change above, whose subscribers apply anti-flicker
+    // variants/redirects before this first await. Every EXP_ cookie needs it:
+    // identity just below, and the RTBT session (behavioral-targeting plugin)
+    // whose sync writes read it back via getResolvedTopLevelDomain(). The
+    // writability probe is async, so it must complete before any cookie write.
+    this.rootDomain = await getTopLevelDomain(
+      this.globalScope.location.hostname,
+    );
+
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     const user =
       getStorageItem<WebExperimentUser>(
@@ -397,27 +410,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       setStorageItem('localStorage', experimentStorageName, user);
     }
 
-    // Resolve web_exp_id_v2 and first_seen as root-domain cookies for
-    // cross-subdomain identity before getVariants() so anti-flicker and
-    // local evaluation use the shared first_seen, not a subdomain-local mint.
-    const rootDomain = await getTopLevelDomain(
-      this.globalScope.location.hostname,
-    );
+    // Resolve web_exp_id_v2 and first_seen as a single root-domain cookie for
+    // cross-subdomain identity before getVariants() so anti-flicker and local
+    // evaluation use the shared first_seen, not a subdomain-local mint. The
+    // domain was resolved early in start() (this.rootDomain).
     const crossSubdomainCookieStorage = new CookieStorage<string>({
-      ...(rootDomain && { domain: rootDomain }),
+      ...(this.rootDomain && { domain: this.rootDomain }),
       sameSite: 'Lax',
       expirationDays: 365,
     });
-
-    const webExpIdV2CookieKey = `${experimentStorageName}_web_exp_id_v2`;
-    // web_exp_id is guaranteed above; seed v2 from it when no cookie or local v2 exists.
-    user.web_exp_id_v2 = await resolveCrossSubdomainValue(
-      crossSubdomainCookieStorage,
-      webExpIdV2CookieKey,
-      user.web_exp_id_v2 ?? user.web_exp_id,
-      UUID,
-    );
-    setStorageItem('localStorage', experimentStorageName, user);
 
     const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
     const defaultUserProviderData =
@@ -425,21 +426,33 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         'localStorage',
         defaultUserProviderStorageKey,
       ) || {};
-    const firstSeen = await resolveCrossSubdomainValue(
+
+    // web_exp_id is guaranteed above; seed v2 from it when no cookie/local v2 exists.
+    const identity = await resolveCrossSubdomainObject(
       crossSubdomainCookieStorage,
-      `${experimentStorageName}_first_seen`,
-      defaultUserProviderData.first_seen,
-      () => (Date.now() / 1000).toString(),
+      `${experimentStorageName}_identity`,
+      {
+        web_exp_id_v2: user.web_exp_id_v2 ?? user.web_exp_id,
+        first_seen: defaultUserProviderData.first_seen,
+      },
+      {
+        web_exp_id_v2: UUID,
+        first_seen: () => (Date.now() / 1000).toString(),
+      },
     );
-    if (firstSeen !== defaultUserProviderData.first_seen) {
-      defaultUserProviderData.first_seen = firstSeen;
+
+    user.web_exp_id_v2 = identity.web_exp_id_v2;
+    setStorageItem('localStorage', experimentStorageName, user);
+
+    if (identity.first_seen !== defaultUserProviderData.first_seen) {
+      defaultUserProviderData.first_seen = identity.first_seen;
       setStorageItem(
         'localStorage',
         defaultUserProviderStorageKey,
         defaultUserProviderData,
       );
     }
-    user.first_seen = firstSeen;
+    user.first_seen = identity.first_seen;
     this.experimentClient.setUser(user);
 
     // evaluate variants for page targeting

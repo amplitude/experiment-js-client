@@ -130,7 +130,7 @@ describe('initializeExperiment', () => {
   test('seeds web_exp_id_v2 from existing web_exp_id when cookie is missing', async () => {
     const key = stringify(apiKey);
     const storageKey = 'EXP_' + key;
-    const cookieKey = storageKey + '_web_exp_id_v2';
+    const identityKey = storageKey + '_identity';
     mockGlobal.localStorage.getItem.mockImplementation((name: string) => {
       if (name === storageKey) {
         return JSON.stringify({ web_exp_id: 'existing-id' });
@@ -149,7 +149,10 @@ describe('initializeExperiment', () => {
         web_exp_id_v2: 'existing-id',
       }),
     );
-    expect(cookieStore[cookieKey]).toBe('existing-id');
+    // web_exp_id_v2 and first_seen now share a single _identity cookie object.
+    expect(JSON.parse(cookieStore[identityKey])).toEqual(
+      expect.objectContaining({ web_exp_id_v2: 'existing-id' }),
+    );
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       storageKey,
       JSON.stringify({
