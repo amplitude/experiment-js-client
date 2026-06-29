@@ -168,8 +168,8 @@ export class EventStorageManager {
       const origin = window.location.origin;
       const migrated = await relay.checkMigrated(origin);
 
-      // First-time origins migrate their local store in bulk; already-migrated
-      // origins read once and push only the events the relay is missing.
+      // First-time origins migrate their local store in bulk (one RPC). The
+      // backfill below then reconciles anything the bulk push dropped.
       if (!migrated && this.memoryCache.events.length > 0) {
         await relay.migrateEvents(origin, {
           events: [...this.memoryCache.events],
@@ -179,7 +179,14 @@ export class EventStorageManager {
 
       const relayStore = await relay.readEvents();
 
-      if (migrated && this.memoryCache.events.length > 0) {
+      // Backfill any local events the relay is missing, regardless of migrated
+      // state. On a first migration, MIGRATE_EVENTS dedupes on
+      // (event_type, timestamp) without id, so same-millisecond events of the
+      // same type collapse to one in the relay; the bulk push above silently
+      // drops the rest. WRITE_EVENT does not dedupe, so re-pushing here (keyed
+      // on the id-inclusive eventDedupKey) restores them without duplicating
+      // events that already migrated successfully.
+      if (this.memoryCache.events.length > 0) {
         const relayKeys = new Set(
           relayStore.events.map((e) => eventDedupKey(e)),
         );

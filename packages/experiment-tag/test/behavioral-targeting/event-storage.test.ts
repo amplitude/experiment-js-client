@@ -562,6 +562,49 @@ describe('EventStorageManager', () => {
       expect(relay.readEvents).toHaveBeenCalled();
     });
 
+    test('backfills same-millisecond duplicates the bulk migration dropped on first sync', async () => {
+      // Two events share (event_type, timestamp). The relay's MIGRATE_EVENTS
+      // dedupes on (event_type, timestamp) without id, so the bulk push keeps
+      // only one; readEvents reflects that collapsed store.
+      eventStorage.addEvent('click', { n: 1 }, 1000);
+      eventStorage.addEvent('click', { n: 2 }, 1000);
+      expect(eventStorage.getAllEvents()).toHaveLength(2);
+
+      const relay = {
+        relayAvailable: true,
+        writeEvent: jest.fn(),
+        flush: jest.fn(),
+        checkMigrated: jest.fn().mockResolvedValue(false),
+        migrateEvents: jest.fn().mockResolvedValue(undefined),
+        readEvents: jest.fn().mockResolvedValue({
+          // The relay kept the first event (with its original id); the
+          // same-(type, timestamp) duplicate was dropped during MIGRATE_EVENTS.
+          events: [
+            {
+              id: 1,
+              event_type: 'click',
+              timestamp: 1000,
+              session_id: 's1',
+              properties: { n: 1 },
+            },
+          ],
+          nextId: 2,
+        }),
+      };
+      eventStorage.setRelayClient(relay as unknown as RelayClient);
+
+      const synced = await eventStorage.syncFromRelay();
+
+      expect(synced).toBe(true);
+      expect(relay.migrateEvents).toHaveBeenCalled();
+      // The dropped duplicate (the one not in the relay store) is re-pushed via
+      // the non-deduping WRITE_EVENT path; the one that survived is not.
+      expect(relay.writeEvent).toHaveBeenCalledTimes(1);
+      expect(relay.writeEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ event_type: 'click', properties: { n: 2 } }),
+      );
+    });
+
     test('uploads local-only events when origin already migrated', async () => {
       eventStorage.addEvent('click', {}, 1000);
       const relay = {
