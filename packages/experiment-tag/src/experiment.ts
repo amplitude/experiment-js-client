@@ -63,7 +63,7 @@ import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { isOpenerChannelBroken } from './util/opener-channel';
 import { showOpenerSeveredBanner } from './util/opener-severed-banner';
-import { patchRemoveChild } from './util/patch';
+import { patchDOMParser, patchRemoveChild } from './util/patch';
 import { DEVICE_IFRAME_ID, buildShell, isMobileModeActive } from './util/shell';
 import { installSpaLinkInterceptor } from './util/spa-link-interceptor';
 import {
@@ -257,6 +257,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.isRunning) {
       return;
     }
+    patchDOMParser();
     patchRemoveChild();
     installSpaLinkInterceptor();
     const urlParams = getUrlParams();
