@@ -181,7 +181,6 @@ export interface WebExperimentClient {
 
 export type WebExperimentUser = {
   web_exp_id?: string;
-  /** Cross-subdomain visitor ID; falls back to web_exp_id for relay wiring. */
   web_exp_id_v2?: string;
 } & ExperimentUser;
 
