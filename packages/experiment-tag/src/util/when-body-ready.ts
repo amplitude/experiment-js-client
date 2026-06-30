@@ -10,18 +10,24 @@ import { getGlobalScope } from '@amplitude/experiment-core';
  * In the (effectively impossible) case where `requestAnimationFrame` is
  * unavailable, the callback is invoked immediately rather than never —
  * callers that would crash on a null body should guard inside.
+ *
+ * Returns a cancel function that stops any in-flight body poll.
  */
-export const whenBodyReady = (callback: () => void): void => {
+export const whenBodyReady = (callback: () => void): (() => void) => {
   if (document.body) {
     callback();
-    return;
+    return () => undefined;
   }
   const globalScope = getGlobalScope();
   if (!globalScope?.requestAnimationFrame) {
     callback();
-    return;
+    return () => undefined;
   }
+  let cancelled = false;
   const poll = () => {
+    if (cancelled) {
+      return;
+    }
     if (document.body) {
       callback();
     } else {
@@ -29,4 +35,7 @@ export const whenBodyReady = (callback: () => void): void => {
     }
   };
   globalScope.requestAnimationFrame(poll);
+  return () => {
+    cancelled = true;
+  };
 };
