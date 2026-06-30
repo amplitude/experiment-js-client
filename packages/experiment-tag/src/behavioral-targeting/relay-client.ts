@@ -1,3 +1,5 @@
+import { getGlobalScope } from '@amplitude/experiment-core';
+
 import { whenBodyReady } from '../util/when-body-ready';
 
 import {
@@ -47,11 +49,17 @@ function isSameRelayEvent(a: RelayEventRecord, b: RelayEventRecord): boolean {
   );
 }
 
+// Handle returned by the resolved global scope's setTimeout (number in the
+// browser, NodeJS.Timeout under the test runner) — derived from getGlobalScope
+// so it matches whichever timer implementation we actually call.
+type RelayTimerId = ReturnType<
+  NonNullable<ReturnType<typeof getGlobalScope>>['setTimeout']
+>;
+
 export class RelayClient {
   private iframe: HTMLIFrameElement | null = null;
   private iframeWindow: Window | null = null;
   private relayOrigin = '';
-  private ready = false;
   private available = false;
   private pendingWrites: RelayEventRecord[] = [];
   private readonly pendingRequests = new Map<
@@ -59,12 +67,13 @@ export class RelayClient {
     {
       resolve: (response: RelayResponse) => void;
       reject: (error: Error) => void;
+      timeoutId: RelayTimerId | undefined;
     }
   >();
 
   private messageListener: ((event: MessageEvent) => void) | null = null;
   private initPromise: Promise<void> | null = null;
-  private initTimeoutId: number | null = null;
+  private initTimeoutId: RelayTimerId | null = null;
   private initResolve: (() => void) | null = null;
   private cancelBodyReadyPoll: (() => void) | null = null;
   private destroyed = false;
@@ -120,12 +129,13 @@ export class RelayClient {
       });
     }
     const becameAvailable = this.availablePromise;
+    const globalScope = getGlobalScope();
 
     return new Promise((resolve) => {
       const settle = () => resolve(this.available && !this.destroyed);
-      const timeoutId = window.setTimeout(settle, timeoutMs);
+      const timeoutId = globalScope?.setTimeout(settle, timeoutMs);
       void becameAvailable.then(() => {
-        window.clearTimeout(timeoutId);
+        globalScope?.clearTimeout(timeoutId);
         settle();
       });
     });
@@ -136,14 +146,15 @@ export class RelayClient {
       return this.initPromise;
     }
 
+    const globalScope = getGlobalScope();
+
     // Reset transient state so a re-init never inherits a stale listener,
     // iframe window, or availability flag from a prior lifecycle.
     this.destroyed = false;
     this.available = false;
-    this.ready = false;
     this.iframeWindow = null;
     if (this.messageListener) {
-      window.removeEventListener('message', this.messageListener);
+      globalScope?.removeEventListener('message', this.messageListener);
       this.messageListener = null;
     }
 
@@ -155,18 +166,18 @@ export class RelayClient {
           return;
         }
         if (this.initTimeoutId !== null) {
-          window.clearTimeout(this.initTimeoutId);
+          globalScope?.clearTimeout(this.initTimeoutId);
           this.initTimeoutId = null;
         }
         this.initResolve = null;
-        this.ready = true;
         resolve();
       };
 
-      this.initTimeoutId = window.setTimeout(() => {
-        this.initTimeoutId = null;
-        finishInit();
-      }, RELAY_RPC_TIMEOUT_MS);
+      this.initTimeoutId =
+        globalScope?.setTimeout(() => {
+          this.initTimeoutId = null;
+          finishInit();
+        }, RELAY_RPC_TIMEOUT_MS) ?? null;
 
       this.cancelBodyReadyPoll?.();
       this.cancelBodyReadyPoll = whenBodyReady(() => {
@@ -213,10 +224,11 @@ export class RelayClient {
             return;
           }
           this.pendingRequests.delete(response.requestId);
+          globalScope?.clearTimeout(pending.timeoutId);
           pending.resolve(response);
         };
 
-        window.addEventListener('message', onMessage);
+        globalScope?.addEventListener('message', onMessage);
         this.messageListener = onMessage;
       });
     });
@@ -231,16 +243,20 @@ export class RelayClient {
         return;
       }
 
-      this.pendingRequests.set(request.requestId, { resolve, reject });
-      this.iframeWindow.postMessage(request, this.relayOrigin);
-
-      window.setTimeout(() => {
+      const timeoutId = getGlobalScope()?.setTimeout(() => {
         if (!this.pendingRequests.has(request.requestId)) {
           return;
         }
         this.pendingRequests.delete(request.requestId);
         reject(new Error('relay rpc timeout'));
       }, RELAY_RPC_TIMEOUT_MS);
+
+      this.pendingRequests.set(request.requestId, {
+        resolve,
+        reject,
+        timeoutId,
+      });
+      this.iframeWindow.postMessage(request, this.relayOrigin);
     });
   }
 
@@ -325,11 +341,12 @@ export class RelayClient {
   }
 
   destroy(): void {
+    const globalScope = getGlobalScope();
     this.destroyed = true;
     this.cancelBodyReadyPoll?.();
     this.cancelBodyReadyPoll = null;
     if (this.initTimeoutId !== null) {
-      window.clearTimeout(this.initTimeoutId);
+      globalScope?.clearTimeout(this.initTimeoutId);
       this.initTimeoutId = null;
     }
     if (this.initResolve) {
@@ -337,10 +354,11 @@ export class RelayClient {
       this.initResolve = null;
     }
     if (this.messageListener) {
-      window.removeEventListener('message', this.messageListener);
+      globalScope?.removeEventListener('message', this.messageListener);
       this.messageListener = null;
     }
     for (const pending of this.pendingRequests.values()) {
+      globalScope?.clearTimeout(pending.timeoutId);
       pending.reject(new Error('relay destroyed'));
     }
     this.pendingRequests.clear();
@@ -349,7 +367,6 @@ export class RelayClient {
     this.iframe = null;
     this.iframeWindow = null;
     this.available = false;
-    this.ready = false;
     this.pendingWrites = [];
     this.initPromise = null;
   }
