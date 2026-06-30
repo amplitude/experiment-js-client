@@ -782,6 +782,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
    * Non-blocking relay iframe init + Pass 2 sync.
    */
   private scheduleRelaySync(user: WebExperimentUser): void {
+    // Relay sync still runs in preview mode: a page can preview one flag while
+    // other behavioral-targeting flags evaluate normally and need the merge.
+    // Previewed flags are excluded from Pass 2 (handleRelayPass2) and from
+    // applyVariants directly, so forced preview variants are never clobbered.
     if (!this.behavioralTargetingManager || this.isVisualEditorMode) {
       return;
     }
@@ -791,6 +795,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
+    // Today scheduleRelaySync runs once per start(), but it is written to be
+    // safely re-invokable (e.g. a future identity-change re-sync): tear down any
+    // prior client here, and use the captured `relayClient` identity in the
+    // callbacks below to ignore results from a client a newer call has replaced.
     if (this.relayClient) {
       this.teardownRelay(this.relayClient);
     }
@@ -849,7 +857,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     this.updateUserWithBehaviors();
 
-    const flagKeys = Object.keys(this.behavioralTargetingRules);
+    // Exclude previewed flags: their variants are forced and must not be
+    // re-applied/re-fetched here (also avoids a pointless fetchRemoteFlags when
+    // every behavioral remote flag is previewed).
+    const flagKeys = Object.keys(this.behavioralTargetingRules).filter(
+      (key) => !this.previewFlags[key],
+    );
     const localKeys = flagKeys.filter((key) =>
       this.localFlagKeys.includes(key),
     );
