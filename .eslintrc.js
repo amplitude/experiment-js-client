@@ -14,13 +14,34 @@ module.exports = {
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:jest/recommended',
+    'plugin:import/recommended',
     'prettier',
     'prettier/@typescript-eslint',
   ],
+  settings: {
+    'import/resolver': {
+      typescript: {
+        alwaysTryTypes: true,
+        project: ['packages/*/tsconfig.json', 'packages/*/tsconfig.test.json'],
+      },
+    },
+  },
   rules: {
     'no-console': ['error', { allow: ['warn', 'error', 'debug'] }],
 
     // eslint-plugin-import
+    'import/no-extraneous-dependencies': [
+      'error',
+      {
+        optionalDependencies: false,
+        devDependencies: [
+          '**/*.test.ts',
+          '**/*.spec.ts',
+          '**/test/**/*.ts',
+          '**/jest.setup.ts',
+        ],
+      },
+    ],
     'import/order': [
       'error',
       { 'newlines-between': 'always', alphabetize: { order: 'asc' } },
@@ -66,9 +87,23 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['**/*.test.ts', '**/*.spec.ts'],
+      files: [
+        '**/*.test.ts',
+        '**/*.spec.ts',
+        '**/test/**/*.ts',
+        '**/jest.setup.ts',
+      ],
       rules: {
         'no-restricted-globals': 'off',
+        'import/no-unresolved': 'off',
+        'import/named': 'off',
+        'import/no-extraneous-dependencies': 'off',
+      },
+    },
+    {
+      files: ['**/rollup.config.js', '**/jest.config.js'],
+      rules: {
+        'import/no-extraneous-dependencies': 'off',
       },
     },
   ],
