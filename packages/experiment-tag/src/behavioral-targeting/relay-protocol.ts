@@ -9,6 +9,8 @@ export type RelayMessageType =
   | 'MIGRATE_ACK';
 
 export interface RelayEventRecord {
+  /** Stable per-event identity minted by the SDK; the cross-subdomain dedup key. */
+  uuid: string;
   id: number;
   event_type: string;
   timestamp: number;
