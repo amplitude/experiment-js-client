@@ -449,6 +449,20 @@ describe('EventStorageManager', () => {
       expect(events[0].uuid.length).toBeGreaterThan(0);
       expect(events[0].uuid).not.toBe(events[1].uuid);
 
+      // The minted uuids must be persisted on load, not just held in memory,
+      // so reloads / other tabs reuse the same identities.
+      const persisted = JSON.parse(localStorage.getItem(storageKey) as string);
+      expect(persisted.events.map((e: { uuid: string }) => e.uuid)).toEqual(
+        events.map((e) => e.uuid),
+      );
+
+      // A fresh instance (reload / other tab) reads the same uuids rather than
+      // minting new ones, so relay sync won't push duplicates.
+      const reloaded = new EventStorageManager(testApiKey, sessionManager);
+      expect(reloaded.getAllEvents().map((e) => e.uuid)).toEqual(
+        events.map((e) => e.uuid),
+      );
+
       // They must survive a merge instead of collapsing under an undefined key.
       loaded.mergeFromRelay({ events: [], nextId: 1 });
       expect(loaded.getAllEvents()).toHaveLength(2);

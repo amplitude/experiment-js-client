@@ -329,9 +329,21 @@ export class EventStorageManager {
           // each keeps a distinct dedup identity (see eventDedupKey). Without
           // this, uuid-less records share an undefined key and all but one
           // collapse on the next mergeFromRelay.
+          let backfilled = false;
           for (const event of parsed.events as EventRecord[]) {
             if (typeof event.uuid !== 'string' || event.uuid.length === 0) {
               event.uuid = generateEventUuid();
+              backfilled = true;
+            }
+          }
+          // Persist the minted uuids immediately so they are stable across
+          // reloads and other tabs. Otherwise each load would mint fresh uuids
+          // for the same events and relay sync would push duplicates.
+          if (backfilled) {
+            try {
+              localStorage.setItem(this.storageKey, JSON.stringify(parsed));
+            } catch (e) {
+              // quota/unavailable — a later mutating flush will retry.
             }
           }
           return parsed;
