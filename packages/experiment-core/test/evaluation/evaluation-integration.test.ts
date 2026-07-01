@@ -12,13 +12,13 @@ beforeAll(async () => {
 
 // Basic Tests
 
-test('test off', () => {
+test('off', () => {
   const user = userContext('user_id', 'device_id');
   const result = engine.evaluate(user, flags)['test-off'];
   expect(result?.key).toEqual('off');
 });
 
-test('test on', () => {
+test('on', () => {
   const user = userContext('user_id', 'device_id');
   const result = engine.evaluate(user, flags)['test-on'];
   expect(result?.key).toEqual('on');
@@ -26,7 +26,7 @@ test('test on', () => {
 
 // Opinionated Segment Tests
 
-test('test individual inclusions match', () => {
+test('individual inclusions match', () => {
   // Match user ID
   let user = userContext('user_id');
   let result = engine.evaluate(user, flags)['test-individual-inclusions'];
@@ -47,20 +47,20 @@ test('test individual inclusions match', () => {
   expect(result?.key).toEqual('off');
 });
 
-test('test flag dependencies on', () => {
+test('flag dependencies on', () => {
   const user = userContext('user_id', 'device_id');
   const result = engine.evaluate(user, flags)['test-flag-dependencies-on'];
   expect(result?.key).toEqual('on');
 });
 
-test('test flag dependencies off', () => {
+test('flag dependencies off', () => {
   const user = userContext('user_id', 'device_id');
   const result = engine.evaluate(user, flags)['test-flag-dependencies-off'];
   expect(result?.key).toEqual('off');
   expect(result?.metadata?.segmentName).toEqual('flag-dependencies');
 });
 
-test('test sticky bucketing', () => {
+test('sticky bucketing', () => {
   // On
   let user = userContext('user_id', 'device_id', undefined, {
     '[Experiment] test-sticky-bucketing': 'on',
@@ -86,14 +86,14 @@ test('test sticky bucketing', () => {
 
 // Experiment and Flag Segment Tests
 
-test('test experiment', () => {
+test('experiment', () => {
   const user = userContext('user_id', 'device_id');
   const result = engine.evaluate(user, flags)['test-experiment'];
   expect(result?.key).toEqual('on');
   expect(result?.metadata?.experimentKey).toEqual('exp-1');
 });
 
-test('test flag', () => {
+test('flag', () => {
   const user = userContext('user_id', 'device_id');
   const result = engine.evaluate(user, flags)['test-flag'];
   expect(result?.key).toEqual('on');
@@ -102,7 +102,7 @@ test('test flag', () => {
 
 // Conditional Logic Tests
 
-test('test multiple conditions and values', () => {
+test('multiple conditions and values', () => {
   // All match
   let user = userContext('user_id', 'device_id', undefined, {
     'key-1': 'value-1',
@@ -124,7 +124,7 @@ test('test multiple conditions and values', () => {
 
 // Conditional Property Targeting Tests
 
-test('test amplitude property targeting', () => {
+test('amplitude property targeting', () => {
   const user = userContext('user_id');
   const result = engine.evaluate(user, flags)[
     'test-amplitude-property-targeting'
@@ -132,7 +132,7 @@ test('test amplitude property targeting', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test cohort targeting', () => {
+test('cohort targeting', () => {
   let user = userContext(undefined, undefined, undefined, undefined, [
     'u0qtvwla',
     '12345678',
@@ -147,13 +147,13 @@ test('test cohort targeting', () => {
   expect(result?.key).toEqual('off');
 });
 
-test('test group name targeting', () => {
+test('group name targeting', () => {
   const user = groupContext('org name', 'amplitude');
   const result = engine.evaluate(user, flags)['test-group-name-targeting'];
   expect(result?.key).toEqual('on');
 });
 
-test('test group property targeting', () => {
+test('group property targeting', () => {
   const user = groupContext('org name', 'amplitude', {
     'org plan': 'enterprise2',
   });
@@ -163,25 +163,25 @@ test('test group property targeting', () => {
 
 // Bucketing Tests
 
-test('test amplitude id bucketing', () => {
+test('amplitude id bucketing', () => {
   const user = userContext(undefined, undefined, '1234567890');
   const result = engine.evaluate(user, flags)['test-amplitude-id-bucketing'];
   expect(result?.key).toEqual('on');
 });
 
-test('test user id bucketing', () => {
+test('user id bucketing', () => {
   const user = userContext('user_id');
   const result = engine.evaluate(user, flags)['test-user-id-bucketing'];
   expect(result?.key).toEqual('on');
 });
 
-test('test device id bucketing', () => {
+test('device id bucketing', () => {
   const user = userContext(undefined, 'device_id');
   const result = engine.evaluate(user, flags)['test-device-id-bucketing'];
   expect(result?.key).toEqual('on');
 });
 
-test('test custom user property bucketing', () => {
+test('custom user property bucketing', () => {
   const user = userContext(undefined, undefined, undefined, { key: 'value' });
   const result = engine.evaluate(user, flags)[
     'test-custom-user-property-bucketing'
@@ -189,13 +189,13 @@ test('test custom user property bucketing', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test group name bucketing', () => {
+test('group name bucketing', () => {
   const user = groupContext('org name', 'amplitude');
   const result = engine.evaluate(user, flags)['test-group-name-bucketing'];
   expect(result?.key).toEqual('on');
 });
 
-test('test group property bucketing', () => {
+test('group property bucketing', () => {
   const user = groupContext('org name', 'amplitude', {
     'org plan': 'enterprise2',
   });
@@ -205,7 +205,7 @@ test('test group property bucketing', () => {
 
 // Bucketing Allocation Tests
 
-test('test 1 percent allocation', () => {
+test('1 percent allocation', () => {
   let on = 0;
   for (let i = 0; i < 10000; i++) {
     const user = userContext(undefined, `${i + 1}`);
@@ -217,7 +217,7 @@ test('test 1 percent allocation', () => {
   expect(on).toEqual(107);
 });
 
-test('test 50 percent allocation', () => {
+test('50 percent allocation', () => {
   let on = 0;
   for (let i = 0; i < 10000; i++) {
     const user = userContext(undefined, `${i + 1}`);
@@ -229,7 +229,7 @@ test('test 50 percent allocation', () => {
   expect(on).toEqual(5009);
 });
 
-test('test 99 percent allocation', () => {
+test('99 percent allocation', () => {
   let on = 0;
   for (let i = 0; i < 10000; i++) {
     const user = userContext(undefined, `${i + 1}`);
@@ -243,7 +243,7 @@ test('test 99 percent allocation', () => {
 
 // Bucketing Distribution Tests
 
-test('test 1 percent distribution', () => {
+test('1 percent distribution', () => {
   let control = 0;
   let treatment = 0;
   for (let i = 0; i < 10000; i++) {
@@ -259,7 +259,7 @@ test('test 1 percent distribution', () => {
   expect(treatment).toEqual(9894);
 });
 
-test('test 50 percent distribution', () => {
+test('50 percent distribution', () => {
   let control = 0;
   let treatment = 0;
   for (let i = 0; i < 10000; i++) {
@@ -275,7 +275,7 @@ test('test 50 percent distribution', () => {
   expect(treatment).toEqual(5010);
 });
 
-test('test 99 percent distribution', () => {
+test('99 percent distribution', () => {
   let control = 0;
   let treatment = 0;
   for (let i = 0; i < 10000; i++) {
@@ -291,7 +291,7 @@ test('test 99 percent distribution', () => {
   expect(treatment).toEqual(91);
 });
 
-test('test multiple distributions', () => {
+test('multiple distributions', () => {
   let a = 0;
   let b = 0;
   let c = 0;
@@ -317,7 +317,7 @@ test('test multiple distributions', () => {
 
 // Operator Tests
 
-test('test is', () => {
+test('is', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: 'value',
   });
@@ -325,7 +325,7 @@ test('test is', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test is not', () => {
+test('is not', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: 'value',
   });
@@ -333,7 +333,7 @@ test('test is not', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test contains', () => {
+test('contains', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: 'value',
   });
@@ -341,7 +341,7 @@ test('test contains', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test does not contain', () => {
+test('does not contain', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: 'value',
   });
@@ -349,7 +349,7 @@ test('test does not contain', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test less', () => {
+test('less', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: '-1',
   });
@@ -357,7 +357,7 @@ test('test less', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test less or equal', () => {
+test('less or equal', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: '0',
   });
@@ -365,7 +365,7 @@ test('test less or equal', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test greater', () => {
+test('greater', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: '1',
   });
@@ -373,7 +373,7 @@ test('test greater', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test greater or equal', () => {
+test('greater or equal', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: '0',
   });
@@ -381,7 +381,7 @@ test('test greater or equal', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test version less', () => {
+test('version less', () => {
   const user = freeformUserContext({
     version: '1.9.0',
   });
@@ -389,7 +389,7 @@ test('test version less', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test version less or equal', () => {
+test('version less or equal', () => {
   const user = freeformUserContext({
     version: '1.10.0',
   });
@@ -397,7 +397,7 @@ test('test version less or equal', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test version greater', () => {
+test('version greater', () => {
   const user = freeformUserContext({
     version: '1.10.0',
   });
@@ -405,7 +405,7 @@ test('test version greater', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test version greater or equal', () => {
+test('version greater or equal', () => {
   const user = freeformUserContext({
     version: '1.9.0',
   });
@@ -413,7 +413,7 @@ test('test version greater or equal', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test set is', () => {
+test('set is', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: ['1', '2', '3'],
   });
@@ -421,7 +421,7 @@ test('test set is', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test set is not', () => {
+test('set is not', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: ['1', '2'],
   });
@@ -429,7 +429,7 @@ test('test set is not', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test set contains', () => {
+test('set contains', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: ['1', '2', '3', '4'],
   });
@@ -437,7 +437,7 @@ test('test set contains', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test set does not contain', () => {
+test('set does not contain', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: ['1', '2', '4'],
   });
@@ -445,7 +445,7 @@ test('test set does not contain', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test set contains any', () => {
+test('set contains any', () => {
   const user = userContext(undefined, undefined, undefined, undefined, [
     'u0qtvwla',
     '12345678',
@@ -454,7 +454,7 @@ test('test set contains any', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test set does not contain any', () => {
+test('set does not contain any', () => {
   const user = userContext(undefined, undefined, undefined, undefined, [
     '12345678',
     '87654321',
@@ -463,7 +463,7 @@ test('test set does not contain any', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test glob match', () => {
+test('glob match', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: '/path/1/2/3/end',
   });
@@ -471,7 +471,7 @@ test('test glob match', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test glob does not match', () => {
+test('glob does not match', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: '/path/1/2/3',
   });
@@ -481,7 +481,7 @@ test('test glob does not match', () => {
 
 // Test specific functionality
 
-test('test is with booleans', () => {
+test('is with booleans', () => {
   let user = userContext(undefined, undefined, undefined, {
     true: 'TRUE',
     false: 'FALSE',
@@ -504,7 +504,7 @@ test('test is with booleans', () => {
 
 // Multi-value array property tests
 
-test('test set is with JSON array string', () => {
+test('set is with JSON array string', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: '["1", "2", "3"]',
   });
@@ -512,7 +512,7 @@ test('test set is with JSON array string', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test is with array (collection)', () => {
+test('is with array (collection)', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: ['value1', 'value2'],
   });
@@ -520,7 +520,7 @@ test('test is with array (collection)', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test is not with array', () => {
+test('is not with array', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: ['value3', 'value4'],
   });
@@ -528,7 +528,7 @@ test('test is not with array', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test contains with array', () => {
+test('contains with array', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: ['has-target-value', 'has', 'value'],
   });
@@ -536,7 +536,7 @@ test('test contains with array', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test does not contain with array', () => {
+test('does not contain with array', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: ['has-value', 'has', 'value'],
   });
@@ -544,7 +544,7 @@ test('test does not contain with array', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test is with JSON array string', () => {
+test('is with JSON array string', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: '["value1", "value2"]',
   });
@@ -552,7 +552,7 @@ test('test is with JSON array string', () => {
   expect(result?.key).toEqual('on');
 });
 
-test('test does not contain with JSON array string', () => {
+test('does not contain with JSON array string', () => {
   const user = userContext(undefined, undefined, undefined, {
     key: '["has-value", "has", "value"]',
   });

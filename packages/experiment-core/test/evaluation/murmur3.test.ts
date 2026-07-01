@@ -2,13 +2,13 @@ import { hash32x86 } from '../../src/evaluation/murmur3';
 
 const MURMUR_SEED = 0x7f3a21ea;
 
-test('test murmur3 hash simple', () => {
+test('murmur3 hash simple', () => {
   const input = 'brian';
   const result = hash32x86(input, MURMUR_SEED);
   expect(result).toEqual(3948467465);
 });
 
-test('test murmur3 hash english words', () => {
+test('murmur3 hash english words', () => {
   const inputs = ENGLISH_WORDS.split('\n');
   const outputs = MURMUR3_X86_32.split('\n');
   for (let i = 0; i < inputs.length; i++) {
@@ -19,7 +19,7 @@ test('test murmur3 hash english words', () => {
   }
 });
 
-test('test unicode strings', () => {
+test('unicode strings', () => {
   expect(hash32x86('My hovercraft is full of eels.')).toEqual(2953494853);
   expect(hash32x86('My 🚀 is full of 🦎.')).toEqual(1818098979);
   expect(hash32x86('吉 星 高 照')).toEqual(3435142074);
