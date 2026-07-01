@@ -38,6 +38,10 @@ function generateEventUuid(): string {
 export interface EventRecord {
   /** Stable per-event identity; the cross-subdomain dedup key (see eventDedupKey). */
   uuid: string;
+  /**
+   * Per-origin monotonic counter. Retained for debugging only — identity and
+   * dedup use uuid, ordering uses timestamp, and FIFO uses array order.
+   */
   id: number;
   event_type: string;
   timestamp: number;
@@ -50,6 +54,7 @@ export interface EventRecord {
  */
 interface EventStorage {
   events: EventRecord[];
+  /** Backs the per-record `id` counter (debugging only); see EventRecord.id. */
   nextId: number;
 }
 
