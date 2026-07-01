@@ -53,12 +53,10 @@ export class EventStorageManager {
     apiKey: string,
     sessionManager: SessionManager,
     persistedEvents?: Set<string>,
-    relayClient?: RelayClient | null,
   ) {
     this.storageKey = `EXP_${apiKey.slice(0, 10)}_rtbt_events`;
     this.sessionManager = sessionManager;
     this.persistedEvents = persistedEvents;
-    this.relayClient = relayClient ?? null;
 
     // Load from localStorage into memory on initialization
     this.memoryCache = this.loadFromLocalStorage();
