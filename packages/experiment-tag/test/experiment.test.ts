@@ -1821,3 +1821,226 @@ describe('helper methods', () => {
     expect(variants['flag-2'].key).toEqual('control');
   });
 });
+
+describe('applyDeclarativeMutation (Site 2 — html-mutation strip-and-adopt)', () => {
+  const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
+  let client: any;
+  let mockGlobal: any;
+
+  beforeEach(() => {
+    apiKey++;
+    jest.clearAllMocks();
+    jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
+    document.adoptedStyleSheets = [];
+    document.body.innerHTML = '<div id="t">original</div>';
+    mockGlobal = newMockGlobal();
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([]),
+      pageObjects: JSON.stringify({}),
+    });
+    // applyDeclarativeMutation reads `this.globalScope.document` for the
+    // adoption target; override to use the live jsdom document so
+    // dom-mutator and adoptedStyleSheets target the same Document.
+    (client as any).globalScope = { document, location: window.location };
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    document.adoptedStyleSheets = [];
+  });
+
+  it('passes through non-html mutations unchanged', () => {
+    const ctrl = (client as any).applyDeclarativeMutation({
+      action: 'append',
+      attribute: 'style',
+      selector: '#t',
+      value: 'color: red;',
+    });
+
+    const target = document.querySelector<HTMLElement>('#t');
+    expect(target?.style.color).toBe('red');
+    expect(document.adoptedStyleSheets).toHaveLength(0);
+    ctrl.revert();
+  });
+
+  it('passes through html mutations without <style> unchanged', () => {
+    const ctrl = (client as any).applyDeclarativeMutation({
+      action: 'set',
+      attribute: 'html',
+      selector: '#t',
+      value: '<span>plain</span>',
+    });
+
+    const target = document.querySelector<HTMLElement>('#t');
+    expect(target?.innerHTML).toBe('<span>plain</span>');
+    expect(document.adoptedStyleSheets).toHaveLength(0);
+    ctrl.revert();
+  });
+
+  it('strips <style> from html mutations and adopts as a sheet', () => {
+    const ctrl = (client as any).applyDeclarativeMutation({
+      action: 'set',
+      attribute: 'html',
+      selector: '#t',
+      value: '<span class="ai">new</span><style>.ai { color: red; }</style>',
+    });
+
+    const target = document.querySelector<HTMLElement>('#t');
+    expect(target?.innerHTML).toBe('<span class="ai">new</span>');
+    expect(target?.querySelector('style')).toBeNull();
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+    expect(document.adoptedStyleSheets[0]).toBeInstanceOf(CSSStyleSheet);
+
+    ctrl.revert();
+  });
+
+  it('reverting reverts both the html change and the adopted sheet', () => {
+    const ctrl = (client as any).applyDeclarativeMutation({
+      action: 'set',
+      attribute: 'html',
+      selector: '#t',
+      value: '<span class="ai">new</span><style>.ai { color: red; }</style>',
+    });
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+
+    ctrl.revert();
+
+    const target = document.querySelector<HTMLElement>('#t');
+    expect(target?.innerHTML).toBe('original');
+    expect(document.adoptedStyleSheets).toHaveLength(0);
+  });
+
+  it('also handles html mutations with action="append"', () => {
+    const ctrl = (client as any).applyDeclarativeMutation({
+      action: 'append',
+      attribute: 'html',
+      selector: '#t',
+      value: '<span class="b">b</span><style>.b { color: blue; }</style>',
+    });
+
+    const target = document.querySelector<HTMLElement>('#t');
+    expect(target?.innerHTML).toContain('<span class="b">b</span>');
+    expect(target?.querySelector('style')).toBeNull();
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+
+    ctrl.revert();
+  });
+});
+
+describe('handleInject — embedded <style> in rawHtml (Site 4, legacy widget data)', () => {
+  const mockGetGlobalScope = jest.spyOn(experimentCore, 'getGlobalScope');
+  let client: any;
+  let mockGlobal: any;
+  const INJECT_ID = 'widget1abc';
+  const FLAG_KEY = 'inject-test';
+
+  beforeEach(() => {
+    apiKey++;
+    jest.clearAllMocks();
+    jest.spyOn(experimentCore, 'isLocalStorageAvailable').mockReturnValue(true);
+    document.adoptedStyleSheets = [];
+    document.body.innerHTML = '<div id="root"></div>';
+
+    mockGlobal = newMockGlobal();
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([]),
+      pageObjects: JSON.stringify({}),
+    });
+    // Override globalScope so handleInject's document.head.appendChild and
+    // adoptedStyleSheets reads target the live test document. The inject
+    // code reads `globalScope[id]` to find the inject function — provide a
+    // stub that appends the html into #root.
+    (client as any).globalScope = {
+      document,
+      location: window.location,
+      [INJECT_ID]: (html: Element | undefined) => {
+        if (html) document.querySelector('#root')?.appendChild(html);
+      },
+    };
+    (client as any).appliedInjections = new Set();
+    (client as any).appliedMutations = {};
+
+    (client as any).isActionActiveOnPage = jest.fn().mockReturnValue(true);
+    (client as any).exposureWithDedupe = jest.fn();
+  });
+
+  afterEach(() => {
+    // Clear adopted sheets BEFORE clearing body. The construct-style-sheets
+    // polyfill stores adopter <style> nodes inside document.body; clearing
+    // body first orphans them and the polyfill's removeChild call throws.
+    document.adoptedStyleSheets = [];
+    document.body.innerHTML = '';
+  });
+
+  function buildAction(html: string, css = '') {
+    return {
+      data: { id: INJECT_ID, html, css, js: '', scope: ['*'] },
+    };
+  }
+
+  function variant() {
+    return { key: 'treatment' };
+  }
+
+  test('rawHtml without <style> adopts only content.css (one sheet)', () => {
+    (client as any).handleInject(
+      buildAction('<div class="w">x</div>', '.outer { color: blue; }'),
+      FLAG_KEY,
+      variant(),
+    );
+
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+    expect(document.querySelector('.w')).not.toBeNull();
+    expect(document.querySelector('.w style')).toBeNull();
+  });
+
+  test('rawHtml with embedded <style> adopts both content.css and extracted CSS (two sheets)', () => {
+    (client as any).handleInject(
+      buildAction(
+        '<div class="w">x<style>.w { color: red; }</style></div>',
+        '.outer { color: blue; }',
+      ),
+      FLAG_KEY,
+      variant(),
+    );
+
+    expect(document.adoptedStyleSheets).toHaveLength(2);
+    expect(document.adoptedStyleSheets[0]).toBeInstanceOf(CSSStyleSheet);
+    expect(document.adoptedStyleSheets[1]).toBeInstanceOf(CSSStyleSheet);
+
+    // The injected DOM does NOT contain the <style> element anymore.
+    const widget = document.querySelector('.w');
+    expect(widget).not.toBeNull();
+    expect(widget?.querySelector('style')).toBeNull();
+  });
+
+  test('rawHtml with embedded <style> but no content.css adopts one sheet (the extracted CSS)', () => {
+    (client as any).handleInject(
+      buildAction('<div class="w">x<style>.w {}</style></div>', ''),
+      FLAG_KEY,
+      variant(),
+    );
+
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+    expect(document.querySelector('.w style')).toBeNull();
+  });
+
+  test('reverting the inject reverts both sheet handles', () => {
+    (client as any).handleInject(
+      buildAction('<div class="w">x<style>.w {}</style></div>', '.outer {}'),
+      FLAG_KEY,
+      variant(),
+    );
+    expect(document.adoptedStyleSheets).toHaveLength(2);
+
+    (client as any).appliedMutations[FLAG_KEY]?.[variant().key]?.['inject']?.[
+      INJECT_ID
+    ]?.revert();
+
+    expect(document.adoptedStyleSheets).toHaveLength(0);
+  });
+});
