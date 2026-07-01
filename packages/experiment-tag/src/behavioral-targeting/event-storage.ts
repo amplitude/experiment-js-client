@@ -325,6 +325,15 @@ export class EventStorageManager {
           Array.isArray(parsed.events) &&
           typeof parsed.nextId === 'number'
         ) {
+          // Backfill a uuid for any record persisted before uuid existed, so
+          // each keeps a distinct dedup identity (see eventDedupKey). Without
+          // this, uuid-less records share an undefined key and all but one
+          // collapse on the next mergeFromRelay.
+          for (const event of parsed.events as EventRecord[]) {
+            if (typeof event.uuid !== 'string' || event.uuid.length === 0) {
+              event.uuid = generateEventUuid();
+            }
+          }
           return parsed;
         }
         // Invalid structure, return empty

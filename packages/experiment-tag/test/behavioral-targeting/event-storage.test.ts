@@ -416,6 +416,45 @@ describe('EventStorageManager', () => {
     });
   });
 
+  describe('legacy persisted events', () => {
+    test('backfills distinct uuids for uuid-less persisted records on load', () => {
+      // Simulate a store written by a pre-uuid build (no uuid on records).
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          events: [
+            {
+              id: 1,
+              event_type: 'click',
+              timestamp: 1000,
+              session_id: 's1',
+              properties: { n: 1 },
+            },
+            {
+              id: 2,
+              event_type: 'click',
+              timestamp: 1000,
+              session_id: 's1',
+              properties: { n: 2 },
+            },
+          ],
+          nextId: 3,
+        }),
+      );
+
+      const loaded = new EventStorageManager(testApiKey, sessionManager);
+      const events = loaded.getAllEvents();
+      expect(events).toHaveLength(2);
+      expect(events[0].uuid).toEqual(expect.any(String));
+      expect(events[0].uuid.length).toBeGreaterThan(0);
+      expect(events[0].uuid).not.toBe(events[1].uuid);
+
+      // They must survive a merge instead of collapsing under an undefined key.
+      loaded.mergeFromRelay({ events: [], nextId: 1 });
+      expect(loaded.getAllEvents()).toHaveLength(2);
+    });
+  });
+
   describe('eventDedupKey', () => {
     test('uses the event uuid', () => {
       expect(eventDedupKey({ uuid: 'abc-123' })).toBe('abc-123');
