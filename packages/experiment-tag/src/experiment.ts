@@ -23,6 +23,7 @@ import * as domMutatorExports from 'dom-mutator';
 import type { MutationController } from 'dom-mutator/dist/types';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
+import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -144,6 +145,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   public readonly behavioralTargetingManager:
     | BehavioralTargetingManager
     | undefined;
+  private relayClient: RelayClient | null = null;
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
   private isDebugActive = false;
@@ -530,6 +532,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         Object.keys(this.previewFlags).includes(key),
       )
     ) {
+      this.scheduleRelaySync(enrichedUser);
       this.isRunning = true;
       flushEventBuffer(this);
       return;
@@ -538,6 +541,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
     await this.applyVariants({ flagKeys: this.remoteFlagKeys });
+    this.scheduleRelaySync(enrichedUser);
     this.isRunning = true;
     flushEventBuffer(this);
   }
@@ -771,6 +775,116 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   ): (() => void) | undefined {
     if (this.subscriptionManager) {
       return this.subscriptionManager.addPageChangeSubscriber(callback);
+    }
+  }
+
+  /**
+   * Behavioral targeting evaluates in two phases at startup:
+   *
+   *  1. start() evaluates and applies variants from this origin's own local
+   *     event store (already done by the time we get here).
+   *  2. Relay sync (this method): a hidden CDN iframe pulls the shared
+   *     cross-subdomain event store, merges it into local storage, and
+   *     re-evaluates behavioral targeting. If matched behaviors changed,
+   *     {@link reapplyVariantsAfterRelaySync} re-applies the affected variants.
+   *
+   * Non-blocking: the iframe init and merge run after anti-flicker is removed,
+   * so a relay-driven change repaints rather than delaying first paint.
+   */
+  private scheduleRelaySync(user: WebExperimentUser): void {
+    // Relay sync still runs in preview mode: a page can preview one flag while
+    // other behavioral-targeting flags evaluate normally and need the merge.
+    // Previewed flags are excluded from the relay re-apply
+    // (reapplyVariantsAfterRelaySync) and from applyVariants directly, so
+    // forced preview variants are never clobbered.
+    if (!this.behavioralTargetingManager || this.isVisualEditorMode) {
+      return;
+    }
+
+    const webExpIdV2 = user.web_exp_id_v2 ?? user.web_exp_id;
+    if (!webExpIdV2) {
+      return;
+    }
+
+    // Single-shot: scheduleRelaySync runs exactly once per start() (the two
+    // call sites are mutually exclusive and start() is re-entry guarded). If a
+    // future identity-change re-sync needs to re-run this, add ownership
+    // tracking that also covers reapplyVariantsAfterRelaySync's awaits — a
+    // guard checked only here would leave the re-apply fetch/apply tail
+    // unguarded.
+    const relayClient = new RelayClient(
+      this.apiKey,
+      webExpIdV2,
+      getRelayUrl(this.apiKey, this.config.serverZone, this.config.relayUrl),
+    );
+    this.relayClient = relayClient;
+
+    void this.behavioralTargetingManager
+      .beginRelaySync(relayClient)
+      .then((result) => {
+        if (
+          result.status === 'unavailable' ||
+          result.status === 'sync_failed'
+        ) {
+          this.teardownRelay(relayClient);
+          return;
+        }
+        // Sync succeeded: attach the relay client for ongoing dual-write.
+        this.behavioralTargetingManager?.setRelayClient(relayClient);
+        if (result.status === 'behaviors_changed') {
+          return this.reapplyVariantsAfterRelaySync(true).catch(
+            (reapplyError) => {
+              console.warn(
+                'Experiment relay variant re-apply failed:',
+                reapplyError,
+              );
+            },
+          );
+        }
+      })
+      .catch(() => {
+        this.teardownRelay(relayClient);
+      });
+  }
+
+  private teardownRelay(relayClient: RelayClient): void {
+    relayClient.destroy();
+    this.relayClient = null;
+    this.behavioralTargetingManager?.setRelayClient(null);
+  }
+
+  /**
+   * Re-apply variants when a relay sync changed the matched behaviors
+   * (phase 2 of the startup described on {@link scheduleRelaySync}).
+   */
+  private async reapplyVariantsAfterRelaySync(
+    behaviorsChanged: boolean,
+  ): Promise<void> {
+    if (!behaviorsChanged || !this.behavioralTargetingManager) {
+      return;
+    }
+
+    this.updateUserWithBehaviors();
+
+    // Exclude previewed flags: their variants are forced and must not be
+    // re-applied/re-fetched here (also avoids a pointless fetchRemoteFlags when
+    // every behavioral remote flag is previewed).
+    const flagKeys = Object.keys(this.behavioralTargetingRules).filter(
+      (key) => !this.previewFlags[key],
+    );
+    const localKeys = flagKeys.filter((key) =>
+      this.localFlagKeys.includes(key),
+    );
+    const remoteKeys = flagKeys.filter((key) =>
+      this.remoteFlagKeys.includes(key),
+    );
+
+    if (localKeys.length > 0) {
+      await this.applyVariants({ flagKeys: localKeys });
+    }
+    if (remoteKeys.length > 0) {
+      await this.fetchRemoteFlags();
+      await this.applyVariants({ flagKeys: remoteKeys });
     }
   }
 
