@@ -84,7 +84,13 @@ export class EventStorageManager {
     this.persistedEvents = persistedEvents;
 
     // Load from localStorage into memory on initialization
-    this.memoryCache = this.loadFromLocalStorage();
+    const { storage, backfilledUuids } = this.loadFromLocalStorage();
+    this.memoryCache = storage;
+
+    // Persist backfilled UUIDs so they remain stable across reloads
+    if (backfilledUuids) {
+      this.scheduleDebouncedWrite();
+    }
 
     // Setup flush handlers to prevent data loss
     this.setupFlushHandlers();
@@ -312,8 +318,12 @@ export class EventStorageManager {
 
   /**
    * Loads data from localStorage into memory on initialization.
+   * Returns both the storage and whether any uuid backfilling occurred.
    */
-  private loadFromLocalStorage(): EventStorage {
+  private loadFromLocalStorage(): {
+    storage: EventStorage;
+    backfilledUuids: boolean;
+  } {
     const stored = localStorage.getItem(this.storageKey);
     if (stored) {
       try {
@@ -329,21 +339,23 @@ export class EventStorageManager {
           // each keeps a distinct dedup identity (see eventDedupKey). Without
           // this, uuid-less records share an undefined key and all but one
           // collapse on the next mergeFromRelay.
+          let backfilledUuids = false;
           for (const event of parsed.events as EventRecord[]) {
             if (typeof event.uuid !== 'string' || event.uuid.length === 0) {
               event.uuid = generateEventUuid();
+              backfilledUuids = true;
             }
           }
-          return parsed;
+          return { storage: parsed, backfilledUuids };
         }
         // Invalid structure, return empty
-        return { events: [], nextId: 1 };
+        return { storage: { events: [], nextId: 1 }, backfilledUuids: false };
       } catch (e) {
         // Invalid JSON, return empty
-        return { events: [], nextId: 1 };
+        return { storage: { events: [], nextId: 1 }, backfilledUuids: false };
       }
     }
-    return { events: [], nextId: 1 };
+    return { storage: { events: [], nextId: 1 }, backfilledUuids: false };
   }
 
   /**
