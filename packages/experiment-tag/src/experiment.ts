@@ -795,13 +795,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    // Today scheduleRelaySync runs once per start(), but it is written to be
-    // safely re-invokable (e.g. a future identity-change re-sync): tear down any
-    // prior client here, and use the captured `relayClient` identity in the
-    // callbacks below to ignore results from a client a newer call has replaced.
-    if (this.relayClient) {
-      this.teardownRelay(this.relayClient);
-    }
+    // Single-shot: scheduleRelaySync runs exactly once per start() (the two
+    // call sites are mutually exclusive and start() is re-entry guarded). If a
+    // future identity-change re-sync needs to re-run this, add ownership
+    // tracking that also covers handleRelayPass2's awaits — a guard checked
+    // only here would leave the Pass 2 fetch/apply tail unguarded.
     const relayClient = new RelayClient(
       this.apiKey,
       webExpIdV2,
@@ -812,11 +810,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     void this.behavioralTargetingManager
       .beginRelaySync(relayClient)
       .then((result) => {
-        // A newer scheduleRelaySync may have torn this client down and taken
-        // ownership; never attach or tear down a client we no longer own.
-        if (this.relayClient !== relayClient) {
-          return;
-        }
         if (
           result.status === 'unavailable' ||
           result.status === 'sync_failed'
@@ -824,8 +817,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           this.teardownRelay(relayClient);
           return;
         }
-        // Sync succeeded and this client still owns the relay: attach it for
-        // ongoing dual-write.
+        // Sync succeeded: attach the relay client for ongoing dual-write.
         this.behavioralTargetingManager?.setRelayClient(relayClient);
         if (result.status === 'behaviors_changed') {
           return this.handleRelayPass2(true).catch((pass2Error) => {
@@ -834,9 +826,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         }
       })
       .catch(() => {
-        if (this.relayClient !== relayClient) {
-          return;
-        }
         this.teardownRelay(relayClient);
       });
   }
