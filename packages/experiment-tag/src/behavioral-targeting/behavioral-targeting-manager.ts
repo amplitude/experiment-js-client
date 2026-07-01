@@ -61,7 +61,7 @@ export class BehavioralTargetingManager {
   }
 
   /**
-   * Inject relay iframe (non-blocking init) and run the Pass 2 relay merge.
+   * Inject relay iframe (non-blocking init) and run the relay merge.
    *
    * This only reads/merges relay state and reports the outcome; it never
    * attaches the relay for dual-write. The caller owns relay lifecycle and
@@ -211,10 +211,8 @@ export class BehavioralTargetingManager {
   }
 
   /**
-   * Evaluate a specific behavior ID for a flag.
-   * Updates only the specified behavior ID in the matchedBehaviors state.
-   * @param flagKey The flag key to evaluate
-   * @param behaviorId The specific behavior ID to evaluate
+   * Stable JSON snapshot of matched behaviors (sorted behavior IDs per flag),
+   * used to detect whether a relay sync changed the matched set.
    */
   private serializeMatchedBehaviors(): string {
     const snapshot: Record<string, string[]> = {};
@@ -224,6 +222,12 @@ export class BehavioralTargetingManager {
     return JSON.stringify(snapshot);
   }
 
+  /**
+   * Evaluate a specific behavior ID for a flag.
+   * Updates only the specified behavior ID in the matchedBehaviors state.
+   * @param flagKey The flag key to evaluate
+   * @param behaviorId The specific behavior ID to evaluate
+   */
   private evaluateBehaviorId(flagKey: string, behaviorId: string): void {
     const rulesByIds = this.rules[flagKey];
     if (!rulesByIds || !rulesByIds[behaviorId]) {

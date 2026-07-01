@@ -1,4 +1,4 @@
-/** Outcome of non-blocking relay iframe init + Pass 2 merge. */
+/** Outcome of non-blocking relay iframe init + relay merge. */
 export type RelaySyncResult =
   | { status: 'behaviors_changed' }
   | { status: 'unchanged' }

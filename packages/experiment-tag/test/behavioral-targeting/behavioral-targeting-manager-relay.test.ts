@@ -44,7 +44,7 @@ describe('BehavioralTargetingManager relay wiring', () => {
     return iframeWindow;
   };
 
-  test('beginRelaySync injects relay iframe and completes Pass 2 sync attempt', async () => {
+  test('beginRelaySync injects relay iframe and completes relay merge sync attempt', async () => {
     const manager = new BehavioralTargetingManager(API_KEY, {
       flag_a: {
         behavior_1: [
