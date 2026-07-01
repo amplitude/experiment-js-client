@@ -29,12 +29,9 @@ function isLocalNavigation(
 
   const url = new URL(href, window.location.href);
 
-  // ignore if link is just changing the hash
-  const samePage =
-    url.href.split('#')[0] === window.location.href.split('#')[0];
   const sameOrigin = url.origin === window.location.origin;
 
-  return !isModified && sameOrigin && !samePage;
+  return !isModified && sameOrigin;
 }
 
 function detectSpaRouting(anchor: HTMLAnchorElement) {
