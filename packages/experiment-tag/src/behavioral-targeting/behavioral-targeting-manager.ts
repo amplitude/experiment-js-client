@@ -61,7 +61,7 @@ export class BehavioralTargetingManager {
   }
 
   /**
-   * Inject relay iframe (non-blocking init) and run the Pass 2 relay merge.
+   * Inject relay iframe (non-blocking init) and run the relay merge.
    *
    * This only reads/merges relay state and reports the outcome; it never
    * attaches the relay for dual-write. The caller owns relay lifecycle and

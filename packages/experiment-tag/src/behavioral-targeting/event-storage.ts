@@ -159,7 +159,7 @@ export class EventStorageManager {
   }
 
   /**
-   * Pass 2 relay merge hook — no-op until storage sync lands.
+   * Relay merge hook — no-op until storage sync lands.
    */
   async syncFromRelay(relayClient?: RelayClient): Promise<boolean> {
     void relayClient;
