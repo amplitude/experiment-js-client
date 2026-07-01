@@ -1,5 +1,18 @@
 import { RelayClient } from './relay-client';
+import { RelayEventStorage } from './relay-protocol';
 import { SessionManager } from './session-manager';
+
+/**
+ * Dedup key for cross-subdomain merge (matches relay.js MIGRATE_EVENTS for
+ * migration; includes id so same-millisecond events do not collapse on merge).
+ */
+export function eventDedupKey(event: {
+  event_type: string;
+  timestamp: number;
+  id: number;
+}): string {
+  return `${event.event_type}:${event.timestamp}:${event.id}`;
+}
 
 /**
  * Represents a stored event record.
@@ -34,6 +47,7 @@ export class EventStorageManager {
   private hasPendingWrites = false; // Track if cache has unsaved changes
   private persistedEvents?: Set<string>; // Optional set of event types to persist
   private storageKey: string;
+  private relayClient: RelayClient | null = null;
 
   constructor(
     apiKey: string,
@@ -78,7 +92,9 @@ export class EventStorageManager {
 
     this.memoryCache.events.push(event);
 
-    // Apply FIFO limit
+    // Apply FIFO limit. This bounds local memory only; the relay keeps its own
+    // copy (the event was already dual-written below), so no relay
+    // reconciliation is needed when local entries are evicted.
     if (this.memoryCache.events.length > EventStorageManager.MAX_EVENTS) {
       this.memoryCache.events = this.memoryCache.events.slice(
         -EventStorageManager.MAX_EVENTS,
@@ -87,6 +103,103 @@ export class EventStorageManager {
 
     // Trigger debounced write to localStorage
     this.scheduleDebouncedWrite();
+
+    this.relayClient?.writeEvent(event);
+  }
+
+  /**
+   * Attach or detach the relay client for cross-subdomain dual-write.
+   */
+  setRelayClient(relayClient: RelayClient | null): void {
+    this.relayClient = relayClient;
+  }
+
+  /**
+   * Flushes pending relay writes (e.g. on page unload).
+   */
+  flushRelay(): void {
+    this.relayClient?.flush();
+  }
+
+  /**
+   * Merges relay events into the in-memory cache. Relay wins on dedup conflicts.
+   */
+  mergeFromRelay(relayStore: RelayEventStorage): void {
+    const byKey = new Map<string, EventRecord>();
+    for (const event of this.memoryCache.events) {
+      byKey.set(eventDedupKey(event), event);
+    }
+    for (const event of relayStore.events) {
+      byKey.set(eventDedupKey(event), event);
+    }
+
+    let events = Array.from(byKey.values()).sort(
+      (a, b) => a.timestamp - b.timestamp,
+    );
+    if (events.length > EventStorageManager.MAX_EVENTS) {
+      events = events.slice(-EventStorageManager.MAX_EVENTS);
+    }
+
+    let nextId = Math.max(this.memoryCache.nextId, relayStore.nextId);
+    for (const event of events) {
+      if (event.id + 1 > nextId) {
+        nextId = event.id + 1;
+      }
+    }
+
+    this.memoryCache = { events, nextId };
+    this.hasPendingWrites = true;
+    this.scheduleDebouncedWrite();
+  }
+
+  /**
+   * Pass 2 sync: migrate local store to relay if needed, then merge relay events.
+   * Returns true when sync completed; false when relay unavailable or RPC failed.
+   */
+  async syncFromRelay(relayClient?: RelayClient): Promise<boolean> {
+    const relay = relayClient ?? this.relayClient;
+    if (!relay?.relayAvailable) {
+      return false;
+    }
+
+    try {
+      const origin = window.location.origin;
+      const migrated = await relay.checkMigrated(origin);
+
+      // First-time origins migrate their local store in bulk (one RPC). The
+      // backfill below then reconciles anything the bulk push dropped.
+      if (!migrated && this.memoryCache.events.length > 0) {
+        await relay.migrateEvents(origin, {
+          events: [...this.memoryCache.events],
+          nextId: this.memoryCache.nextId,
+        });
+      }
+
+      const relayStore = await relay.readEvents();
+
+      // Backfill any local events the relay is missing, regardless of migrated
+      // state. On a first migration, MIGRATE_EVENTS dedupes on
+      // (event_type, timestamp) without id, so same-millisecond events of the
+      // same type collapse to one in the relay; the bulk push above silently
+      // drops the rest. WRITE_EVENT does not dedupe, so re-pushing here (keyed
+      // on the id-inclusive eventDedupKey) restores them without duplicating
+      // events that already migrated successfully.
+      if (this.memoryCache.events.length > 0) {
+        const relayKeys = new Set(
+          relayStore.events.map((e) => eventDedupKey(e)),
+        );
+        for (const event of this.memoryCache.events) {
+          if (!relayKeys.has(eventDedupKey(event))) {
+            relay.writeEvent(event);
+          }
+        }
+      }
+
+      this.mergeFromRelay(relayStore);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -149,21 +262,7 @@ export class EventStorageManager {
    */
   flush(): void {
     this.flushToLocalStorage();
-  }
-
-  /**
-   * Relay dual-write hook — implemented in the storage sync PR.
-   */
-  setRelayClient(relayClient: RelayClient | null): void {
-    void relayClient;
-  }
-
-  /**
-   * Relay merge hook — no-op until storage sync lands.
-   */
-  async syncFromRelay(relayClient?: RelayClient): Promise<boolean> {
-    void relayClient;
-    return true;
+    this.flushRelay();
   }
 
   /**
@@ -269,7 +368,7 @@ export class EventStorageManager {
    * Handler for beforeunload event.
    */
   private handleBeforeUnload = (): void => {
-    this.flushToLocalStorage();
+    this.flush();
   };
 
   /**
@@ -277,7 +376,7 @@ export class EventStorageManager {
    */
   private handleVisibilityChange = (): void => {
     if (document.visibilityState === 'hidden') {
-      this.flushToLocalStorage();
+      this.flush();
     }
   };
 
@@ -288,6 +387,7 @@ export class EventStorageManager {
   cleanup(): void {
     // Flush any pending writes
     this.flushToLocalStorage();
+    this.flushRelay();
 
     // Clear debounce timeout
     if (this.debouncedWriteTimeout) {

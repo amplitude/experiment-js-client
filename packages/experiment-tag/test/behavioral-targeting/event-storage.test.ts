@@ -1,4 +1,8 @@
-import { EventStorageManager } from 'src/behavioral-targeting/event-storage';
+import {
+  EventStorageManager,
+  eventDedupKey,
+} from 'src/behavioral-targeting/event-storage';
+import { RelayClient } from 'src/behavioral-targeting/relay-client';
 import { SessionManager } from 'src/behavioral-targeting/session-manager';
 
 describe('EventStorageManager', () => {
@@ -409,6 +413,235 @@ describe('EventStorageManager', () => {
       const events = eventStorage.getAllEvents();
       expect(events[0].timestamp).toBeGreaterThanOrEqual(before);
       expect(events[0].timestamp).toBeLessThanOrEqual(after);
+    });
+  });
+
+  describe('eventDedupKey', () => {
+    test('uses event_type, timestamp, and id', () => {
+      expect(
+        eventDedupKey({ event_type: 'click', timestamp: 1000, id: 1 }),
+      ).toBe('click:1000:1');
+    });
+  });
+
+  describe('relay dual-write', () => {
+    const createMockRelay = (available = true) => ({
+      relayAvailable: available,
+      writeEvent: jest.fn(),
+      flush: jest.fn(),
+      readEvents: jest.fn().mockResolvedValue({ events: [], nextId: 1 }),
+      checkMigrated: jest.fn().mockResolvedValue(true),
+      migrateEvents: jest.fn().mockResolvedValue(undefined),
+    });
+
+    test('writes events to relay on addEvent when relay is attached', () => {
+      const relay = createMockRelay();
+      eventStorage.setRelayClient(relay as unknown as RelayClient);
+      eventStorage.addEvent('click', { page: 'home' });
+
+      expect(relay.writeEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event_type: 'click',
+          properties: { page: 'home' },
+          id: 1,
+        }),
+      );
+    });
+
+    test('does not write to relay when relay is not attached', () => {
+      const relay = createMockRelay();
+      eventStorage.addEvent('click');
+      expect(relay.writeEvent).not.toHaveBeenCalled();
+    });
+
+    test('flush calls relay flush', () => {
+      const relay = createMockRelay();
+      eventStorage.setRelayClient(relay as unknown as RelayClient);
+      eventStorage.flush();
+      expect(relay.flush).toHaveBeenCalled();
+    });
+
+    test('FIFO trim only dual-writes the new event, no relay reconciliation', () => {
+      for (let i = 0; i < 500; i++) {
+        eventStorage.addEvent('test', { index: i });
+      }
+
+      const relay = createMockRelay();
+      eventStorage.setRelayClient(relay as unknown as RelayClient);
+      relay.writeEvent.mockClear();
+      eventStorage.addEvent('test', { index: 500 });
+
+      // The relay already holds prior events; a local eviction must not
+      // re-migrate or re-send the whole cache.
+      expect(relay.writeEvent).toHaveBeenCalledTimes(1);
+      expect(relay.writeEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ properties: { index: 500 } }),
+      );
+      expect(relay.migrateEvents).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('mergeFromRelay', () => {
+    test('merges relay events and relay wins on dedup key conflict', () => {
+      eventStorage.addEvent('click', { source: 'local' }, 1000);
+      const local = eventStorage.getAllEvents()[0];
+
+      eventStorage.mergeFromRelay({
+        events: [
+          {
+            ...local,
+            properties: { source: 'relay' },
+          },
+          {
+            id: 99,
+            event_type: 'view',
+            timestamp: 1001,
+            session_id: local.session_id,
+            properties: {},
+          },
+        ],
+        nextId: 100,
+      });
+
+      const events = eventStorage.getAllEvents();
+      expect(events).toHaveLength(2);
+      expect(events[0].properties).toEqual({ source: 'relay' });
+      expect(events[1].event_type).toBe('view');
+    });
+
+    test('keeps same-millisecond events with different ids', () => {
+      eventStorage.addEvent('click', {}, 1000);
+      eventStorage.addEvent('click', {}, 1000);
+
+      expect(eventStorage.getAllEvents()).toHaveLength(2);
+
+      eventStorage.mergeFromRelay({
+        events: [],
+        nextId: 1,
+      });
+
+      expect(eventStorage.getAllEvents()).toHaveLength(2);
+    });
+  });
+
+  describe('syncFromRelay', () => {
+    test('migrates local store when origin not migrated', async () => {
+      eventStorage.addEvent('click', {}, 1000);
+      const relay = {
+        relayAvailable: true,
+        writeEvent: jest.fn(),
+        flush: jest.fn(),
+        checkMigrated: jest.fn().mockResolvedValue(false),
+        migrateEvents: jest.fn().mockResolvedValue(undefined),
+        readEvents: jest.fn().mockResolvedValue({
+          events: [
+            {
+              id: 1,
+              event_type: 'click',
+              timestamp: 1000,
+              session_id: 's1',
+              properties: {},
+            },
+          ],
+          nextId: 2,
+        }),
+      };
+      eventStorage.setRelayClient(relay as unknown as RelayClient);
+
+      const synced = await eventStorage.syncFromRelay();
+
+      expect(synced).toBe(true);
+      expect(relay.migrateEvents).toHaveBeenCalledWith(
+        window.location.origin,
+        expect.objectContaining({
+          events: expect.arrayContaining([
+            expect.objectContaining({ event_type: 'click' }),
+          ]),
+        }),
+      );
+      expect(relay.readEvents).toHaveBeenCalled();
+    });
+
+    test('backfills same-millisecond duplicates the bulk migration dropped on first sync', async () => {
+      // Two events share (event_type, timestamp). The relay's MIGRATE_EVENTS
+      // dedupes on (event_type, timestamp) without id, so the bulk push keeps
+      // only one; readEvents reflects that collapsed store.
+      eventStorage.addEvent('click', { n: 1 }, 1000);
+      eventStorage.addEvent('click', { n: 2 }, 1000);
+      expect(eventStorage.getAllEvents()).toHaveLength(2);
+
+      const relay = {
+        relayAvailable: true,
+        writeEvent: jest.fn(),
+        flush: jest.fn(),
+        checkMigrated: jest.fn().mockResolvedValue(false),
+        migrateEvents: jest.fn().mockResolvedValue(undefined),
+        readEvents: jest.fn().mockResolvedValue({
+          // The relay kept the first event (with its original id); the
+          // same-(type, timestamp) duplicate was dropped during MIGRATE_EVENTS.
+          events: [
+            {
+              id: 1,
+              event_type: 'click',
+              timestamp: 1000,
+              session_id: 's1',
+              properties: { n: 1 },
+            },
+          ],
+          nextId: 2,
+        }),
+      };
+      eventStorage.setRelayClient(relay as unknown as RelayClient);
+
+      const synced = await eventStorage.syncFromRelay();
+
+      expect(synced).toBe(true);
+      expect(relay.migrateEvents).toHaveBeenCalled();
+      // The dropped duplicate (the one not in the relay store) is re-pushed via
+      // the non-deduping WRITE_EVENT path; the one that survived is not.
+      expect(relay.writeEvent).toHaveBeenCalledTimes(1);
+      expect(relay.writeEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ event_type: 'click', properties: { n: 2 } }),
+      );
+    });
+
+    test('uploads local-only events when origin already migrated', async () => {
+      eventStorage.addEvent('click', {}, 1000);
+      const relay = {
+        relayAvailable: true,
+        writeEvent: jest.fn(),
+        flush: jest.fn(),
+        checkMigrated: jest.fn().mockResolvedValue(true),
+        migrateEvents: jest.fn(),
+        readEvents: jest.fn().mockResolvedValue({ events: [], nextId: 1 }),
+      };
+      eventStorage.setRelayClient(relay as unknown as RelayClient);
+
+      const synced = await eventStorage.syncFromRelay();
+
+      expect(synced).toBe(true);
+      expect(relay.migrateEvents).not.toHaveBeenCalled();
+      expect(relay.writeEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ event_type: 'click', timestamp: 1000 }),
+      );
+      expect(relay.flush).not.toHaveBeenCalled();
+      // Already-migrated origins read the relay exactly once for dedupe + merge.
+      expect(relay.readEvents).toHaveBeenCalledTimes(1);
+    });
+
+    test('returns false when relay is unavailable', async () => {
+      const relay = {
+        relayAvailable: false,
+        writeEvent: jest.fn(),
+        flush: jest.fn(),
+        readEvents: jest.fn(),
+        checkMigrated: jest.fn(),
+        migrateEvents: jest.fn(),
+      };
+      eventStorage.setRelayClient(relay as unknown as RelayClient);
+
+      expect(await eventStorage.syncFromRelay()).toBe(false);
+      expect(relay.readEvents).not.toHaveBeenCalled();
     });
   });
 });
