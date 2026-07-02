@@ -7,6 +7,7 @@
     "build": "lerna run build --stream",
     "clean": "lerna run clean --stream && rimraf node_modules",
     "lint": "lerna run lint --stream",
+    "typecheck": "lerna exec \"tsc -p tsconfig.json --noEmit\"",
     "prepare": "husky",
     "test": "lerna run test --stream"
   },

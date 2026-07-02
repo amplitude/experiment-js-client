@@ -19,6 +19,9 @@ hooks:
 - **On push**: `yarn lint` runs across all packages. This is the same command CI
   runs, so if it passes locally it will pass in CI.
 
+Run `yarn build && yarn typecheck` to type-check each package's source
+`tsconfig.json` (the Typecheck CI workflow runs the same steps).
+
 If you need to bypass hooks in an emergency, use `git commit --no-verify` or
 `git push --no-verify`. CI will still enforce the check on the PR.
 
