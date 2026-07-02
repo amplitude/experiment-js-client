@@ -25,6 +25,21 @@ Run `yarn build && yarn typecheck` to type-check each package's source
 If you need to bypass hooks in an emergency, use `git commit --no-verify` or
 `git push --no-verify`. CI will still enforce the check on the PR.
 
+### Bundle size (experiment-tag)
+
+CI enforces a gzipped size cap on `experiment-tag-min.js` via
+[`size-limit`](https://github.com/andresz1/size-limit) (same pattern as
+Amplitude-TypeScript). Limits live in `.size-limit.js`. After building
+experiment-tag:
+
+```bash
+yarn build:experiment-tag
+yarn check:bundle-size
+```
+
+If a size increase is intentional, bump the limit in `.size-limit.js` in the
+same PR.
+
 #### Editor setup (recommended)
 
 VS Code / Cursor users: when prompted, install the workspace-recommended
