@@ -9,10 +9,15 @@ describe('BehavioralTargetingEvaluator', () => {
   let eventStorage: EventStorageManager;
   let sessionManager: SessionManager;
   const testApiKey = 'test-api-key';
+  const sessionCookieKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_session`;
+  const clearSessionCookie = () => {
+    document.cookie = `${sessionCookieKey}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  };
 
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    clearSessionCookie();
     sessionManager = new SessionManager(testApiKey);
     eventStorage = new EventStorageManager(testApiKey, sessionManager);
     evaluator = new BehavioralTargetingEvaluator(eventStorage);
@@ -21,6 +26,7 @@ describe('BehavioralTargetingEvaluator', () => {
   afterEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    clearSessionCookie();
   });
 
   describe('count operators', () => {
