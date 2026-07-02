@@ -388,7 +388,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // the synchronous url_change above, whose subscribers apply anti-flicker
     // variants/redirects before this first await. Every EXP_ cookie needs it:
     // identity just below, and the RTBT session (behavioral-targeting plugin)
-    // whose sync writes read it back via getResolvedTopLevelDomain(). The
+    // whose sync writes resolve it via getTopLevelDomainSync(). The
     // writability probe is async, so it must complete before any cookie write.
     this.rootDomain = await getTopLevelDomain(
       this.globalScope.location.hostname,
