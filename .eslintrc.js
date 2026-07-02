@@ -42,6 +42,7 @@ module.exports = {
         ],
       },
     ],
+    'import/no-unresolved': 'off',
     'import/order': [
       'error',
       { 'newlines-between': 'always', alphabetize: { order: 'asc' } },
