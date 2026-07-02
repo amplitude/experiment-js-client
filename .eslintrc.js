@@ -13,6 +13,7 @@ module.exports = {
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
+    'plugin:jest/recommended',
     'prettier',
     'prettier/@typescript-eslint',
   ],
@@ -27,5 +28,21 @@ module.exports = {
 
     // eslint-plugin-prettier
     'prettier/prettier': 'error',
+
+    // eslint-plugin-jest
+    'jest/expect-expect': [
+      'warn',
+      {
+        assertFunctionNames: [
+          'expect',
+          'assertMatch',
+          'assertNoMatch',
+          'assertInvalidVersion',
+          'assertValidVersion',
+          'assertVersionComparison',
+        ],
+      },
+    ],
+    'jest/no-conditional-expect': 'off',
   },
 };

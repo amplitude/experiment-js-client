@@ -4,7 +4,7 @@ import { Analytics } from '@segment/analytics-next';
 import { segmentIntegrationPlugin } from 'src/plugin';
 import { snippetInstance } from 'src/snippet';
 
-export const sleep = (time: number): Promise<void> =>
+const sleep = (time: number): Promise<void> =>
   new Promise((resolve) => {
     setTimeout(resolve, time);
   });

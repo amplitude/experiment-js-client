@@ -92,7 +92,7 @@ describe('AmplitudeIntegrationPlugin', () => {
           integration.setup(),
           new Promise<void>((resolve) => setTimeout(() => resolve(), 500)),
         ]);
-        fail('expected setup() to throw an error');
+        throw new Error('expected setup() to throw an error');
       } catch (e) {
         // Expected
       }

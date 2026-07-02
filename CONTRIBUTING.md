@@ -7,15 +7,20 @@ automatically (via husky).
 
 ### Lint and format hooks
 
-This repo enforces lint and formatting locally via git hooks:
+This repo enforces lint, formatting, and commit message format locally via git
+hooks:
 
 - **On commit**: `lint-staged` runs `eslint --fix` and `prettier --write` on
   staged files. Most formatting issues are fixed silently.
+- **On commit message**: `commitlint` enforces
+  [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) format
+  (for example, `feat:`, `fix:`, `chore:`). This matches what
+  [semantic-release](#release) expects.
 - **On push**: `yarn lint` runs across all packages. This is the same command CI
   runs, so if it passes locally it will pass in CI.
 
-If you need to bypass either hook in an emergency, use `git commit --no-verify`
-or `git push --no-verify`. CI will still enforce the check on the PR.
+If you need to bypass hooks in an emergency, use `git commit --no-verify` or
+`git push --no-verify`. CI will still enforce the check on the PR.
 
 #### Editor setup (recommended)
 

@@ -11,7 +11,7 @@ const nestedObject = {
   object: primitiveObject,
 };
 
-test('test selector evaluation context types', () => {
+test('selector evaluation context types', () => {
   const context = nestedObject;
   expect(select(context, ['does', 'not', 'exist'])).toBeUndefined();
   expect(select(context, ['null'])).toBeUndefined();
