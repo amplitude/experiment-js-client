@@ -27,12 +27,14 @@
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
   "dependencies": {
+    "@amplitude/analytics-connector": "^1.6.4",
     "@amplitude/analytics-core": "^2.21.0",
     "@amplitude/analytics-types": "^2.11.0",
     "@amplitude/experiment-core": "^0.13.2",
     "@amplitude/experiment-js-client": "^1.21.2",
     "dom-mutator": "git+ssh://git@github.com/amplitude/dom-mutator#bb5f4b52273e6a3de39dcf6db6f428d66d988a7b",
-    "rollup-plugin-license": "^3.6.0"
+    "rollup-plugin-license": "^3.6.0",
+    "unfetch": "4.1.0"
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",
