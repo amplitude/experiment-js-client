@@ -859,8 +859,13 @@ export class SubscriptionManager {
       history.pushState = function (...args) {
         // Call the original pushState
         const result = originalPushState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
+        // Defer experiment re-evaluation so the calling navigation framework
+        // (e.g. Angular, Vue, MFE routers) can finish its own synchronous
+        // navigation cycle before we apply DOM mutations. Running synchronously
+        // inside pushState interleaves with framework rendering and can corrupt
+        // component bindings (e.g. Angular async pipe receiving non-Observable
+        // values).
+        setTimeout(handleUrlChange, 0);
         return result;
       };
 
@@ -868,8 +873,7 @@ export class SubscriptionManager {
       history.replaceState = function (...args) {
         // Call the original replaceState
         const result = originalReplaceState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
+        setTimeout(handleUrlChange, 0);
         return result;
       };
     };
