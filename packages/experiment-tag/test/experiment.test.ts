@@ -249,6 +249,10 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
 
+    // isRedirecting must be set so the bootstrap (index.ts) skips
+    // removeAntiFlickerCss while the redirect navigation is in-flight.
+    expect((client as any).isRedirecting).toBe(true);
+
     // Directly check if the value was stored in sessionStorage
     const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
     expect(storedValue).not.toBeNull();
