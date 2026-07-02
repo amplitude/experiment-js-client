@@ -1,3 +1,5 @@
+import { getGlobalScope } from '@amplitude/experiment-core';
+
 import { RelayClient } from './relay-client';
 import { RelayEventStorage } from './relay-protocol';
 import { SessionManager } from './session-manager';
@@ -105,7 +107,7 @@ export class EventStorageManager {
       return;
     }
 
-    const sessionId = this.sessionManager.getOrCreateSessionId();
+    const sessionId = this.sessionManager.getCurrentSessionId();
 
     const event: EventRecord = {
       uuid: generateEventUuid(),
@@ -189,7 +191,10 @@ export class EventStorageManager {
     }
 
     try {
-      const origin = window.location.origin;
+      const origin = getGlobalScope()?.location?.origin;
+      if (!origin) {
+        return false;
+      }
       const migrated = await relay.checkMigrated(origin);
 
       // First-time origins migrate their local store in bulk (one RPC). The
@@ -255,7 +260,7 @@ export class EventStorageManager {
     );
 
     if (timeType === 'current_session') {
-      const currentSessionId = this.sessionManager.getOrCreateSessionId();
+      const currentSessionId = this.sessionManager.getCurrentSessionId();
       events = events.filter((e) => e.session_id === currentSessionId);
     } else {
       // Rolling time window
@@ -403,8 +408,13 @@ export class EventStorageManager {
    * This prevents data loss on page close or backgrounding.
    */
   private setupFlushHandlers(): void {
+    const globalScope = getGlobalScope();
+    if (!globalScope) {
+      return;
+    }
+
     // Flush before page unload (close, refresh, navigation)
-    window.addEventListener('beforeunload', this.handleBeforeUnload);
+    globalScope.addEventListener('beforeunload', this.handleBeforeUnload);
 
     // Flush when tab becomes hidden (user switches tabs)
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
@@ -442,7 +452,10 @@ export class EventStorageManager {
     }
 
     // Remove event listeners
-    window.removeEventListener('beforeunload', this.handleBeforeUnload);
+    getGlobalScope()?.removeEventListener(
+      'beforeunload',
+      this.handleBeforeUnload,
+    );
     document.removeEventListener(
       'visibilitychange',
       this.handleVisibilityChange,

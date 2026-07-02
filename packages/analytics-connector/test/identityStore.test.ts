@@ -94,7 +94,7 @@ test('setIdentity with unchanged identity, identity listener not called', async 
   const expectedIdentity = { userId: 'user_id', deviceId: 'device_id' };
   identityStore.setIdentity(expectedIdentity);
   identityStore.addIdentityListener(() => {
-    fail('identity listener should not be called');
+    throw new Error('identity listener should not be called');
   });
   identityStore.setIdentity(expectedIdentity);
 });

@@ -5,6 +5,7 @@ import {
   EvaluationFlag,
   FlagEvaluationTrace,
   getGlobalScope,
+  type GlobalScope,
   isLocalStorageAvailable,
 } from '@amplitude/experiment-core';
 import {
@@ -108,7 +109,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;
   private readonly initialFlags: [];
   private readonly config: WebExperimentConfig;
-  private readonly globalScope: typeof globalThis;
+  private readonly globalScope: GlobalScope;
   private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
   appliedMutations: {
@@ -175,19 +176,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ? JSON.parse(initConfigs.behavioralTargetingRules)
       : {};
 
-    // Initialize behavioral targeting infrastructure only if there are rules
-    if (Object.keys(this.behavioralTargetingRules).length > 0) {
-      this.behavioralTargetingManager = new BehavioralTargetingManager(
-        this.apiKey,
-        this.behavioralTargetingRules,
-      );
-    }
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
       ...config,
       ...(this.globalScope.experimentConfig ?? {}),
     };
+
+    // Initialize behavioral targeting infrastructure only if there are rules
+    if (Object.keys(this.behavioralTargetingRules).length > 0) {
+      this.behavioralTargetingManager = new BehavioralTargetingManager(
+        this.apiKey,
+        this.behavioralTargetingRules,
+        this.config.rtbtSessionTimeout,
+      );
+    }
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
@@ -386,7 +389,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // the synchronous url_change above, whose subscribers apply anti-flicker
     // variants/redirects before this first await. Every EXP_ cookie needs it:
     // identity just below, and the RTBT session (behavioral-targeting plugin)
-    // whose sync writes read it back via getResolvedTopLevelDomain(). The
+    // whose sync writes resolve it via getTopLevelDomainSync(). The
     // writability probe is async, so it must complete before any cookie write.
     this.rootDomain = await getTopLevelDomain(
       this.globalScope.location.hostname,

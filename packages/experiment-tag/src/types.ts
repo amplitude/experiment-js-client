@@ -130,6 +130,12 @@ export interface WebExperimentConfig extends ExperimentConfig {
   useDefaultNavigationHandler?: boolean;
   redirectConfig?: RedirectConfig;
   /**
+   * Rolling inactivity timeout, in milliseconds, after which the behavioral
+   * targeting (RTBT) session rotates. Mirrors Amplitude Analytics' session
+   * model. Defaults to 30 minutes when unset.
+   */
+  rtbtSessionTimeout?: number;
+  /**
    * Overrides the origin the cross-subdomain RTBT relay iframe is loaded from.
    * Provide a scheme + host (+ optional port), e.g. `https://relay.lvh.me:3036`;
    * the canonical `/script/{apiKey}.relay.html` path is appended automatically.

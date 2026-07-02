@@ -1,3 +1,3 @@
-import { getGlobalScope } from '@amplitude/experiment-core';
+import { getGlobalScope, type GlobalScope } from '@amplitude/experiment-core';
 
-export const safeGlobal = getGlobalScope() ?? ({} as typeof globalThis);
+export const safeGlobal = getGlobalScope() ?? ({} as GlobalScope);

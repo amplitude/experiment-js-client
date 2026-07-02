@@ -1,4 +1,8 @@
-export const getGlobalScope = (): typeof globalThis | undefined => {
+// eslint-disable-next-line no-restricted-globals -- canonical type for the runtime global object
+export type GlobalScope = typeof globalThis;
+
+/* eslint-disable no-restricted-globals -- must probe globals to resolve the runtime scope */
+export const getGlobalScope = (): GlobalScope | undefined => {
   if (typeof globalThis !== 'undefined' && globalThis !== null) {
     return globalThis;
   }
@@ -13,8 +17,9 @@ export const getGlobalScope = (): typeof globalThis | undefined => {
   }
   return undefined;
 };
+/* eslint-enable no-restricted-globals */
 
-export const safeGlobal: typeof globalThis | undefined = getGlobalScope();
+export const safeGlobal: GlobalScope | undefined = getGlobalScope();
 
 export const isLocalStorageAvailable = (): boolean => {
   const globalScope = getGlobalScope();

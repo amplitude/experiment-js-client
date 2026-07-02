@@ -25,8 +25,8 @@ const DEFAULT_MUTATE_SCOPE = { metadata: { scope: ['A'] } };
 // Mock CookieStorage to use an in-memory store for testing
 const cookieStore: Record<string, any> = {};
 
-export const getCookieStore = () => cookieStore;
-export const clearCookieStore = () => {
+const getCookieStore = () => cookieStore;
+const clearCookieStore = () => {
   Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
 };
 
@@ -290,13 +290,13 @@ describe('initializeExperiment', () => {
     }).start();
 
     // No redirect should happen
-    expect(mockGlobal.location.replace).toBeCalledTimes(0);
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
 
     // Exposure should be tracked
     expect(mockExposure).toHaveBeenCalledWith('test');
 
     // No history manipulation
-    expect(mockGlobal.history.replaceState).toBeCalledTimes(0);
+    expect(mockGlobal.history.replaceState).toHaveBeenCalledTimes(0);
 
     // No redirect info should be stored
     const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
@@ -833,7 +833,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).not.toHaveBeenCalled();
   });
 
-  test('remote evaluation - request web remote flags', () => {
+  test('remote evaluation - request web remote flags', async () => {
     const mockUser = { user_id: 'user_id', device_id: 'device_id' };
     jest.spyOn(ExperimentClient.prototype, 'getUser').mockReturnValue(mockUser);
 
@@ -844,7 +844,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify([]));
 
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       {
         initialFlags: JSON.stringify(initialFlags),
@@ -853,17 +853,15 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        expect(mockHttpClient.requestUrl).toBe(
-          'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
-        );
-        // check flag fetch called with correct query param and header
-        expect(mockHttpClient.requestHeader['X-Amp-Exp-User']).toBe(
-          Base64.encodeURL(JSON.stringify(mockUser)),
-        );
-      });
+    ).start();
+
+    expect(mockHttpClient.requestUrl).toBe(
+      'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
+    );
+    // check flag fetch called with correct query param and header
+    expect(mockHttpClient.requestHeader['X-Amp-Exp-User']).toBe(
+      Base64.encodeURL(JSON.stringify(mockUser)),
+    );
   });
 
   test('remote evaluation - fetch successful, antiflicker applied', async () => {
@@ -1075,7 +1073,7 @@ describe('initializeExperiment', () => {
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
-  test('remote evaluation - test preview successful, does not fetch remote flags', () => {
+  test('remote evaluation - test preview successful, does not fetch remote flags', async () => {
     const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/',
@@ -1096,7 +1094,7 @@ describe('initializeExperiment', () => {
       ExperimentClient.prototype as any,
       'doFlags',
     );
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       {
         initialFlags: JSON.stringify(initialFlags),
@@ -1105,12 +1103,10 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        // check remote fetch not called
-        expect(doFlagsMock).toHaveBeenCalledTimes(0);
-      });
+    ).start();
+
+    // check remote fetch not called
+    expect(doFlagsMock).toHaveBeenCalledTimes(0);
     expect(antiFlickerSpy).toHaveBeenCalledTimes(0);
   });
 
@@ -1621,7 +1617,7 @@ describe('initializeExperiment', () => {
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
-      expect(integrationManagerTrack).toBeCalledTimes(1);
+      expect(integrationManagerTrack).toHaveBeenCalledTimes(1);
       const call = integrationManagerTrack.mock.calls[0][0] as unknown as {
         flag_key: string;
         metadata: Record<string, unknown>;
@@ -1705,7 +1701,7 @@ describe('initializeExperiment', () => {
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
-      expect(integrationManagerTrack).toBeCalledTimes(2);
+      expect(integrationManagerTrack).toHaveBeenCalledTimes(2);
       const call1 = integrationManagerTrack.mock.calls[0][0] as unknown as {
         flag_key: string;
         variant: string;
