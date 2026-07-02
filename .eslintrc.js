@@ -29,6 +29,11 @@ module.exports = {
   rules: {
     'no-console': ['error', { allow: ['warn', 'error', 'debug'] }],
 
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      { vars: 'all', args: 'none', ignoreRestSiblings: true },
+    ],
+
     // eslint-plugin-import
     'import/no-extraneous-dependencies': [
       'error',

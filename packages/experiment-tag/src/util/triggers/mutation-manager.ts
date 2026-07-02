@@ -4,14 +4,10 @@ function debounce<T extends (...args: any[]) => void>(
   options: { maxWait?: number } = {},
 ): T & { cancel: () => void } {
   let timeout: ReturnType<typeof setTimeout> | null = null;
-  let lastInvokeTime = 0;
   let maxTimeout: ReturnType<typeof setTimeout> | null = null;
 
   const debounced = function (...args: Parameters<T>) {
-    const now = Date.now();
-
     if (options.maxWait && !maxTimeout) {
-      lastInvokeTime = now;
       maxTimeout = setTimeout(() => {
         if (timeout) {
           clearTimeout(timeout);
