@@ -47,7 +47,12 @@ import {
   RevertVariantsOptions,
   BehavioralTargetingRules,
 } from './types';
-import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
+import type {
+  AudienceEvaluationDebugInfo,
+  DebugState,
+  FlagDependencyDebugInfo,
+  FlagDependencyType,
+} from './types/debug';
 import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import {
@@ -104,6 +109,112 @@ const moduleScope = getGlobalScope();
 if (moduleScope) {
   moduleScope.Experiment = FeatureExperiment;
 }
+
+/** Classify a dependency by its flag-key convention. */
+export const classifyDependency = (depKey: string): FlagDependencyType => {
+  if (depKey.startsWith('holdout-')) {
+    return 'holdout';
+  }
+  if (depKey.startsWith('mutex-')) {
+    return 'mutex';
+  }
+  return 'prerequisite';
+};
+
+/**
+ * Collects the set of dependency (prerequisite/holdout/mutex) flag keys whose
+ * result condition failed during evaluation. Dependency conditions select from
+ * the evaluation `result` context (selector `['result', <depKey>, ...]`), so a
+ * failed one attributes the dependent flag's `off` to that parent. Only
+ * available for locally evaluated flags (remote flags carry no per-segment
+ * trace).
+ */
+const collectFailedDependencyKeys = (
+  trace: FlagEvaluationTrace | undefined,
+): Set<string> => {
+  const failed = new Set<string>();
+  if (!trace) {
+    return failed;
+  }
+  for (const step of trace.steps) {
+    if (step.matched) {
+      continue;
+    }
+    for (const conditionGroup of step.conditionResult ?? []) {
+      for (const conditionResult of conditionGroup ?? []) {
+        const selector = conditionResult.condition?.selector ?? [];
+        if (
+          !conditionResult.matched &&
+          selector[0] === 'result' &&
+          typeof selector[1] === 'string'
+        ) {
+          failed.add(selector[1]);
+        }
+      }
+    }
+  }
+  return failed;
+};
+
+/**
+ * Builds the dependency debug list for a flag: each prerequisite/holdout/mutex
+ * parent with its resolved variant and whether it blocked this flag.
+ */
+export const buildFlagDependencyInfo = (
+  flagConfig: EvaluationFlag | undefined,
+  variants: Variants,
+  trace: FlagEvaluationTrace | undefined,
+  flagIsOn: boolean,
+): FlagDependencyDebugInfo[] | undefined => {
+  const deps = flagConfig?.dependencies;
+  if (!deps || deps.length === 0) {
+    return undefined;
+  }
+  const failedDepKeys = collectFailedDependencyKeys(trace);
+  return deps.map((depKey) => ({
+    flagKey: depKey,
+    type: classifyDependency(depKey),
+    resolvedVariant: variants[depKey]?.key ?? null,
+    // Only claim a dependency is blocking when this flag is off and the trace
+    // shows its result condition failing; otherwise stay conservative (false).
+    blocking: !flagIsOn && failedDepKeys.has(depKey),
+  }));
+};
+
+/**
+ * Produces a human-readable reason a flag did not resolve to a treatment.
+ * Returns undefined when the flag is on.
+ */
+export const computeInactiveReason = (
+  flagIsOn: boolean,
+  variantKey: string | undefined,
+  audienceEvaluation: AudienceEvaluationDebugInfo | undefined,
+  dependencies: FlagDependencyDebugInfo[] | undefined,
+): string | undefined => {
+  if (flagIsOn) {
+    return undefined;
+  }
+  const blockingDep = dependencies?.find((dep) => dep.blocking);
+  if (blockingDep) {
+    switch (blockingDep.type) {
+      case 'holdout':
+        return `Held out by "${blockingDep.flagKey}"`;
+      case 'mutex':
+        return `Mutually excluded by "${blockingDep.flagKey}"`;
+      default:
+        return `Prerequisite "${blockingDep.flagKey}" = ${
+          blockingDep.resolvedVariant ?? 'off'
+        }`;
+    }
+  }
+  if (audienceEvaluation && !audienceEvaluation.matched) {
+    return 'Audience not matched';
+  }
+  if (!variantKey || variantKey === 'off') {
+    return 'No variant assigned';
+  }
+  return undefined;
+};
 
 export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;
@@ -966,6 +1077,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const debugPageObjects =
       this.subscriptionManager?.getDebugPageObjects() ?? {};
 
+    // Index flag config by key so we can surface dependencies + metadata that
+    // are not carried in the evaluation variants themselves.
+    const flagConfigByKey: Record<string, EvaluationFlag> = {};
+    for (const flag of this.initialFlags as EvaluationFlag[]) {
+      flagConfigByKey[flag.key] = flag;
+    }
+
     const traces: Record<string, FlagEvaluationTrace> | undefined =
       this.localFlagKeys.length > 0
         ? this.experimentClient.getEvaluationTraces(this.localFlagKeys)
@@ -974,6 +1092,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     for (const flagKey of [...this.localFlagKeys, ...this.remoteFlagKeys]) {
       const variant = variants[flagKey];
       const activePagesForFlag = this.activePages[flagKey];
+      const flagConfig = flagConfigByKey[flagKey];
 
       let audienceEvaluation: AudienceEvaluationDebugInfo | undefined;
       const trace = traces?.[flagKey];
@@ -994,6 +1113,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         };
       }
 
+      // A flag counts as "on" when it resolves to a real (non-off) variant.
+      const flagIsOn = !!variant?.key && variant.key !== 'off';
+      const dependencies = buildFlagDependencyInfo(
+        flagConfig,
+        variants,
+        trace,
+        flagIsOn,
+      );
+      const inactiveReason = computeInactiveReason(
+        flagIsOn,
+        variant?.key,
+        audienceEvaluation,
+        dependencies,
+      );
+
       flags[flagKey] = {
         flagKey,
         variant: variant?.key
@@ -1007,6 +1141,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           !!activePagesForFlag && Object.keys(activePagesForFlag).length > 0,
         audienceEvaluation,
         pageObjects: debugPageObjects[flagKey] ?? [],
+        flagMetadata: flagConfig?.metadata,
+        dependencies,
+        inactiveReason,
       };
     }
 
