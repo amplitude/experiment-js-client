@@ -5,6 +5,7 @@ import {
   EvaluationFlag,
   FlagEvaluationTrace,
   getGlobalScope,
+  type GlobalScope,
   isLocalStorageAvailable,
 } from '@amplitude/experiment-core';
 import {
@@ -108,7 +109,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;
   private readonly initialFlags: [];
   private readonly config: WebExperimentConfig;
-  private readonly globalScope: typeof globalThis;
+  private readonly globalScope: GlobalScope;
   private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
   appliedMutations: {

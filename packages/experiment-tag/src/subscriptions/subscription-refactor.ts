@@ -1,4 +1,4 @@
-import { EvaluationEngine } from '@amplitude/experiment-core';
+import { EvaluationEngine, type GlobalScope } from '@amplitude/experiment-core';
 
 import { DefaultWebExperimentClient, INJECT_ACTION } from '../experiment';
 import { TriggerManager, TRIGGER_MANAGER_REGISTRY } from '../triggers';
@@ -29,7 +29,7 @@ export class SubscriptionManager {
     private messageBus: MessageBus,
     private pageObjects: PageObjects,
     private options: initOptions,
-    private readonly globalScope: typeof globalThis,
+    private readonly globalScope: GlobalScope,
   ) {
     this.initializeTriggerManagers();
   }

@@ -44,5 +44,32 @@ module.exports = {
       },
     ],
     'jest/no-conditional-expect': 'off',
+
+    'no-restricted-globals': [
+      'error',
+      {
+        name: 'globalThis',
+        message:
+          'Unsafe access to `globalThis`. Use getGlobalScope() from @amplitude/experiment-core instead.',
+      },
+      {
+        name: 'window',
+        message:
+          'Unsafe access to `window`. Use getGlobalScope() from @amplitude/experiment-core instead.',
+      },
+      {
+        name: 'self',
+        message:
+          'Unsafe access to `self`. Use getGlobalScope() from @amplitude/experiment-core instead.',
+      },
+    ],
   },
+  overrides: [
+    {
+      files: ['**/*.test.ts', '**/*.spec.ts'],
+      rules: {
+        'no-restricted-globals': 'off',
+      },
+    },
+  ],
 };

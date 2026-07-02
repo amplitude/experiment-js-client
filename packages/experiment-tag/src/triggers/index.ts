@@ -1,3 +1,5 @@
+import type { GlobalScope } from '@amplitude/experiment-core';
+
 import { MessageBus, MessageType } from '../subscriptions/message-bus';
 import { PageObject } from '../types';
 
@@ -29,7 +31,7 @@ export const TRIGGER_MANAGER_REGISTRY: Partial<
     new (
       pageObjects: PageObject[],
       messageBus: MessageBus,
-      globalScope: typeof globalThis,
+      globalScope: GlobalScope,
       options?: TriggerManagerOptions,
     ) => TriggerManager
   >
