@@ -34,6 +34,7 @@ describe('RelayClient', () => {
     id: number,
     properties: Record<string, unknown> = {},
   ): RelayEventRecord => ({
+    uuid: `evt-${id}`,
     id,
     event_type: 'page_view',
     timestamp: 100,
