@@ -486,6 +486,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
     // Subscribe directly to url_change events to fire redirect impressions
     this.messageBus.subscribe('url_change', () => {
+      // A custom-redirect-handler (SPA soft nav) keeps this JS context alive, so
+      // isRedirecting would otherwise leak true forever — suppressing anti-flicker
+      // teardown and remote-flag handling on the destination route. url_change is
+      // the SDK's own post-navigation signal, so the first one after a redirect
+      // marks it committed: clear the flag and tear down the overlay. A hard
+      // location.replace() unloads the page before this fires, so it is a no-op
+      // there (which is correct — that path needs no reset).
+      if (this.isRedirecting) {
+        this.isRedirecting = false;
+        removeAntiFlickerCss();
+      }
       this.fireStoredRedirectImpressions().catch(() => {
         // do nothing
       });

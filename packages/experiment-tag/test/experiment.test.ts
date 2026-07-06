@@ -279,6 +279,54 @@ describe('initializeExperiment', () => {
     }
   });
 
+  test('custom redirect handler - url_change clears isRedirecting and tears down anti-flicker', async () => {
+    mockGlobal = newMockGlobal();
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const removeAntiFlickerSpy = jest.spyOn(
+      antiFlickerUtils,
+      'removeAntiFlickerCss',
+    );
+
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
+
+    // Route the redirect through a custom handler (SPA soft nav): the JS context
+    // survives, so a hard location.replace() is never called.
+    const customHandler = jest.fn();
+    client.setRedirectHandler(customHandler);
+
+    await client.start();
+
+    // Custom handler drives navigation; no hard redirect.
+    expect(customHandler).toHaveBeenCalledWith('http://test.com/2');
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+
+    // While the soft nav is in-flight the overlay must stay up.
+    expect((client as any).isRedirecting).toBe(true);
+    removeAntiFlickerSpy.mockClear();
+
+    // The soft nav commits and emits url_change: isRedirecting must reset and the
+    // overlay must be torn down so it (and any customer #amp-exp-css) is not left
+    // covering the destination route.
+    (client as any).messageBus.publish('url_change', {});
+
+    expect((client as any).isRedirecting).toBe(false);
+    expect(removeAntiFlickerSpy).toHaveBeenCalledTimes(1);
+  });
+
   test('control variant on control page - should not redirect but call exposure', async () => {
     await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
       initialFlags: JSON.stringify([
