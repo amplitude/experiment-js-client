@@ -19,7 +19,7 @@
     "build": "rm -rf dist && rollup -c && node example/build_example.js",
     "build-dev": "rm -rf dist && NODE_ENV=development rollup -c && node example/build_example.js",
     "clean": "rimraf node_modules dist",
-    "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
+    "lint": "cd ../.. && eslint packages/experiment-tag --ignore-path .eslintignore && prettier -c packages/experiment-tag --ignore-path .prettierignore",
     "test": "jest",
     "prepublish": "yarn build"
   },

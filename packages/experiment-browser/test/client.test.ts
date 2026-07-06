@@ -4,7 +4,6 @@ import {
   safeGlobal,
   TimeoutError,
 } from '@amplitude/experiment-core';
-import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
 import { version as PACKAGE_VERSION } from '../package.json';
 import {
@@ -23,6 +22,8 @@ import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
 
 import { mockClientStorage } from './util/mock';
+
+import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
 const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 

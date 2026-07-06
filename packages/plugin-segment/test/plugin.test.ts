@@ -1,6 +1,7 @@
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentEvent } from '@amplitude/experiment-js-client';
 import { Analytics } from '@segment/analytics-next';
+
 import { segmentIntegrationPlugin } from 'src/plugin';
 import { snippetInstance } from 'src/snippet';
 

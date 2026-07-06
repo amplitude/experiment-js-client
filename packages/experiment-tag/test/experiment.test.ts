@@ -2,15 +2,16 @@ import * as experimentCore from '@amplitude/experiment-core';
 import { safeGlobal as maybeSafeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
-import { DefaultWebExperimentClient } from 'src/experiment';
-import * as antiFlickerUtils from 'src/util/anti-flicker';
-import * as uuid from 'src/util/uuid';
 import { stringify } from 'ts-jest';
 
 import { createMutateFlag, createRedirectFlag } from './util/create-flag';
 import { createPageObject } from './util/create-page-object';
 import { MockHttpClient } from './util/mock-http-client';
 import { createMockGlobal, setupGlobalObservers } from './util/mocks';
+
+import { DefaultWebExperimentClient } from 'src/experiment';
+import * as antiFlickerUtils from 'src/util/anti-flicker';
+import * as uuid from 'src/util/uuid';
 
 // Tests run in jsdom so safeGlobal is always defined.
 const safeGlobal = maybeSafeGlobal as typeof globalThis;

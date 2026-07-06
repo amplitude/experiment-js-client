@@ -2,8 +2,9 @@ import { EvaluationCondition } from '@amplitude/experiment-core';
 import {
   ExperimentConfig,
   ExperimentUser,
+  ExperimentClient,
+  Variants,
 } from '@amplitude/experiment-js-client';
-import { ExperimentClient, Variants } from '@amplitude/experiment-js-client';
 
 import { BehavioralTargeting } from './behavioral-targeting';
 import { MessageType } from './subscriptions/message-bus';

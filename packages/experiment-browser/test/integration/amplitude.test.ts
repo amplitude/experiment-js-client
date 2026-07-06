@@ -3,10 +3,11 @@ import {
   AnalyticsEvent,
 } from '@amplitude/analytics-connector';
 import { safeGlobal } from '@amplitude/experiment-core';
-import { AmplitudeIntegrationPlugin } from 'src/integration/amplitude';
-import { AmplitudeState } from 'src/util/state';
 
 import { clearAllCookies } from '../util/misc';
+
+import { AmplitudeIntegrationPlugin } from 'src/integration/amplitude';
+import { AmplitudeState } from 'src/util/state';
 
 const apiKey = '1234567890abcdefabcdefabcdefabcd';
 
