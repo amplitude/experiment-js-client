@@ -38,7 +38,11 @@ import { SessionStorage } from './storage/session-storage';
 import { FetchHttpClient, WrapperClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
-import { Exposure, ExposureTrackingProvider } from './types/exposure';
+import { Exposure } from './types/exposure';
+import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  type ExposureTrackingProvider, // used for documentation
+} from './types/exposure';
 import { LogLevel } from './types/logger';
 import { ExperimentPlugin, IntegrationPlugin } from './types/plugin';
 import { ExperimentUserProvider } from './types/provider';
