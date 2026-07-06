@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/analytics-connector@1.6.4...@amplitude/analytics-connector@1.6.5) (2026-07-06)
+
+**Note:** Version bump only for package @amplitude/analytics-connector
+
+
+
+
+
 ## [1.6.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/analytics-connector@1.6.3...@amplitude/analytics-connector@1.6.4) (2025-03-01)
 
 **Note:** Version bump only for package @amplitude/analytics-connector

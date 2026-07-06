@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-js-client",
-  "version": "1.21.2",
+  "version": "1.21.3",
   "description": "Amplitude Experiment Javascript Client SDK",
   "keywords": [
     "experiment",
@@ -34,8 +34,8 @@
     "url": "https://github.com/amplitude/experiment-js-client/issues"
   },
   "dependencies": {
-    "@amplitude/analytics-connector": "^1.6.4",
-    "@amplitude/experiment-core": "^0.13.2",
+    "@amplitude/analytics-connector": "^1.6.5",
+    "@amplitude/experiment-core": "^0.13.3",
     "@amplitude/ua-parser-js": "^0.7.31",
     "base64-js": "1.5.1",
     "unfetch": "4.1.0"
