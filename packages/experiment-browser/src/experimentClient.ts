@@ -193,7 +193,7 @@ export class ExperimentClient implements Client {
     // Storage & Caching
     let storage: Storage;
     const storageInstanceName = internalInstanceName
-      ? `${this.config.instanceName}-${internalInstanceName}`
+      ? `${this.config.instanceName}-${String(internalInstanceName)}`
       : this.config.instanceName;
     if (this.isWebExperiment) {
       storage = new SessionStorage();
@@ -732,7 +732,7 @@ export class ExperimentClient implements Client {
       throw Error('Experiment API key is empty');
     }
 
-    this.logger.debug(`[Experiment] Fetch all: retry=${retry}`);
+    this.logger.debug(`[Experiment] Fetch all: retry=${String(retry)}`);
 
     // Proactively cancel retries if active in order to avoid unnecessary API
     // requests. A new failure will restart the retries.
@@ -844,7 +844,7 @@ export class ExperimentClient implements Client {
       this.variants.put(key, variants[key]);
     }
 
-    for (const key in failedFlagKeys) {
+    for (const key of failedFlagKeys) {
       this.variants.remove(key);
     }
     try {

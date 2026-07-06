@@ -72,9 +72,11 @@ export function installSpaLinkInterceptor() {
   globalScope[initFlag] = true;
 
   const handler = (e: MouseEvent) => {
-    const anchor = (e.target as Element).closest(
-      'a',
-    ) as HTMLAnchorElement | null;
+    const eventTarget = e.target;
+    if (!(eventTarget instanceof Element)) {
+      return;
+    }
+    const anchor = eventTarget.closest('a');
     if (!anchor) return;
 
     // only intercept if the href has been mutated

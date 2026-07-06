@@ -186,9 +186,8 @@ export class SubscriptionManager {
 
     // Set up group callbacks (one per trigger type)
     for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
-      this.messageBus.groupSubscribe(
-        triggerType as MessageType,
-        async (payload) => {
+      this.messageBus.groupSubscribe(triggerType as MessageType, (payload) => {
+        void (async () => {
           const isUrlChange = triggerType === 'url_change';
 
           // Handle URL change: reset state and revert injections
@@ -248,8 +247,8 @@ export class SubscriptionManager {
               subscriber({ activePages });
             }
           }
-        },
-      );
+        })();
+      });
     }
   };
 

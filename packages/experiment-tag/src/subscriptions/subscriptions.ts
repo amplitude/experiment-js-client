@@ -374,9 +374,8 @@ export class SubscriptionManager {
 
     // Set up groupCallbacks (one per trigger type)
     for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
-      this.messageBus.groupSubscribe(
-        triggerType as MessageType,
-        async (payload) => {
+      this.messageBus.groupSubscribe(triggerType as MessageType, (payload) => {
+        void (async () => {
           const isUrlChange = triggerType === 'url_change';
           const isAnalyticsEvent = triggerType === 'analytics_event';
 
@@ -489,8 +488,8 @@ export class SubscriptionManager {
               ),
             );
           }
-        },
-      );
+        })();
+      });
     }
   };
 
@@ -852,8 +851,8 @@ export class SubscriptionManager {
 
     // Create wrapper functions for pushState and replaceState
     const wrapHistoryMethods = () => {
-      const originalPushState = history.pushState;
-      const originalReplaceState = history.replaceState;
+      const originalPushState = history.pushState.bind(history);
+      const originalReplaceState = history.replaceState.bind(history);
 
       // Wrapper for pushState
       history.pushState = function (...args) {

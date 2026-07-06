@@ -7,8 +7,6 @@ import {
   getFetch,
   getSetTimeout,
   TimeoutError,
-} from '@amplitude/experiment-core';
-import {
   HttpClient as CoreHttpClient,
   HttpRequest,
   HttpResponse,
@@ -37,7 +35,7 @@ const timeout = (
       setTimeoutFn(function () {
         reject(
           new TimeoutError(
-            'Request timeout after ' + timeoutMillis + ' milliseconds',
+            'Request timeout after ' + String(timeoutMillis) + ' milliseconds',
           ),
         );
       }, timeoutMillis);

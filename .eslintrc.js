@@ -9,10 +9,17 @@ module.exports = {
     node: true,
   },
   parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 2018,
+    project: 'packages/*/tsconfig.json',
+    sourceType: 'module',
+    tsconfigRootDir: __dirname,
+  },
   plugins: ['@typescript-eslint', 'jest', 'import', 'prettier'],
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
+    'plugin:@typescript-eslint/recommended-requiring-type-checking',
     'plugin:jest/recommended',
     'plugin:import/recommended',
     'prettier',
@@ -22,7 +29,7 @@ module.exports = {
     'import/resolver': {
       typescript: {
         alwaysTryTypes: true,
-        project: ['packages/*/tsconfig.json', 'packages/*/tsconfig.test.json'],
+        project: 'packages/*/tsconfig.json',
       },
     },
   },
@@ -33,6 +40,13 @@ module.exports = {
       'error',
       { vars: 'all', args: 'none', ignoreRestSiblings: true },
     ],
+    '@typescript-eslint/no-floating-promises': 'error',
+    '@typescript-eslint/require-await': 'off', // noisy; async without await is intentional in many callbacks
+    '@typescript-eslint/no-unsafe-assignment': 'off', // legacy any-heavy SDK; experiment-core strict tsc catches real type errors
+    '@typescript-eslint/no-unsafe-call': 'off',
+    '@typescript-eslint/no-unsafe-member-access': 'off',
+    '@typescript-eslint/no-unsafe-argument': 'off',
+    '@typescript-eslint/no-unsafe-return': 'off',
 
     // eslint-plugin-import
     'import/no-extraneous-dependencies': [
@@ -104,6 +118,14 @@ module.exports = {
         'import/no-unresolved': 'off',
         'import/named': 'off',
         'import/no-extraneous-dependencies': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-call': 'off',
+        '@typescript-eslint/no-unsafe-member-access': 'off',
+        '@typescript-eslint/no-unsafe-argument': 'off',
+        '@typescript-eslint/no-unsafe-return': 'off',
+        '@typescript-eslint/unbound-method': 'off', // jest mock/spy method references
+        '@typescript-eslint/await-thenable': 'off',
+        '@typescript-eslint/restrict-template-expressions': 'off',
       },
     },
     {

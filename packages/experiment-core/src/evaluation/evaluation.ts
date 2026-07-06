@@ -398,7 +398,8 @@ export class EvaluationEngine {
           op,
           filterValues,
           (value) => this.parseNumber(value),
-          this.comparator,
+          (propValue, op, filterValue) =>
+            this.comparator(propValue, op, filterValue),
         );
       case EvaluationOperator.VERSION_LESS_THAN:
       case EvaluationOperator.VERSION_LESS_THAN_EQUALS:
@@ -409,7 +410,8 @@ export class EvaluationEngine {
           op,
           filterValues,
           (value) => SemanticVersion.parse(value),
-          this.versionComparator,
+          (propValue, op, filterValue) =>
+            this.versionComparator(propValue, op, filterValue),
         );
       case EvaluationOperator.REGEX_MATCH:
         return this.matchesRegex(propValue, filterValues);
