@@ -20,7 +20,7 @@ export function eventDedupKey(event: { uuid: string }): string {
  * only needs to be collision-resistant enough for dedup.
  */
 function generateEventUuid(): string {
-  const cryptoObj = getGlobalScope()?.crypto as Crypto | undefined;
+  const cryptoObj = getGlobalScope()?.crypto;
   if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
     return cryptoObj.randomUUID();
   }
