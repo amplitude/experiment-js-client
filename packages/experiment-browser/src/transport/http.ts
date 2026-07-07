@@ -35,7 +35,7 @@ const timeout = (
       setTimeoutFn(function () {
         reject(
           new TimeoutError(
-            'Request timeout after ' + String(timeoutMillis) + ' milliseconds',
+            `Request timeout after ${timeoutMillis} milliseconds`,
           ),
         );
       }, timeoutMillis);
