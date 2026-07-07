@@ -5,6 +5,7 @@ import {
   EvaluationFlag,
   FlagEvaluationTrace,
   getGlobalScope,
+  type GlobalScope,
   isLocalStorageAvailable,
 } from '@amplitude/experiment-core';
 import {
@@ -108,7 +109,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;
   private readonly initialFlags: [];
   private readonly config: WebExperimentConfig;
-  private readonly globalScope: typeof globalThis;
+  private readonly globalScope: GlobalScope;
   private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
   appliedMutations: {
@@ -136,6 +137,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly localFlagKeys: string[] = [];
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
+  // Public so the bootstrap (index.ts) can avoid removing anti-flicker CSS while
+  // a redirect is in-flight — location.replace() doesn't suspend painting, so
+  // tearing the overlay down before the navigation commits flashes the source page.
+  public isRedirecting = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
   public isRunning = false;
   private readonly messageBus: MessageBus;
@@ -175,19 +180,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ? JSON.parse(initConfigs.behavioralTargetingRules)
       : {};
 
-    // Initialize behavioral targeting infrastructure only if there are rules
-    if (Object.keys(this.behavioralTargetingRules).length > 0) {
-      this.behavioralTargetingManager = new BehavioralTargetingManager(
-        this.apiKey,
-        this.behavioralTargetingRules,
-      );
-    }
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
       ...config,
       ...(this.globalScope.experimentConfig ?? {}),
     };
+
+    // Initialize behavioral targeting infrastructure only if there are rules
+    if (Object.keys(this.behavioralTargetingRules).length > 0) {
+      this.behavioralTargetingManager = new BehavioralTargetingManager(
+        this.apiKey,
+        this.behavioralTargetingRules,
+        this.config.rtbtSessionTimeout,
+      );
+    }
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
@@ -386,7 +393,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // the synchronous url_change above, whose subscribers apply anti-flicker
     // variants/redirects before this first await. Every EXP_ cookie needs it:
     // identity just below, and the RTBT session (behavioral-targeting plugin)
-    // whose sync writes read it back via getResolvedTopLevelDomain(). The
+    // whose sync writes resolve it via getTopLevelDomainSync(). The
     // writability probe is async, so it must complete before any cookie write.
     this.rootDomain = await getTopLevelDomain(
       this.globalScope.location.hostname,
@@ -499,6 +506,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
     // Subscribe directly to url_change events to fire redirect impressions
     this.messageBus.subscribe('url_change', () => {
+      // A custom-redirect-handler (SPA soft nav) keeps this JS context alive, so
+      // isRedirecting would otherwise leak true forever — suppressing anti-flicker
+      // teardown and remote-flag handling on the destination route. url_change is
+      // the SDK's own post-navigation signal, so the first one after a redirect
+      // marks it committed: clear the flag and tear down the overlay. A hard
+      // location.replace() unloads the page before this fires, so it is a no-op
+      // there (which is correct — that path needs no reset).
+      if (this.isRedirecting) {
+        this.isRedirecting = false;
+        removeAntiFlickerCss();
+      }
       this.fireStoredRedirectImpressions().catch(() => {
         // do nothing
       });
@@ -522,11 +540,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       keyToVariant: this.previewFlags,
     });
 
-    if (!this.isRemoteBlocking) {
+    if (!this.isRemoteBlocking && !this.isRedirecting) {
       removeAntiFlickerCss();
     }
 
     if (
+      this.isRedirecting ||
       // do not fetch remote flags if all remote flags are in preview mode
       this.remoteFlagKeys.every((key) =>
         Object.keys(this.previewFlags).includes(key),
@@ -1171,6 +1190,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
     await setMarketingCookie(this.apiKey, this.globalScope.location.hostname);
+    // Mark redirect as in-flight so start() skips removeAntiFlickerCss and
+    // further processing after applyVariants returns.
+    this.isRedirecting = true;
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);

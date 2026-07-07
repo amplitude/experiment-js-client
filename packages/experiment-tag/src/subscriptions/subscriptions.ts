@@ -1,4 +1,4 @@
-import { EvaluationEngine } from '@amplitude/experiment-core';
+import { EvaluationEngine, type GlobalScope } from '@amplitude/experiment-core';
 
 import { BehavioralTargetingManager } from '../behavioral-targeting';
 import { areBehaviorsEqual } from '../behavioral-targeting/util';
@@ -61,7 +61,7 @@ export class SubscriptionManager {
     | BehavioralTargetingManager
     | undefined;
   private options: initOptions;
-  private readonly globalScope: typeof globalThis;
+  private readonly globalScope: GlobalScope;
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
     new Set();
   private lastNotifiedActivePages: PageObjects = {};
@@ -98,7 +98,7 @@ export class SubscriptionManager {
     return getCustomerDocument(this.globalScope);
   }
 
-  private get contentWindow(): typeof globalThis {
+  private get contentWindow(): GlobalScope {
     return getCustomerWindow(this.globalScope);
   }
 
@@ -108,7 +108,7 @@ export class SubscriptionManager {
     pageObjects: PageObjects,
     behavioralTargetingManager: BehavioralTargetingManager | undefined,
     options: initOptions,
-    globalScope: typeof globalThis,
+    globalScope: GlobalScope,
   ) {
     this.webExperimentClient = webExperimentClient;
     this.messageBus = messageBus;

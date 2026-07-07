@@ -10,11 +10,16 @@ describe('EventStorageManager', () => {
   let sessionManager: SessionManager;
   const testApiKey = 'test-api-key';
   const storageKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_events`;
+  const sessionCookieKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_session`;
+  const clearSessionCookie = () => {
+    document.cookie = `${sessionCookieKey}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  };
 
   beforeEach(() => {
     // Clear storage before each test
     localStorage.clear();
     sessionStorage.clear();
+    clearSessionCookie();
     sessionManager = new SessionManager(testApiKey);
     eventStorage = new EventStorageManager(testApiKey, sessionManager);
   });
@@ -22,6 +27,7 @@ describe('EventStorageManager', () => {
   afterEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    clearSessionCookie();
   });
 
   describe('addEvent', () => {
@@ -416,11 +422,71 @@ describe('EventStorageManager', () => {
     });
   });
 
+  describe('legacy persisted events', () => {
+    test('backfills distinct uuids for uuid-less persisted records on load', () => {
+      // Simulate a store written by a pre-uuid build (no uuid on records).
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          events: [
+            {
+              id: 1,
+              event_type: 'click',
+              timestamp: 1000,
+              session_id: 's1',
+              properties: { n: 1 },
+            },
+            {
+              id: 2,
+              event_type: 'click',
+              timestamp: 1000,
+              session_id: 's1',
+              properties: { n: 2 },
+            },
+          ],
+          nextId: 3,
+        }),
+      );
+
+      const loaded = new EventStorageManager(testApiKey, sessionManager);
+      const events = loaded.getAllEvents();
+      expect(events).toHaveLength(2);
+      expect(events[0].uuid).toEqual(expect.any(String));
+      expect(events[0].uuid.length).toBeGreaterThan(0);
+      expect(events[0].uuid).not.toBe(events[1].uuid);
+
+      // The minted uuids must be persisted on load, not just held in memory,
+      // so reloads / other tabs reuse the same identities.
+      const persisted = JSON.parse(localStorage.getItem(storageKey) as string);
+      expect(persisted.events.map((e: { uuid: string }) => e.uuid)).toEqual(
+        events.map((e) => e.uuid),
+      );
+
+      // A fresh instance (reload / other tab) reads the same uuids rather than
+      // minting new ones, so relay sync won't push duplicates.
+      const reloaded = new EventStorageManager(testApiKey, sessionManager);
+      expect(reloaded.getAllEvents().map((e) => e.uuid)).toEqual(
+        events.map((e) => e.uuid),
+      );
+
+      // They must survive a merge instead of collapsing under an undefined key.
+      loaded.mergeFromRelay({ events: [], nextId: 1 });
+      expect(loaded.getAllEvents()).toHaveLength(2);
+    });
+  });
+
   describe('eventDedupKey', () => {
-    test('uses event_type, timestamp, and id', () => {
-      expect(
-        eventDedupKey({ event_type: 'click', timestamp: 1000, id: 1 }),
-      ).toBe('click:1000:1');
+    test('uses the event uuid', () => {
+      expect(eventDedupKey({ uuid: 'abc-123' })).toBe('abc-123');
+    });
+
+    test('mints a distinct uuid per event', () => {
+      eventStorage.addEvent('click', {}, 1000);
+      eventStorage.addEvent('click', {}, 1000);
+      const [a, b] = eventStorage.getAllEvents();
+      expect(a.uuid).toEqual(expect.any(String));
+      expect(a.uuid.length).toBeGreaterThan(0);
+      expect(a.uuid).not.toBe(b.uuid);
     });
   });
 
@@ -493,6 +559,7 @@ describe('EventStorageManager', () => {
             properties: { source: 'relay' },
           },
           {
+            uuid: 'relay-view',
             id: 99,
             event_type: 'view',
             timestamp: 1001,
@@ -509,7 +576,7 @@ describe('EventStorageManager', () => {
       expect(events[1].event_type).toBe('view');
     });
 
-    test('keeps same-millisecond events with different ids', () => {
+    test('keeps same-millisecond events with distinct uuids', () => {
       eventStorage.addEvent('click', {}, 1000);
       eventStorage.addEvent('click', {}, 1000);
 
@@ -562,12 +629,14 @@ describe('EventStorageManager', () => {
       expect(relay.readEvents).toHaveBeenCalled();
     });
 
-    test('backfills same-millisecond duplicates the bulk migration dropped on first sync', async () => {
-      // Two events share (event_type, timestamp). The relay's MIGRATE_EVENTS
-      // dedupes on (event_type, timestamp) without id, so the bulk push keeps
-      // only one; readEvents reflects that collapsed store.
+    test('backfills only the local events the relay is missing by uuid', async () => {
+      // Two same-(type, timestamp) events with distinct uuids. The relay store
+      // returned by readEvents only contains the first (by uuid), so the second
+      // must be re-pushed via the non-deduping WRITE_EVENT path — and the first
+      // must not be, since the relay already has it.
       eventStorage.addEvent('click', { n: 1 }, 1000);
       eventStorage.addEvent('click', { n: 2 }, 1000);
+      const [first, second] = eventStorage.getAllEvents();
       expect(eventStorage.getAllEvents()).toHaveLength(2);
 
       const relay = {
@@ -577,18 +646,8 @@ describe('EventStorageManager', () => {
         checkMigrated: jest.fn().mockResolvedValue(false),
         migrateEvents: jest.fn().mockResolvedValue(undefined),
         readEvents: jest.fn().mockResolvedValue({
-          // The relay kept the first event (with its original id); the
-          // same-(type, timestamp) duplicate was dropped during MIGRATE_EVENTS.
-          events: [
-            {
-              id: 1,
-              event_type: 'click',
-              timestamp: 1000,
-              session_id: 's1',
-              properties: { n: 1 },
-            },
-          ],
-          nextId: 2,
+          events: [{ ...first }],
+          nextId: first.id + 1,
         }),
       };
       eventStorage.setRelayClient(relay as unknown as RelayClient);
@@ -597,11 +656,9 @@ describe('EventStorageManager', () => {
 
       expect(synced).toBe(true);
       expect(relay.migrateEvents).toHaveBeenCalled();
-      // The dropped duplicate (the one not in the relay store) is re-pushed via
-      // the non-deduping WRITE_EVENT path; the one that survived is not.
       expect(relay.writeEvent).toHaveBeenCalledTimes(1);
       expect(relay.writeEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ event_type: 'click', properties: { n: 2 } }),
+        expect.objectContaining({ uuid: second.uuid, properties: { n: 2 } }),
       );
     });
 

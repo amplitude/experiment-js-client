@@ -93,34 +93,36 @@ describe('getFetch', () => {
 });
 
 describe('getSetTimeout / getClearTimeout', () => {
-  it('returned setTimeout schedules the callback and clearTimeout cancels it', (done) => {
+  it('returned setTimeout schedules the callback and clearTimeout cancels it', async () => {
     const setTimeoutFn = getSetTimeout();
     const clearTimeoutFn = getClearTimeout();
     if (!setTimeoutFn || !clearTimeoutFn) {
-      done.fail('expected setTimeout/clearTimeout to be defined');
-      return;
+      throw new Error('expected setTimeout/clearTimeout to be defined');
     }
 
     let cancelled = false;
     const handle = setTimeoutFn(() => {
       if (cancelled) {
-        done.fail('cancelled timeout fired');
+        throw new Error('cancelled timeout fired');
       }
     }, 50);
     clearTimeoutFn(handle);
     cancelled = true;
 
-    setTimeoutFn(() => done(), 100);
+    await new Promise<void>((resolve) => setTimeoutFn(resolve, 100));
+    expect(cancelled).toBe(true);
   });
 });
 
 describe('getSetInterval / getClearInterval', () => {
-  it('returned setInterval schedules and clearInterval cancels', (done) => {
+  it('returned setInterval schedules and clearInterval cancels', async () => {
     const setIntervalFn = getSetInterval();
     const clearIntervalFn = getClearInterval();
-    if (!setIntervalFn || !clearIntervalFn) {
-      done.fail('expected setInterval/clearInterval to be defined');
-      return;
+    const setTimeoutFn = getSetTimeout();
+    if (!setIntervalFn || !clearIntervalFn || !setTimeoutFn) {
+      throw new Error(
+        'expected setInterval/clearInterval/setTimeout to be defined',
+      );
     }
 
     let calls = 0;
@@ -128,13 +130,10 @@ describe('getSetInterval / getClearInterval', () => {
       calls += 1;
     }, 25);
 
-    setTimeout(() => {
-      clearIntervalFn(handle);
-      const callsAtCancel = calls;
-      setTimeout(() => {
-        expect(calls).toBe(callsAtCancel);
-        done();
-      }, 75);
-    }, 80);
+    await new Promise<void>((resolve) => setTimeoutFn(resolve, 80));
+    clearIntervalFn(handle);
+    const callsAtCancel = calls;
+    await new Promise<void>((resolve) => setTimeoutFn(resolve, 75));
+    expect(calls).toBe(callsAtCancel);
   });
 });

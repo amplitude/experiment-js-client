@@ -1,3 +1,5 @@
+import type { GlobalScope } from '@amplitude/experiment-core';
+
 import type {
   DebugEvent,
   DebugState,
@@ -27,7 +29,7 @@ export const DebugRecorder = {
    * Evaluate activation signals. Must be called before any other method.
    * Checks window.__AMP_DEBUG and localStorage('amp-ve-debug').
    */
-  init: (globalScope: typeof globalThis) => {
+  init: (globalScope: GlobalScope) => {
     if ((globalScope as Record<string, unknown>).__AMP_DEBUG === true) {
       active = true;
       return;

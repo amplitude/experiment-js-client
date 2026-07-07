@@ -25,8 +25,8 @@ const DEFAULT_MUTATE_SCOPE = { metadata: { scope: ['A'] } };
 // Mock CookieStorage to use an in-memory store for testing
 const cookieStore: Record<string, any> = {};
 
-export const getCookieStore = () => cookieStore;
-export const clearCookieStore = () => {
+const getCookieStore = () => cookieStore;
+const clearCookieStore = () => {
   Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
 };
 
@@ -249,6 +249,10 @@ describe('initializeExperiment', () => {
       'http://test.com/2',
     );
 
+    // isRedirecting must be set so the bootstrap (index.ts) skips
+    // removeAntiFlickerCss while the redirect navigation is in-flight.
+    expect((client as any).isRedirecting).toBe(true);
+
     // Directly check if the value was stored in sessionStorage
     const storedValue = mockGlobal.sessionStorage.getItem(redirectStorageKey);
     expect(storedValue).not.toBeNull();
@@ -281,6 +285,54 @@ describe('initializeExperiment', () => {
     }
   });
 
+  test('custom redirect handler - url_change clears isRedirecting and tears down anti-flicker', async () => {
+    mockGlobal = newMockGlobal();
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const removeAntiFlickerSpy = jest.spyOn(
+      antiFlickerUtils,
+      'removeAntiFlickerCss',
+    );
+
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
+
+    // Route the redirect through a custom handler (SPA soft nav): the JS context
+    // survives, so a hard location.replace() is never called.
+    const customHandler = jest.fn();
+    client.setRedirectHandler(customHandler);
+
+    await client.start();
+
+    // Custom handler drives navigation; no hard redirect.
+    expect(customHandler).toHaveBeenCalledWith('http://test.com/2');
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+
+    // While the soft nav is in-flight the overlay must stay up.
+    expect((client as any).isRedirecting).toBe(true);
+    removeAntiFlickerSpy.mockClear();
+
+    // The soft nav commits and emits url_change: isRedirecting must reset and the
+    // overlay must be torn down so it (and any customer #amp-exp-css) is not left
+    // covering the destination route.
+    (client as any).messageBus.publish('url_change', {});
+
+    expect((client as any).isRedirecting).toBe(false);
+    expect(removeAntiFlickerSpy).toHaveBeenCalledTimes(1);
+  });
+
   test('control variant on control page - should not redirect but call exposure', async () => {
     await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
       initialFlags: JSON.stringify([
@@ -290,13 +342,13 @@ describe('initializeExperiment', () => {
     }).start();
 
     // No redirect should happen
-    expect(mockGlobal.location.replace).toBeCalledTimes(0);
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
 
     // Exposure should be tracked
     expect(mockExposure).toHaveBeenCalledWith('test');
 
     // No history manipulation
-    expect(mockGlobal.history.replaceState).toBeCalledTimes(0);
+    expect(mockGlobal.history.replaceState).toHaveBeenCalledTimes(0);
 
     // No redirect info should be stored
     const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
@@ -833,7 +885,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).not.toHaveBeenCalled();
   });
 
-  test('remote evaluation - request web remote flags', () => {
+  test('remote evaluation - request web remote flags', async () => {
     const mockUser = { user_id: 'user_id', device_id: 'device_id' };
     jest.spyOn(ExperimentClient.prototype, 'getUser').mockReturnValue(mockUser);
 
@@ -844,7 +896,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify([]));
 
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       {
         initialFlags: JSON.stringify(initialFlags),
@@ -853,17 +905,15 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        expect(mockHttpClient.requestUrl).toBe(
-          'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
-        );
-        // check flag fetch called with correct query param and header
-        expect(mockHttpClient.requestHeader['X-Amp-Exp-User']).toBe(
-          Base64.encodeURL(JSON.stringify(mockUser)),
-        );
-      });
+    ).start();
+
+    expect(mockHttpClient.requestUrl).toBe(
+      'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
+    );
+    // check flag fetch called with correct query param and header
+    expect(mockHttpClient.requestHeader['X-Amp-Exp-User']).toBe(
+      Base64.encodeURL(JSON.stringify(mockUser)),
+    );
   });
 
   test('remote evaluation - fetch successful, antiflicker applied', async () => {
@@ -1075,7 +1125,7 @@ describe('initializeExperiment', () => {
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
-  test('remote evaluation - test preview successful, does not fetch remote flags', () => {
+  test('remote evaluation - test preview successful, does not fetch remote flags', async () => {
     const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/',
@@ -1096,7 +1146,7 @@ describe('initializeExperiment', () => {
       ExperimentClient.prototype as any,
       'doFlags',
     );
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       {
         initialFlags: JSON.stringify(initialFlags),
@@ -1105,12 +1155,10 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        // check remote fetch not called
-        expect(doFlagsMock).toHaveBeenCalledTimes(0);
-      });
+    ).start();
+
+    // check remote fetch not called
+    expect(doFlagsMock).toHaveBeenCalledTimes(0);
     expect(antiFlickerSpy).toHaveBeenCalledTimes(0);
   });
 
@@ -1621,7 +1669,7 @@ describe('initializeExperiment', () => {
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
-      expect(integrationManagerTrack).toBeCalledTimes(1);
+      expect(integrationManagerTrack).toHaveBeenCalledTimes(1);
       const call = integrationManagerTrack.mock.calls[0][0] as unknown as {
         flag_key: string;
         metadata: Record<string, unknown>;
@@ -1705,7 +1753,7 @@ describe('initializeExperiment', () => {
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
-      expect(integrationManagerTrack).toBeCalledTimes(2);
+      expect(integrationManagerTrack).toHaveBeenCalledTimes(2);
       const call1 = integrationManagerTrack.mock.calls[0][0] as unknown as {
         flag_key: string;
         variant: string;

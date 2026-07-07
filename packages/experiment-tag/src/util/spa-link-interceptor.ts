@@ -1,3 +1,4 @@
+import { getGlobalScope } from '@amplitude/experiment-core';
 import type { ElementRecord } from 'dom-mutator/dist/types';
 
 declare global {
@@ -19,6 +20,11 @@ function isLocalNavigation(
   href: string,
   target: string | null,
 ): boolean {
+  const globalScope = getGlobalScope();
+  if (!globalScope?.location) {
+    return false;
+  }
+
   const isModified =
     (target && target !== '_self') ||
     event.metaKey ||
@@ -27,9 +33,9 @@ function isLocalNavigation(
     event.altKey ||
     event.button > 0;
 
-  const url = new URL(href, window.location.href);
+  const url = new URL(href, globalScope.location.href);
 
-  const sameOrigin = url.origin === window.location.origin;
+  const sameOrigin = url.origin === globalScope.location.origin;
 
   return !isModified && sameOrigin;
 }
@@ -52,10 +58,15 @@ function detectSpaRouting(anchor: HTMLAnchorElement) {
 const initFlag = Symbol.for('@amplitude/spa-link-interceptor-initiated');
 
 export function installSpaLinkInterceptor() {
-  if (window[initFlag]) {
+  const globalScope = getGlobalScope();
+  if (!globalScope) {
     return;
   }
-  window[initFlag] = true;
+
+  if (globalScope[initFlag]) {
+    return;
+  }
+  globalScope[initFlag] = true;
 
   const handler = (e: MouseEvent) => {
     const anchor = (e.target as Element).closest(
@@ -88,13 +99,20 @@ export function installSpaLinkInterceptor() {
 }
 
 function navigateSpa(href: string): void {
+  const globalScope = getGlobalScope();
+  if (!globalScope) {
+    return;
+  }
+
   // special case for NextJS router
-  if (window.next?.router?.push) {
-    window.next.router.push(href);
+  if (globalScope.next?.router?.push) {
+    globalScope.next.router.push(href);
     return;
   }
 
   // other routers use pushState
   history.pushState(null, '', href);
-  window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+  globalScope.dispatchEvent(
+    new PopStateEvent('popstate', { state: history.state }),
+  );
 }

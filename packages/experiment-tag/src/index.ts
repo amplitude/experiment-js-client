@@ -34,7 +34,10 @@ export const initialize = (
   if (shouldFetchConfigs) {
     applyAntiFlickerCss();
 
-    // Fetch latest configs and create client
+    // Fetch latest configs and create client. Anti-flicker teardown is delegated
+    // to startClient so it stays gated on isRedirecting — a redirect experiment
+    // surfaced in preview mode must keep the overlay up while navigation is
+    // in-flight, just like the normal path.
     fetchLatestConfigs(apiKey, config.serverZone)
       .then((previewState) => {
         const initialFlags = JSON.stringify(previewState.flags);
@@ -42,7 +45,7 @@ export const initialize = (
         const behavioralTargetingRules = JSON.stringify(
           previewState.behavioralTargetingRules,
         );
-        startClient(
+        return startClient(
           apiKey,
           {
             initialFlags,
@@ -54,10 +57,7 @@ export const initialize = (
       })
       .catch((error) => {
         console.warn('Failed to fetch latest configs for preview:', error);
-        startClient(apiKey, initConfigs, config);
-      })
-      .finally(() => {
-        removeAntiFlickerCss();
+        return startClient(apiKey, initConfigs, config);
       });
   } else {
     startClient(apiKey, initConfigs, config);
@@ -68,12 +68,22 @@ const startClient = (
   apiKey: string,
   initConfigs: InitConfigs,
   config: WebExperimentConfig,
-): void => {
-  DefaultWebExperimentClient.getInstance(apiKey, initConfigs, config)
-    .start()
-    .finally(() => {
+): Promise<void> => {
+  const client = DefaultWebExperimentClient.getInstance(
+    apiKey,
+    initConfigs,
+    config,
+  );
+  return client.start().finally(() => {
+    // Don't tear down anti-flicker while a redirect is in-flight. start()
+    // resolves immediately after location.replace() is called, but the browser
+    // keeps painting the current page until the destination commits — removing
+    // the overlay (including a customer's #amp-exp-css) here would flash the
+    // source page during the redirect's network wait.
+    if (!client.isRedirecting) {
       removeAntiFlickerCss();
-    });
+    }
+  });
 };
 
 const fetchLatestConfigs = async (apiKey: string, serverZone?: string) => {

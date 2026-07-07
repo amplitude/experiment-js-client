@@ -42,11 +42,7 @@ function createRequestId(): string {
 }
 
 function isSameRelayEvent(a: RelayEventRecord, b: RelayEventRecord): boolean {
-  return (
-    a.id === b.id &&
-    a.event_type === b.event_type &&
-    a.timestamp === b.timestamp
-  );
+  return a.uuid === b.uuid;
 }
 
 // Handle returned by the resolved global scope's setTimeout (number in the

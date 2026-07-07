@@ -24,6 +24,7 @@ export { Poller } from './util/poller';
 export {
   safeGlobal,
   getGlobalScope,
+  type GlobalScope,
   isLocalStorageAvailable,
   getLocalStorage,
   getSessionStorage,
