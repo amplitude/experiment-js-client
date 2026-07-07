@@ -1,3 +1,5 @@
+import { getGlobalScope } from '@amplitude/experiment-core';
+
 /**
  * Patch removeChild to avoid errors when removing nodes that are added
  * mutate/inject actions.
@@ -23,9 +25,14 @@ const detectStyleCSP = () => {
  * Patch DOMParser to set inline styles programmatically to work around restrictive style CSP
  */
 export const patchDOMParser = () => {
-  if (!window['__domParserParseFromString'] && detectStyleCSP()) {
+  const globalScope = getGlobalScope();
+  if (
+    globalScope &&
+    !globalScope['__domParserParseFromString'] &&
+    detectStyleCSP()
+  ) {
     const parseFromString = DOMParser.prototype.parseFromString;
-    window['__domParserParseFromString'] = parseFromString;
+    globalScope['__domParserParseFromString'] = parseFromString;
 
     DOMParser.prototype.parseFromString = function (content, contentType) {
       const doc = parseFromString.apply(this, [content, contentType]);
