@@ -5,12 +5,12 @@ name: Publish Tagged Release
 # Dispatch with the release commit SHA whose tags still need publishing to npm.
 
 on:
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: 'Commit SHA holding the release tags to publish'
-        required: true
-        default: 'a40490a366c9857c542492137dc7cda04d3be816'
+  push:
+    branches:
+      - ci/publish-tagged-release
+
+env:
+  RELEASE_REF: a40490a366c9857c542492137dc7cda04d3be816
 
 jobs:
   publish:
@@ -23,7 +23,7 @@ jobs:
       - name: Checkout release commit
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: ${{ github.event.inputs.ref }}
+          ref: ${{ env.RELEASE_REF }}
           fetch-depth: 0
           fetch-tags: true
 
