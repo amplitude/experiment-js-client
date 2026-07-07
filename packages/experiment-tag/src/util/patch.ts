@@ -19,13 +19,6 @@ const detectStyleCSP = () => {
   return !el.style.cssText;
 };
 
-const setStyle = (el: HTMLElement) => {
-  el.style.cssText = el.getAttribute('style') || '';
-  for (const child of el.children) {
-    setStyle(child as HTMLElement);
-  }
-};
-
 /**
  * Patch DOMParser to set inline styles programmatically to work around restrictive style CSP
  */
@@ -37,7 +30,9 @@ export const patchDOMParser = () => {
     DOMParser.prototype.parseFromString = function (content, contentType) {
       const doc = parseFromString.apply(this, [content, contentType]);
       if (contentType === 'text/html') {
-        setStyle(doc.body);
+        doc.body.querySelectorAll('[style]').forEach((el) => {
+          (el as HTMLElement).style.cssText = el.getAttribute('style') as string;
+        });
       }
       return doc;
     };
