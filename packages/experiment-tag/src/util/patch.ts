@@ -38,7 +38,9 @@ export const patchDOMParser = () => {
       const doc = parseFromString.apply(this, [content, contentType]);
       if (contentType === 'text/html') {
         doc.body.querySelectorAll('[style]').forEach((el) => {
-          (el as HTMLElement).style.cssText = el.getAttribute('style') as string;
+          (el as HTMLElement).style.cssText = el.getAttribute(
+            'style',
+          ) as string;
         });
       }
       return doc;
