@@ -42,7 +42,9 @@ jobs:
       # Recovery: move to the tagged release commit so `lerna publish from-git` sees its tags
       - name: Checkout tagged release commit
         if: ${{ github.event.inputs.publishRef != '' }}
-        run: git checkout ${{ github.event.inputs.publishRef }}
+        env:
+          PUBLISH_REF: ${{ github.event.inputs.publishRef }}
+        run: git checkout "$PUBLISH_REF"
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
