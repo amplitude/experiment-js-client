@@ -1271,12 +1271,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     // Validate and transform ID
-    let id = action.data.id;
-    if (!id || typeof id !== 'string' || id.length === 0) {
+    const rawId = action.data.id;
+    if (!rawId || typeof rawId !== 'string' || rawId.length === 0) {
       return;
     }
     // Replace the `-` characters in the UUID to support function name
-    id = id.replace(/-/g, '');
+    const id = rawId.replace(/-/g, '');
     // Check for repeat invocations
     if (this.appliedInjections.has(id)) {
       return;
@@ -1289,8 +1289,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (script) {
         // rawJs is variant JS source embedded verbatim; not a template interpolation value
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions -- injected script body
-        script.innerHTML = `function ${String(id)}(html, utils, id){${rawJs}};`;
-        script.id = `js-${String(id)}`;
+        const source = `function ${id}(html, utils, id){${rawJs}};`;
+        script.textContent = source;
+        script.id = `js-${id}`;
         this.globalScope.document.head.appendChild(script);
       }
     }
