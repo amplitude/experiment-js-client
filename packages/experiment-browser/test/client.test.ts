@@ -446,6 +446,18 @@ test('ExperimentClient.fetch with not exist flagKeys in fetch options', async ()
   expect(variant).toEqual({});
 });
 
+test('ExperimentClient.fetch with flagKeys removes stale cached variants missing from response', async () => {
+  const client = new ExperimentClient(API_KEY, {
+    httpClient: new TestHttpClient(200, JSON.stringify({})),
+  });
+  mockClientStorage(client);
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  client.variants.put('stale-flag', { key: 'on', value: 'on' });
+  await client.fetch(testUser, { flagKeys: ['stale-flag'] });
+  expect(client.all()).toEqual({});
+});
+
 test('ExperimentClient.variant experiment key passed from variant to exposure', async () => {
   let didTrack = false;
   const client = new ExperimentClient(API_KEY, {
