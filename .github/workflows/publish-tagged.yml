@@ -1,0 +1,53 @@
+name: Publish Tagged Release
+
+# One-off recovery workflow: completes an interrupted release by publishing the
+# packages already tagged at a specific commit, without re-running lerna version.
+# Dispatch with the release commit SHA whose tags still need publishing to npm.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit SHA holding the release tags to publish'
+        required: true
+        default: 'a40490a366c9857c542492137dc7cda04d3be816'
+
+jobs:
+  publish:
+    name: Publish (from-git)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Set up SSH for deploy key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DOM_MUTATOR_ACCESS_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+        shell: bash
+
+      - name: Install
+        run: yarn install --frozen-lockfile --network-concurrency 1
+
+      - name: Build
+        run: yarn build
+
+      - name: Publish from git tags
+        env:
+          NPM_CONFIG_PROVENANCE: true
+        run: yarn lerna publish from-git --yes --loglevel silly
