@@ -13,7 +13,6 @@ import gzip from 'rollup-plugin-gzip';
 import license from 'rollup-plugin-license';
 
 import * as packageJson from './package.json';
-import tsConfig from './tsconfig.json';
 
 const getCommonBrowserConfig = (target) => ({
   input: 'src/index.ts',
@@ -29,11 +28,8 @@ const getCommonBrowserConfig = (target) => ({
     json(),
     commonjs(),
     typescript({
+      tsconfig: './tsconfig.build.json',
       ...(target === 'es2015' ? { target: 'es2015' } : {}),
-      declaration: true,
-      declarationDir: 'dist/types',
-      include: tsConfig.include,
-      rootDir: '.',
     }),
     babel({
       configFile:

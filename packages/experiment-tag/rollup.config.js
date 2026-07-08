@@ -1,7 +1,6 @@
 import { execSync } from 'child_process';
 import { join, resolve as pathResolve } from 'path';
 
-import tsConfig from '@amplitude/experiment-js-client/tsconfig.json';
 import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
@@ -37,13 +36,10 @@ const getCommonBrowserConfig = (target) => ({
     json(),
     commonjs(),
     typescript({
+      tsconfig: './tsconfig.build.json',
       ...(target === 'es2015'
         ? { target: 'es2015', downlevelIteration: true }
         : { downlevelIteration: true }),
-      declaration: true,
-      declarationDir: 'dist/types',
-      include: tsConfig.include,
-      rootDir: '.',
     }),
     babel({
       configFile:
