@@ -1,6 +1,4 @@
-import { CampaignParser } from '@amplitude/analytics-core';
-import { CookieStorage } from '@amplitude/analytics-core';
-import { MKTG } from '@amplitude/analytics-core';
+import { CampaignParser, CookieStorage, MKTG } from '@amplitude/analytics-core';
 import type { Campaign } from '@amplitude/analytics-core';
 
 const KNOWN_2LDS = [

@@ -1,4 +1,5 @@
 import { EvaluationOperator } from '@amplitude/experiment-core';
+
 import { BehavioralTargetingEvaluator } from 'src/behavioral-targeting/evaluator';
 import { EventStorageManager } from 'src/behavioral-targeting/event-storage';
 import { SessionManager } from 'src/behavioral-targeting/session-manager';

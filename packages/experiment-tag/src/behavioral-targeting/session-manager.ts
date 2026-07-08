@@ -38,7 +38,7 @@ function validateSessionState(data: unknown): SessionState | undefined {
       sessionId: d.sessionId as string,
       sessionStartTime:
         typeof d.sessionStartTime === 'number'
-          ? (d.sessionStartTime as number)
+          ? d.sessionStartTime
           : (d.lastEventTime as number),
       lastEventTime: d.lastEventTime as number,
     };

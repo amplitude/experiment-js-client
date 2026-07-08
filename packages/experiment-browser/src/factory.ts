@@ -66,7 +66,7 @@ const getInstanceKey = (apiKey: string, config: ExperimentConfig): string => {
   // web and feature experiment sdks which use the same api key.
   const internalInstanceNameSuffix = config?.['internalInstanceNameSuffix'];
   return internalInstanceNameSuffix
-    ? `${instanceName}.${apiKey}.${internalInstanceNameSuffix}`
+    ? `${instanceName}.${apiKey}.${String(internalInstanceNameSuffix)}`
     : `${instanceName}.${apiKey}`;
 };
 

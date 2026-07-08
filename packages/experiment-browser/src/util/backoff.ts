@@ -52,16 +52,18 @@ export class Backoff {
     if (!setTimeoutFn) {
       return;
     }
-    this.timeoutHandle = setTimeoutFn(async () => {
-      try {
-        await fn();
-      } catch (e) {
-        const nextAttempt = attempt + 1;
-        if (nextAttempt < this.attempts) {
-          const nextDelay = Math.min(delay * this.scalar, this.max);
-          this.backoff(fn, nextAttempt, nextDelay);
+    this.timeoutHandle = setTimeoutFn(() => {
+      void (async () => {
+        try {
+          await fn();
+        } catch (e) {
+          const nextAttempt = attempt + 1;
+          if (nextAttempt < this.attempts) {
+            const nextDelay = Math.min(delay * this.scalar, this.max);
+            await this.backoff(fn, nextAttempt, nextDelay);
+          }
         }
-      }
+      })();
     }, delay);
   }
 }

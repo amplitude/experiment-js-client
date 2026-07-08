@@ -14,6 +14,7 @@ const getCommonBrowserConfig = (target) => ({
     resolve(),
     commonjs(),
     typescript({
+      tsconfig: './tsconfig.build.json',
       ...(target === 'es2015' ? { target: 'es2015' } : {}),
     }),
     babel({

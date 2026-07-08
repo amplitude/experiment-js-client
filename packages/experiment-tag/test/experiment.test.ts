@@ -2,15 +2,16 @@ import * as experimentCore from '@amplitude/experiment-core';
 import { safeGlobal as maybeSafeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
-import { DefaultWebExperimentClient } from 'src/experiment';
-import * as antiFlickerUtils from 'src/util/anti-flicker';
-import * as uuid from 'src/util/uuid';
 import { stringify } from 'ts-jest';
 
 import { createMutateFlag, createRedirectFlag } from './util/create-flag';
 import { createPageObject } from './util/create-page-object';
 import { MockHttpClient } from './util/mock-http-client';
 import { createMockGlobal, setupGlobalObservers } from './util/mocks';
+
+import { DefaultWebExperimentClient } from 'src/experiment';
+import * as antiFlickerUtils from 'src/util/anti-flicker';
+import * as uuid from 'src/util/uuid';
 
 // Tests run in jsdom so safeGlobal is always defined.
 const safeGlobal = maybeSafeGlobal as typeof globalThis;
@@ -478,7 +479,7 @@ describe('initializeExperiment', () => {
       pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
     });
 
-    client.start().then();
+    void client.start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledTimes(0);
@@ -1340,7 +1341,7 @@ describe('initializeExperiment', () => {
         'test-2': test2Page,
       }),
     });
-    client.start().then();
+    void client.start();
     let activePages = (client as any).activePages;
     expect(activePages).toEqual({ 'test-1': test1Page });
     (client as any).subscriptionManager.globalScope = newMockGlobal({
@@ -1398,7 +1399,7 @@ describe('initializeExperiment', () => {
       initialFlags: JSON.stringify(initialFlags),
       pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
     });
-    client.start().then();
+    void client.start();
     expect(mockExposure).toHaveBeenCalledTimes(0);
     const appliedMutations = (client as any).appliedMutations;
     expect(Object.keys(appliedMutations).length).toEqual(0);
@@ -1670,7 +1671,7 @@ describe('initializeExperiment', () => {
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
       expect(integrationManagerTrack).toHaveBeenCalledTimes(1);
-      const call = integrationManagerTrack.mock.calls[0][0] as unknown as {
+      const call = integrationManagerTrack.mock.calls[0][0] as {
         flag_key: string;
         metadata: Record<string, unknown>;
       };
@@ -1754,12 +1755,12 @@ describe('initializeExperiment', () => {
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
       expect(integrationManagerTrack).toHaveBeenCalledTimes(2);
-      const call1 = integrationManagerTrack.mock.calls[0][0] as unknown as {
+      const call1 = integrationManagerTrack.mock.calls[0][0] as {
         flag_key: string;
         variant: string;
         metadata: Record<string, unknown>;
       };
-      const call2 = integrationManagerTrack.mock.calls[1][0] as unknown as {
+      const call2 = integrationManagerTrack.mock.calls[1][0] as {
         flag_key: string;
         variant: string;
         metadata: Record<string, unknown>;

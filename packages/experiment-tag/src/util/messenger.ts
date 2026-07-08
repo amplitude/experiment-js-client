@@ -51,7 +51,7 @@ export class WindowMessenger {
           DebugRecorder.setMessengerState('error');
           DebugRecorder.push(
             'script_load_error',
-            `from stored session: ${error?.message || error}`,
+            `from stored session: ${String(error?.message || error)}`,
           );
           hideLoadingIndicator();
         });
@@ -189,7 +189,7 @@ export const asyncLoadScript = (url: string) => {
             (nonceElem as any).nonce ||
             nonceElem.getAttribute('nonce');
           scriptElement.setAttribute('nonce', nonce);
-          DebugRecorder.push('nonce_check', `found: ${nonce}`);
+          DebugRecorder.push('nonce_check', `found: ${String(nonce)}`);
         } else {
           DebugRecorder.push('nonce_check', 'not found, skipping');
         }

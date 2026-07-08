@@ -74,7 +74,7 @@ describe('getFetch', () => {
     try {
       const fetchFn = getFetch();
       expect(typeof fetchFn).toBe('function');
-      fetchFn?.('http://example.com');
+      void fetchFn?.('http://example.com');
       expect(stub).toHaveBeenCalledWith('http://example.com');
     } finally {
       if (original === undefined) {

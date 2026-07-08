@@ -37,8 +37,6 @@ import {
   WebExperimentClient,
   WebExperimentConfig,
   WebExperimentUser,
-} from './types';
-import {
   ApplyVariantsOptions,
   PageObject,
   PageObjects,
@@ -1273,12 +1271,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     // Validate and transform ID
-    let id = action.data.id;
-    if (!id || typeof id !== 'string' || id.length === 0) {
+    const rawId = action.data.id;
+    if (!rawId || typeof rawId !== 'string' || rawId.length === 0) {
       return;
     }
     // Replace the `-` characters in the UUID to support function name
-    id = id.replace(/-/g, '');
+    const id = rawId.replace(/-/g, '');
     // Check for repeat invocations
     if (this.appliedInjections.has(id)) {
       return;
@@ -1289,7 +1287,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (rawJs) {
       script = this.globalScope.document.createElement('script');
       if (script) {
-        script.innerHTML = `function ${id}(html, utils, id){${rawJs}};`;
+        // rawJs is variant JS source embedded verbatim; not a template interpolation value
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions -- injected script body
+        const source = `function ${id}(html, utils, id){${rawJs}};`;
+        script.textContent = source;
         script.id = `js-${id}`;
         this.globalScope.document.head.appendChild(script);
       }
@@ -1321,7 +1322,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     } catch (e) {
       script?.remove();
       console.error(
-        `Experiment inject failed for ${flagKey} variant ${variant.key}. Reason:`,
+        `Experiment inject failed for ${flagKey} variant ${
+          variant.key ?? ''
+        }. Reason:`,
         e,
       );
     }
@@ -1551,16 +1554,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     };
 
     if (Object.keys(merged).length > 0) {
-      this.globalScope.setTimeout(async () => {
-        for (const flagKey in merged) {
-          const { variantKey, expKey, metadata } = merged[flagKey];
-          this.exposureWithDedupe(
-            flagKey,
-            { key: variantKey, expKey, metadata },
-            true,
-          );
-        }
-        await cleanup();
+      this.globalScope.setTimeout(() => {
+        void (async () => {
+          for (const flagKey in merged) {
+            const { variantKey, expKey, metadata } = merged[flagKey];
+            this.exposureWithDedupe(
+              flagKey,
+              { key: variantKey, expKey, metadata },
+              true,
+            );
+          }
+          await cleanup();
+        })();
       }, 500);
     } else {
       await cleanup();

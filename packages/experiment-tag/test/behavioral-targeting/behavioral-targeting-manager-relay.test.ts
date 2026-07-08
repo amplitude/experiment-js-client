@@ -1,4 +1,5 @@
 import { EvaluationOperator } from '@amplitude/experiment-core';
+
 import { BehavioralTargetingManager } from 'src/behavioral-targeting/behavioral-targeting-manager';
 import {
   RelayClient,

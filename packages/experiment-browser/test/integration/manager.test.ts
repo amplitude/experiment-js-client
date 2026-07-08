@@ -1,5 +1,6 @@
 import * as core from '@amplitude/experiment-core';
 import { safeGlobal } from '@amplitude/experiment-core';
+
 import { ExperimentConfig } from 'src/config';
 import { ExperimentClient } from 'src/experimentClient';
 import {

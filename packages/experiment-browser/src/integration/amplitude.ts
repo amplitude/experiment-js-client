@@ -66,7 +66,7 @@ export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
     // Setup automatic fetch on amplitude identity change.
     if (config?.automaticFetchOnAmplitudeIdentityChange) {
       this.identityStore.addIdentityListener(() => {
-        client?.fetch();
+        void client?.fetch();
       });
     }
     return this.waitForConnectorIdentity(this.timeoutMillis);

@@ -19,7 +19,7 @@
   "scripts": {
     "build": "rm -rf dist && rollup -c",
     "clean": "rimraf node_modules dist",
-    "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
+    "lint": "cd ../.. && eslint packages/plugin-segment --ignore-path .eslintignore && prettier -c packages/plugin-segment --ignore-path .prettierignore",
     "test": "jest",
     "prepublish": "yarn build"
   },

@@ -1,4 +1,4 @@
-name: Typecheck
+name: CI
 
 on:
   pull_request:
@@ -7,7 +7,8 @@ on:
       - main
 
 jobs:
-  typecheck:
+  lint-and-typecheck:
+    name: lint & typecheck
     runs-on: ubuntu-latest
     steps:
       - name: Check out Git repository
@@ -33,8 +34,29 @@ jobs:
       - name: Install
         run: yarn install --frozen-lockfile --force
 
+      - name: Restore build output cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: dist-cache
+        with:
+          path: |
+            packages/analytics-connector/dist
+            packages/experiment-browser/dist
+            packages/experiment-core/dist
+            packages/experiment-tag/dist
+            packages/plugin-segment/dist
+          key:
+            dist-${{ runner.os }}-${{ hashFiles('packages/**/src/**',
+            'packages/**/rollup.config.*', 'packages/**/tsconfig.json',
+            'yarn.lock') }}
+          restore-keys: |
+            dist-${{ runner.os }}-
+
       - name: Build
+        if: steps.dist-cache.outputs.cache-hit != 'true'
         run: yarn build
+
+      - name: Lint
+        run: yarn lint
 
       - name: Typecheck
         run: yarn typecheck

@@ -16,7 +16,9 @@ export class Poller {
     if (!setInterval) {
       return;
     }
-    this.poller = setInterval(this.action, this.ms);
+    this.poller = setInterval(() => {
+      void this.action();
+    }, this.ms);
     void this.action();
   }
 
