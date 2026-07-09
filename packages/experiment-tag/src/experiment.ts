@@ -126,6 +126,10 @@ export const classifyDependency = (depKey: string): FlagDependencyType => {
  * failed one attributes the dependent flag's `off` to that parent. Only
  * available for locally evaluated flags (remote flags carry no per-segment
  * trace).
+ *
+ * Important: only steps up to and including the winning (matched) segment are
+ * considered. Later segments were never evaluated for the actual decision, so
+ * their failed dependency conditions should not be attributed as blocking.
  */
 const collectFailedDependencyKeys = (
   trace: FlagEvaluationTrace | undefined,
@@ -136,7 +140,8 @@ const collectFailedDependencyKeys = (
   }
   for (const step of trace.steps) {
     if (step.matched) {
-      continue;
+      // This is the winning segment; stop processing further steps.
+      break;
     }
     for (const conditionGroup of step.conditionResult ?? []) {
       for (const conditionResult of conditionGroup ?? []) {
