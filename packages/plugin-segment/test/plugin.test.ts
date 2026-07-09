@@ -1,10 +1,11 @@
 import { safeGlobal } from '@amplitude/experiment-core';
 import { ExperimentEvent } from '@amplitude/experiment-js-client';
 import { Analytics } from '@segment/analytics-next';
+
 import { segmentIntegrationPlugin } from 'src/plugin';
 import { snippetInstance } from 'src/snippet';
 
-export const sleep = (time: number): Promise<void> =>
+const sleep = (time: number): Promise<void> =>
   new Promise((resolve) => {
     setTimeout(resolve, time);
   });
@@ -187,7 +188,7 @@ describe('SegmentIntegrationPlugin', () => {
       let resolved = false;
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      plugin.setup().then(() => {
+      void plugin.setup().then(() => {
         resolved = true;
       });
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment

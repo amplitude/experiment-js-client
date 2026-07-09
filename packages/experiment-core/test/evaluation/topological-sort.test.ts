@@ -130,14 +130,14 @@ test('two flag cycle', () => {
     const flags: EvaluationFlag[] = [flag(1, [2]), flag(2, [1])];
     expect(() => {
       return topologicalSort(flags);
-    }).toThrow('Detected a cycle between flags 1,2');
+    }).toThrow('Detected a cycle between flags 1, 2');
   }
   // With flag keys
   {
     const flags: EvaluationFlag[] = [flag(1, [2]), flag(2, [1])];
     expect(() => {
       return topologicalSort(flags, ['2']);
-    }).toThrow('Detected a cycle between flags 2,1');
+    }).toThrow('Detected a cycle between flags 2, 1');
   }
   // With flag keys, no match
   {
@@ -164,7 +164,7 @@ test('multiple flags complex cycle', () => {
   ];
   expect(() => {
     return topologicalSort(flags);
-  }).toThrow('Detected a cycle between flags 4,21,20');
+  }).toThrow('Detected a cycle between flags 4, 21, 20');
 });
 
 test('complex no cycle, starting with leaf', () => {

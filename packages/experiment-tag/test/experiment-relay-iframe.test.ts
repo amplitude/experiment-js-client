@@ -1,12 +1,13 @@
 import * as experimentCore from '@amplitude/experiment-core';
 import { EvaluationOperator } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
-import { RelayClient } from 'src/behavioral-targeting/relay-client';
-import { DefaultWebExperimentClient } from 'src/experiment';
 import { stringify } from 'ts-jest';
 
 import { createPageObject } from './util/create-page-object';
 import { createMockGlobal, setupGlobalObservers } from './util/mocks';
+
+import { RelayClient } from 'src/behavioral-targeting/relay-client';
+import { DefaultWebExperimentClient } from 'src/experiment';
 
 const mockRelayInit = jest.fn().mockResolvedValue(undefined);
 const mockRelayDestroy = jest.fn();

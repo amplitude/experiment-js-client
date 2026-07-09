@@ -1,12 +1,13 @@
 import { safeGlobal } from '@amplitude/experiment-core';
+
+import { clearAllCookies } from './misc';
+
 import {
   AmplitudeState,
   parseAmplitudeCookie,
   parseAmplitudeLocalStorage,
   parseAmplitudeSessionStorage,
 } from 'src/util/state';
-
-import { clearAllCookies } from './misc';
 
 const apiKey = '1234567890abcdefabcdefabcdefabcd';
 

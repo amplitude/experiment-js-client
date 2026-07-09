@@ -1,3 +1,5 @@
+import type { GlobalScope } from '@amplitude/experiment-core';
+
 import {
   MessageBus,
   MessagePayloads,
@@ -62,7 +64,7 @@ export abstract class BaseTriggerManager<TPayload = any>
   constructor(
     protected readonly pageObjects: PageObject[],
     protected readonly messageBus: MessageBus,
-    protected readonly globalScope: typeof globalThis,
+    protected readonly globalScope: GlobalScope,
     protected readonly options?: TriggerManagerOptions,
   ) {}
 

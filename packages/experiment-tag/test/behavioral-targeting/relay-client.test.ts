@@ -34,6 +34,7 @@ describe('RelayClient', () => {
     id: number,
     properties: Record<string, unknown> = {},
   ): RelayEventRecord => ({
+    uuid: `evt-${id}`,
     id,
     event_type: 'page_view',
     timestamp: 100,
@@ -438,7 +439,7 @@ describe('RelayClient', () => {
   test('destroy cancels body poll before body is available', async () => {
     await withDeferredBody(async ({ flushRaf, rafSpy }) => {
       const { client } = setupClient();
-      client.init();
+      void client.init();
       flushRaf();
       expect(rafSpy).toHaveBeenCalledTimes(2);
 

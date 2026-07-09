@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-core",
-  "version": "0.13.2",
+  "version": "0.13.3",
   "private": false,
   "description": "Amplitude Experiment evaluation JavaScript implementation.",
   "keywords": [
@@ -26,7 +26,7 @@
   "scripts": {
     "build": "rm -rf dist && rollup -c",
     "clean": "rimraf node_modules dist",
-    "lint": "eslint . --ignore-path ../../.eslintignore && prettier -c . --ignore-path ../../.prettierignore",
+    "lint": "cd ../.. && eslint packages/experiment-core --ignore-path .eslintignore && prettier -c packages/experiment-core --ignore-path .prettierignore",
     "test": "jest",
     "prepublish": "yarn build"
   },

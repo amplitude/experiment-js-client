@@ -1,5 +1,9 @@
 import * as experimentCore from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
+import { stringify } from 'ts-jest';
+
+import { createMockGlobal, setupGlobalObservers } from './util/mocks';
+
 import {
   buildFlagDependencyInfo,
   classifyDependency,
@@ -7,9 +11,6 @@ import {
   DefaultWebExperimentClient,
 } from 'src/experiment';
 import * as uuid from 'src/util/uuid';
-import { stringify } from 'ts-jest';
-
-import { createMockGlobal, setupGlobalObservers } from './util/mocks';
 
 let apiKey = 9000;
 

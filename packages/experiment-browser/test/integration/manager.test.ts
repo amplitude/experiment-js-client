@@ -1,5 +1,6 @@
 import * as core from '@amplitude/experiment-core';
 import { safeGlobal } from '@amplitude/experiment-core';
+
 import { ExperimentConfig } from 'src/config';
 import { ExperimentClient } from 'src/experimentClient';
 import {
@@ -283,7 +284,7 @@ describe('SessionDedupeCache', () => {
       safeGlobal.sessionStorage.getItem('EXP_sent_v2_$default_instance'),
     ).toBeNull();
   });
-  test('test storage key', () => {
+  test('storage key', () => {
     const instanceName = '$default_instance';
     const cache = new SessionDedupeCache(instanceName);
     expect(cache['storageKey']).toEqual('EXP_sent_v3_$default_instance');
@@ -572,7 +573,7 @@ describe('PersistentTrackingQueue', () => {
     safeGlobal.localStorage.clear();
   });
 
-  test('test storage key', () => {
+  test('storage key', () => {
     const instanceName = '$default_instance';
     const queue = new PersistentTrackingQueue(instanceName);
     expect(queue['storageKey']).toEqual('EXP_unsent_$default_instance');

@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/**/*.ts", "package.json"],
+  "include": ["src/**/*.ts", "test/**/*.ts", "package.json"],
+  "exclude": ["dist"],
   "typedocOptions": {
     "name": "Experiment JS Client Documentation",
     "entryPoints": ["./src/index.ts"],
@@ -22,6 +23,10 @@
     "theme": "default"
   },
   "compilerOptions": {
-    "lib": ["ES2019"]
+    "lib": ["ES2019"],
+    "baseUrl": ".",
+    "paths": {
+      "src/*": ["./src/*"]
+    }
   }
 }
