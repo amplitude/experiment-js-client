@@ -308,6 +308,56 @@ describe('buildFlagDebugInfo dependencies', () => {
     expect(child.inactiveReason).toEqual('Prerequisite "prereq-flag" = off');
   });
 
+  it('does not blame a dependency when an earlier segment already decided off', async () => {
+    const flags = [
+      {
+        key: 'prereq-flag',
+        metadata: localMeta,
+        segments: [{ metadata: { segmentName: 'All Users' }, variant: 'off' }],
+        variants: onOffVariants,
+      },
+      {
+        key: 'child-flag',
+        metadata: localMeta,
+        dependencies: ['prereq-flag'],
+        segments: [
+          // Exclusion segment wins first with `off`; evaluation resolves here.
+          { metadata: { segmentName: 'Excluded users' }, variant: 'off' },
+          // Counterfactual: trace still records this segment's failing prereq
+          // condition, but it never determined the outcome.
+          {
+            metadata: { segmentName: 'Prereq met' },
+            conditions: [
+              [
+                {
+                  selector: ['result', 'prereq-flag', 'key'],
+                  op: 'is',
+                  values: ['treatment'],
+                },
+              ],
+            ],
+            variant: 'treatment',
+          },
+        ],
+        variants: onOffVariants,
+      },
+    ];
+
+    const client = await startClient(flags);
+    const child = client.getDebugState().flags['child-flag'];
+
+    expect(child.variant?.key).toEqual('off');
+    expect(child.dependencies).toEqual([
+      {
+        flagKey: 'prereq-flag',
+        type: 'prerequisite',
+        resolvedVariant: 'off',
+        blocking: false,
+      },
+    ]);
+    expect(child.inactiveReason).toEqual('No variant assigned');
+  });
+
   it('classifies and attributes a holdout dependency', async () => {
     const flags = [
       {

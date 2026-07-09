@@ -126,6 +126,10 @@ export const classifyDependency = (depKey: string): FlagDependencyType => {
  * failed one attributes the dependent flag's `off` to that parent. Only
  * available for locally evaluated flags (remote flags carry no per-segment
  * trace).
+ *
+ * Scanning stops at the first matched step: real evaluation resolves on the
+ * first matching segment, so later trace steps are counterfactual (the trace
+ * keeps evaluating them for debug visibility) and must not claim blocking.
  */
 const collectFailedDependencyKeys = (
   trace: FlagEvaluationTrace | undefined,
@@ -136,7 +140,7 @@ const collectFailedDependencyKeys = (
   }
   for (const step of trace.steps) {
     if (step.matched) {
-      continue;
+      break;
     }
     for (const conditionGroup of step.conditionResult ?? []) {
       for (const conditionResult of conditionGroup ?? []) {
