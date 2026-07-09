@@ -2,9 +2,6 @@ name: Bundle size
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
 
 jobs:
   experiment-tag-bundle-size:
