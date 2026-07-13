@@ -3,6 +3,49 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.26.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.25.1...@amplitude/experiment-tag@0.26.0) (2026-07-06)
+
+
+### Bug Fixes
+
+* **experiment-tag:** keep anti-flicker overlay up during redirect navigation ([#337](https://github.com/amplitude/experiment-js-client/issues/337)) ([1839a35](https://github.com/amplitude/experiment-js-client/commit/1839a358175d23e87fed61fc06e663dc4ad4a5b2))
+
+
+### Features
+
+* **experiment-tag:** add RTBT relay protocol/RelayClient and consolidate cross-subdomain identity cookie ([#333](https://github.com/amplitude/experiment-js-client/issues/333)) ([f639553](https://github.com/amplitude/experiment-js-client/commit/f6395539a17ac144d89d411590fb66e97a822bd8))
+* **experiment-tag:** dedup RTBT relay events on a client-minted uuid [WEB-149] ([#342](https://github.com/amplitude/experiment-js-client/issues/342)) ([4a1246a](https://github.com/amplitude/experiment-js-client/commit/4a1246a2ed3442cd8a532af8d78f4b48c61b3083))
+* **experiment-tag:** Dual-write RTBT events to relay ([#334](https://github.com/amplitude/experiment-js-client/issues/334)) ([0d1bce0](https://github.com/amplitude/experiment-js-client/commit/0d1bce03525f16d7630cc705f2b99b5ef03f80bd))
+* **experiment-tag:** share RTBT session across subdomains with rolling timeout ([#336](https://github.com/amplitude/experiment-js-client/issues/336)) ([7a72a99](https://github.com/amplitude/experiment-js-client/commit/7a72a995d1f760e0aeba1eec2796a27efb1cc20c))
+* **experiment-tag:** Wire relay iframe on start ([#335](https://github.com/amplitude/experiment-js-client/issues/335)) ([43c3926](https://github.com/amplitude/experiment-js-client/commit/43c39264220cb82154e2519bdffa06163b240133))
+
+
+
+
+
+## [0.25.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.25.0...@amplitude/experiment-tag@0.25.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* harden safeGlobal consumers and SSR location access ([#311](https://github.com/amplitude/experiment-js-client/issues/311)) ([1f55cc1](https://github.com/amplitude/experiment-js-client/commit/1f55cc12c2e0dd0f3f5405857cd19859af99c634)), closes [#253](https://github.com/amplitude/experiment-js-client/issues/253) [#256](https://github.com/amplitude/experiment-js-client/issues/256)
+
+
+
+
+
+# [0.25.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.24.0...@amplitude/experiment-tag@0.25.0) (2026-06-26)
+
+
+### Features
+
+* **experiment-tag:** add cross-subdomain web_exp_id_v2 and first_seen cookies ([#332](https://github.com/amplitude/experiment-js-client/issues/332)) ([f9ee4e3](https://github.com/amplitude/experiment-js-client/commit/f9ee4e3b619956c5a622c0fa7010a3f532e8483c))
+* support cross-subdomain redirect impression tracking ([#238](https://github.com/amplitude/experiment-js-client/issues/238)) ([e4260a3](https://github.com/amplitude/experiment-js-client/commit/e4260a356cae6fa0001879ee03156718dbe5bfc4))
+
+
+
+
+
 # [0.24.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.23.4...@amplitude/experiment-tag@0.24.0) (2026-06-04)
 
 

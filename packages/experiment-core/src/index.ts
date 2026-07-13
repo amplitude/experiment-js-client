@@ -24,6 +24,15 @@ export { Poller } from './util/poller';
 export {
   safeGlobal,
   getGlobalScope,
+  type GlobalScope,
   isLocalStorageAvailable,
+  getLocalStorage,
+  getSessionStorage,
+  getDocument,
+  getFetch,
+  getSetTimeout,
+  getClearTimeout,
+  getSetInterval,
+  getClearInterval,
 } from './util/global';
 export { FetchError, TimeoutError } from './evaluation/error';

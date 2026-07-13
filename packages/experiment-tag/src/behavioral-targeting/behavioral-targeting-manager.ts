@@ -2,6 +2,8 @@ import { BehavioralTargetingRules } from '../types';
 
 import { BehavioralTargetingEvaluator } from './evaluator';
 import { EventStorageManager } from './event-storage';
+import { RelayClient } from './relay-client';
+import { RelaySyncResult } from './relay-sync-result';
 import { SessionManager } from './session-manager';
 import { BehavioralTargeting } from './types';
 
@@ -20,9 +22,13 @@ export class BehavioralTargetingManager {
     Array<{ id: string; flagKey: string }>
   > = new Map();
 
-  constructor(apiKey: string, initialRules: BehavioralTargetingRules = {}) {
+  constructor(
+    apiKey: string,
+    initialRules: BehavioralTargetingRules = {},
+    sessionTimeoutMs?: number,
+  ) {
     this.rules = initialRules;
-    this.sessionManager = new SessionManager(apiKey);
+    this.sessionManager = new SessionManager(apiKey, sessionTimeoutMs);
     // Build event-to-behavior mapping for efficient lookups
     this.buildEventToBehaviorsMap();
     this.eventStorage = new EventStorageManager(
@@ -46,9 +52,52 @@ export class BehavioralTargetingManager {
     eventType: string,
     properties: Record<string, unknown>,
   ): void {
+    // Any observed Amplitude event keeps the session alive (extends or
+    // rotates it). This runs before the persistedEvents allowlist filter in
+    // addEvent so that non-RTBT events still count as session activity.
+    this.sessionManager.recordActivity();
     this.eventStorage.addEvent(eventType, properties);
     // Update active behavior state for flags affected by this event
     this.evaluateEvent(eventType);
+  }
+
+  /**
+   * Attach the relay client for cross-subdomain event dual-write.
+   */
+  public setRelayClient(relayClient: RelayClient | null): void {
+    this.eventStorage.setRelayClient(relayClient);
+  }
+
+  /**
+   * Inject relay iframe (non-blocking init) and run the relay merge.
+   *
+   * This only reads/merges relay state and reports the outcome; it never
+   * attaches the relay for dual-write. The caller owns relay lifecycle and
+   * decides whether to attach (via {@link setRelayClient}) based on the
+   * result and whether this client is still the active one.
+   */
+  public async beginRelaySync(
+    relayClient: RelayClient,
+  ): Promise<RelaySyncResult> {
+    const behaviorsBefore = this.serializeMatchedBehaviors();
+
+    await relayClient.init();
+    if (!relayClient.relayAvailable) {
+      await relayClient.waitForAvailable();
+    }
+    if (!relayClient.relayAvailable) {
+      return { status: 'unavailable' };
+    }
+
+    const synced = await this.eventStorage.syncFromRelay(relayClient);
+    if (!synced) {
+      return { status: 'sync_failed' };
+    }
+
+    this.evaluateAll();
+    return behaviorsBefore !== this.serializeMatchedBehaviors()
+      ? { status: 'behaviors_changed' }
+      : { status: 'unchanged' };
   }
 
   /**
@@ -167,6 +216,18 @@ export class BehavioralTargetingManager {
     } else {
       this.matchedBehaviors.delete(flagKey);
     }
+  }
+
+  /**
+   * Stable JSON snapshot of matched behaviors (sorted behavior IDs per flag),
+   * used to detect whether a relay sync changed the matched set.
+   */
+  private serializeMatchedBehaviors(): string {
+    const snapshot: Record<string, string[]> = {};
+    for (const [flagKey, behaviorIds] of this.matchedBehaviors.entries()) {
+      snapshot[flagKey] = [...behaviorIds].sort();
+    }
+    return JSON.stringify(snapshot);
   }
 
   /**

@@ -1,4 +1,5 @@
 import { EvaluationOperator } from '@amplitude/experiment-core';
+
 import { BehavioralTargetingEvaluator } from 'src/behavioral-targeting/evaluator';
 import { EventStorageManager } from 'src/behavioral-targeting/event-storage';
 import { SessionManager } from 'src/behavioral-targeting/session-manager';
@@ -10,10 +11,15 @@ describe('Behavioral Targeting Integration', () => {
   let evaluator: BehavioralTargetingEvaluator;
   const testApiKey = 'test-api-key';
   const storageKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_events`;
+  const sessionCookieKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_session`;
+  const clearSessionCookie = () => {
+    document.cookie = `${sessionCookieKey}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  };
 
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    clearSessionCookie();
     sessionManager = new SessionManager(testApiKey);
     eventStorage = new EventStorageManager(testApiKey, sessionManager);
     evaluator = new BehavioralTargetingEvaluator(eventStorage);
@@ -22,6 +28,7 @@ describe('Behavioral Targeting Integration', () => {
   afterEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    clearSessionCookie();
   });
 
   describe('end-to-end user journey', () => {

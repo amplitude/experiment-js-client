@@ -5,8 +5,8 @@ import {
   EvaluationFlag,
   FlagEvaluationTrace,
   getGlobalScope,
+  type GlobalScope,
   isLocalStorageAvailable,
-  safeGlobal,
 } from '@amplitude/experiment-core';
 import {
   Experiment,
@@ -24,6 +24,7 @@ import * as domMutatorExports from 'dom-mutator';
 import type { MutationController } from 'dom-mutator/dist/types';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
+import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -36,8 +37,6 @@ import {
   WebExperimentClient,
   WebExperimentConfig,
   WebExperimentUser,
-} from './types';
-import {
   ApplyVariantsOptions,
   PageObject,
   PageObjects,
@@ -51,7 +50,7 @@ import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import {
   getTopLevelDomain,
-  resolveCrossSubdomainValue,
+  resolveCrossSubdomainObject,
   setMarketingCookie,
 } from './util/cookie';
 import {
@@ -99,13 +98,16 @@ type StoredRedirectImpression = {
   metadata?: Record<string, unknown>;
 };
 
-safeGlobal.Experiment = FeatureExperiment;
+const moduleScope = getGlobalScope();
+if (moduleScope) {
+  moduleScope.Experiment = FeatureExperiment;
+}
 
 export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly apiKey: string;
   private readonly initialFlags: [];
   private readonly config: WebExperimentConfig;
-  private readonly globalScope: typeof globalThis;
+  private readonly globalScope: GlobalScope;
   private readonly experimentClient: ExperimentClient;
   private appliedInjections: Set<string> = new Set();
   appliedMutations: {
@@ -133,6 +135,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private readonly localFlagKeys: string[] = [];
   private remoteFlagKeys: string[] = [];
   private isRemoteBlocking = false;
+  // Public so the bootstrap (index.ts) can avoid removing anti-flicker CSS while
+  // a redirect is in-flight — location.replace() doesn't suspend painting, so
+  // tearing the overlay down before the navigation commits flashes the source page.
+  public isRedirecting = false;
   private customRedirectHandler: ((url: string) => void) | undefined;
   public isRunning = false;
   private readonly messageBus: MessageBus;
@@ -142,12 +148,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   public readonly behavioralTargetingManager:
     | BehavioralTargetingManager
     | undefined;
+  private relayClient: RelayClient | null = null;
   private subscriptionManager: SubscriptionManager | undefined;
   private isVisualEditorMode = false;
   private isDebugActive = false;
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, string> = {};
+  // Cross-subdomain cookie domain (leading-dot form or ''); resolved once, early
+  // in start(), and reused by every EXP_ cookie path (identity + RTBT session).
+  private rootDomain = '';
 
   constructor(
     apiKey: string,
@@ -168,19 +178,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ? JSON.parse(initConfigs.behavioralTargetingRules)
       : {};
 
-    // Initialize behavioral targeting infrastructure only if there are rules
-    if (Object.keys(this.behavioralTargetingRules).length > 0) {
-      this.behavioralTargetingManager = new BehavioralTargetingManager(
-        this.apiKey,
-        this.behavioralTargetingRules,
-      );
-    }
     // merge config with defaults and experimentConfig (if provided)
     this.config = {
       ...Defaults,
       ...config,
       ...(this.globalScope.experimentConfig ?? {}),
     };
+
+    // Initialize behavioral targeting infrastructure only if there are rules
+    if (Object.keys(this.behavioralTargetingRules).length > 0) {
+      this.behavioralTargetingManager = new BehavioralTargetingManager(
+        this.apiKey,
+        this.behavioralTargetingRules,
+        this.config.rtbtSessionTimeout,
+      );
+    }
 
     this.initialFlags.forEach((flag: EvaluationFlag) => {
       const { key, variants, metadata = {} } = flag;
@@ -376,6 +388,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
+    // Resolve the cross-subdomain cookie domain as early as possible — but after
+    // the synchronous url_change above, whose subscribers apply anti-flicker
+    // variants/redirects before this first await. Every EXP_ cookie needs it:
+    // identity just below, and the RTBT session (behavioral-targeting plugin)
+    // whose sync writes resolve it via getTopLevelDomainSync(). The
+    // writability probe is async, so it must complete before any cookie write.
+    this.rootDomain = await getTopLevelDomain(
+      this.globalScope.location.hostname,
+    );
+
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     const user =
       getStorageItem<WebExperimentUser>(
@@ -396,27 +418,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       setStorageItem('localStorage', experimentStorageName, user);
     }
 
-    // Resolve web_exp_id_v2 and first_seen as root-domain cookies for
-    // cross-subdomain identity before getVariants() so anti-flicker and
-    // local evaluation use the shared first_seen, not a subdomain-local mint.
-    const rootDomain = await getTopLevelDomain(
-      this.globalScope.location.hostname,
-    );
+    // Resolve web_exp_id_v2 and first_seen as a single root-domain cookie for
+    // cross-subdomain identity before getVariants() so anti-flicker and local
+    // evaluation use the shared first_seen, not a subdomain-local mint. The
+    // domain was resolved early in start() (this.rootDomain).
     const crossSubdomainCookieStorage = new CookieStorage<string>({
-      ...(rootDomain && { domain: rootDomain }),
+      ...(this.rootDomain && { domain: this.rootDomain }),
       sameSite: 'Lax',
       expirationDays: 365,
     });
-
-    const webExpIdV2CookieKey = `${experimentStorageName}_web_exp_id_v2`;
-    // web_exp_id is guaranteed above; seed v2 from it when no cookie or local v2 exists.
-    user.web_exp_id_v2 = await resolveCrossSubdomainValue(
-      crossSubdomainCookieStorage,
-      webExpIdV2CookieKey,
-      user.web_exp_id_v2 ?? user.web_exp_id,
-      UUID,
-    );
-    setStorageItem('localStorage', experimentStorageName, user);
 
     const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
     const defaultUserProviderData =
@@ -424,21 +434,33 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         'localStorage',
         defaultUserProviderStorageKey,
       ) || {};
-    const firstSeen = await resolveCrossSubdomainValue(
+
+    // web_exp_id is guaranteed above; seed v2 from it when no cookie/local v2 exists.
+    const identity = await resolveCrossSubdomainObject(
       crossSubdomainCookieStorage,
-      `${experimentStorageName}_first_seen`,
-      defaultUserProviderData.first_seen,
-      () => (Date.now() / 1000).toString(),
+      `${experimentStorageName}_identity`,
+      {
+        web_exp_id_v2: user.web_exp_id_v2 ?? user.web_exp_id,
+        first_seen: defaultUserProviderData.first_seen,
+      },
+      {
+        web_exp_id_v2: UUID,
+        first_seen: () => (Date.now() / 1000).toString(),
+      },
     );
-    if (firstSeen !== defaultUserProviderData.first_seen) {
-      defaultUserProviderData.first_seen = firstSeen;
+
+    user.web_exp_id_v2 = identity.web_exp_id_v2;
+    setStorageItem('localStorage', experimentStorageName, user);
+
+    if (identity.first_seen !== defaultUserProviderData.first_seen) {
+      defaultUserProviderData.first_seen = identity.first_seen;
       setStorageItem(
         'localStorage',
         defaultUserProviderStorageKey,
         defaultUserProviderData,
       );
     }
-    user.first_seen = firstSeen;
+    user.first_seen = identity.first_seen;
     this.experimentClient.setUser(user);
 
     // evaluate variants for page targeting
@@ -483,6 +505,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     });
     // Subscribe directly to url_change events to fire redirect impressions
     this.messageBus.subscribe('url_change', () => {
+      // A custom-redirect-handler (SPA soft nav) keeps this JS context alive, so
+      // isRedirecting would otherwise leak true forever — suppressing anti-flicker
+      // teardown and remote-flag handling on the destination route. url_change is
+      // the SDK's own post-navigation signal, so the first one after a redirect
+      // marks it committed: clear the flag and tear down the overlay. A hard
+      // location.replace() unloads the page before this fires, so it is a no-op
+      // there (which is correct — that path needs no reset).
+      if (this.isRedirecting) {
+        this.isRedirecting = false;
+        removeAntiFlickerCss();
+      }
       this.fireStoredRedirectImpressions().catch(() => {
         // do nothing
       });
@@ -506,16 +539,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       keyToVariant: this.previewFlags,
     });
 
-    if (!this.isRemoteBlocking) {
+    if (!this.isRemoteBlocking && !this.isRedirecting) {
       removeAntiFlickerCss();
     }
 
     if (
+      this.isRedirecting ||
       // do not fetch remote flags if all remote flags are in preview mode
       this.remoteFlagKeys.every((key) =>
         Object.keys(this.previewFlags).includes(key),
       )
     ) {
+      this.scheduleRelaySync(enrichedUser);
       this.isRunning = true;
       flushEventBuffer(this);
       return;
@@ -524,6 +559,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     await this.fetchRemoteFlags();
     // apply remote variants - if fetch is unsuccessful, fallback order: 1. localStorage flags, 2. initial flags
     await this.applyVariants({ flagKeys: this.remoteFlagKeys });
+    this.scheduleRelaySync(enrichedUser);
     this.isRunning = true;
     flushEventBuffer(this);
   }
@@ -757,6 +793,116 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   ): (() => void) | undefined {
     if (this.subscriptionManager) {
       return this.subscriptionManager.addPageChangeSubscriber(callback);
+    }
+  }
+
+  /**
+   * Behavioral targeting evaluates in two phases at startup:
+   *
+   *  1. start() evaluates and applies variants from this origin's own local
+   *     event store (already done by the time we get here).
+   *  2. Relay sync (this method): a hidden CDN iframe pulls the shared
+   *     cross-subdomain event store, merges it into local storage, and
+   *     re-evaluates behavioral targeting. If matched behaviors changed,
+   *     {@link reapplyVariantsAfterRelaySync} re-applies the affected variants.
+   *
+   * Non-blocking: the iframe init and merge run after anti-flicker is removed,
+   * so a relay-driven change repaints rather than delaying first paint.
+   */
+  private scheduleRelaySync(user: WebExperimentUser): void {
+    // Relay sync still runs in preview mode: a page can preview one flag while
+    // other behavioral-targeting flags evaluate normally and need the merge.
+    // Previewed flags are excluded from the relay re-apply
+    // (reapplyVariantsAfterRelaySync) and from applyVariants directly, so
+    // forced preview variants are never clobbered.
+    if (!this.behavioralTargetingManager || this.isVisualEditorMode) {
+      return;
+    }
+
+    const webExpIdV2 = user.web_exp_id_v2 ?? user.web_exp_id;
+    if (!webExpIdV2) {
+      return;
+    }
+
+    // Single-shot: scheduleRelaySync runs exactly once per start() (the two
+    // call sites are mutually exclusive and start() is re-entry guarded). If a
+    // future identity-change re-sync needs to re-run this, add ownership
+    // tracking that also covers reapplyVariantsAfterRelaySync's awaits — a
+    // guard checked only here would leave the re-apply fetch/apply tail
+    // unguarded.
+    const relayClient = new RelayClient(
+      this.apiKey,
+      webExpIdV2,
+      getRelayUrl(this.apiKey, this.config.serverZone, this.config.relayUrl),
+    );
+    this.relayClient = relayClient;
+
+    void this.behavioralTargetingManager
+      .beginRelaySync(relayClient)
+      .then((result) => {
+        if (
+          result.status === 'unavailable' ||
+          result.status === 'sync_failed'
+        ) {
+          this.teardownRelay(relayClient);
+          return;
+        }
+        // Sync succeeded: attach the relay client for ongoing dual-write.
+        this.behavioralTargetingManager?.setRelayClient(relayClient);
+        if (result.status === 'behaviors_changed') {
+          return this.reapplyVariantsAfterRelaySync(true).catch(
+            (reapplyError) => {
+              console.warn(
+                'Experiment relay variant re-apply failed:',
+                reapplyError,
+              );
+            },
+          );
+        }
+      })
+      .catch(() => {
+        this.teardownRelay(relayClient);
+      });
+  }
+
+  private teardownRelay(relayClient: RelayClient): void {
+    relayClient.destroy();
+    this.relayClient = null;
+    this.behavioralTargetingManager?.setRelayClient(null);
+  }
+
+  /**
+   * Re-apply variants when a relay sync changed the matched behaviors
+   * (phase 2 of the startup described on {@link scheduleRelaySync}).
+   */
+  private async reapplyVariantsAfterRelaySync(
+    behaviorsChanged: boolean,
+  ): Promise<void> {
+    if (!behaviorsChanged || !this.behavioralTargetingManager) {
+      return;
+    }
+
+    this.updateUserWithBehaviors();
+
+    // Exclude previewed flags: their variants are forced and must not be
+    // re-applied/re-fetched here (also avoids a pointless fetchRemoteFlags when
+    // every behavioral remote flag is previewed).
+    const flagKeys = Object.keys(this.behavioralTargetingRules).filter(
+      (key) => !this.previewFlags[key],
+    );
+    const localKeys = flagKeys.filter((key) =>
+      this.localFlagKeys.includes(key),
+    );
+    const remoteKeys = flagKeys.filter((key) =>
+      this.remoteFlagKeys.includes(key),
+    );
+
+    if (localKeys.length > 0) {
+      await this.applyVariants({ flagKeys: localKeys });
+    }
+    if (remoteKeys.length > 0) {
+      await this.fetchRemoteFlags();
+      await this.applyVariants({ flagKeys: remoteKeys });
     }
   }
 
@@ -1043,6 +1189,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = this.globalScope.location.href;
     await setMarketingCookie(this.apiKey, this.globalScope.location.hostname);
+    // Mark redirect as in-flight so start() skips removeAntiFlickerCss and
+    // further processing after applyVariants returns.
+    this.isRedirecting = true;
     // perform redirection
     if (this.customRedirectHandler) {
       this.customRedirectHandler(targetUrl);
@@ -1123,12 +1272,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     // Validate and transform ID
-    let id = action.data.id;
-    if (!id || typeof id !== 'string' || id.length === 0) {
+    const rawId = action.data.id;
+    if (!rawId || typeof rawId !== 'string' || rawId.length === 0) {
       return;
     }
     // Replace the `-` characters in the UUID to support function name
-    id = id.replace(/-/g, '');
+    const id = rawId.replace(/-/g, '');
     // Check for repeat invocations
     if (this.appliedInjections.has(id)) {
       return;
@@ -1139,7 +1288,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (rawJs) {
       script = this.globalScope.document.createElement('script');
       if (script) {
-        script.innerHTML = `function ${id}(html, utils, id){${rawJs}};`;
+        // rawJs is variant JS source embedded verbatim; not a template interpolation value
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions -- injected script body
+        const source = `function ${id}(html, utils, id){${rawJs}};`;
+        script.textContent = source;
         script.id = `js-${id}`;
         this.globalScope.document.head.appendChild(script);
       }
@@ -1171,7 +1323,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     } catch (e) {
       script?.remove();
       console.error(
-        `Experiment inject failed for ${flagKey} variant ${variant.key}. Reason:`,
+        `Experiment inject failed for ${flagKey} variant ${
+          variant.key ?? ''
+        }. Reason:`,
         e,
       );
     }
@@ -1401,16 +1555,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     };
 
     if (Object.keys(merged).length > 0) {
-      this.globalScope.setTimeout(async () => {
-        for (const flagKey in merged) {
-          const { variantKey, expKey, metadata } = merged[flagKey];
-          this.exposureWithDedupe(
-            flagKey,
-            { key: variantKey, expKey, metadata },
-            true,
-          );
-        }
-        await cleanup();
+      this.globalScope.setTimeout(() => {
+        void (async () => {
+          for (const flagKey in merged) {
+            const { variantKey, expKey, metadata } = merged[flagKey];
+            this.exposureWithDedupe(
+              flagKey,
+              { key: variantKey, expKey, metadata },
+              true,
+            );
+          }
+          await cleanup();
+        })();
       }, 500);
     } else {
       await cleanup();

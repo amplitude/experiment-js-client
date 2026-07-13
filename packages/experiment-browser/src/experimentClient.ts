@@ -38,7 +38,11 @@ import { SessionStorage } from './storage/session-storage';
 import { FetchHttpClient, WrapperClient } from './transport/http';
 import { exposureEvent } from './types/analytics';
 import { Client, FetchOptions } from './types/client';
-import { Exposure, ExposureTrackingProvider } from './types/exposure';
+import { Exposure } from './types/exposure';
+import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  type ExposureTrackingProvider, // used for documentation
+} from './types/exposure';
 import { LogLevel } from './types/logger';
 import { ExperimentPlugin, IntegrationPlugin } from './types/plugin';
 import { ExperimentUserProvider } from './types/provider';
@@ -189,7 +193,7 @@ export class ExperimentClient implements Client {
     // Storage & Caching
     let storage: Storage;
     const storageInstanceName = internalInstanceName
-      ? `${this.config.instanceName}-${internalInstanceName}`
+      ? `${this.config.instanceName}-${String(internalInstanceName)}`
       : this.config.instanceName;
     if (this.isWebExperiment) {
       storage = new SessionStorage();
@@ -728,7 +732,7 @@ export class ExperimentClient implements Client {
       throw Error('Experiment API key is empty');
     }
 
-    this.logger.debug(`[Experiment] Fetch all: retry=${retry}`);
+    this.logger.debug(`[Experiment] Fetch all: retry=${String(retry)}`);
 
     // Proactively cancel retries if active in order to avoid unnecessary API
     // requests. A new failure will restart the retries.
@@ -840,7 +844,7 @@ export class ExperimentClient implements Client {
       this.variants.put(key, variants[key]);
     }
 
-    for (const key in failedFlagKeys) {
+    for (const key of failedFlagKeys) {
       this.variants.remove(key);
     }
     try {

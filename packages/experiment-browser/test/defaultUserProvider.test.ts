@@ -133,7 +133,7 @@ describe('DefaultUserProvider', () => {
     expect(actualUser).toEqual(expectedUser);
   });
 
-  test('test get from local and session storage', async () => {
+  test('get from local and session storage', async () => {
     mockLocalStorage['EXP_apikey_DEFAULT_USER_PROVIDER'] = '{"first_seen": 99}';
     mockSessionStorage['EXP_apikey_DEFAULT_USER_PROVIDER'] =
       '{"landing_url": "http://testtest.com"}';

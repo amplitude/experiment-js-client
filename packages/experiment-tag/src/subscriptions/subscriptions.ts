@@ -1,4 +1,4 @@
-import { EvaluationEngine } from '@amplitude/experiment-core';
+import { EvaluationEngine, type GlobalScope } from '@amplitude/experiment-core';
 
 import { BehavioralTargetingManager } from '../behavioral-targeting';
 import { areBehaviorsEqual } from '../behavioral-targeting/util';
@@ -61,7 +61,7 @@ export class SubscriptionManager {
     | BehavioralTargetingManager
     | undefined;
   private options: initOptions;
-  private readonly globalScope: typeof globalThis;
+  private readonly globalScope: GlobalScope;
   private pageChangeSubscribers: Set<(event: PageChangeEvent) => void> =
     new Set();
   private lastNotifiedActivePages: PageObjects = {};
@@ -98,7 +98,7 @@ export class SubscriptionManager {
     return getCustomerDocument(this.globalScope);
   }
 
-  private get contentWindow(): typeof globalThis {
+  private get contentWindow(): GlobalScope {
     return getCustomerWindow(this.globalScope);
   }
 
@@ -108,7 +108,7 @@ export class SubscriptionManager {
     pageObjects: PageObjects,
     behavioralTargetingManager: BehavioralTargetingManager | undefined,
     options: initOptions,
-    globalScope: typeof globalThis,
+    globalScope: GlobalScope,
   ) {
     this.webExperimentClient = webExperimentClient;
     this.messageBus = messageBus;
@@ -374,9 +374,8 @@ export class SubscriptionManager {
 
     // Set up groupCallbacks (one per trigger type)
     for (const triggerType of Object.keys(triggerTypeExperimentMap)) {
-      this.messageBus.groupSubscribe(
-        triggerType as MessageType,
-        async (payload) => {
+      this.messageBus.groupSubscribe(triggerType as MessageType, (payload) => {
+        void (async () => {
           const isUrlChange = triggerType === 'url_change';
           const isAnalyticsEvent = triggerType === 'analytics_event';
 
@@ -489,8 +488,8 @@ export class SubscriptionManager {
               ),
             );
           }
-        },
-      );
+        })();
+      });
     }
   };
 
@@ -852,8 +851,8 @@ export class SubscriptionManager {
 
     // Create wrapper functions for pushState and replaceState
     const wrapHistoryMethods = () => {
-      const originalPushState = history.pushState;
-      const originalReplaceState = history.replaceState;
+      const originalPushState = history.pushState.bind(history);
+      const originalReplaceState = history.replaceState.bind(history);
 
       // Wrapper for pushState
       history.pushState = function (...args) {

@@ -3,10 +3,11 @@ import {
   AnalyticsEvent,
 } from '@amplitude/analytics-connector';
 import { safeGlobal } from '@amplitude/experiment-core';
-import { AmplitudeIntegrationPlugin } from 'src/integration/amplitude';
-import { AmplitudeState } from 'src/util/state';
 
 import { clearAllCookies } from '../util/misc';
+
+import { AmplitudeIntegrationPlugin } from 'src/integration/amplitude';
+import { AmplitudeState } from 'src/util/state';
 
 const apiKey = '1234567890abcdefabcdefabcdefabcd';
 
@@ -92,7 +93,7 @@ describe('AmplitudeIntegrationPlugin', () => {
           integration.setup(),
           new Promise<void>((resolve) => setTimeout(() => resolve(), 500)),
         ]);
-        fail('expected setup() to throw an error');
+        throw new Error('expected setup() to throw an error');
       } catch (e) {
         // Expected
       }

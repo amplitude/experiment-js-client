@@ -1,3 +1,5 @@
+import type { GlobalScope } from '@amplitude/experiment-core';
+
 import { cspSafeStyleSheet } from './csp-safe-stylesheet';
 
 const MOBILE_MODE_SESSION_KEY = 'amp-visual-editor-mobile-mode';
@@ -30,7 +32,7 @@ export function getDeviceIframe(): HTMLIFrameElement | null {
  * customer site lives inside a same-origin iframe; otherwise it is the
  * top-level document.
  */
-export function getCustomerDocument(globalScope: typeof globalThis): Document {
+export function getCustomerDocument(globalScope: GlobalScope): Document {
   if (isMobileModeActive()) {
     return getDeviceIframe()?.contentDocument ?? globalScope.document;
   }
@@ -43,22 +45,22 @@ export function getCustomerDocument(globalScope: typeof globalThis): Document {
  * top-level window.
  */
 export const getCustomerWindow = (
-  globalScope: typeof globalThis,
-): Window & typeof globalThis => {
+  globalScope: GlobalScope,
+): Window & GlobalScope => {
   if (isMobileModeActive()) {
     return (
-      (getDeviceIframe()?.contentWindow as Window & typeof globalThis) ??
-      (globalScope as Window & typeof globalThis)
+      (getDeviceIframe()?.contentWindow as Window & GlobalScope) ??
+      (globalScope as Window & GlobalScope)
     );
   }
-  return globalScope as Window & typeof globalThis;
+  return globalScope as Window & GlobalScope;
 };
 
 /**
  * Syncs the iframe URL to the top-level URL bar. The wrapped replaceState
  * also triggers the SDK's url_change pipeline.
  */
-function syncIframeUrl(globalScope: typeof globalThis, iframeWindow: Window) {
+function syncIframeUrl(globalScope: GlobalScope, iframeWindow: Window) {
   const iframeHref = iframeWindow.location.href;
   if (iframeHref && iframeHref !== globalScope.location.href) {
     globalScope.history.replaceState(globalScope.history.state, '', iframeHref);
@@ -68,10 +70,7 @@ function syncIframeUrl(globalScope: typeof globalThis, iframeWindow: Window) {
 /**
  * Patches iframe history methods and popstate to mirror SPA navigations.
  */
-function observeIframeSpaNav(
-  globalScope: typeof globalThis,
-  iframeWindow: Window,
-) {
+function observeIframeSpaNav(globalScope: GlobalScope, iframeWindow: Window) {
   const iframeHistory = iframeWindow.history;
 
   const wrap = (original: typeof iframeHistory.pushState) =>
@@ -110,7 +109,7 @@ function observeIframeSpaNav(
  * guarantee it renders into the already-built shell rather than racing with
  * DOM restructuring.
  */
-export function buildShell(globalScope: typeof globalThis): Promise<void> {
+export function buildShell(globalScope: GlobalScope): Promise<void> {
   const doc = globalScope.document;
 
   const run = () => {
