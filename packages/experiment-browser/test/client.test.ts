@@ -4,7 +4,6 @@ import {
   safeGlobal,
   TimeoutError,
 } from '@amplitude/experiment-core';
-import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
 import { version as PACKAGE_VERSION } from '../package.json';
 import {
@@ -23,6 +22,8 @@ import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
 
 import { mockClientStorage } from './util/mock';
+
+import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
 const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 
@@ -289,14 +290,14 @@ test('ExperimentClient.variant, with exposure tracking provider, track called on
     client.variant('key-that-does-not-exist');
   }
 
-  expect(trackSpy).toBeCalledTimes(0);
-  expect(logEventSpy).toBeCalledTimes(0);
+  expect(trackSpy).toHaveBeenCalledTimes(0);
+  expect(logEventSpy).toHaveBeenCalledTimes(0);
 
   for (let i = 0; i < 10; i++) {
     client.variant(serverKey);
   }
 
-  expect(trackSpy).toBeCalledTimes(1);
+  expect(trackSpy).toHaveBeenCalledTimes(1);
   expect(trackSpy).toHaveBeenCalledWith(
     expect.objectContaining({
       flag_key: serverKey,
@@ -321,8 +322,8 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked, unset
   await client.fetch(testUser);
   client.variant(serverKey);
 
-  expect(spySet).toBeCalledTimes(1);
-  expect(spyTrack).toBeCalledTimes(1);
+  expect(spySet).toHaveBeenCalledTimes(1);
+  expect(spyTrack).toHaveBeenCalledTimes(1);
 
   const expectedEvent = {
     name: '[Experiment] Exposure',
@@ -341,15 +342,19 @@ test('ExperimentClient.variant, with analytics provider, exposure tracked, unset
     },
     userProperty: `[Experiment] ${serverKey}`,
   };
-  expect(spySet).lastCalledWith(expect.objectContaining(expectedEvent));
-  expect(spyTrack).lastCalledWith(expect.objectContaining(expectedEvent));
+  expect(spySet).toHaveBeenLastCalledWith(
+    expect.objectContaining(expectedEvent),
+  );
+  expect(spyTrack).toHaveBeenLastCalledWith(
+    expect.objectContaining(expectedEvent),
+  );
 
   // verify call order
   const spySetOrder = spySet.mock.invocationCallOrder[0];
   const spyTrackOrder = spyTrack.mock.invocationCallOrder[0];
   expect(spySetOrder).toBeLessThan(spyTrackOrder);
 
-  expect(spyUnset).toBeCalledTimes(0);
+  expect(spyUnset).toHaveBeenCalledTimes(0);
 });
 
 /**
@@ -439,6 +444,18 @@ test('ExperimentClient.fetch with not exist flagKeys in fetch options', async ()
   await client.fetch(testUser, option);
   const variant = client.all();
   expect(variant).toEqual({});
+});
+
+test('ExperimentClient.fetch with flagKeys removes stale cached variants missing from response', async () => {
+  const client = new ExperimentClient(API_KEY, {
+    httpClient: new TestHttpClient(200, JSON.stringify({})),
+  });
+  mockClientStorage(client);
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  client.variants.put('stale-flag', { key: 'on', value: 'on' });
+  await client.fetch(testUser, { flagKeys: ['stale-flag'] });
+  expect(client.all()).toEqual({});
 });
 
 test('ExperimentClient.variant experiment key passed from variant to exposure', async () => {
@@ -1030,7 +1047,7 @@ describe('start', () => {
     mockClientStorage(client);
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
-    expect(fetchSpy).toBeCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
     client.stop();
   }, 10000);
 
@@ -1044,7 +1061,7 @@ describe('start', () => {
     };
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
-    expect(fetchSpy).toBeCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
     client.stop();
   });
 
@@ -1060,7 +1077,7 @@ describe('start', () => {
     };
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
-    expect(fetchSpy).toBeCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
     client.stop();
   });
 
@@ -1071,7 +1088,7 @@ describe('start', () => {
     mockClientStorage(client);
     const fetchSpy = jest.spyOn(client, 'fetch');
     await client.start();
-    expect(fetchSpy).toBeCalledTimes(0);
+    expect(fetchSpy).toHaveBeenCalledTimes(0);
     client.stop();
   });
 
@@ -1363,7 +1380,7 @@ describe('throwOnError option', () => {
   });
 });
 
-test('test bootstrapping with v2 variants', async () => {
+test('bootstrapping with v2 variants', async () => {
   let exposureObject: Exposure;
   const client = new ExperimentClient(API_KEY, {
     initialVariants: {

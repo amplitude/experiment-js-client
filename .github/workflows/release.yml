@@ -7,6 +7,13 @@ on:
         description: 'Do a dry run to preview instead of a real release'
         required: true
         default: 'true'
+      publishRef:
+        description:
+          'Recovery: republish packages already tagged at this commit SHA (skips
+          the version bump). Leave blank for a normal release. Honors dryRun:
+          dryRun=true previews the tagged versions, dryRun=false publishes them.'
+        required: false
+        default: ''
 
 jobs:
   authorize:
@@ -34,6 +41,13 @@ jobs:
       # Needed for lerna version to determine last tag
       - name: Fetch
         run: git fetch --prune --unshallow --tags
+
+      # Recovery: move to the tagged release commit so `lerna publish from-git` sees its tags
+      - name: Checkout tagged release commit
+        if: ${{ github.event.inputs.publishRef != '' }}
+        env:
+          PUBLISH_REF: ${{ github.event.inputs.publishRef }}
+        run: git checkout "$PUBLISH_REF"
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -65,19 +79,44 @@ jobs:
           git config --global user.email amplitude-sdk-bot@users.noreply.github.com
 
       - name: Release (Dry Run)
-        if: ${{ github.event.inputs.dryRun == 'true'}}
+        if:
+          ${{ github.event.inputs.dryRun == 'true' &&
+          github.event.inputs.publishRef == '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn lerna version --no-push --no-git-tag-version --loglevel silly --yes
+        run:
+          yarn lerna version --no-push --no-git-tag-version --loglevel silly
+          --yes
 
       - name: Release
-        if: ${{ github.event.inputs.dryRun == 'false'}}
+        if:
+          ${{ github.event.inputs.dryRun == 'false' &&
+          github.event.inputs.publishRef == '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
         run: |
           yarn lerna version --yes
           yarn lerna publish from-git --yes --loglevel silly
+
+      # Recovery (dry run): preview the tagged versions that would be published
+      - name: Release (publish tagged, dry run)
+        if:
+          ${{ github.event.inputs.publishRef != '' && github.event.inputs.dryRun
+          == 'true' }}
+        run: |
+          echo "Dry run: the versions tagged at this commit would be published"
+          echo "(from-git skips any version already on npm):"
+          git tag --points-at HEAD
+
+      # Recovery: publish the packages already tagged at publishRef (no version bump)
+      - name: Release (publish tagged)
+        if:
+          ${{ github.event.inputs.publishRef != '' && github.event.inputs.dryRun
+          == 'false' }}
+        env:
+          NPM_CONFIG_PROVENANCE: true
+        run: yarn lerna publish from-git --yes --loglevel silly
 
       # Check if experiment-tag was updated
       - name: Check if experiment-tag was updated
@@ -111,7 +150,9 @@ jobs:
 
       # Configure AWS credentials for S3 upload
       - name: Configure AWS Credentials
-        if: ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != '' }}
+        if:
+          ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != ''
+          }}
         uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -119,7 +160,9 @@ jobs:
 
       # Install dependencies and upload experiment packages to S3
       - name: Upload packages to S3
-        if: ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != '' }}
+        if:
+          ${{ github.event.inputs.dryRun == 'false' && env.UPLOAD_PACKAGES != ''
+          }}
         env:
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
           PACKAGES: ${{ env.UPLOAD_PACKAGES }}

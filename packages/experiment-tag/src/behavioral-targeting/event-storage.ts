@@ -1,9 +1,46 @@
+import { getGlobalScope } from '@amplitude/experiment-core';
+
+import { RelayClient } from './relay-client';
+import { RelayEventStorage } from './relay-protocol';
 import { SessionManager } from './session-manager';
+
+/**
+ * Dedup key for cross-subdomain merge. Uses the event's uuid (minted once at
+ * creation in {@link EventStorageManager.addEvent}) so the SDK and relay.js
+ * agree on identity. (event_type + timestamp is not unique — two distinct
+ * same-type events in the same millisecond would collapse.)
+ */
+export function eventDedupKey(event: { uuid: string }): string {
+  return event.uuid;
+}
+
+/**
+ * Mints a stable per-event identity. Prefers crypto.randomUUID and falls back
+ * to a non-cryptographic v4-shaped id for environments that lack it; the value
+ * only needs to be collision-resistant enough for dedup.
+ */
+function generateEventUuid(): string {
+  const cryptoObj = getGlobalScope()?.crypto;
+  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+    return cryptoObj.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const rand = (Math.random() * 16) | 0;
+    const value = ch === 'x' ? rand : (rand & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
 
 /**
  * Represents a stored event record.
  */
 export interface EventRecord {
+  /** Stable per-event identity; the cross-subdomain dedup key (see eventDedupKey). */
+  uuid: string;
+  /**
+   * Per-origin monotonic counter. Retained for debugging only — identity and
+   * dedup use uuid, ordering uses timestamp, and FIFO uses array order.
+   */
   id: number;
   event_type: string;
   timestamp: number;
@@ -16,6 +53,7 @@ export interface EventRecord {
  */
 interface EventStorage {
   events: EventRecord[];
+  /** Backs the per-record `id` counter (debugging only); see EventRecord.id. */
   nextId: number;
 }
 
@@ -33,6 +71,7 @@ export class EventStorageManager {
   private hasPendingWrites = false; // Track if cache has unsaved changes
   private persistedEvents?: Set<string>; // Optional set of event types to persist
   private storageKey: string;
+  private relayClient: RelayClient | null = null;
 
   constructor(
     apiKey: string,
@@ -65,9 +104,10 @@ export class EventStorageManager {
       return;
     }
 
-    const sessionId = this.sessionManager.getOrCreateSessionId();
+    const sessionId = this.sessionManager.getCurrentSessionId();
 
     const event: EventRecord = {
+      uuid: generateEventUuid(),
       id: this.memoryCache.nextId++,
       event_type: eventType,
       timestamp: eventTime ?? Date.now(),
@@ -77,7 +117,9 @@ export class EventStorageManager {
 
     this.memoryCache.events.push(event);
 
-    // Apply FIFO limit
+    // Apply FIFO limit. This bounds local memory only; the relay keeps its own
+    // copy (the event was already dual-written below), so no relay
+    // reconciliation is needed when local entries are evicted.
     if (this.memoryCache.events.length > EventStorageManager.MAX_EVENTS) {
       this.memoryCache.events = this.memoryCache.events.slice(
         -EventStorageManager.MAX_EVENTS,
@@ -86,6 +128,105 @@ export class EventStorageManager {
 
     // Trigger debounced write to localStorage
     this.scheduleDebouncedWrite();
+
+    this.relayClient?.writeEvent(event);
+  }
+
+  /**
+   * Attach or detach the relay client for cross-subdomain dual-write.
+   */
+  setRelayClient(relayClient: RelayClient | null): void {
+    this.relayClient = relayClient;
+  }
+
+  /**
+   * Flushes pending relay writes (e.g. on page unload).
+   */
+  flushRelay(): void {
+    this.relayClient?.flush();
+  }
+
+  /**
+   * Merges relay events into the in-memory cache. Relay wins on dedup conflicts.
+   */
+  mergeFromRelay(relayStore: RelayEventStorage): void {
+    const byKey = new Map<string, EventRecord>();
+    for (const event of this.memoryCache.events) {
+      byKey.set(eventDedupKey(event), event);
+    }
+    for (const event of relayStore.events) {
+      byKey.set(eventDedupKey(event), event);
+    }
+
+    let events = Array.from(byKey.values()).sort(
+      (a, b) => a.timestamp - b.timestamp,
+    );
+    if (events.length > EventStorageManager.MAX_EVENTS) {
+      events = events.slice(-EventStorageManager.MAX_EVENTS);
+    }
+
+    let nextId = Math.max(this.memoryCache.nextId, relayStore.nextId);
+    for (const event of events) {
+      if (event.id + 1 > nextId) {
+        nextId = event.id + 1;
+      }
+    }
+
+    this.memoryCache = { events, nextId };
+    this.hasPendingWrites = true;
+    this.scheduleDebouncedWrite();
+  }
+
+  /**
+   * Pass 2 sync: migrate local store to relay if needed, then merge relay events.
+   * Returns true when sync completed; false when relay unavailable or RPC failed.
+   */
+  async syncFromRelay(relayClient?: RelayClient): Promise<boolean> {
+    const relay = relayClient ?? this.relayClient;
+    if (!relay?.relayAvailable) {
+      return false;
+    }
+
+    try {
+      const origin = getGlobalScope()?.location?.origin;
+      if (!origin) {
+        return false;
+      }
+      const migrated = await relay.checkMigrated(origin);
+
+      // First-time origins migrate their local store in bulk (one RPC). The
+      // backfill below then reconciles anything the bulk push dropped.
+      if (!migrated && this.memoryCache.events.length > 0) {
+        await relay.migrateEvents(origin, {
+          events: [...this.memoryCache.events],
+          nextId: this.memoryCache.nextId,
+        });
+      }
+
+      const relayStore = await relay.readEvents();
+
+      // Backfill any local events the relay is missing, regardless of migrated
+      // state. Both MIGRATE_EVENTS and the store dedupe on uuid, so this is a
+      // safety net: it re-pushes (via the non-deduping WRITE_EVENT path) only
+      // events whose uuid the relay does not already have — e.g. an origin that
+      // was marked migrated before a failed bulk push, or events added between
+      // migrate and read — without duplicating anything already in the relay.
+      if (this.memoryCache.events.length > 0) {
+        const relayKeys = new Set(
+          relayStore.events.map((e) => eventDedupKey(e)),
+        );
+        for (const event of this.memoryCache.events) {
+          if (!relayKeys.has(eventDedupKey(event))) {
+            relay.writeEvent(event);
+          }
+        }
+      }
+
+      this.mergeFromRelay(relayStore);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -116,7 +257,7 @@ export class EventStorageManager {
     );
 
     if (timeType === 'current_session') {
-      const currentSessionId = this.sessionManager.getOrCreateSessionId();
+      const currentSessionId = this.sessionManager.getCurrentSessionId();
       events = events.filter((e) => e.session_id === currentSessionId);
     } else {
       // Rolling time window
@@ -148,6 +289,7 @@ export class EventStorageManager {
    */
   flush(): void {
     this.flushToLocalStorage();
+    this.flushRelay();
   }
 
   /**
@@ -185,6 +327,27 @@ export class EventStorageManager {
           Array.isArray(parsed.events) &&
           typeof parsed.nextId === 'number'
         ) {
+          // Backfill a uuid for any record persisted before uuid existed, so
+          // each keeps a distinct dedup identity (see eventDedupKey). Without
+          // this, uuid-less records share an undefined key and all but one
+          // collapse on the next mergeFromRelay.
+          let backfilled = false;
+          for (const event of parsed.events as EventRecord[]) {
+            if (typeof event.uuid !== 'string' || event.uuid.length === 0) {
+              event.uuid = generateEventUuid();
+              backfilled = true;
+            }
+          }
+          // Persist the minted uuids immediately so they are stable across
+          // reloads and other tabs. Otherwise each load would mint fresh uuids
+          // for the same events and relay sync would push duplicates.
+          if (backfilled) {
+            try {
+              localStorage.setItem(this.storageKey, JSON.stringify(parsed));
+            } catch (e) {
+              // quota/unavailable — a later mutating flush will retry.
+            }
+          }
           return parsed;
         }
         // Invalid structure, return empty
@@ -242,8 +405,13 @@ export class EventStorageManager {
    * This prevents data loss on page close or backgrounding.
    */
   private setupFlushHandlers(): void {
+    const globalScope = getGlobalScope();
+    if (!globalScope) {
+      return;
+    }
+
     // Flush before page unload (close, refresh, navigation)
-    window.addEventListener('beforeunload', this.handleBeforeUnload);
+    globalScope.addEventListener('beforeunload', this.handleBeforeUnload);
 
     // Flush when tab becomes hidden (user switches tabs)
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
@@ -253,7 +421,7 @@ export class EventStorageManager {
    * Handler for beforeunload event.
    */
   private handleBeforeUnload = (): void => {
-    this.flushToLocalStorage();
+    this.flush();
   };
 
   /**
@@ -261,7 +429,7 @@ export class EventStorageManager {
    */
   private handleVisibilityChange = (): void => {
     if (document.visibilityState === 'hidden') {
-      this.flushToLocalStorage();
+      this.flush();
     }
   };
 
@@ -272,6 +440,7 @@ export class EventStorageManager {
   cleanup(): void {
     // Flush any pending writes
     this.flushToLocalStorage();
+    this.flushRelay();
 
     // Clear debounce timeout
     if (this.debouncedWriteTimeout) {
@@ -280,7 +449,10 @@ export class EventStorageManager {
     }
 
     // Remove event listeners
-    window.removeEventListener('beforeunload', this.handleBeforeUnload);
+    getGlobalScope()?.removeEventListener(
+      'beforeunload',
+      this.handleBeforeUnload,
+    );
     document.removeEventListener(
       'visibilitychange',
       this.handleVisibilityChange,

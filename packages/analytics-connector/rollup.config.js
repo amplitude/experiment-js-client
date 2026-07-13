@@ -8,8 +8,6 @@ import replace from '@rollup/plugin-replace';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
 
-import tsConfig from './tsconfig.json';
-
 const getCommonBrowserConfig = (target) => ({
   input: 'src/index.ts',
   treeshake: {
@@ -24,11 +22,8 @@ const getCommonBrowserConfig = (target) => ({
     json(),
     commonjs(),
     typescript({
+      tsconfig: './tsconfig.build.json',
       ...(target === 'es2015' ? { target: 'es2015' } : {}),
-      declaration: true,
-      declarationDir: 'dist/types',
-      include: tsConfig.include,
-      rootDir: '.',
     }),
     babel({
       configFile:

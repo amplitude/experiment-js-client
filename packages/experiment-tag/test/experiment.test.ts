@@ -1,16 +1,20 @@
 import * as experimentCore from '@amplitude/experiment-core';
-import { safeGlobal } from '@amplitude/experiment-core';
+import { safeGlobal as maybeSafeGlobal } from '@amplitude/experiment-core';
 import { ExperimentClient } from '@amplitude/experiment-js-client';
 import { Base64 } from 'js-base64';
-import { DefaultWebExperimentClient } from 'src/experiment';
-import * as antiFlickerUtils from 'src/util/anti-flicker';
-import * as uuid from 'src/util/uuid';
 import { stringify } from 'ts-jest';
 
 import { createMutateFlag, createRedirectFlag } from './util/create-flag';
 import { createPageObject } from './util/create-page-object';
 import { MockHttpClient } from './util/mock-http-client';
 import { createMockGlobal, setupGlobalObservers } from './util/mocks';
+
+import { DefaultWebExperimentClient } from 'src/experiment';
+import * as antiFlickerUtils from 'src/util/anti-flicker';
+import * as uuid from 'src/util/uuid';
+
+// Tests run in jsdom so safeGlobal is always defined.
+const safeGlobal = maybeSafeGlobal as typeof globalThis;
 
 let apiKey = 0;
 const DEFAULT_PAGE_OBJECTS = {
@@ -22,8 +26,8 @@ const DEFAULT_MUTATE_SCOPE = { metadata: { scope: ['A'] } };
 // Mock CookieStorage to use an in-memory store for testing
 const cookieStore: Record<string, any> = {};
 
-export const getCookieStore = () => cookieStore;
-export const clearCookieStore = () => {
+const getCookieStore = () => cookieStore;
+const clearCookieStore = () => {
   Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
 };
 
@@ -112,12 +116,50 @@ describe('initializeExperiment', () => {
       initialFlags: JSON.stringify([]),
       pageObjects: JSON.stringify({}),
     }).start();
-    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith({
-      web_exp_id: 'mock',
-    });
+    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        web_exp_id: 'mock',
+        web_exp_id_v2: expect.any(String),
+      }),
+    );
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       'EXP_' + stringify(apiKey),
-      JSON.stringify({ web_exp_id: 'mock' }),
+      JSON.stringify({ web_exp_id: 'mock', web_exp_id_v2: 'mock' }),
+    );
+  });
+
+  test('seeds web_exp_id_v2 from existing web_exp_id when cookie is missing', async () => {
+    const key = stringify(apiKey);
+    const storageKey = 'EXP_' + key;
+    const identityKey = storageKey + '_identity';
+    mockGlobal.localStorage.getItem.mockImplementation((name: string) => {
+      if (name === storageKey) {
+        return JSON.stringify({ web_exp_id: 'existing-id' });
+      }
+      return null;
+    });
+
+    await DefaultWebExperimentClient.getInstance(key, {
+      initialFlags: JSON.stringify([]),
+      pageObjects: JSON.stringify({}),
+    }).start();
+
+    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        web_exp_id: 'existing-id',
+        web_exp_id_v2: 'existing-id',
+      }),
+    );
+    // web_exp_id_v2 and first_seen now share a single _identity cookie object.
+    expect(JSON.parse(cookieStore[identityKey])).toEqual(
+      expect.objectContaining({ web_exp_id_v2: 'existing-id' }),
+    );
+    expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
+      storageKey,
+      JSON.stringify({
+        web_exp_id: 'existing-id',
+        web_exp_id_v2: 'existing-id',
+      }),
     );
   });
 
@@ -244,6 +286,54 @@ describe('initializeExperiment', () => {
     }
   });
 
+  test('custom redirect handler - url_change clears isRedirecting and tears down anti-flicker', async () => {
+    mockGlobal = newMockGlobal();
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const removeAntiFlickerSpy = jest.spyOn(
+      antiFlickerUtils,
+      'removeAntiFlickerCss',
+    );
+
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/2',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+    });
+
+    // Route the redirect through a custom handler (SPA soft nav): the JS context
+    // survives, so a hard location.replace() is never called.
+    const customHandler = jest.fn();
+    client.setRedirectHandler(customHandler);
+
+    await client.start();
+
+    // Custom handler drives navigation; no hard redirect.
+    expect(customHandler).toHaveBeenCalledWith('http://test.com/2');
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+
+    // While the soft nav is in-flight the overlay must stay up.
+    expect((client as any).isRedirecting).toBe(true);
+    removeAntiFlickerSpy.mockClear();
+
+    // The soft nav commits and emits url_change: isRedirecting must reset and the
+    // overlay must be torn down so it (and any customer #amp-exp-css) is not left
+    // covering the destination route.
+    (client as any).messageBus.publish('url_change', {});
+
+    expect((client as any).isRedirecting).toBe(false);
+    expect(removeAntiFlickerSpy).toHaveBeenCalledTimes(1);
+  });
+
   test('control variant on control page - should not redirect but call exposure', async () => {
     await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
       initialFlags: JSON.stringify([
@@ -253,13 +343,13 @@ describe('initializeExperiment', () => {
     }).start();
 
     // No redirect should happen
-    expect(mockGlobal.location.replace).toBeCalledTimes(0);
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
 
     // Exposure should be tracked
     expect(mockExposure).toHaveBeenCalledWith('test');
 
     // No history manipulation
-    expect(mockGlobal.history.replaceState).toBeCalledTimes(0);
+    expect(mockGlobal.history.replaceState).toHaveBeenCalledTimes(0);
 
     // No redirect info should be stored
     const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
@@ -389,7 +479,7 @@ describe('initializeExperiment', () => {
       pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
     });
 
-    client.start().then();
+    void client.start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledTimes(0);
@@ -796,7 +886,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).not.toHaveBeenCalled();
   });
 
-  test('remote evaluation - request web remote flags', () => {
+  test('remote evaluation - request web remote flags', async () => {
     const mockUser = { user_id: 'user_id', device_id: 'device_id' };
     jest.spyOn(ExperimentClient.prototype, 'getUser').mockReturnValue(mockUser);
 
@@ -807,7 +897,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient(JSON.stringify([]));
 
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       {
         initialFlags: JSON.stringify(initialFlags),
@@ -816,17 +906,15 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        expect(mockHttpClient.requestUrl).toBe(
-          'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
-        );
-        // check flag fetch called with correct query param and header
-        expect(mockHttpClient.requestHeader['X-Amp-Exp-User']).toBe(
-          Base64.encodeURL(JSON.stringify(mockUser)),
-        );
-      });
+    ).start();
+
+    expect(mockHttpClient.requestUrl).toBe(
+      'https://flag.lab.amplitude.com/sdk/v2/flags?delivery_method=web',
+    );
+    // check flag fetch called with correct query param and header
+    expect(mockHttpClient.requestHeader['X-Amp-Exp-User']).toBe(
+      Base64.encodeURL(JSON.stringify(mockUser)),
+    );
   });
 
   test('remote evaluation - fetch successful, antiflicker applied', async () => {
@@ -1008,7 +1096,7 @@ describe('initializeExperiment', () => {
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
-  test('remote evaluation - fetch fail, test initialFlags variant actions called', () => {
+  test('remote evaluation - fetch fail, test initialFlags variant actions called', async () => {
     const initialFlags = [
       // remote flag
       createMutateFlag(
@@ -1022,7 +1110,7 @@ describe('initializeExperiment', () => {
 
     const mockHttpClient = new MockHttpClient('', 404);
 
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       {
         initialFlags: JSON.stringify(initialFlags),
@@ -1031,19 +1119,14 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        // check remote variant actions applied
-        expect(mockExposure).toHaveBeenCalledTimes(1);
-        expect(mockExposure).toHaveBeenCalledWith('test');
-      });
-    // check local flag variant actions called
-    expect(mockExposure).toHaveBeenCalledTimes(0);
+    ).start();
+    // check remote variant actions applied
+    expect(mockExposure).toHaveBeenCalledTimes(1);
+    expect(mockExposure).toHaveBeenCalledWith('test');
     expect(antiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
-  test('remote evaluation - test preview successful, does not fetch remote flags', () => {
+  test('remote evaluation - test preview successful, does not fetch remote flags', async () => {
     const mockGlobal = newMockGlobal({
       location: {
         href: 'http://test.com/',
@@ -1064,7 +1147,7 @@ describe('initializeExperiment', () => {
       ExperimentClient.prototype as any,
       'doFlags',
     );
-    DefaultWebExperimentClient.getInstance(
+    await DefaultWebExperimentClient.getInstance(
       stringify(apiKey),
       {
         initialFlags: JSON.stringify(initialFlags),
@@ -1073,12 +1156,10 @@ describe('initializeExperiment', () => {
       {
         httpClient: mockHttpClient,
       },
-    )
-      .start()
-      .then(() => {
-        // check remote fetch not called
-        expect(doFlagsMock).toHaveBeenCalledTimes(0);
-      });
+    ).start();
+
+    // check remote fetch not called
+    expect(doFlagsMock).toHaveBeenCalledTimes(0);
     expect(antiFlickerSpy).toHaveBeenCalledTimes(0);
   });
 
@@ -1260,7 +1341,7 @@ describe('initializeExperiment', () => {
         'test-2': test2Page,
       }),
     });
-    client.start().then();
+    void client.start();
     let activePages = (client as any).activePages;
     expect(activePages).toEqual({ 'test-1': test1Page });
     (client as any).subscriptionManager.globalScope = newMockGlobal({
@@ -1318,7 +1399,7 @@ describe('initializeExperiment', () => {
       initialFlags: JSON.stringify(initialFlags),
       pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
     });
-    client.start().then();
+    void client.start();
     expect(mockExposure).toHaveBeenCalledTimes(0);
     const appliedMutations = (client as any).appliedMutations;
     expect(Object.keys(appliedMutations).length).toEqual(0);
@@ -1589,8 +1670,8 @@ describe('initializeExperiment', () => {
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
-      expect(integrationManagerTrack).toBeCalledTimes(1);
-      const call = integrationManagerTrack.mock.calls[0][0] as unknown as {
+      expect(integrationManagerTrack).toHaveBeenCalledTimes(1);
+      const call = integrationManagerTrack.mock.calls[0][0] as {
         flag_key: string;
         metadata: Record<string, unknown>;
       };
@@ -1673,13 +1754,13 @@ describe('initializeExperiment', () => {
       );
       expect(flags['test'].metadata.flagVersion).toEqual(4);
       expect(flags['test'].metadata.evaluationMode).toEqual('local');
-      expect(integrationManagerTrack).toBeCalledTimes(2);
-      const call1 = integrationManagerTrack.mock.calls[0][0] as unknown as {
+      expect(integrationManagerTrack).toHaveBeenCalledTimes(2);
+      const call1 = integrationManagerTrack.mock.calls[0][0] as {
         flag_key: string;
         variant: string;
         metadata: Record<string, unknown>;
       };
-      const call2 = integrationManagerTrack.mock.calls[1][0] as unknown as {
+      const call2 = integrationManagerTrack.mock.calls[1][0] as {
         flag_key: string;
         variant: string;
         metadata: Record<string, unknown>;

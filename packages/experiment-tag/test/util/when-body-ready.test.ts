@@ -81,4 +81,27 @@ describe('whenBodyReady', () => {
       });
     }
   });
+
+  it('stops polling when cancel is called', () => {
+    setBody(null);
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = jest
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb) => {
+        rafCallbacks.push(cb);
+        return rafCallbacks.length;
+      });
+
+    const cb = jest.fn();
+    const cancel = whenBodyReady(cb);
+    rafCallbacks.shift()?.(0);
+    expect(rafSpy).toHaveBeenCalledTimes(2);
+
+    cancel();
+    rafCallbacks.shift()?.(0);
+    expect(cb).not.toHaveBeenCalled();
+    expect(rafSpy).toHaveBeenCalledTimes(2);
+
+    rafSpy.mockRestore();
+  });
 });

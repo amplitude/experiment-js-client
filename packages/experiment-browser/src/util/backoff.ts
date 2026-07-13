@@ -1,4 +1,4 @@
-import { safeGlobal } from '@amplitude/experiment-core';
+import { getClearTimeout, getSetTimeout } from '@amplitude/experiment-core';
 
 export class Backoff {
   private readonly attempts: number;
@@ -34,7 +34,10 @@ export class Backoff {
 
   public cancel(): void {
     this.done = true;
-    clearTimeout(this.timeoutHandle);
+    const clearTimeoutFn = getClearTimeout();
+    if (clearTimeoutFn) {
+      clearTimeoutFn(this.timeoutHandle);
+    }
   }
 
   private async backoff(
@@ -45,16 +48,22 @@ export class Backoff {
     if (this.done) {
       return;
     }
-    this.timeoutHandle = safeGlobal.setTimeout(async () => {
-      try {
-        await fn();
-      } catch (e) {
-        const nextAttempt = attempt + 1;
-        if (nextAttempt < this.attempts) {
-          const nextDelay = Math.min(delay * this.scalar, this.max);
-          this.backoff(fn, nextAttempt, nextDelay);
+    const setTimeoutFn = getSetTimeout();
+    if (!setTimeoutFn) {
+      return;
+    }
+    this.timeoutHandle = setTimeoutFn(() => {
+      void (async () => {
+        try {
+          await fn();
+        } catch (e) {
+          const nextAttempt = attempt + 1;
+          if (nextAttempt < this.attempts) {
+            const nextDelay = Math.min(delay * this.scalar, this.max);
+            await this.backoff(fn, nextAttempt, nextDelay);
+          }
         }
-      }
+      })();
     }, delay);
   }
 }

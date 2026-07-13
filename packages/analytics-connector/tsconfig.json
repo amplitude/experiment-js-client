@@ -1,6 +1,13 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/**/*.ts", "package.json"],
+  "include": ["src/**/*.ts", "test/**/*.ts", "package.json"],
+  "exclude": ["dist"],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "src/*": ["./src/*"]
+    }
+  },
   "typedocOptions": {
     "name": "Experiment JS Client Documentation",
     "entryPoints": ["./src/index.ts"],

@@ -1,13 +1,17 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/**/*.ts", "package.json"],
+  "include": ["src/**/*.ts", "test/**/*.ts", "package.json"],
+  "exclude": ["dist"],
   "compilerOptions": {
     "noImplicitAny": false,
     "declaration": true,
     "declarationDir": "dist/types",
     "downlevelIteration": true,
     "strict": true,
-    "baseUrl": "./src",
-    "rootDir": "."
+    "baseUrl": ".",
+    "rootDir": ".",
+    "paths": {
+      "src/*": ["./src/*"]
+    }
   }
 }

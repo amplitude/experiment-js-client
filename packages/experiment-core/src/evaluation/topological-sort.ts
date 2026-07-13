@@ -32,7 +32,7 @@ const parentTraversal = (
   const result: EvaluationFlag[] = [];
   for (const parentKey of flag.dependencies) {
     if (path.some((p) => p === parentKey)) {
-      throw Error(`Detected a cycle between flags ${path}`);
+      throw Error(`Detected a cycle between flags ${path.join(', ')}`);
     }
     const traversal = parentTraversal(parentKey, available, path);
     if (traversal) {

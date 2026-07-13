@@ -60,7 +60,7 @@ export const initialize = (
         return startClient(apiKey, initConfigs, config);
       });
   } else {
-    startClient(apiKey, initConfigs, config);
+    void startClient(apiKey, initConfigs, config);
   }
 };
 
