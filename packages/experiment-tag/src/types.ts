@@ -121,6 +121,21 @@ export interface RedirectConfig {
   encodeRedirectInUrl?: boolean;
 }
 
+export type ConsentStatus = 'granted' | 'pending' | 'rejected';
+
+export interface ConsentOptions {
+  /**
+   * When true, the script does not start until consent status is 'granted'.
+   * Default false — the consent feature is fully off and behavior is unchanged.
+   */
+  consentRequired?: boolean;
+  /**
+   * Initial consent status, set before the script loads. Defaults to
+   * 'pending' when consentRequired is true.
+   */
+  consentStatus?: ConsentStatus;
+}
+
 export interface WebExperimentConfig extends ExperimentConfig {
   /**
    * Determines whether the default implementation for handling navigation  will be used
@@ -144,6 +159,18 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * zone. Intended for local/staging testing of the relay serving path.
    */
   relayUrl?: string;
+  /**
+   * Cookie-consent gating for the web experiment script. When
+   * `consentRequired` is true, the script does not start (no storage access,
+   * evaluation, variant application, tracking, or relay) until the status is
+   * 'granted'. Update status at runtime with
+   * `window.webExperiment.setConsentStatus(status)`.
+   *
+   * v0: `pending → granted` is allowed to flicker (the client starts fresh on
+   * grant). A future version runs experiments in-memory during pending to
+   * avoid flicker; the config shape is unchanged.
+   */
+  consentOptions?: ConsentOptions;
 }
 
 export const Defaults: WebExperimentConfig = {
