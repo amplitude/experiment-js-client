@@ -5,8 +5,10 @@ import { createMockGlobal } from '../util/mocks';
 import { consentGate } from 'src/consent-gate';
 import { DefaultWebExperimentClient } from 'src/experiment';
 import { initialize, setConsentStatus } from 'src/index';
+import { SdkPreviewApi } from 'src/preview/preview-api';
 import { ConsentStatus, InitConfigs, WebExperimentConfig } from 'src/types';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
+import * as urlUtils from 'src/util/url';
 
 const API_KEY = 'test-api-key-1234567890';
 const INIT_CONFIGS: InitConfigs = {
@@ -128,6 +130,61 @@ describe('index.ts consent gate (v0)', () => {
       consentOptions: { consentRequired: true, consentStatus: 'granted' },
     });
     expect(getInstance).not.toHaveBeenCalled();
+  });
+
+  test('rejected latch is honored by a later initialize with granted config', () => {
+    setConsentStatus('rejected'); // CMP declined before the script loaded
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'granted' },
+    });
+    expect(getInstance).not.toHaveBeenCalled();
+  });
+
+  describe('preview mode', () => {
+    const flushAsync = async () => {
+      for (let i = 0; i < 5; i++) {
+        await Promise.resolve();
+      }
+    };
+
+    beforeEach(() => {
+      jest.spyOn(urlUtils, 'isPreviewMode').mockReturnValue(true);
+      jest
+        .spyOn(SdkPreviewApi.prototype, 'getPreviewFlagsAndPageViewObjects')
+        .mockResolvedValue({
+          flags: [],
+          pageViewObjects: {},
+          behavioralTargetingRules: [],
+        } as never);
+    });
+
+    test('deferred grant goes through the preview path (anti-flicker + config fetch)', async () => {
+      init({
+        consentOptions: { consentRequired: true, consentStatus: 'pending' },
+      });
+      expect(antiFlickerUtils.applyAntiFlickerCss).not.toHaveBeenCalled();
+
+      setConsentStatus('granted');
+      await flushAsync();
+
+      expect(antiFlickerUtils.applyAntiFlickerCss).toHaveBeenCalled();
+      expect(
+        SdkPreviewApi.prototype.getPreviewFlagsAndPageViewObjects,
+      ).toHaveBeenCalled();
+      expect(getInstance).toHaveBeenCalledTimes(1);
+    });
+
+    test('rejection during the in-flight config fetch prevents construction', async () => {
+      init({
+        consentOptions: { consentRequired: true, consentStatus: 'granted' },
+      });
+      // Fetch is in flight; the user rejects before it resolves.
+      setConsentStatus('rejected');
+      await flushAsync();
+
+      expect(getInstance).not.toHaveBeenCalled();
+      expect(antiFlickerUtils.removeAntiFlickerCss).toHaveBeenCalled();
+    });
   });
 
   test('stub exposes setConsentStatus before the client exists', () => {

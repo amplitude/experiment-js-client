@@ -56,7 +56,7 @@ export const setConsentStatus = (status: ConsentStatus): void => {
     const { apiKey, initConfigs, config } = consentGate.deferredStart;
     consentGate.deferredStart = null;
     eventBuffer.length = 0; // drop pre-grant buffer so it isn't replayed
-    void startClient(apiKey, initConfigs, config);
+    launchClient(apiKey, initConfigs, config);
   }
 };
 
@@ -85,8 +85,12 @@ export const initialize = (
   // return without constructing the client (no storage/eval/tracking/relay).
   const consent = resolveConsentOptions(config, globalScope);
   if (consent.consentRequired && !consentGate.started) {
+    if (consentGate.rejected) {
+      return; // terminal from an earlier rejection: never start this load
+    }
     const status = consentGate.status ?? consent.consentStatus ?? 'pending';
     if (status === 'rejected') {
+      consentGate.status = 'rejected';
       consentGate.rejected = true; // terminal at load: never start this load
       consentGate.deferredStart = null;
       return;
@@ -98,8 +102,20 @@ export const initialize = (
     consentGate.started = true;
   }
 
+  launchClient(apiKey, initConfigs, config);
+};
+
+// Single launch path used by both initialize() and a deferred consent grant,
+// so a grant that arrives after load still gets the preview/extension branch
+// (anti-flicker CSS + latest-config fetch) instead of starting directly.
+const launchClient = (
+  apiKey: string,
+  initConfigs: InitConfigs,
+  config: WebExperimentConfig,
+): void => {
+  const globalScope = getGlobalScope();
   const shouldFetchConfigs =
-    isPreviewMode() || globalScope.WebExperiment?.injectedByExtension;
+    isPreviewMode() || globalScope?.WebExperiment?.injectedByExtension;
 
   if (shouldFetchConfigs) {
     applyAntiFlickerCss();
@@ -139,6 +155,12 @@ const startClient = (
   initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): Promise<void> => {
+  if (consentGate.rejected) {
+    // Consent was rejected while a start was in flight (e.g. during the
+    // preview-config fetch). Terminal for this page load: never construct.
+    removeAntiFlickerCss();
+    return Promise.resolve();
+  }
   const client = DefaultWebExperimentClient.getInstance(
     apiKey,
     initConfigs,
