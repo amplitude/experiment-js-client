@@ -1,3 +1,5 @@
+import { getGlobalScope } from '@amplitude/experiment-core';
+
 /**
  * Patch removeChild to avoid errors when removing nodes that are added
  * mutate/inject actions.
@@ -9,4 +11,40 @@ export const patchRemoveChild = () => {
     }
     return n;
   };
+};
+
+const detectStyleCSP = () => {
+  const el = new DOMParser().parseFromString(
+    '<i style="color:red"></i>',
+    'text/html',
+  ).body.firstChild as HTMLElement;
+  return !el.style.cssText;
+};
+
+/**
+ * Patch DOMParser to set inline styles programmatically to work around restrictive style CSP
+ */
+export const patchDOMParser = () => {
+  const globalScope = getGlobalScope();
+  if (
+    globalScope &&
+    !globalScope['__domParserParseFromString'] &&
+    detectStyleCSP()
+  ) {
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- original is always re-invoked via .apply(this, ...) below
+    const parseFromString = DOMParser.prototype.parseFromString;
+    globalScope['__domParserParseFromString'] = parseFromString;
+
+    DOMParser.prototype.parseFromString = function (content, contentType) {
+      const doc = parseFromString.apply(this, [content, contentType]);
+      if (contentType === 'text/html') {
+        doc.body.querySelectorAll('[style]').forEach((el) => {
+          (el as HTMLElement).style.cssText = el.getAttribute(
+            'style',
+          ) as string;
+        });
+      }
+      return doc;
+    };
+  }
 };
