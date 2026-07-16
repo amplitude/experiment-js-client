@@ -5,7 +5,7 @@ import { createMockGlobal } from '../util/mocks';
 import { consentGate } from 'src/consent-gate';
 import { DefaultWebExperimentClient } from 'src/experiment';
 import { initialize, setConsentStatus } from 'src/index';
-import { InitConfigs, WebExperimentConfig } from 'src/types';
+import { ConsentStatus, InitConfigs, WebExperimentConfig } from 'src/types';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
 
 const API_KEY = 'test-api-key-1234567890';
@@ -47,39 +47,33 @@ describe('index.ts consent gate (v0)', () => {
   const init = (config: WebExperimentConfig) =>
     initialize(API_KEY, INIT_CONFIGS, config);
 
-  test('consentRequired absent: starts immediately (unchanged path)', () => {
-    init({});
+  it.each<[string, WebExperimentConfig]>([
+    ['consentRequired absent (unchanged path)', {}],
+    ['consentRequired false', { consentOptions: { consentRequired: false } }],
+    [
+      'required + initial granted',
+      { consentOptions: { consentRequired: true, consentStatus: 'granted' } },
+    ],
+  ])('starts immediately: %s', (_label, config) => {
+    init(config);
     expect(getInstance).toHaveBeenCalledTimes(1);
   });
 
-  test('consentRequired false: starts immediately', () => {
-    init({ consentOptions: { consentRequired: false } });
-    expect(getInstance).toHaveBeenCalledTimes(1);
-  });
-
-  test('required + initial granted: starts immediately', () => {
-    init({
-      consentOptions: { consentRequired: true, consentStatus: 'granted' },
-    });
-    expect(getInstance).toHaveBeenCalledTimes(1);
-  });
-
-  test('required + pending: does not construct or start', () => {
-    init({
-      consentOptions: { consentRequired: true, consentStatus: 'pending' },
-    });
-    expect(getInstance).not.toHaveBeenCalled();
-  });
-
-  test('required + no status: defaults to pending, does not start', () => {
-    init({ consentOptions: { consentRequired: true } });
-    expect(getInstance).not.toHaveBeenCalled();
-  });
-
-  test('required + rejected: does not start', () => {
-    init({
-      consentOptions: { consentRequired: true, consentStatus: 'rejected' },
-    });
+  it.each<[string, WebExperimentConfig]>([
+    [
+      'pending',
+      { consentOptions: { consentRequired: true, consentStatus: 'pending' } },
+    ],
+    [
+      'no status (defaults to pending)',
+      { consentOptions: { consentRequired: true } },
+    ],
+    [
+      'rejected',
+      { consentOptions: { consentRequired: true, consentStatus: 'rejected' } },
+    ],
+  ])('does not construct or start: required + %s', (_label, config) => {
+    init(config);
     expect(getInstance).not.toHaveBeenCalled();
   });
 
@@ -101,31 +95,19 @@ describe('index.ts consent gate (v0)', () => {
     expect(getInstance).toHaveBeenCalledTimes(1);
   });
 
-  test('rejected is terminal: pending -> rejected -> granted does not start', () => {
+  it.each<[string, ConsentStatus, ConsentStatus[]]>([
+    ['pending -> rejected -> granted', 'pending', ['rejected', 'granted']],
+    ['rejected at load -> granted', 'rejected', ['granted']],
+    [
+      'pending -> rejected -> pending -> granted',
+      'pending',
+      ['rejected', 'pending', 'granted'],
+    ],
+  ])('rejected is terminal: %s does not start', (_label, initial, sequence) => {
     init({
-      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+      consentOptions: { consentRequired: true, consentStatus: initial },
     });
-    setConsentStatus('rejected');
-    expect(getInstance).not.toHaveBeenCalled();
-    setConsentStatus('granted');
-    expect(getInstance).not.toHaveBeenCalled();
-  });
-
-  test('rejected at load is terminal: a later grant does not start', () => {
-    init({
-      consentOptions: { consentRequired: true, consentStatus: 'rejected' },
-    });
-    setConsentStatus('granted');
-    expect(getInstance).not.toHaveBeenCalled();
-  });
-
-  test('rejected is terminal even after pending again: no start on grant', () => {
-    init({
-      consentOptions: { consentRequired: true, consentStatus: 'pending' },
-    });
-    setConsentStatus('rejected');
-    setConsentStatus('pending');
-    setConsentStatus('granted');
+    sequence.forEach((status) => setConsentStatus(status));
     expect(getInstance).not.toHaveBeenCalled();
   });
 

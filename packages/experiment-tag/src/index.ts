@@ -28,31 +28,22 @@ const resolveConsentOptions = (
 });
 
 /**
- * Updates cookie-consent status. Exposed on `window.webExperiment` (including
- * the pre-init stub) so a CMP callback can call it before the client exists.
- *
- * In v0:
- * - `granted` starts the client once (with the args stashed by `initialize`); a
- *   grant that arrives before `initialize()` is recorded so `initialize()`
- *   starts immediately when it runs.
- * - `rejected` is terminal for this page load: it latches the gate closed and
- *   drops any stashed start, so subsequent `granted` calls are ignored until the
- *   next reload.
- * - `pending` is a no-op (nothing has run).
+ * Updates cookie-consent status. Exposed on `window.webExperiment` (incl. the
+ * pre-init stub) so a CMP callback can call it before the client exists. v0:
+ * `granted` starts the client once; `rejected` is terminal (latches closed until
+ * reload); `pending` is a no-op. A grant recorded before `initialize()` runs is
+ * honored on init.
  */
 export const setConsentStatus = (status: ConsentStatus): void => {
-  // Terminal decline: latch closed and discard any stashed start so a later
-  // grant cannot resume it. Reload is required to reset.
+  // 'rejected' is terminal: latch closed and drop any stashed start.
   if (status === 'rejected') {
     consentGate.status = 'rejected';
     consentGate.rejected = true;
     consentGate.deferredStart = null;
     return;
   }
-
-  // Once rejected, ignore any further status changes (including 'granted').
   if (consentGate.rejected) {
-    return;
+    return; // terminal: ignore later status changes, including 'granted'
   }
 
   consentGate.status = status;
@@ -64,12 +55,9 @@ export const setConsentStatus = (status: ConsentStatus): void => {
     consentGate.started = true;
     const { apiKey, initConfigs, config } = consentGate.deferredStart;
     consentGate.deferredStart = null;
-    // Clear buffered pre-grant events so they aren't replayed into behavioral
-    // targeting after a clean, consent-triggered start.
-    eventBuffer.length = 0;
+    eventBuffer.length = 0; // drop pre-grant buffer so it isn't replayed
     void startClient(apiKey, initConfigs, config);
   }
-  // 'pending' -> no-op (nothing was ever written).
 };
 
 export const initialize = (
@@ -82,9 +70,9 @@ export const initialize = (
     throw new Error('Global scope not available');
   }
 
-  // Expose plugin factory immediately (only if not already a real client
-  // instance). The stub carries setConsentStatus so a CMP callback can resolve
-  // consent before the client is constructed.
+  // Expose the plugin factory immediately (unless a real client already exists).
+  // The stub carries setConsentStatus so a CMP callback can resolve consent
+  // before the client is constructed.
   if (!globalScope.webExperiment) {
     globalScope.webExperiment = {
       plugin: createPlugin,
@@ -93,16 +81,13 @@ export const initialize = (
     };
   }
 
-  // Consent gate: while consent is required and not yet granted, stash the args
-  // and return without constructing the client. Because nothing is built, no
-  // storage/evaluation/tracking/relay runs. setConsentStatus('granted') later
-  // starts it. This must sit before both start paths below.
+  // Consent gate: while consent is required and not granted, stash the args and
+  // return without constructing the client (no storage/eval/tracking/relay).
   const consent = resolveConsentOptions(config, globalScope);
   if (consent.consentRequired && !consentGate.started) {
     const status = consentGate.status ?? consent.consentStatus ?? 'pending';
     if (status === 'rejected') {
-      // Terminal decline at load: latch closed and never start this page load.
-      consentGate.rejected = true;
+      consentGate.rejected = true; // terminal at load: never start this load
       consentGate.deferredStart = null;
       return;
     }

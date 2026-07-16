@@ -13,21 +13,16 @@ interface ConsentGate {
   status: ConsentStatus | undefined;
   /** Whether the client has been (or is being) started. */
   started: boolean;
-  /**
-   * Whether consent was terminally declined. Once `rejected` is seen (at load or
-   * via `setConsentStatus`), the gate latches closed for this page load: later
-   * `granted` calls are ignored. Cleared only by a reload (or `reset` in tests).
-   */
+  /** Terminal-decline latch: once set, later grants are ignored until reload. */
   rejected: boolean;
-  /** Resets the gate. Test-only; kept off the public `index` entry point. */
+  /** Test-only reset; kept off the public `index` entry point. */
   reset(): void;
 }
 
 /**
- * Module-scoped consent state for the v0 gate. While consent is pending there is
- * no client instance to hold it, so the state lives here instead. This module is
- * intentionally not re-exported from `index.ts`, so `reset` (and the raw state)
- * stay out of the package's public API surface.
+ * Module-scoped consent state for the v0 gate — while consent is pending there
+ * is no client instance to hold it. Not re-exported from `index.ts`, so `reset`
+ * and the raw state stay out of the package's public API.
  */
 export const consentGate: ConsentGate = {
   deferredStart: null,
