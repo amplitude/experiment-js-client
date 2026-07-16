@@ -14,17 +14,11 @@ declare global {
   }
 }
 
-// determine if click navigates to a different in-app page
-function isLocalNavigation(
+// determine if navigating within same window
+function isSameWindowNavigation(
   event: MouseEvent,
-  href: string,
   target: string | null,
 ): boolean {
-  const globalScope = getGlobalScope();
-  if (!globalScope?.location) {
-    return false;
-  }
-
   const isModified =
     (target && target !== '_self') ||
     event.metaKey ||
@@ -33,11 +27,7 @@ function isLocalNavigation(
     event.altKey ||
     event.button > 0;
 
-  const url = new URL(href, globalScope.location.href);
-
-  const sameOrigin = url.origin === globalScope.location.origin;
-
-  return !isModified && sameOrigin;
+  return !isModified;
 }
 
 function detectSpaRouting(anchor: HTMLAnchorElement) {
@@ -87,7 +77,7 @@ export function installSpaLinkInterceptor() {
     const target = anchor.getAttribute('target');
     if (
       !href ||
-      !isLocalNavigation(e, href, target) ||
+      !isSameWindowNavigation(e, target) ||
       !detectSpaRouting(anchor)
     ) {
       return;
@@ -103,6 +93,18 @@ export function installSpaLinkInterceptor() {
 function navigateSpa(href: string): void {
   const globalScope = getGlobalScope();
   if (!globalScope) {
+    return;
+  }
+
+  let url: URL | undefined;
+  try {
+    url = new URL(href, globalScope.location.href);
+  } catch {
+    // ignore
+  }
+  if (url && url.origin !== globalScope.location.origin) {
+    // this external URL needs to do a full page reload anyways
+    globalScope.location.href = href;
     return;
   }
 
