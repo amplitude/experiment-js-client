@@ -56,7 +56,47 @@ export const setConsentStatus = (status: ConsentStatus): void => {
     const { apiKey, initConfigs, config } = consentGate.deferredStart;
     consentGate.deferredStart = null;
     eventBuffer.length = 0; // drop pre-grant buffer so it isn't replayed
-    void startClient(apiKey, initConfigs, config);
+
+    // Use the same preview/extension path as initialize() to ensure consistent
+    // behavior: apply anti-flicker CSS and fetch latest configs when applicable.
+    const globalScope = getGlobalScope();
+    const shouldFetchConfigs =
+      isPreviewMode() || globalScope?.WebExperiment?.injectedByExtension;
+
+    if (shouldFetchConfigs) {
+      applyAntiFlickerCss();
+      fetchLatestConfigs(apiKey, config.serverZone)
+        .then((previewState) => {
+          if (consentGate.rejected) {
+            removeAntiFlickerCss();
+            return;
+          }
+          const initialFlags = JSON.stringify(previewState.flags);
+          const pageObjects = JSON.stringify(previewState.pageViewObjects);
+          const behavioralTargetingRules = JSON.stringify(
+            previewState.behavioralTargetingRules,
+          );
+          return startClient(
+            apiKey,
+            {
+              initialFlags,
+              pageObjects,
+              behavioralTargetingRules,
+            },
+            config,
+          );
+        })
+        .catch((error) => {
+          if (consentGate.rejected) {
+            removeAntiFlickerCss();
+            return;
+          }
+          console.warn('Failed to fetch latest configs for preview:', error);
+          return startClient(apiKey, initConfigs, config);
+        });
+    } else {
+      void startClient(apiKey, initConfigs, config);
+    }
   }
 };
 
@@ -85,6 +125,10 @@ export const initialize = (
   // return without constructing the client (no storage/eval/tracking/relay).
   const consent = resolveConsentOptions(config, globalScope);
   if (consent.consentRequired && !consentGate.started) {
+    // Terminal rejection latch: once rejected, never start this page load.
+    if (consentGate.rejected) {
+      return;
+    }
     const status = consentGate.status ?? consent.consentStatus ?? 'pending';
     if (status === 'rejected') {
       consentGate.rejected = true; // terminal at load: never start this load
@@ -110,6 +154,11 @@ export const initialize = (
     // in-flight, just like the normal path.
     fetchLatestConfigs(apiKey, config.serverZone)
       .then((previewState) => {
+        // Check rejection latch: consent may have been revoked during the fetch.
+        if (consentGate.rejected) {
+          removeAntiFlickerCss();
+          return;
+        }
         const initialFlags = JSON.stringify(previewState.flags);
         const pageObjects = JSON.stringify(previewState.pageViewObjects);
         const behavioralTargetingRules = JSON.stringify(
@@ -126,6 +175,11 @@ export const initialize = (
         );
       })
       .catch((error) => {
+        // Check rejection latch: consent may have been revoked during the fetch.
+        if (consentGate.rejected) {
+          removeAntiFlickerCss();
+          return;
+        }
         console.warn('Failed to fetch latest configs for preview:', error);
         return startClient(apiKey, initConfigs, config);
       });
