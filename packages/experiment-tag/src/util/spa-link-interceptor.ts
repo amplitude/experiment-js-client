@@ -99,7 +99,7 @@ function navigateSpa(href: string): void {
   const url = new URL(href, globalScope.location.href);
   if (url.origin !== globalScope.location.origin) {
     // this external URL needs to do a full page reload anyways
-    globalScope.location.href = url;
+    globalScope.location.href = href;
     return;
   }
 
