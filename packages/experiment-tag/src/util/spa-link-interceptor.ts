@@ -96,18 +96,13 @@ function navigateSpa(href: string): void {
     return;
   }
 
-  const url = new URL(href, window.location.href);
-  if (url.origin !== window.location.origin) {
+  const url = new URL(href, globalScope.location.href);
+  if (url.origin !== globalScope.location.origin) {
     // this external URL needs to do a full page reload anyways
-    window.location.href = url;
+    globalScope.location.href = url;
     return;
   }
 
-  // ignore if link is just changing the hash
-  const samePage =
-    url.href.split('#')[0] === window.location.href.split('#')[0];
-  const sameOrigin = url.origin === window.location.origin;
-  
   // special case for NextJS router
   if (globalScope.next?.router?.push) {
     globalScope.next.router.push(href);
