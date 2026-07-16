@@ -132,6 +132,9 @@ export interface ConsentOptions {
   /**
    * Initial consent status, set before the script loads. Defaults to
    * 'pending' when consentRequired is true.
+   *
+   * 'rejected' is terminal for the page load: a later 'granted' (at runtime via
+   * `setConsentStatus`) is ignored until the next reload.
    */
   consentStatus?: ConsentStatus;
 }
@@ -167,8 +170,9 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * `window.webExperiment.setConsentStatus(status)`.
    *
    * v0: `pending → granted` is allowed to flicker (the client starts fresh on
-   * grant). A future version runs experiments in-memory during pending to
-   * avoid flicker; the config shape is unchanged.
+   * grant). `rejected` is terminal — a later `granted` is ignored until reload.
+   * A future version runs experiments in-memory during pending to avoid
+   * flicker; the config shape is unchanged.
    */
   consentOptions?: ConsentOptions;
 }

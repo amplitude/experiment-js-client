@@ -1,6 +1,7 @@
 import { Event, Plugin } from '@amplitude/analytics-types';
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+import { consentGate } from './consent-gate';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
@@ -18,18 +19,6 @@ const eventBuffer: Array<{
   event_properties?: Record<string, unknown>;
 }> = [];
 
-// Consent state lives at module scope: while consent is pending there is no
-// client instance to hold it. In v0, a pending/rejected status means the
-// client is never constructed (no storage, evaluation, tracking, or relay);
-// granting starts it once with the args stashed here.
-let deferredStart: {
-  apiKey: string;
-  initConfigs: InitConfigs;
-  config: WebExperimentConfig;
-} | null = null;
-let consentStatus: ConsentStatus | undefined;
-let started = false;
-
 const resolveConsentOptions = (
   config: WebExperimentConfig,
   globalScope: NonNullable<ReturnType<typeof getGlobalScope>>,
@@ -41,30 +30,46 @@ const resolveConsentOptions = (
 /**
  * Updates cookie-consent status. Exposed on `window.webExperiment` (including
  * the pre-init stub) so a CMP callback can call it before the client exists.
- * In v0, granting starts the client once (with the args stashed by
- * `initialize`); pending/rejected are no-ops because nothing has run. A grant
- * that arrives before `initialize()` is recorded so `initialize()` starts
- * immediately when it runs.
+ *
+ * In v0:
+ * - `granted` starts the client once (with the args stashed by `initialize`); a
+ *   grant that arrives before `initialize()` is recorded so `initialize()`
+ *   starts immediately when it runs.
+ * - `rejected` is terminal for this page load: it latches the gate closed and
+ *   drops any stashed start, so subsequent `granted` calls are ignored until the
+ *   next reload.
+ * - `pending` is a no-op (nothing has run).
  */
 export const setConsentStatus = (status: ConsentStatus): void => {
-  consentStatus = status;
-  if (status === 'granted' && deferredStart && !started) {
-    started = true;
-    const { apiKey, initConfigs, config } = deferredStart;
-    deferredStart = null;
+  // Terminal decline: latch closed and discard any stashed start so a later
+  // grant cannot resume it. Reload is required to reset.
+  if (status === 'rejected') {
+    consentGate.status = 'rejected';
+    consentGate.rejected = true;
+    consentGate.deferredStart = null;
+    return;
+  }
+
+  // Once rejected, ignore any further status changes (including 'granted').
+  if (consentGate.rejected) {
+    return;
+  }
+
+  consentGate.status = status;
+  if (
+    status === 'granted' &&
+    consentGate.deferredStart &&
+    !consentGate.started
+  ) {
+    consentGate.started = true;
+    const { apiKey, initConfigs, config } = consentGate.deferredStart;
+    consentGate.deferredStart = null;
     // Clear buffered pre-grant events so they aren't replayed into behavioral
     // targeting after a clean, consent-triggered start.
     eventBuffer.length = 0;
     void startClient(apiKey, initConfigs, config);
   }
-  // 'pending' / 'rejected' -> no-op (nothing was ever written).
-};
-
-/** Test-only: resets the module-scoped consent gate between tests. */
-export const resetConsentGateForTesting = (): void => {
-  deferredStart = null;
-  consentStatus = undefined;
-  started = false;
+  // 'pending' -> no-op (nothing was ever written).
 };
 
 export const initialize = (
@@ -93,13 +98,19 @@ export const initialize = (
   // storage/evaluation/tracking/relay runs. setConsentStatus('granted') later
   // starts it. This must sit before both start paths below.
   const consent = resolveConsentOptions(config, globalScope);
-  if (consent.consentRequired && !started) {
-    const status = consentStatus ?? consent.consentStatus ?? 'pending';
-    if (status !== 'granted') {
-      deferredStart = { apiKey, initConfigs, config };
+  if (consent.consentRequired && !consentGate.started) {
+    const status = consentGate.status ?? consent.consentStatus ?? 'pending';
+    if (status === 'rejected') {
+      // Terminal decline at load: latch closed and never start this page load.
+      consentGate.rejected = true;
+      consentGate.deferredStart = null;
       return;
     }
-    started = true;
+    if (status !== 'granted') {
+      consentGate.deferredStart = { apiKey, initConfigs, config };
+      return;
+    }
+    consentGate.started = true;
   }
 
   const shouldFetchConfigs =

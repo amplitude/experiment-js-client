@@ -2,11 +2,8 @@ import * as experimentCore from '@amplitude/experiment-core';
 
 import { createMockGlobal, setupGlobalObservers } from '../util/mocks';
 
-import {
-  initialize,
-  resetConsentGateForTesting,
-  setConsentStatus,
-} from 'src/index';
+import { consentGate } from 'src/consent-gate';
+import { initialize, setConsentStatus } from 'src/index';
 import { InitConfigs } from 'src/types';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
 import * as uuid from 'src/util/uuid';
@@ -72,7 +69,7 @@ describe('consent journeys (v0)', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
-    resetConsentGateForTesting();
+    consentGate.reset();
     clearCookieStore();
     mockGlobal = createMockGlobal();
     jest
@@ -129,7 +126,7 @@ describe('consent journeys (v0)', () => {
     );
   });
 
-  test('rejected at load: nothing runs; a later grant starts the client', async () => {
+  test('rejected at load is terminal: a later grant does not start or write storage', async () => {
     initialize(API_KEY, INIT_CONFIGS, {
       consentOptions: { consentRequired: true, consentStatus: 'rejected' },
     });
@@ -137,10 +134,12 @@ describe('consent journeys (v0)', () => {
     expect(mockGlobal.webExperiment.isStub).toBe(true);
     expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
 
+    // Rejection is terminal for the page load: the grant is ignored until reload.
     setConsentStatus('granted');
     await flushAsync();
 
-    expect(mockGlobal.webExperiment.isStub).toBeFalsy();
-    expect(mockGlobal.webExperiment.isRunning).toBe(true);
+    expect(mockGlobal.webExperiment.isStub).toBe(true);
+    expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
+    expect(Object.keys(cookieStore)).toHaveLength(0);
   });
 });

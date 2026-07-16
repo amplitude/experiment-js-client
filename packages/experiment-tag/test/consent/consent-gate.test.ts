@@ -2,12 +2,9 @@ import * as experimentCore from '@amplitude/experiment-core';
 
 import { createMockGlobal } from '../util/mocks';
 
+import { consentGate } from 'src/consent-gate';
 import { DefaultWebExperimentClient } from 'src/experiment';
-import {
-  initialize,
-  resetConsentGateForTesting,
-  setConsentStatus,
-} from 'src/index';
+import { initialize, setConsentStatus } from 'src/index';
 import { InitConfigs, WebExperimentConfig } from 'src/types';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
 
@@ -25,7 +22,7 @@ describe('index.ts consent gate (v0)', () => {
 
   beforeEach(() => {
     jest.restoreAllMocks();
-    resetConsentGateForTesting();
+    consentGate.reset();
     globalScope = createMockGlobal({ experimentConfig: {} });
     jest
       .spyOn(experimentCore, 'getGlobalScope')
@@ -104,14 +101,32 @@ describe('index.ts consent gate (v0)', () => {
     expect(getInstance).toHaveBeenCalledTimes(1);
   });
 
-  test('pending -> rejected -> granted still starts on grant', () => {
+  test('rejected is terminal: pending -> rejected -> granted does not start', () => {
     init({
       consentOptions: { consentRequired: true, consentStatus: 'pending' },
     });
     setConsentStatus('rejected');
     expect(getInstance).not.toHaveBeenCalled();
     setConsentStatus('granted');
-    expect(getInstance).toHaveBeenCalledTimes(1);
+    expect(getInstance).not.toHaveBeenCalled();
+  });
+
+  test('rejected at load is terminal: a later grant does not start', () => {
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'rejected' },
+    });
+    setConsentStatus('granted');
+    expect(getInstance).not.toHaveBeenCalled();
+  });
+
+  test('rejected is terminal even after pending again: no start on grant', () => {
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+    setConsentStatus('rejected');
+    setConsentStatus('pending');
+    setConsentStatus('granted');
+    expect(getInstance).not.toHaveBeenCalled();
   });
 
   test('grant BEFORE initialize: starts as soon as initialize runs', () => {
