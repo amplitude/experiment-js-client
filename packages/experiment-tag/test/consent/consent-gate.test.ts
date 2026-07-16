@@ -2,7 +2,7 @@ import * as experimentCore from '@amplitude/experiment-core';
 
 import { createMockGlobal } from '../util/mocks';
 
-import { consentGate } from 'src/consent-gate';
+import { consentGate } from 'src/consent/consent-gate';
 import { DefaultWebExperimentClient } from 'src/experiment';
 import {
   createPlugin,
@@ -109,6 +109,24 @@ describe('index.ts consent gate', () => {
       expect(start).toHaveBeenCalledTimes(1);
     },
   );
+
+  test('denied without a grant never starts', () => {
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+    setConsentStatus('denied');
+    expect(getInstance).not.toHaveBeenCalled();
+  });
+
+  test('transition to pending is ignored after grant (no-op)', () => {
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+    setConsentStatus('granted');
+    setConsentStatus('pending'); // invalid: pending is only an initial state
+    expect(consentGate.manager.getStatus()).toBe('granted');
+    expect(getInstance).toHaveBeenCalledTimes(1);
+  });
 
   test('grant BEFORE initialize: starts as soon as initialize runs', () => {
     setConsentStatus('granted'); // CMP resolved before script fully loaded
@@ -259,7 +277,8 @@ describe('index.ts consent gate', () => {
     });
     setConsentStatus('grantd' as ConsentStatus);
     expect(getInstance).not.toHaveBeenCalled();
-    expect(consentGate.status).toBeUndefined();
+    expect(consentGate.manager.getStatus()).toBe('pending');
+    expect(consentGate.explicitStatus).toBe(false);
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });

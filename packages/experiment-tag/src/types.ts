@@ -171,10 +171,11 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * `window.webExperiment.setConsentStatus(status)`.
    *
    * `pending` and `denied` defer the start. `granted` starts the client,
-   * including after `denied` (preference-center re-opt-in). Analytics events
-   * that arrive while the start is deferred are not kept for replay after
-   * grant. After the client has started, a later `denied` does not tear down
-   * an in-flight start; reload the page to reset.
+   * including after `denied` (preference-center re-opt-in). Transitions to
+   * `pending` are ignored — it is only meaningful as an initial state.
+   * Analytics events that arrive while the start is deferred are not kept for
+   * replay after grant. After the client has started, a later `denied` does
+   * not tear down an in-flight start; reload the page to reset.
    */
   consentOptions?: ConsentOptions;
 }
