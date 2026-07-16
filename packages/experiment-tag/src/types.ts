@@ -149,7 +149,7 @@ export interface WebExperimentConfig extends ExperimentConfig {
 export const Defaults: WebExperimentConfig = {
   useDefaultNavigationHandler: true,
   redirectConfig: {
-    encodeRedirectInUrl: false,
+    encodeRedirectInUrl: true,
     encodeRedirectInCookie: true,
   },
 };
