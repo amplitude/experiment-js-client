@@ -71,8 +71,8 @@ describe('index.ts consent gate (v0)', () => {
       { consentOptions: { consentRequired: true } },
     ],
     [
-      'rejected',
-      { consentOptions: { consentRequired: true, consentStatus: 'rejected' } },
+      'denied',
+      { consentOptions: { consentRequired: true, consentStatus: 'denied' } },
     ],
   ])('does not construct or start: required + %s', (_label, config) => {
     init(config);
@@ -98,14 +98,14 @@ describe('index.ts consent gate (v0)', () => {
   });
 
   it.each<[string, ConsentStatus, ConsentStatus[]]>([
-    ['pending -> rejected -> granted', 'pending', ['rejected', 'granted']],
-    ['rejected at load -> granted', 'rejected', ['granted']],
+    ['pending -> denied -> granted', 'pending', ['denied', 'granted']],
+    ['denied at load -> granted', 'denied', ['granted']],
     [
-      'pending -> rejected -> pending -> granted',
+      'pending -> denied -> pending -> granted',
       'pending',
-      ['rejected', 'pending', 'granted'],
+      ['denied', 'pending', 'granted'],
     ],
-  ])('rejected is terminal: %s does not start', (_label, initial, sequence) => {
+  ])('denied is terminal: %s does not start', (_label, initial, sequence) => {
     init({
       consentOptions: { consentRequired: true, consentStatus: initial },
     });
@@ -132,8 +132,8 @@ describe('index.ts consent gate (v0)', () => {
     expect(getInstance).not.toHaveBeenCalled();
   });
 
-  test('rejected latch is honored by a later initialize with granted config', () => {
-    setConsentStatus('rejected'); // CMP declined before the script loaded
+  test('denied latch is honored by a later initialize with granted config', () => {
+    setConsentStatus('denied'); // CMP declined before the script loaded
     init({
       consentOptions: { consentRequired: true, consentStatus: 'granted' },
     });
@@ -144,9 +144,9 @@ describe('index.ts consent gate (v0)', () => {
     ['consentOptions absent', {}],
     ['consentRequired false', { consentOptions: { consentRequired: false } }],
   ])(
-    'a stray pre-init rejected does not block start when gating is off: %s',
+    'a stray pre-init denial does not block start when gating is off: %s',
     (_label, config) => {
-      setConsentStatus('rejected'); // CMP wired up, but consent gating never enabled
+      setConsentStatus('denied'); // CMP wired up, but consent gating never enabled
       init(config);
       expect(getInstance).toHaveBeenCalledTimes(1);
       expect(start).toHaveBeenCalledTimes(1);
@@ -187,12 +187,12 @@ describe('index.ts consent gate (v0)', () => {
       expect(getInstance).toHaveBeenCalledTimes(1);
     });
 
-    test('rejection during the in-flight config fetch prevents construction', async () => {
+    test('denial during the in-flight config fetch prevents construction', async () => {
       init({
         consentOptions: { consentRequired: true, consentStatus: 'granted' },
       });
-      // Fetch is in flight; the user rejects before it resolves.
-      setConsentStatus('rejected');
+      // Fetch is in flight; the user denies before it resolves.
+      setConsentStatus('denied');
       await flushAsync();
 
       expect(getInstance).not.toHaveBeenCalled();

@@ -126,15 +126,15 @@ describe('consent journeys (v0)', () => {
     );
   });
 
-  test('rejected at load is terminal: a later grant does not start or write storage', async () => {
+  test('denied at load is terminal: a later grant does not start or write storage', async () => {
     initialize(API_KEY, INIT_CONFIGS, {
-      consentOptions: { consentRequired: true, consentStatus: 'rejected' },
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
     });
     await flushAsync();
     expect(mockGlobal.webExperiment.isStub).toBe(true);
     expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
 
-    // Rejection is terminal for the page load: the grant is ignored until reload.
+    // Denial is terminal for the page load: the grant is ignored until reload.
     setConsentStatus('granted');
     await flushAsync();
 

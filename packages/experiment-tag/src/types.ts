@@ -121,7 +121,7 @@ export interface RedirectConfig {
   encodeRedirectInUrl?: boolean;
 }
 
-export type ConsentStatus = 'granted' | 'pending' | 'rejected';
+export type ConsentStatus = 'granted' | 'pending' | 'denied';
 
 export interface ConsentOptions {
   /**
@@ -131,9 +131,10 @@ export interface ConsentOptions {
   consentRequired?: boolean;
   /**
    * Initial consent status, set before the script loads. Defaults to
-   * 'pending' when consentRequired is true.
+   * 'pending' when consentRequired is true. Values follow Google Consent
+   * Mode: 'granted' | 'denied' | 'pending'.
    *
-   * 'rejected' is terminal for the page load: a later 'granted' (at runtime via
+   * 'denied' is terminal for the page load: a later 'granted' (at runtime via
    * `setConsentStatus`) is ignored until the next reload.
    */
   consentStatus?: ConsentStatus;
@@ -170,7 +171,7 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * `window.webExperiment.setConsentStatus(status)`.
    *
    * v0: `pending → granted` is allowed to flicker (the client starts fresh on
-   * grant). `rejected` is terminal — a later `granted` is ignored until reload.
+   * grant). `denied` is terminal — a later `granted` is ignored until reload.
    * A future version runs experiments in-memory during pending to avoid
    * flicker; the config shape is unchanged.
    */

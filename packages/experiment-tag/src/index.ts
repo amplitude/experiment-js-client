@@ -30,16 +30,16 @@ const resolveConsentOptions = (
 /**
  * Updates cookie-consent status. Exposed on `window.webExperiment` (incl. the
  * pre-init stub) so a CMP callback can call it before the client exists. v0:
- * `granted` starts the client once; `rejected` is terminal (latches closed until
+ * `granted` starts the client once; `denied` is terminal (latches closed until
  * reload); `pending` is a no-op. A grant recorded before `initialize()` runs is
  * honored on init.
  */
 export const setConsentStatus = (status: ConsentStatus): void => {
-  if (consentGate.status === 'rejected') {
+  if (consentGate.status === 'denied') {
     return; // terminal: ignore later status changes, including 'granted'
   }
   consentGate.status = status;
-  if (status === 'rejected') {
+  if (status === 'denied') {
     consentGate.deferredStart = null; // latch closed: drop any stashed start
     return;
   }
@@ -82,10 +82,10 @@ export const initialize = (
   const consent = resolveConsentOptions(config, globalScope);
   if (consent.consentRequired && !consentGate.started) {
     // A runtime status (setConsentStatus) wins over the declarative config;
-    // an earlier 'rejected' resolves here and stays terminal.
+    // an earlier 'denied' resolves here and stays terminal.
     const status = consentGate.status ?? consent.consentStatus ?? 'pending';
-    if (status === 'rejected') {
-      consentGate.status = 'rejected'; // terminal: never start this page load
+    if (status === 'denied') {
+      consentGate.status = 'denied'; // terminal: never start this page load
       consentGate.deferredStart = null;
       return;
     }
@@ -150,12 +150,12 @@ const startClient = (
   config: WebExperimentConfig,
 ): Promise<void> => {
   if (
-    consentGate.status === 'rejected' &&
+    consentGate.status === 'denied' &&
     resolveConsentOptions(config, getGlobalScope()).consentRequired
   ) {
-    // Consent was rejected while a start was in flight (e.g. during the
+    // Consent was denied while a start was in flight (e.g. during the
     // preview-config fetch). Terminal for this page load: never construct.
-    // Only enforced when gating is on — a stray setConsentStatus('rejected')
+    // Only enforced when gating is on — a stray setConsentStatus('denied')
     // must not block a deployment that never opted into consent.
     removeAntiFlickerCss();
     return Promise.resolve();

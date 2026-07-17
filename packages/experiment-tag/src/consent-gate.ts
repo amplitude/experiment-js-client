@@ -11,7 +11,7 @@ interface ConsentGate {
   deferredStart: DeferredStart | null;
   /**
    * Latest consent status seen (may be set before `initialize` runs).
-   * 'rejected' is terminal for the page load: once set it never changes,
+   * 'denied' is terminal for the page load: once set it never changes,
    * so later grants are ignored until reload.
    */
   status: ConsentStatus | undefined;
