@@ -87,6 +87,8 @@ export const initialize = (
       return;
     }
     consentGate.started = true;
+    consentGate.deferredStart = null;
+    eventBuffer.length = 0; // drop pre-grant buffer so it isn't replayed
   }
 
   launchClient(apiKey, initConfigs, config);
