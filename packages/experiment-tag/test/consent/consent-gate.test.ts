@@ -161,6 +161,23 @@ describe('index.ts consent gate (v0)', () => {
     },
   );
 
+  test('a second initialize with consentRequired=false cannot bypass a pending deferral', () => {
+    // First init defers on consent.
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+    expect(getInstance).not.toHaveBeenCalled();
+
+    // A later init resolving consentRequired=false must not release the
+    // parked start — only a grant may.
+    init({ consentOptions: { consentRequired: false } });
+    expect(getInstance).not.toHaveBeenCalled();
+
+    setConsentStatus('granted');
+    expect(getInstance).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
   describe('preview mode', () => {
     const flushAsync = async () => {
       for (let i = 0; i < 5; i++) {
