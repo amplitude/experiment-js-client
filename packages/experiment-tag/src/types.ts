@@ -121,6 +121,25 @@ export interface RedirectConfig {
   encodeRedirectInUrl?: boolean;
 }
 
+export type ConsentStatus = 'granted' | 'pending' | 'denied';
+
+export interface ConsentOptions {
+  /**
+   * When true, the script does not start until consent status is 'granted'.
+   * Default false — the consent feature is fully off and behavior is unchanged.
+   */
+  consentRequired?: boolean;
+  /**
+   * Initial consent status, set before the script loads. Defaults to
+   * 'pending' when consentRequired is true. Values follow Google Consent
+   * Mode: 'granted' | 'denied' | 'pending'.
+   *
+   * A later 'granted' at runtime (via `setConsentStatus`) starts the script —
+   * including after 'denied' (the preference-center re-opt-in flow).
+   */
+  consentStatus?: ConsentStatus;
+}
+
 export interface WebExperimentConfig extends ExperimentConfig {
   /**
    * Determines whether the default implementation for handling navigation  will be used
@@ -144,6 +163,20 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * zone. Intended for local/staging testing of the relay serving path.
    */
   relayUrl?: string;
+  /**
+   * Cookie-consent gating for the web experiment script. When
+   * `consentRequired` is true, the script does not start (no storage access,
+   * evaluation, variant application, tracking, or relay) until the status is
+   * 'granted'. Update status at runtime with
+   * `window.webExperiment.setConsentStatus(status)`.
+   *
+   * `pending` and `denied` defer the start. `granted` starts the client,
+   * including after `denied` (preference-center re-opt-in). Analytics events
+   * that arrive while the start is deferred are not kept for replay after
+   * grant. After the client has started, a later `denied` does not tear down
+   * an in-flight start; reload the page to reset.
+   */
+  consentOptions?: ConsentOptions;
 }
 
 export const Defaults: WebExperimentConfig = {
@@ -184,6 +217,12 @@ export interface WebExperimentClient {
   addDebugStateSubscriber(
     callback: (state: DebugState) => void,
   ): (() => void) | undefined;
+
+  /**
+   * Updates cookie-consent status (also on the pre-init stub). See
+   * {@link WebExperimentConfig.consentOptions}.
+   */
+  setConsentStatus(status: ConsentStatus): void;
 }
 
 export type WebExperimentUser = {
