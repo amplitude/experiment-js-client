@@ -81,6 +81,7 @@ export const initialize = (
   // return without constructing the client (no storage/eval/tracking/relay).
   const consent = resolveConsentOptions(config, globalScope);
   if (consent.consentRequired && !consentGate.started) {
+    consentGate.gatingEnabled = true;
     // A runtime status (setConsentStatus) wins over the declarative config;
     // an earlier 'rejected' resolves here and stays terminal.
     const status = consentGate.status ?? consent.consentStatus ?? 'pending';
@@ -149,7 +150,7 @@ const startClient = (
   initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): Promise<void> => {
-  if (consentGate.status === 'rejected') {
+  if (consentGate.gatingEnabled && consentGate.status === 'rejected') {
     // Consent was rejected while a start was in flight (e.g. during the
     // preview-config fetch). Terminal for this page load: never construct.
     removeAntiFlickerCss();

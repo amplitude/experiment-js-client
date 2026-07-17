@@ -17,6 +17,8 @@ interface ConsentGate {
   status: ConsentStatus | undefined;
   /** Whether the client has been (or is being) started. */
   started: boolean;
+  /** Whether consent gating is enabled (consentRequired: true). */
+  gatingEnabled: boolean;
   /** Test-only reset; kept off the public `index` entry point. */
   reset(): void;
 }
@@ -30,9 +32,11 @@ export const consentGate: ConsentGate = {
   deferredStart: null,
   status: undefined,
   started: false,
+  gatingEnabled: false,
   reset() {
     this.deferredStart = null;
     this.status = undefined;
     this.started = false;
+    this.gatingEnabled = false;
   },
 };
