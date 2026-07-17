@@ -126,7 +126,7 @@ describe('consent journeys (v0)', () => {
     );
   });
 
-  test('denied at load is terminal: a later grant does not start or write storage', async () => {
+  test('denied at load -> granted: re-opt-in starts the client and persists identity', async () => {
     initialize(API_KEY, INIT_CONFIGS, {
       consentOptions: { consentRequired: true, consentStatus: 'denied' },
     });
@@ -134,12 +134,15 @@ describe('consent journeys (v0)', () => {
     expect(mockGlobal.webExperiment.isStub).toBe(true);
     expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
 
-    // Denial is terminal for the page load: the grant is ignored until reload.
+    // Preference-center re-opt-in: the later grant starts the client in-session.
     setConsentStatus('granted');
     await flushAsync();
 
-    expect(mockGlobal.webExperiment.isStub).toBe(true);
-    expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
-    expect(Object.keys(cookieStore)).toHaveLength(0);
+    expect(mockGlobal.webExperiment.isStub).toBeFalsy();
+    expect(mockGlobal.webExperiment.isRunning).toBe(true);
+    expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
+      IDENTITY_LS_KEY,
+      expect.any(String),
+    );
   });
 });

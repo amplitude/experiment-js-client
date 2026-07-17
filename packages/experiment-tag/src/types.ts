@@ -134,8 +134,8 @@ export interface ConsentOptions {
    * 'pending' when consentRequired is true. Values follow Google Consent
    * Mode: 'granted' | 'denied' | 'pending'.
    *
-   * 'denied' is terminal for the page load: a later 'granted' (at runtime via
-   * `setConsentStatus`) is ignored until the next reload.
+   * A later 'granted' at runtime (via `setConsentStatus`) starts the script —
+   * including after 'denied' (the preference-center re-opt-in flow).
    */
   consentStatus?: ConsentStatus;
 }
@@ -170,10 +170,11 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * 'granted'. Update status at runtime with
    * `window.webExperiment.setConsentStatus(status)`.
    *
-   * v0: `pending → granted` is allowed to flicker (the client starts fresh on
-   * grant). `denied` is terminal — a later `granted` is ignored until reload.
-   * A future version runs experiments in-memory during pending to avoid
-   * flicker; the config shape is unchanged.
+   * v0: `pending`/`denied` defer the start; `granted` starts the client fresh
+   * (allowed to flicker), including a `denied → granted` re-opt-in. Mid-session
+   * revocation (`granted → denied`) is "reload to reset" in v0. A future version
+   * runs experiments in-memory during pending to avoid flicker; the config shape
+   * is unchanged.
    */
   consentOptions?: ConsentOptions;
 }

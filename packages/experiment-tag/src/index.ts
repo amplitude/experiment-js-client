@@ -30,19 +30,12 @@ const resolveConsentOptions = (
 /**
  * Updates cookie-consent status. Exposed on `window.webExperiment` (incl. the
  * pre-init stub) so a CMP callback can call it before the client exists. v0:
- * `granted` starts the client once; `denied` is terminal (latches closed until
- * reload); `pending` is a no-op. A grant recorded before `initialize()` runs is
- * honored on init.
+ * `granted` starts the client once — including after `denied` (the
+ * preference-center re-opt-in flow); `pending`/`denied` defer the start. A grant
+ * recorded before `initialize()` runs is honored on init.
  */
 export const setConsentStatus = (status: ConsentStatus): void => {
-  if (consentGate.status === 'denied') {
-    return; // terminal: ignore later status changes, including 'granted'
-  }
   consentGate.status = status;
-  if (status === 'denied') {
-    consentGate.deferredStart = null; // latch closed: drop any stashed start
-    return;
-  }
   if (
     status === 'granted' &&
     consentGate.deferredStart &&
@@ -81,14 +74,10 @@ export const initialize = (
   // return without constructing the client (no storage/eval/tracking/relay).
   const consent = resolveConsentOptions(config, globalScope);
   if (consent.consentRequired && !consentGate.started) {
-    // A runtime status (setConsentStatus) wins over the declarative config;
-    // an earlier 'denied' resolves here and stays terminal.
+    // A runtime status (setConsentStatus) wins over the declarative config.
+    // 'pending' and 'denied' both defer; a later 'granted' — including a
+    // 'denied → granted' re-opt-in — starts the client.
     const status = consentGate.status ?? consent.consentStatus ?? 'pending';
-    if (status === 'denied') {
-      consentGate.status = 'denied'; // terminal: never start this page load
-      consentGate.deferredStart = null;
-      return;
-    }
     if (status !== 'granted') {
       consentGate.deferredStart = { apiKey, initConfigs, config };
       return;
@@ -149,17 +138,6 @@ const startClient = (
   initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): Promise<void> => {
-  if (
-    consentGate.status === 'denied' &&
-    resolveConsentOptions(config, getGlobalScope()).consentRequired
-  ) {
-    // Consent was denied while a start was in flight (e.g. during the
-    // preview-config fetch). Terminal for this page load: never construct.
-    // Only enforced when gating is on — a stray setConsentStatus('denied')
-    // must not block a deployment that never opted into consent.
-    removeAntiFlickerCss();
-    return Promise.resolve();
-  }
   const client = DefaultWebExperimentClient.getInstance(
     apiKey,
     initConfigs,

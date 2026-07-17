@@ -105,13 +105,17 @@ describe('index.ts consent gate (v0)', () => {
       'pending',
       ['denied', 'pending', 'granted'],
     ],
-  ])('denied is terminal: %s does not start', (_label, initial, sequence) => {
-    init({
-      consentOptions: { consentRequired: true, consentStatus: initial },
-    });
-    sequence.forEach((status) => setConsentStatus(status));
-    expect(getInstance).not.toHaveBeenCalled();
-  });
+  ])(
+    'denied -> granted re-opt-in starts the client once: %s',
+    (_label, initial, sequence) => {
+      init({
+        consentOptions: { consentRequired: true, consentStatus: initial },
+      });
+      sequence.forEach((status) => setConsentStatus(status));
+      expect(getInstance).toHaveBeenCalledTimes(1);
+      expect(start).toHaveBeenCalledTimes(1);
+    },
+  );
 
   test('grant BEFORE initialize: starts as soon as initialize runs', () => {
     setConsentStatus('granted'); // CMP resolved before script fully loaded
@@ -132,12 +136,16 @@ describe('index.ts consent gate (v0)', () => {
     expect(getInstance).not.toHaveBeenCalled();
   });
 
-  test('denied latch is honored by a later initialize with granted config', () => {
+  test('runtime denied wins over a later initialize granted config, until a re-opt-in', () => {
     setConsentStatus('denied'); // CMP declined before the script loaded
     init({
       consentOptions: { consentRequired: true, consentStatus: 'granted' },
     });
     expect(getInstance).not.toHaveBeenCalled();
+
+    // Preference-center re-opt-in starts the client in-session.
+    setConsentStatus('granted');
+    expect(getInstance).toHaveBeenCalledTimes(1);
   });
 
   it.each<[string, WebExperimentConfig]>([
@@ -187,16 +195,17 @@ describe('index.ts consent gate (v0)', () => {
       expect(getInstance).toHaveBeenCalledTimes(1);
     });
 
-    test('denial during the in-flight config fetch prevents construction', async () => {
+    test('denial during the in-flight config fetch does not abort the start (v0 revocation is reload-to-reset)', async () => {
       init({
         consentOptions: { consentRequired: true, consentStatus: 'granted' },
       });
-      // Fetch is in flight; the user denies before it resolves.
+      // Fetch is in flight; the user denies before it resolves. v0 does not
+      // honor mid-session revocation until the next reload, so the start that
+      // was already committed still constructs.
       setConsentStatus('denied');
       await flushAsync();
 
-      expect(getInstance).not.toHaveBeenCalled();
-      expect(antiFlickerUtils.removeAntiFlickerCss).toHaveBeenCalled();
+      expect(getInstance).toHaveBeenCalledTimes(1);
     });
   });
 
