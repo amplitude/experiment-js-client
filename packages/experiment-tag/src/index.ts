@@ -21,10 +21,10 @@ const eventBuffer: Array<{
 
 const resolveConsentOptions = (
   config: WebExperimentConfig,
-  globalScope: NonNullable<ReturnType<typeof getGlobalScope>>,
+  globalScope: ReturnType<typeof getGlobalScope>,
 ): ConsentOptions => ({
   ...config.consentOptions,
-  ...globalScope.experimentConfig?.consentOptions, // window wins (existing precedence)
+  ...globalScope?.experimentConfig?.consentOptions, // window wins (existing precedence)
 });
 
 /**
@@ -149,9 +149,14 @@ const startClient = (
   initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): Promise<void> => {
-  if (consentGate.status === 'rejected') {
+  if (
+    consentGate.status === 'rejected' &&
+    resolveConsentOptions(config, getGlobalScope()).consentRequired
+  ) {
     // Consent was rejected while a start was in flight (e.g. during the
     // preview-config fetch). Terminal for this page load: never construct.
+    // Only enforced when gating is on — a stray setConsentStatus('rejected')
+    // must not block a deployment that never opted into consent.
     removeAntiFlickerCss();
     return Promise.resolve();
   }

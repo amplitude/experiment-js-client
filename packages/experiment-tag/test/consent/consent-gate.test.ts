@@ -140,6 +140,19 @@ describe('index.ts consent gate (v0)', () => {
     expect(getInstance).not.toHaveBeenCalled();
   });
 
+  it.each<[string, WebExperimentConfig]>([
+    ['consentOptions absent', {}],
+    ['consentRequired false', { consentOptions: { consentRequired: false } }],
+  ])(
+    'a stray pre-init rejected does not block start when gating is off: %s',
+    (_label, config) => {
+      setConsentStatus('rejected'); // CMP wired up, but consent gating never enabled
+      init(config);
+      expect(getInstance).toHaveBeenCalledTimes(1);
+      expect(start).toHaveBeenCalledTimes(1);
+    },
+  );
+
   describe('preview mode', () => {
     const flushAsync = async () => {
       for (let i = 0; i < 5; i++) {
