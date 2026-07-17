@@ -72,8 +72,9 @@ export const initialize = (
 
   // Consent gate: while consent is required and not granted, stash the args and
   // return without constructing the client (no storage/eval/tracking/relay).
+  // If a previous init is already waiting for consent, don't bypass it.
   const consent = resolveConsentOptions(config, globalScope);
-  if (consent.consentRequired && !consentGate.started) {
+  if ((consent.consentRequired || consentGate.deferredStart) && !consentGate.started) {
     // A runtime status (setConsentStatus) wins over the declarative config.
     // 'pending' and 'denied' both defer; a later 'granted' — including a
     // 'denied → granted' re-opt-in — starts the client.
