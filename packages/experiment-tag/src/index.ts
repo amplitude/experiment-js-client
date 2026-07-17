@@ -35,18 +35,14 @@ const resolveConsentOptions = (
  * honored on init.
  */
 export const setConsentStatus = (status: ConsentStatus): void => {
-  // 'rejected' is terminal: latch closed and drop any stashed start.
-  if (status === 'rejected') {
-    consentGate.status = 'rejected';
-    consentGate.rejected = true;
-    consentGate.deferredStart = null;
-    return;
-  }
-  if (consentGate.rejected) {
+  if (consentGate.status === 'rejected') {
     return; // terminal: ignore later status changes, including 'granted'
   }
-
   consentGate.status = status;
+  if (status === 'rejected') {
+    consentGate.deferredStart = null; // latch closed: drop any stashed start
+    return;
+  }
   if (
     status === 'granted' &&
     consentGate.deferredStart &&
@@ -85,13 +81,11 @@ export const initialize = (
   // return without constructing the client (no storage/eval/tracking/relay).
   const consent = resolveConsentOptions(config, globalScope);
   if (consent.consentRequired && !consentGate.started) {
-    if (consentGate.rejected) {
-      return; // terminal from an earlier rejection: never start this load
-    }
+    // A runtime status (setConsentStatus) wins over the declarative config;
+    // an earlier 'rejected' resolves here and stays terminal.
     const status = consentGate.status ?? consent.consentStatus ?? 'pending';
     if (status === 'rejected') {
-      consentGate.status = 'rejected';
-      consentGate.rejected = true; // terminal at load: never start this load
+      consentGate.status = 'rejected'; // terminal: never start this page load
       consentGate.deferredStart = null;
       return;
     }
@@ -155,7 +149,7 @@ const startClient = (
   initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): Promise<void> => {
-  if (consentGate.rejected) {
+  if (consentGate.status === 'rejected') {
     // Consent was rejected while a start was in flight (e.g. during the
     // preview-config fetch). Terminal for this page load: never construct.
     removeAntiFlickerCss();

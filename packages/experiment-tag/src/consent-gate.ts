@@ -9,12 +9,14 @@ interface DeferredStart {
 interface ConsentGate {
   /** Args stashed by `initialize` while consent is not yet granted. */
   deferredStart: DeferredStart | null;
-  /** Latest consent status seen (may be set before `initialize` runs). */
+  /**
+   * Latest consent status seen (may be set before `initialize` runs).
+   * 'rejected' is terminal for the page load: once set it never changes,
+   * so later grants are ignored until reload.
+   */
   status: ConsentStatus | undefined;
   /** Whether the client has been (or is being) started. */
   started: boolean;
-  /** Terminal-decline latch: once set, later grants are ignored until reload. */
-  rejected: boolean;
   /** Test-only reset; kept off the public `index` entry point. */
   reset(): void;
 }
@@ -28,11 +30,9 @@ export const consentGate: ConsentGate = {
   deferredStart: null,
   status: undefined,
   started: false,
-  rejected: false,
   reset() {
     this.deferredStart = null;
     this.status = undefined;
     this.started = false;
-    this.rejected = false;
   },
 };
