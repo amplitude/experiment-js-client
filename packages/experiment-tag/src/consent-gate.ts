@@ -1,5 +1,13 @@
 import { ConsentStatus, InitConfigs, WebExperimentConfig } from './types';
 
+/** Returns a known status, or `null` if the value is not recognized. */
+export const parseConsentStatus = (value: unknown): ConsentStatus | null => {
+  if (value === 'granted' || value === 'pending' || value === 'denied') {
+    return value;
+  }
+  return null;
+};
+
 interface DeferredStart {
   apiKey: string;
   initConfigs: InitConfigs;
@@ -22,9 +30,9 @@ interface ConsentGate {
 }
 
 /**
- * Module-scoped consent state for the v0 gate — while consent is pending there
- * is no client instance to hold it. Not re-exported from `index.ts`, so `reset`
- * and the raw state stay out of the package's public API.
+ * Module-scoped consent gate state. While consent is pending there is no client
+ * instance to hold it. Not re-exported from `index.ts`, so `reset` and the raw
+ * state stay out of the package's public API.
  */
 export const consentGate: ConsentGate = {
   deferredStart: null,

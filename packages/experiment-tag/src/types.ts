@@ -170,11 +170,11 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * 'granted'. Update status at runtime with
    * `window.webExperiment.setConsentStatus(status)`.
    *
-   * v0: `pending`/`denied` defer the start; `granted` starts the client fresh
-   * (allowed to flicker), including a `denied → granted` re-opt-in. Mid-session
-   * revocation (`granted → denied`) is "reload to reset" in v0. A future version
-   * runs experiments in-memory during pending to avoid flicker; the config shape
-   * is unchanged.
+   * `pending` and `denied` defer the start. `granted` starts the client,
+   * including after `denied` (preference-center re-opt-in). Analytics events
+   * that arrive while the start is deferred are not kept for replay after
+   * grant. After the client has started, a later `denied` does not tear down
+   * an in-flight start; reload the page to reset.
    */
   consentOptions?: ConsentOptions;
 }
@@ -217,6 +217,12 @@ export interface WebExperimentClient {
   addDebugStateSubscriber(
     callback: (state: DebugState) => void,
   ): (() => void) | undefined;
+
+  /**
+   * Updates cookie-consent status (also on the pre-init stub). See
+   * {@link WebExperimentConfig.consentOptions}.
+   */
+  setConsentStatus(status: ConsentStatus): void;
 }
 
 export type WebExperimentUser = {

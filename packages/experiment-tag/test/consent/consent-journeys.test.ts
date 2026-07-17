@@ -62,7 +62,7 @@ const flushAsync = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
-describe('consent journeys (v0)', () => {
+describe('consent journeys', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockGlobal: any;
 

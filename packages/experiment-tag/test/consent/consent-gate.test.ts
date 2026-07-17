@@ -22,7 +22,7 @@ const INIT_CONFIGS: InitConfigs = {
   behavioralTargetingRules: '{}',
 };
 
-describe('index.ts consent gate (v0)', () => {
+describe('index.ts consent gate', () => {
   let globalScope: Record<string, unknown>;
   let start: jest.Mock;
   let getInstance: jest.SpyInstance;
@@ -217,18 +217,63 @@ describe('index.ts consent gate (v0)', () => {
       consentOptions: { consentRequired: true, consentStatus: 'pending' },
     });
 
-    // An analytics event fires while deferred -> buffered on the stub.
+    // Analytics during a consent deferral is not buffered (would be discarded on grant).
     await plugin.execute?.({
       event_type: 'pre_grant',
       event_properties: {},
     } as never);
 
-    // Grant via a second initialize releases the deferred start.
     init({
       consentOptions: { consentRequired: true, consentStatus: 'granted' },
     });
 
-    // The buffer was cleared on release, so nothing replays into the client.
+    const trackEvent = jest.fn();
+    flushEventBuffer({ trackEvent } as never);
+    expect(trackEvent).not.toHaveBeenCalled();
+  });
+
+  test('invalid consentStatus in config defers like pending', () => {
+    const warn = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
+    globalScope.experimentConfig = {
+      consentOptions: {
+        consentRequired: true,
+        consentStatus: 'grantd',
+      },
+    };
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'granted' },
+    });
+    expect(getInstance).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  test('setConsentStatus with an unknown status is a no-op', () => {
+    const warn = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+    setConsentStatus('grantd' as ConsentStatus);
+    expect(getInstance).not.toHaveBeenCalled();
+    expect(consentGate.status).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  test('setConsentStatus denied while deferred does not retain analytics buffer', async () => {
+    const plugin = createPlugin();
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+    await plugin.execute?.({
+      event_type: 'while_pending',
+      event_properties: {},
+    } as never);
+    setConsentStatus('denied');
     const trackEvent = jest.fn();
     flushEventBuffer({ trackEvent } as never);
     expect(trackEvent).not.toHaveBeenCalled();
@@ -285,13 +330,12 @@ describe('index.ts consent gate (v0)', () => {
       expect(getInstance).toHaveBeenCalledTimes(1);
     });
 
-    test('denial during the in-flight config fetch does not abort the start (v0 revocation is reload-to-reset)', async () => {
+    test('denial during the in-flight config fetch does not abort the start (reload to reset after grant)', async () => {
       init({
         consentOptions: { consentRequired: true, consentStatus: 'granted' },
       });
-      // Fetch is in flight; the user denies before it resolves. v0 does not
-      // honor mid-session revocation until the next reload, so the start that
-      // was already committed still constructs.
+      // Fetch is in flight; the user denies before it resolves. Mid-session
+      // denial does not tear down an in-flight start — reload to reset.
       setConsentStatus('denied');
       await flushAsync();
 

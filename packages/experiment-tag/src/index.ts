@@ -1,7 +1,7 @@
 import { Event, Plugin } from '@amplitude/analytics-types';
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import { consentGate } from './consent-gate';
+import { consentGate, parseConsentStatus } from './consent-gate';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
@@ -18,6 +18,26 @@ const eventBuffer: Array<{
   event_type: string;
   event_properties?: Record<string, unknown>;
 }> = [];
+
+/** Cap for events buffered while the client is starting (not consent-deferred). */
+const MAX_EVENT_BUFFER_SIZE = 500;
+
+const isConsentDeferred = (): boolean =>
+  consentGate.deferredStart !== null && !consentGate.started;
+
+const clearDeferredAnalyticsBuffer = (): void => {
+  eventBuffer.length = 0;
+};
+
+const bufferAnalyticsEvent = (event: {
+  event_type: string;
+  event_properties?: Record<string, unknown>;
+}): void => {
+  if (eventBuffer.length >= MAX_EVENT_BUFFER_SIZE) {
+    eventBuffer.shift();
+  }
+  eventBuffer.push(event);
+};
 
 const resolveConsentOptions = (
   config: WebExperimentConfig,
@@ -41,22 +61,29 @@ const releaseGate = (
   const hadDeferral = consentGate.deferredStart !== null;
   consentGate.deferredStart = null;
   if (hadDeferral) {
-    eventBuffer.length = 0;
+    clearDeferredAnalyticsBuffer();
   }
   launchClient(apiKey, initConfigs, config);
 };
 
 /**
  * Updates cookie-consent status. Exposed on `window.webExperiment` (incl. the
- * pre-init stub) so a CMP callback can call it before the client exists. v0:
- * `granted` starts the client once — including after `denied` (the
- * preference-center re-opt-in flow); `pending`/`denied` defer the start. A grant
- * recorded before `initialize()` runs is honored on init.
+ * pre-init stub) so a CMP callback can call it before the client exists.
+ * `granted` starts the client once — including after `denied` (preference-center
+ * re-opt-in); `pending`/`denied` defer the start. A grant recorded before
+ * `initialize()` runs is honored on init.
  */
 export const setConsentStatus = (status: ConsentStatus): void => {
-  consentGate.status = status;
+  const parsed = parseConsentStatus(status);
+  if (parsed === null) {
+    return;
+  }
+  consentGate.status = parsed;
+  if (parsed !== 'granted' && isConsentDeferred()) {
+    clearDeferredAnalyticsBuffer();
+  }
   if (
-    status === 'granted' &&
+    parsed === 'granted' &&
     consentGate.deferredStart &&
     !consentGate.started
   ) {
@@ -103,10 +130,21 @@ export const initialize = (
   if (gated) {
     // A runtime status (setConsentStatus) wins over the declarative config.
     // 'pending' and 'denied' both defer; a later 'granted' — including a
-    // 'denied → granted' re-opt-in — starts the client.
-    const status = consentGate.status ?? consent.consentStatus ?? 'pending';
+    // 'denied → granted' re-opt-in — starts the client. consentGate.status is
+    // already validated (setConsentStatus no-ops on unknown values); an
+    // unrecognized config value warns and falls back to 'pending' (fail closed).
+    const configStatus = parseConsentStatus(consent.consentStatus);
+    if (consent.consentStatus !== undefined && configStatus === null) {
+      console.warn(
+        `[experiment-tag] Invalid consentOptions.consentStatus ` +
+          `${JSON.stringify(consent.consentStatus)}; expected ` +
+          `'granted', 'pending', or 'denied'. Treating as pending.`,
+      );
+    }
+    const status = consentGate.status ?? configStatus ?? 'pending';
     if (status !== 'granted') {
       consentGate.deferredStart = { apiKey, initConfigs, config };
+      clearDeferredAnalyticsBuffer();
       return;
     }
     // Granted: release through the shared path so a prior deferral's stashed
@@ -176,12 +214,6 @@ const startClient = (
     initConfigs,
     config,
   );
-  // getInstance replaces the stub on globalScope.webExperiment with the real
-  // client. Keep the consent entry point available so a CMP callback that fires
-  // after start still resolves (idempotent grant).
-  (
-    client as unknown as { setConsentStatus?: typeof setConsentStatus }
-  ).setConsentStatus = setConsentStatus;
   return client.start().finally(() => {
     // Don't tear down anti-flicker while a redirect is in-flight. start()
     // resolves immediately after location.replace() is called, but the browser
@@ -220,9 +252,10 @@ export const createPlugin = (): Plugin => ({
         context.event_type,
         context.event_properties as Record<string, unknown>,
       );
+    } else if (isConsentDeferred()) {
+      // Consent withheld: do not buffer — pre-grant events are not replayed.
     } else {
-      // Client not ready - buffer event
-      eventBuffer.push({
+      bufferAnalyticsEvent({
         event_type: context.event_type,
         event_properties: context.event_properties as Record<string, unknown>,
       });

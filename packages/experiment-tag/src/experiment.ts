@@ -38,6 +38,7 @@ import {
   WebExperimentConfig,
   WebExperimentUser,
   ApplyVariantsOptions,
+  ConsentStatus,
   PageObject,
   PageObjects,
   PreviewVariantsOptions,
@@ -81,7 +82,10 @@ import {
 import { UUID } from './util/uuid';
 import { convertEvaluationVariantToVariant } from './util/variant';
 
-import { flushEventBuffer } from './index';
+import {
+  flushEventBuffer,
+  setConsentStatus as applyConsentStatus,
+} from './index';
 
 const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
@@ -1039,6 +1043,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.subscriptionManager) {
       return this.subscriptionManager.addDebugStateSubscriber(callback);
     }
+  }
+
+  public setConsentStatus(status: ConsentStatus): void {
+    applyConsentStatus(status);
   }
 
   /**
