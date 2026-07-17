@@ -183,6 +183,25 @@ describe('index.ts consent gate (v0)', () => {
     expect(start).toHaveBeenCalledTimes(1);
   });
 
+  test('a non-consent launch blocks a later consent-gated init from re-arming a deferral', () => {
+    // First init runs with gating off and launches the client.
+    init({});
+    expect(getInstance).toHaveBeenCalledTimes(1);
+    expect(consentGate.deferredStart).toBeNull();
+
+    // A later init turns gating on with a non-granted status. The client is
+    // already running, so this must not stash a deferral.
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+    expect(consentGate.deferredStart).toBeNull();
+
+    // A subsequent grant therefore has nothing to release — no second launch.
+    setConsentStatus('granted');
+    expect(getInstance).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
   test('grant via a later initialize starts once and does not relaunch', () => {
     init({
       consentOptions: { consentRequired: true, consentStatus: 'pending' },

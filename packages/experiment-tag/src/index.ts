@@ -39,7 +39,6 @@ const releaseGate = (
   config: WebExperimentConfig,
 ): void => {
   const hadDeferral = consentGate.deferredStart !== null;
-  consentGate.started = true;
   consentGate.deferredStart = null;
   if (hadDeferral) {
     eventBuffer.length = 0;
@@ -87,8 +86,9 @@ export const initialize = (
     };
   }
 
-  // A consent-gated start already released (here or via setConsentStatus): don't
-  // relaunch — that would re-fetch preview configs and re-run start().
+  // A start already happened (any path — consent-gated or not): don't relaunch.
+  // A second initialize() would otherwise re-fetch preview configs, re-run
+  // start(), or re-open the consent gate against an already-running client.
   if (consentGate.started) {
     return;
   }
@@ -126,6 +126,9 @@ const launchClient = (
   initConfigs: InitConfigs,
   config: WebExperimentConfig,
 ): void => {
+  // Mark the gate started on every launch (consent or not) so a later
+  // initialize() early-returns instead of relaunching an already-running client.
+  consentGate.started = true;
   const globalScope = getGlobalScope();
   const shouldFetchConfigs =
     isPreviewMode() || globalScope?.WebExperiment?.injectedByExtension;
