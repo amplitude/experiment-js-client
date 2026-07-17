@@ -84,34 +84,22 @@ describe('index.ts consent gate (v0)', () => {
     expect(getInstance).not.toHaveBeenCalled();
   });
 
-  test('pending -> granted starts exactly once', () => {
-    init({
-      consentOptions: { consentRequired: true, consentStatus: 'pending' },
-    });
-    setConsentStatus('granted');
-    expect(getInstance).toHaveBeenCalledTimes(1);
-    expect(start).toHaveBeenCalledTimes(1);
-  });
-
-  test('double grant starts only once', () => {
-    init({
-      consentOptions: { consentRequired: true, consentStatus: 'pending' },
-    });
-    setConsentStatus('granted');
-    setConsentStatus('granted');
-    expect(getInstance).toHaveBeenCalledTimes(1);
-  });
-
   it.each<[string, ConsentStatus, ConsentStatus[]]>([
-    ['pending -> denied -> granted', 'pending', ['denied', 'granted']],
-    ['denied at load -> granted', 'denied', ['granted']],
+    ['pending -> granted', 'pending', ['granted']],
+    ['idempotent double grant', 'pending', ['granted', 'granted']],
+    [
+      'pending -> denied -> granted (re-opt-in)',
+      'pending',
+      ['denied', 'granted'],
+    ],
+    ['denied at load -> granted (re-opt-in)', 'denied', ['granted']],
     [
       'pending -> denied -> pending -> granted',
       'pending',
       ['denied', 'pending', 'granted'],
     ],
   ])(
-    'denied -> granted re-opt-in starts the client once: %s',
+    'starts exactly once for a sequence ending in granted: %s',
     (_label, initial, sequence) => {
       init({
         consentOptions: { consentRequired: true, consentStatus: initial },
