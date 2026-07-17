@@ -115,6 +115,7 @@ export const initialize = (
     return;
   }
 
+  consentGate.started = true;
   launchClient(apiKey, initConfigs, config);
 };
 
