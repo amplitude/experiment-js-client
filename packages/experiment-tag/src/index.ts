@@ -27,6 +27,26 @@ const resolveConsentOptions = (
   ...globalScope?.experimentConfig?.consentOptions, // window wins (existing precedence)
 });
 
+// Release a consent-gated start. Both grant paths (a later setConsentStatus or a
+// re-init that resolves to granted) funnel through here so they mark started and
+// drop the stashed args. If a start was actually parked while consent was
+// withheld, also drop the events that buffered during that window (no tracking
+// before grant). When consent was granted from the start there was no such
+// window, so the buffer is left to replay like the normal (non-consent) path.
+const releaseGate = (
+  apiKey: string,
+  initConfigs: InitConfigs,
+  config: WebExperimentConfig,
+): void => {
+  const hadDeferral = consentGate.deferredStart !== null;
+  consentGate.started = true;
+  consentGate.deferredStart = null;
+  if (hadDeferral) {
+    eventBuffer.length = 0;
+  }
+  launchClient(apiKey, initConfigs, config);
+};
+
 /**
  * Updates cookie-consent status. Exposed on `window.webExperiment` (incl. the
  * pre-init stub) so a CMP callback can call it before the client exists. v0:
@@ -41,11 +61,8 @@ export const setConsentStatus = (status: ConsentStatus): void => {
     consentGate.deferredStart &&
     !consentGate.started
   ) {
-    consentGate.started = true;
     const { apiKey, initConfigs, config } = consentGate.deferredStart;
-    consentGate.deferredStart = null;
-    eventBuffer.length = 0; // drop pre-grant buffer so it isn't replayed
-    launchClient(apiKey, initConfigs, config);
+    releaseGate(apiKey, initConfigs, config);
   }
 };
 
@@ -70,6 +87,12 @@ export const initialize = (
     };
   }
 
+  // A consent-gated start already released (here or via setConsentStatus): don't
+  // relaunch — that would re-fetch preview configs and re-run start().
+  if (consentGate.started) {
+    return;
+  }
+
   // Consent gate: while consent is required and not granted, stash the args and
   // return without constructing the client (no storage/eval/tracking/relay).
   // An already-pending deferral keeps the gate closed even if this call resolves
@@ -77,7 +100,7 @@ export const initialize = (
   // prior one parked on consent.
   const consent = resolveConsentOptions(config, globalScope);
   const gated = consent.consentRequired || consentGate.deferredStart !== null;
-  if (gated && !consentGate.started) {
+  if (gated) {
     // A runtime status (setConsentStatus) wins over the declarative config.
     // 'pending' and 'denied' both defer; a later 'granted' — including a
     // 'denied → granted' re-opt-in — starts the client.
@@ -86,7 +109,10 @@ export const initialize = (
       consentGate.deferredStart = { apiKey, initConfigs, config };
       return;
     }
-    consentGate.started = true;
+    // Granted: release through the shared path so a prior deferral's stashed
+    // args and pre-grant buffered events are cleared, matching setConsentStatus.
+    releaseGate(apiKey, initConfigs, config);
+    return;
   }
 
   launchClient(apiKey, initConfigs, config);

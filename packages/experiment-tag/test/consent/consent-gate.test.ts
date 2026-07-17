@@ -4,7 +4,12 @@ import { createMockGlobal } from '../util/mocks';
 
 import { consentGate } from 'src/consent-gate';
 import { DefaultWebExperimentClient } from 'src/experiment';
-import { initialize, setConsentStatus } from 'src/index';
+import {
+  createPlugin,
+  flushEventBuffer,
+  initialize,
+  setConsentStatus,
+} from 'src/index';
 import { SdkPreviewApi } from 'src/preview/preview-api';
 import { ConsentStatus, InitConfigs, WebExperimentConfig } from 'src/types';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
@@ -176,6 +181,67 @@ describe('index.ts consent gate (v0)', () => {
     setConsentStatus('granted');
     expect(getInstance).toHaveBeenCalledTimes(1);
     expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  test('grant via a later initialize starts once and does not relaunch', () => {
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+    expect(getInstance).not.toHaveBeenCalled();
+
+    // Grant arrives as a second initialize resolving to granted.
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'granted' },
+    });
+    expect(getInstance).toHaveBeenCalledTimes(1);
+    expect(consentGate.deferredStart).toBeNull();
+
+    // Further initialize calls must not relaunch (no extra fetch/start work).
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'granted' },
+    });
+    expect(getInstance).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  test('grant via a later initialize drops events buffered while deferred', async () => {
+    const plugin = createPlugin();
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+
+    // An analytics event fires while deferred -> buffered on the stub.
+    await plugin.execute?.({
+      event_type: 'pre_grant',
+      event_properties: {},
+    } as never);
+
+    // Grant via a second initialize releases the deferred start.
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'granted' },
+    });
+
+    // The buffer was cleared on release, so nothing replays into the client.
+    const trackEvent = jest.fn();
+    flushEventBuffer({ trackEvent } as never);
+    expect(trackEvent).not.toHaveBeenCalled();
+  });
+
+  test('grant from the start keeps startup-buffered events (no deferral window)', async () => {
+    const plugin = createPlugin();
+    // Consent granted immediately: there was no consent-withheld window, so
+    // startup events that race in should replay like the non-consent path.
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'granted' },
+    });
+    await plugin.execute?.({
+      event_type: 'startup',
+      event_properties: {},
+    } as never);
+
+    const trackEvent = jest.fn();
+    flushEventBuffer({ trackEvent } as never);
+    expect(trackEvent).toHaveBeenCalledTimes(1);
   });
 
   describe('preview mode', () => {
