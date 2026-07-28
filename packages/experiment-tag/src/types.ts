@@ -219,7 +219,8 @@ export interface WebExperimentClient {
   ): (() => void) | undefined;
 
   /**
-   * Updates cookie-consent status (also on the pre-init stub). See
+   * Updates cookie-consent status (also on the pre-init stub). An unrecognized
+   * status warns and is ignored, leaving the current status in place. See
    * {@link WebExperimentConfig.consentOptions}.
    */
   setConsentStatus(status: ConsentStatus): void;

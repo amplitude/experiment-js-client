@@ -76,6 +76,14 @@ const releaseGate = (
 export const setConsentStatus = (status: ConsentStatus): void => {
   const parsed = parseConsentStatus(status);
   if (parsed === null) {
+    // CMP callbacks are untyped JS, so a typo here isn't caught at compile time.
+    // Keep the last known status rather than downgrading to 'pending' — a bad
+    // call shouldn't revoke a grant the CMP already made.
+    console.warn(
+      `[experiment-tag] Invalid setConsentStatus ` +
+        `${JSON.stringify(status)}; expected ` +
+        `'granted', 'pending', or 'denied'. Ignoring.`,
+    );
     return;
   }
   consentGate.status = parsed;
@@ -131,7 +139,7 @@ export const initialize = (
     // A runtime status (setConsentStatus) wins over the declarative config.
     // 'pending' and 'denied' both defer; a later 'granted' — including a
     // 'denied → granted' re-opt-in — starts the client. consentGate.status is
-    // already validated (setConsentStatus no-ops on unknown values); an
+    // already validated (setConsentStatus warns and ignores unknown values); an
     // unrecognized config value warns and falls back to 'pending' (fail closed).
     const configStatus = parseConsentStatus(consent.consentStatus);
     if (consent.consentStatus !== undefined && configStatus === null) {

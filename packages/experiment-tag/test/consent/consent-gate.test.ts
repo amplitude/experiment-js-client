@@ -250,7 +250,7 @@ describe('index.ts consent gate', () => {
     warn.mockRestore();
   });
 
-  test('setConsentStatus with an unknown status is a no-op', () => {
+  test('setConsentStatus with an unknown status warns and is a no-op', () => {
     const warn = jest
       .spyOn(console, 'warn')
       .mockImplementation(() => undefined);
@@ -260,7 +260,23 @@ describe('index.ts consent gate', () => {
     setConsentStatus('grantd' as ConsentStatus);
     expect(getInstance).not.toHaveBeenCalled();
     expect(consentGate.status).toBeUndefined();
-    expect(warn).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  test('setConsentStatus with an unknown status keeps an existing grant', () => {
+    const warn = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+    setConsentStatus('granted');
+    expect(getInstance).toHaveBeenCalledTimes(1);
+
+    setConsentStatus('grantd' as ConsentStatus);
+    expect(consentGate.status).toBe('granted');
+    expect(start).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
 
