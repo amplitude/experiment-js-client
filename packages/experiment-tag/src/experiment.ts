@@ -734,11 +734,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       const variant = keyToVariant[key];
       const flag = this.flagVariantMap[key];
       if (!flag) {
-        return;
+        continue;
       }
       const variantObject = flag[variant];
       if (!variantObject) {
-        return;
+        continue;
       }
       if (this.isPreviewMode) {
         showPreviewModeModal({
@@ -750,7 +750,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         if (this.isActionActiveOnPage(key, undefined)) {
           this.exposureWithDedupe(key, variantObject);
         }
-        return;
+        continue;
       }
       await this.handleVariantAction(key, variantObject);
     }
