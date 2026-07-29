@@ -8,6 +8,10 @@ import {
   removeStorageItem,
   setStorageItem,
 } from 'src/util/storage';
+import {
+  PREVIEW_MODE_SESSION_KEY,
+  VISUAL_EDITOR_SESSION_KEY,
+} from 'src/util/storage-keys';
 
 describe('consent-gated storage helpers', () => {
   let globalScope: ReturnType<typeof createMockGlobal>;
@@ -171,6 +175,36 @@ describe('consent-gated storage helpers', () => {
       expect(globalScope.localStorage.getItem('k')).toBeNull();
     });
 
+    it('drops later writes rather than persisting them', () => {
+      // A visitor who withdraws consent leaves a client already running; erasing
+      // its data would achieve nothing if that client kept writing.
+      activateConsent('granted');
+      consentGate.manager.setStatus('denied');
+
+      setStorageItem('localStorage', 'k', { a: 1 });
+
+      expect(globalScope.localStorage.setItem).not.toHaveBeenCalled();
+      expect(getStorageItem('localStorage', 'k')).toBeNull();
+    });
+
+    it('reads as absent rather than returning persisted data', () => {
+      globalScope.localStorage.setItem('k', JSON.stringify({ prior: true }));
+      activateConsent('granted');
+      consentGate.manager.setStatus('denied');
+
+      expect(getStorageItem('localStorage', 'k')).toBeNull();
+    });
+
+    it('still removes from real storage, which is how cleanup erases data', () => {
+      globalScope.localStorage.setItem('k', JSON.stringify({ prior: true }));
+      activateConsent('granted');
+      consentGate.manager.setStatus('denied');
+
+      removeStorageItem('localStorage', 'k');
+
+      expect(globalScope.localStorage.getItem('k')).toBeNull();
+    });
+
     it('does not replay the discarded buffer if consent is granted later', () => {
       activateConsent('pending');
       setStorageItem('localStorage', 'k', { a: 1 });
@@ -179,6 +213,70 @@ describe('consent-gated storage helpers', () => {
       consentGate.manager.setStatus('granted');
 
       expect(globalScope.localStorage.getItem('k')).toBeNull();
+    });
+  });
+
+  describe('exempt keys', () => {
+    // Amplitude's own tooling state, entered deliberately through a URL param by
+    // the person building the experiment — not something a banner asks about.
+    it.each([
+      ['preview mode', PREVIEW_MODE_SESSION_KEY],
+      ['visual editor', VISUAL_EDITOR_SESSION_KEY],
+    ])('reads and writes %s state while pending', (_name, key) => {
+      activateConsent('pending');
+
+      setStorageItem('sessionStorage', key, { on: true });
+
+      expect(globalScope.sessionStorage.getItem(key)).toEqual(
+        JSON.stringify({ on: true }),
+      );
+      expect(getStorageItem('sessionStorage', key)).toEqual({ on: true });
+    });
+
+    it('reads state written before the page loaded, so it survives the redirect', () => {
+      // The PREVIEW param is stripped from the URL, so the only way the editor
+      // knows it is in preview on the next page is this key.
+      globalScope.sessionStorage.setItem(
+        PREVIEW_MODE_SESSION_KEY,
+        JSON.stringify({ previewFlags: { flag: 'treatment' } }),
+      );
+      activateConsent('pending');
+
+      expect(
+        getStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY),
+      ).toEqual({ previewFlags: { flag: 'treatment' } });
+    });
+
+    it('removes state directly rather than only from the buffer', () => {
+      globalScope.sessionStorage.setItem(PREVIEW_MODE_SESSION_KEY, '{}');
+      activateConsent('pending');
+
+      removeStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY);
+
+      expect(
+        globalScope.sessionStorage.getItem(PREVIEW_MODE_SESSION_KEY),
+      ).toBeNull();
+    });
+
+    it('writes through after consent is refused', () => {
+      activateConsent('granted');
+      consentGate.manager.setStatus('denied');
+
+      setStorageItem('sessionStorage', VISUAL_EDITOR_SESSION_KEY, { on: true });
+
+      expect(
+        globalScope.sessionStorage.getItem(VISUAL_EDITOR_SESSION_KEY),
+      ).toEqual(JSON.stringify({ on: true }));
+    });
+
+    it('does not gate a key that merely resembles an exempt one', () => {
+      activateConsent('pending');
+
+      setStorageItem('sessionStorage', `${PREVIEW_MODE_SESSION_KEY}-other`, 1);
+
+      expect(
+        globalScope.sessionStorage.getItem(`${PREVIEW_MODE_SESSION_KEY}-other`),
+      ).toBeNull();
     });
   });
 

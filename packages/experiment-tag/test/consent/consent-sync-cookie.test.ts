@@ -162,5 +162,50 @@ describe('SyncJsonCookie consent gating', () => {
 
       expect(readRawCookie('sjc_denied')).toBeUndefined();
     });
+
+    it('keeps later writes in memory rather than persisting them', () => {
+      // Revocation leaves a running client; it must stop writing, or cleanup
+      // would simply be undone.
+      activateConsent('granted');
+      consentGate.manager.setStatus('denied');
+      const store = new SyncJsonCookie<number>('sjc_after_denial', () => '');
+
+      store.write(1);
+
+      expect(readRawCookie('sjc_after_denial')).toBeUndefined();
+      expect(store.read()).toEqual(1);
+    });
+
+    it('reads as absent rather than returning a cookie from the consented visit', () => {
+      writeRawCookie('sjc_stale', JSON.stringify({ v: 9 }));
+      activateConsent('granted');
+      consentGate.manager.setStatus('denied');
+
+      const store = new SyncJsonCookie<{ v: number }>('sjc_stale', () => '');
+
+      expect(store.read()).toBeUndefined();
+    });
+
+    it('still deletes the cookie on clear, which is how cleanup erases it', () => {
+      writeRawCookie('sjc_cleanup', JSON.stringify({ v: 9 }));
+      activateConsent('granted');
+      consentGate.manager.setStatus('denied');
+      const store = new SyncJsonCookie<{ v: number }>('sjc_cleanup', () => '');
+
+      store.clear();
+
+      expect(readRawCookie('sjc_cleanup')).toBeUndefined();
+    });
+
+    it('does not flush a value buffered before refusal if consent arrives later', () => {
+      activateConsent('pending');
+      const store = new SyncJsonCookie<number>('sjc_reopt', () => '');
+      store.write(1);
+      consentGate.manager.setStatus('denied');
+
+      consentGate.manager.setStatus('granted');
+
+      expect(readRawCookie('sjc_reopt')).toBeUndefined();
+    });
   });
 });

@@ -81,6 +81,7 @@ import {
   setStorageItem,
   removeStorageItem,
 } from './util/storage';
+import { PREVIEW_MODE_SESSION_KEY } from './util/storage-keys';
 import {
   getUrlParams,
   removeQueryParams,
@@ -100,7 +101,7 @@ const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
-export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
+export { PREVIEW_MODE_SESSION_KEY };
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
 

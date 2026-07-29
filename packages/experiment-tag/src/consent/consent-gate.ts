@@ -110,3 +110,16 @@ export const armDenialCleanup = (
  */
 export const isConsentPending = (): boolean =>
   consentGate.required && consentGate.manager.getStatus() === 'pending';
+
+/**
+ * True whenever gating is active and consent is not in hand — either not yet
+ * given or refused. This is the condition for keeping data off the device;
+ * {@link isConsentPending} narrows it to the case where the data is still worth
+ * holding on to, because consent may yet arrive.
+ *
+ * Refusal has to suppress persistence and not merely trigger cleanup: a visitor
+ * who withdraws consent mid-visit leaves a client already running, and erasing
+ * its data while it carries on writing would put the data straight back.
+ */
+export const isConsentWithheld = (): boolean =>
+  consentGate.required && consentGate.manager.getStatus() !== 'granted';

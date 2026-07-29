@@ -1,7 +1,11 @@
 import { CampaignParser, CookieStorage, MKTG } from '@amplitude/analytics-core';
 import type { Campaign } from '@amplitude/analytics-core';
 
-import { consentGate, isConsentPending } from '../consent/consent-gate';
+import {
+  consentGate,
+  isConsentPending,
+  isConsentWithheld,
+} from '../consent/consent-gate';
 
 const KNOWN_2LDS = [
   'ac.in',
@@ -314,10 +318,10 @@ export class SyncJsonCookie<T> {
   ) {}
 
   read(): T | undefined {
-    // While the visitor has yet to decide, the cookie is treated as absent: the
-    // memory tier is the only source, so nothing an earlier consented session
-    // left behind is read back.
-    if (!isConsentPending() && this.usable !== false) {
+    // Without consent the cookie is treated as absent: the memory tier is the
+    // only source, so nothing an earlier consented session left behind is read
+    // back.
+    if (!isConsentWithheld() && this.usable !== false) {
       const raw = readRawCookie(this.key);
       const parsed = raw !== undefined ? this.parse(raw) : undefined;
       if (parsed !== undefined) return parsed;
@@ -327,11 +331,14 @@ export class SyncJsonCookie<T> {
 
   write(value: T): void {
     this.memory = value;
-    if (isConsentPending()) {
+    if (isConsentWithheld()) {
       // The memory tier already holds the value, and this class degrades to it
-      // whenever the cookie is unavailable — so a pending write needs no buffer
-      // of its own, just a flush once consent arrives.
-      this.armConsentFlush();
+      // whenever the cookie is unavailable — so a withheld write needs no buffer
+      // of its own. Only a pending one is worth arming a flush for; after refusal
+      // the value simply stays in memory for the life of the page.
+      if (isConsentPending()) {
+        this.armConsentFlush();
+      }
       return;
     }
     this.usable =
@@ -347,7 +354,8 @@ export class SyncJsonCookie<T> {
     this.memory = undefined;
     if (isConsentPending()) {
       // Nothing of ours is out there to delete, and issuing the expiry would be
-      // a cookie write in its own right.
+      // a cookie write in its own right. Refusal deliberately falls through, so
+      // denial cleanup can still erase a cookie from a consented visit.
       return;
     }
     deleteRawCookie(this.key, this.getDomain() || undefined);
@@ -357,13 +365,19 @@ export class SyncJsonCookie<T> {
    * Promotes the deferred value to a cookie on grant. Writing the same value
    * rather than a fresh one is what keeps the session id the visitor already had
    * while consent was pending, instead of rotating it at the moment of grant.
+   *
+   * Pending only ever resolves one way or the other, so the subscription is spent
+   * on the first transition either way. Dropping it on refusal is what stops a
+   * value gathered before the refusal from being written out later, should the
+   * visitor return to the banner and opt in.
    */
   private armConsentFlush(): void {
     if (this.consentFlushArmed) {
       return;
     }
     this.consentFlushArmed = true;
-    consentGate.manager.onChange((status) => {
+    const unsubscribe = consentGate.manager.onChange((status) => {
+      unsubscribe();
       if (status === 'granted' && this.memory !== undefined) {
         this.write(this.memory);
       }

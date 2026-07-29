@@ -1,7 +1,13 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import { consentGate, isConsentPending } from '../consent/consent-gate';
+import {
+  consentGate,
+  isConsentPending,
+  isConsentWithheld,
+} from '../consent/consent-gate';
 import { ConsentManager } from '../consent/consent-manager';
+
+import { CONSENT_EXEMPT_STORAGE_KEYS } from './storage-keys';
 
 export type StorageType = 'localStorage' | 'sessionStorage';
 
@@ -47,6 +53,13 @@ const bufferKey = (storageType: StorageType, key: string): string =>
   `${storageType}:${key}`;
 
 /**
+ * Whether a key is subject to the gate at all. Amplitude's own tooling state is
+ * exempt — see {@link CONSENT_EXEMPT_STORAGE_KEYS}.
+ */
+const isGated = (key: string): boolean =>
+  isConsentWithheld() && !CONSENT_EXEMPT_STORAGE_KEYS.has(key);
+
+/**
  * Get a JSON value from storage and parse it
  * @param storageType - The type of storage to use ('localStorage' or 'sessionStorage')
  * @param key - The key to retrieve
@@ -56,11 +69,14 @@ export const getStorageItem = <T>(
   storageType: StorageType,
   key: string,
 ): T | null => {
-  if (isConsentPending()) {
-    armConsentListener();
+  if (isGated(key)) {
     // Reads are gated as well as writes — ePrivacy covers access to data already
-    // on the device, so a pending visitor sees only what this page put in the
-    // buffer, never what an earlier consented session left behind.
+    // on the device, so a visitor without consent sees only what this page put in
+    // the buffer, never what an earlier consented session left behind. Once
+    // consent is refused the buffer is empty, so this reads as absent.
+    if (isConsentPending()) {
+      armConsentListener();
+    }
     return parseOrNull<T>(pendingWrites.get(bufferKey(storageType, key))?.json);
   }
   try {
@@ -93,13 +109,17 @@ export const setStorageItem = (
     console.warn(`Failed to stringify and set JSON in ${storageType}:`, error);
     return;
   }
-  if (isConsentPending()) {
-    armConsentListener();
-    pendingWrites.set(bufferKey(storageType, key), {
-      storageType,
-      key,
-      json: jsonString,
-    });
+  if (isGated(key)) {
+    // Pending is held in case consent arrives; refused is dropped outright, so a
+    // client still running after a mid-session revocation stops persisting.
+    if (isConsentPending()) {
+      armConsentListener();
+      pendingWrites.set(bufferKey(storageType, key), {
+        storageType,
+        key,
+        json: jsonString,
+      });
+    }
     return;
   }
   writeThrough(storageType, key, jsonString);
@@ -137,11 +157,12 @@ export const removeStorageItem = (
   storageType: StorageType,
   key: string,
 ): void => {
-  if (isConsentPending()) {
+  // Only pending holds removal back, and only to the buffer: issuing the delete
+  // would be a write to the device while the visitor is still deciding. Refusal
+  // deliberately falls through to real storage, because that is the path denial
+  // cleanup uses to erase what a previously consented visit left behind.
+  if (isConsentPending() && !CONSENT_EXEMPT_STORAGE_KEYS.has(key)) {
     armConsentListener();
-    // Only the buffered write is dropped. Deleting the persisted key would be a
-    // write to the device in its own right, and denial cleanup — which does run
-    // against real storage — is the path that removes it.
     pendingWrites.delete(bufferKey(storageType, key));
     return;
   }
