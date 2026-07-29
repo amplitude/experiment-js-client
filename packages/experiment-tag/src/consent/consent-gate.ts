@@ -23,11 +23,6 @@ interface ConsentGate {
   deferredStart: DeferredStart | null;
   /** Whether the client has been (or is being) started. */
   started: boolean;
-  /**
-   * True once `setConsentStatus()` has been called. An explicit CMP signal
-   * wins over the declarative `consentStatus` config at initialize time.
-   */
-  explicitStatus: boolean;
   /** Test-only reset; kept off the public `index` entry point. */
   reset(): void;
 }
@@ -41,11 +36,9 @@ export const consentGate: ConsentGate = {
   manager: new ConsentManager(),
   deferredStart: null,
   started: false,
-  explicitStatus: false,
   reset() {
     this.manager = new ConsentManager();
     this.deferredStart = null;
     this.started = false;
-    this.explicitStatus = false;
   },
 };

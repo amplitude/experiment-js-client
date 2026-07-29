@@ -15,6 +15,7 @@ export type ConsentChangeListener = (
  */
 export class ConsentManager {
   private currentStatus: ConsentStatus;
+  private explicitlySet = false;
   private readonly listeners = new Set<ConsentChangeListener>();
 
   constructor(initialStatus: ConsentStatus = 'pending') {
@@ -25,12 +26,45 @@ export class ConsentManager {
     return this.currentStatus;
   }
 
+  /** True once a runtime signal has arrived through {@link setStatus}. */
+  hasExplicitStatus(): boolean {
+    return this.explicitlySet;
+  }
+
   /**
-   * Applies a status transition and notifies listeners. Returns true when the
-   * transition was applied; no-op transitions (same status, or any ->
-   * 'pending') return false.
+   * Applies a runtime (CMP) status transition and notifies listeners. Returns
+   * true when the transition was applied; no-op transitions (same status, or
+   * any -> 'pending') return false.
+   *
+   * Records the status as explicitly set even when the transition itself is a
+   * no-op, so a later {@link seedFromConfig} cannot overwrite a decision the
+   * caller already made.
    */
   setStatus(status: ConsentStatus): boolean {
+    this.explicitlySet = true;
+    return this.applyTransition(status);
+  }
+
+  /**
+   * Seeds the status from declarative config. Ignored once a runtime signal has
+   * arrived, so an explicit CMP decision always wins over a build-time default.
+   */
+  seedFromConfig(status: ConsentStatus): boolean {
+    if (this.explicitlySet) {
+      return false;
+    }
+    return this.applyTransition(status);
+  }
+
+  /** Subscribes to applied transitions. Returns an unsubscribe function. */
+  onChange(listener: ConsentChangeListener): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private applyTransition(status: ConsentStatus): boolean {
     if (status === this.currentStatus) {
       return false;
     }
@@ -50,13 +84,5 @@ export class ConsentManager {
       }
     }
     return true;
-  }
-
-  /** Subscribes to applied transitions. Returns an unsubscribe function. */
-  onChange(listener: ConsentChangeListener): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
   }
 }

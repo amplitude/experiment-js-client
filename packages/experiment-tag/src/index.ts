@@ -88,7 +88,6 @@ export const setConsentStatus = (status: ConsentStatus): void => {
     );
     return;
   }
-  consentGate.explicitStatus = true;
   consentGate.manager.setStatus(parsed);
   if (consentGate.manager.getStatus() !== 'granted' && isConsentDeferred()) {
     clearDeferredAnalyticsBuffer();
@@ -140,11 +139,12 @@ export const initialize = (
   const consent = resolveConsentOptions(config, globalScope);
   const gated = consent.consentRequired || consentGate.deferredStart !== null;
   if (gated) {
-    // A runtime status (setConsentStatus) wins over the declarative config, so
-    // only seed the manager from config while no CMP signal has arrived.
+    // A runtime status (setConsentStatus) wins over the declarative config;
+    // seedFromConfig enforces that, and the guard here keeps a config-validity
+    // warning from firing about a value that can no longer take effect.
     // setConsentStatus warns and ignores unknown values; an unrecognized
     // config value warns and falls back to 'pending' (fail closed).
-    if (!consentGate.explicitStatus) {
+    if (!consentGate.manager.hasExplicitStatus()) {
       const configStatus = parseConsentStatus(consent.consentStatus);
       if (consent.consentStatus !== undefined && configStatus === null) {
         console.warn(
@@ -153,7 +153,7 @@ export const initialize = (
             `'granted', 'pending', or 'denied'. Treating as pending.`,
         );
       }
-      consentGate.manager.setStatus(configStatus ?? 'pending');
+      consentGate.manager.seedFromConfig(configStatus ?? 'pending');
     }
     if (consentGate.manager.getStatus() !== 'granted') {
       consentGate.deferredStart = { apiKey, initConfigs, config };

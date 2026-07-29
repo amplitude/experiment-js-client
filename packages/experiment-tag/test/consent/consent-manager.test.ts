@@ -94,4 +94,30 @@ describe('ConsentManager', () => {
     manager.setStatus('pending');
     expect(listener).not.toHaveBeenCalled();
   });
+
+  test('seedFromConfig applies while no runtime signal has arrived', () => {
+    const manager = new ConsentManager();
+    expect(manager.hasExplicitStatus()).toBe(false);
+    expect(manager.seedFromConfig('granted')).toBe(true);
+    expect(manager.getStatus()).toBe('granted');
+    // Seeding is not a runtime signal, so a later seed still applies.
+    expect(manager.hasExplicitStatus()).toBe(false);
+  });
+
+  test('seedFromConfig cannot overwrite a runtime signal', () => {
+    const manager = new ConsentManager();
+    manager.setStatus('denied');
+    expect(manager.hasExplicitStatus()).toBe(true);
+    expect(manager.seedFromConfig('granted')).toBe(false);
+    expect(manager.getStatus()).toBe('denied');
+  });
+
+  test('a no-op setStatus still records an explicit signal', () => {
+    const manager = new ConsentManager();
+    // 'pending' -> 'pending' changes nothing, but the CMP did decide.
+    expect(manager.setStatus('pending')).toBe(false);
+    expect(manager.hasExplicitStatus()).toBe(true);
+    expect(manager.seedFromConfig('granted')).toBe(false);
+    expect(manager.getStatus()).toBe('pending');
+  });
 });

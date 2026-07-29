@@ -278,7 +278,7 @@ describe('index.ts consent gate', () => {
     setConsentStatus('grantd' as ConsentStatus);
     expect(getInstance).not.toHaveBeenCalled();
     expect(consentGate.manager.getStatus()).toBe('pending');
-    expect(consentGate.explicitStatus).toBe(false);
+    expect(consentGate.manager.hasExplicitStatus()).toBe(false);
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });
