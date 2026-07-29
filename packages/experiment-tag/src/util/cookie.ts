@@ -1,6 +1,7 @@
 import { CampaignParser, CookieStorage, MKTG } from '@amplitude/analytics-core';
 import type { Campaign } from '@amplitude/analytics-core';
 
+import type { AsyncCookieStore } from '../consent/consent-cookie-storage';
 import {
   consentGate,
   isConsentPending,
@@ -203,7 +204,7 @@ export async function getTopLevelDomain(hostname: string): Promise<string> {
 export async function resolveCrossSubdomainObject<
   T extends Record<string, string>,
 >(
-  cookieStorage: CookieStorage<string>,
+  cookieStorage: AsyncCookieStore<string>,
   cookieKey: string,
   fallback: Partial<T>,
   generators: { [K in keyof T]: () => string },
