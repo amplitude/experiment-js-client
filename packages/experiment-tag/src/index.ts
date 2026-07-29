@@ -106,6 +106,10 @@ export const initialize = (
   const effectiveConfig = mergeWithWindowConfig(config, globalScope);
   const consent = effectiveConfig.consentOptions;
   const gated = consent.consentRequired || consentGate.deferredStart !== null;
+  // Publish the decision before the client exists, so the persistence gates
+  // (which run deep inside client construction) can see it. Latched, so a
+  // second initialize can't reopen storage that a first one closed.
+  consentGate.required = consentGate.required || gated;
   if (gated) {
     // A runtime status (setConsentStatus) wins over the declarative config;
     // seedFromConfig enforces that, and the guard here keeps a config-validity

@@ -20,6 +20,16 @@ interface DeferredStart {
 interface ConsentGate {
   /** Tri-state status owner; `index.ts` reads and transitions through it. */
   manager: ConsentManager;
+  /**
+   * Whether the customer asked for consent gating at all. The manager starts at
+   * 'pending' for everyone, so this is what separates a visitor who has yet to
+   * decide from the overwhelming majority of pages that never enabled the
+   * feature — persistence gates must consult {@link isConsentPending}, never the
+   * status alone. Set by `initialize` before the client is constructed, and
+   * sticky once true so a later `initialize` resolving `consentRequired: false`
+   * cannot reopen storage a prior one closed.
+   */
+  required: boolean;
   /** Args stashed by `initialize` while consent is not yet granted. */
   deferredStart: DeferredStart | null;
   /** Whether the client has been (or is being) started. */
@@ -43,6 +53,7 @@ interface ConsentGate {
  */
 export const consentGate: ConsentGate = {
   manager: new ConsentManager(),
+  required: false,
   deferredStart: null,
   started: false,
   cleanupArmedManager: null,
@@ -51,6 +62,7 @@ export const consentGate: ConsentGate = {
     // comparison in `armDenialCleanup` re-arms against the replacement on its
     // own, so the null here is fresh state, not a correctness requirement.
     this.manager = new ConsentManager();
+    this.required = false;
     this.deferredStart = null;
     this.started = false;
     this.cleanupArmedManager = null;
@@ -89,3 +101,12 @@ export const armDenialCleanup = (
     }
   });
 };
+
+/**
+ * True while the visitor has yet to decide and gating is active — the condition
+ * under which persistence is held in memory instead of written out. False when
+ * the feature is off, so every gate built on it is inert for pages that never
+ * enabled consent.
+ */
+export const isConsentPending = (): boolean =>
+  consentGate.required && consentGate.manager.getStatus() === 'pending';
