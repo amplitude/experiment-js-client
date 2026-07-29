@@ -23,6 +23,12 @@ interface ConsentGate {
   deferredStart: DeferredStart | null;
   /** Whether the client has been (or is being) started. */
   started: boolean;
+  /**
+   * Unsubscribes the denial-cleanup listener. Also marks that the listener is
+   * registered — it can only be attached once `initialize` supplies the apiKey
+   * the cleanup needs.
+   */
+  cleanupListener: (() => void) | null;
   /** Test-only reset; kept off the public `index` entry point. */
   reset(): void;
 }
@@ -36,9 +42,13 @@ export const consentGate: ConsentGate = {
   manager: new ConsentManager(),
   deferredStart: null,
   started: false,
+  cleanupListener: null,
   reset() {
     this.manager = new ConsentManager();
     this.deferredStart = null;
     this.started = false;
+    // The replacement manager carries no listeners, so dropping the reference
+    // is enough to detach the old one.
+    this.cleanupListener = null;
   },
 };

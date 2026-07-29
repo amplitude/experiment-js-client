@@ -1,6 +1,7 @@
 import { Event, Plugin } from '@amplitude/analytics-types';
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+import { clearAllPersistedData } from './consent/clear-data';
 import { consentGate, parseConsentStatus } from './consent/consent-gate';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
@@ -154,6 +155,24 @@ export const initialize = (
         );
       }
       consentGate.manager.seedFromConfig(configStatus ?? 'pending');
+    }
+    // Denial cleanup, wired here because it needs the apiKey. Ordering matters:
+    // the sweep below covers a denial that resolved before this point (config
+    // value, or a setConsentStatus call against the pre-init stub), and the
+    // listener registered after it covers every later revocation. Registering
+    // second keeps a single sweep per denial rather than double-firing on the
+    // transition that just happened.
+    if (!consentGate.cleanupListener) {
+      const clearData = () =>
+        clearAllPersistedData(apiKey, { instanceName: config.instanceName });
+      if (consentGate.manager.getStatus() === 'denied') {
+        clearData();
+      }
+      consentGate.cleanupListener = consentGate.manager.onChange((status) => {
+        if (status === 'denied') {
+          clearData();
+        }
+      });
     }
     if (consentGate.manager.getStatus() !== 'granted') {
       consentGate.deferredStart = { apiKey, initConfigs, config };
