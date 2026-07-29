@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.27.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.26.0...@amplitude/experiment-tag@0.27.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **spa-router:** allow interceptor to navigate to external URLs ([#353](https://github.com/amplitude/experiment-js-client/issues/353)) ([348d61d](https://github.com/amplitude/experiment-js-client/commit/348d61d450cd7e31de6ee93ca9e406a76403ad61))
+* **spa-router:** handle intercepting same page SPA links ([#340](https://github.com/amplitude/experiment-js-client/issues/340)) ([0bf4012](https://github.com/amplitude/experiment-js-client/commit/0bf4012dfc144997ac0dd1ae42470bfe0d467484))
+
+
+### Features
+
+* **experiment-tag:** fix early returns in previewvariants ([#354](https://github.com/amplitude/experiment-js-client/issues/354)) ([015696d](https://github.com/amplitude/experiment-js-client/commit/015696df1c5003e578942c8b33e5a5fe66aab274))
+* **experiment-tag:** gate script on cookie consent (v0) ([#352](https://github.com/amplitude/experiment-js-client/issues/352)) ([f60631e](https://github.com/amplitude/experiment-js-client/commit/f60631e7b62a25353c375bcb3935febadd85256b))
+* **experiment-tag:** surface dependency/holdout/mutex info in debug state (WEB-108) ([#343](https://github.com/amplitude/experiment-js-client/issues/343)) ([bd11c5e](https://github.com/amplitude/experiment-js-client/commit/bd11c5e269690db568ef60d4810d8f5702cf1893))
+
+
+
+
+
 # [0.26.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.25.1...@amplitude/experiment-tag@0.26.0) (2026-07-06)
 
 
