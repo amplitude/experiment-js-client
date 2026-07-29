@@ -38,18 +38,30 @@ describe('MemoryStorage', () => {
 });
 
 describe('web experiment cache storage selection', () => {
-  let sessionGetItem: jest.SpyInstance;
-  let localGetItem: jest.SpyInstance;
+  let sessionGetItem: jest.Mock;
+  let localGetItem: jest.Mock;
 
   beforeEach(() => {
-    sessionGetItem = jest.spyOn(
-      Object.getPrototypeOf(window.sessionStorage),
-      'getItem',
-    );
-    localGetItem = jest.spyOn(
-      Object.getPrototypeOf(window.localStorage),
-      'getItem',
-    );
+    // sessionStorage and localStorage share Storage.prototype, and jsdom
+    // ignores instance-level getItem assignment/spyOn. Spy the prototype
+    // once and route by `this` so the two remain distinguishable.
+    sessionGetItem = jest.fn();
+    localGetItem = jest.fn();
+    const proto = Object.getPrototypeOf(window.sessionStorage);
+    const originalGetItem: (
+      this: globalThis.Storage,
+      key: string,
+    ) => string | null = proto.getItem;
+    jest
+      .spyOn(proto, 'getItem')
+      .mockImplementation(function (this: globalThis.Storage, key: string) {
+        if (this === window.sessionStorage) {
+          sessionGetItem(key);
+        } else if (this === window.localStorage) {
+          localGetItem(key);
+        }
+        return originalGetItem.call(this, key);
+      });
   });
 
   afterEach(() => {
@@ -68,6 +80,7 @@ describe('web experiment cache storage selection', () => {
     expect(injected.gets.length).toBeGreaterThan(0);
     expect(injected.gets.every((key) => key.startsWith('amp-exp-'))).toBe(true);
     expect(sessionGetItem).not.toHaveBeenCalled();
+    expect(localGetItem).not.toHaveBeenCalled();
   });
 
   test('falls back to SessionStorage when nothing is injected', () => {
@@ -79,6 +92,7 @@ describe('web experiment cache storage selection', () => {
     expect(
       sessionGetItem.mock.calls.every(([key]) => key.startsWith('amp-exp-')),
     ).toBe(true);
+    expect(localGetItem).not.toHaveBeenCalled();
   });
 
   test('non-web clients keep LocalStorage even when a storage is injected', () => {
@@ -89,5 +103,6 @@ describe('web experiment cache storage selection', () => {
     } as any);
     expect(injected.gets).toEqual([]);
     expect(localGetItem).toHaveBeenCalled();
+    expect(sessionGetItem).not.toHaveBeenCalled();
   });
 });
