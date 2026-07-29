@@ -25,6 +25,7 @@ import type { MutationController } from 'dom-mutator/dist/types';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
+import { mergeWithWindowConfig } from './config';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -32,7 +33,6 @@ import {
   SubscriptionManager,
 } from './subscriptions/subscriptions';
 import {
-  Defaults,
   InitConfigs,
   WebExperimentClient,
   WebExperimentConfig,
@@ -297,12 +297,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ? JSON.parse(initConfigs.behavioralTargetingRules)
       : {};
 
-    // merge config with defaults and experimentConfig (if provided)
-    this.config = {
-      ...Defaults,
-      ...config,
-      ...(this.globalScope.experimentConfig ?? {}),
-    };
+    this.config = mergeWithWindowConfig(config, this.globalScope);
 
     // Initialize behavioral targeting infrastructure only if there are rules
     if (Object.keys(this.behavioralTargetingRules).length > 0) {

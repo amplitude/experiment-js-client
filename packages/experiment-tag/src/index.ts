@@ -1,17 +1,13 @@
 import { Event, Plugin } from '@amplitude/analytics-types';
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+import { mergeWithWindowConfig } from './config';
 import { clearAllPersistedData } from './consent/clear-data';
 import { consentGate, parseConsentStatus } from './consent/consent-gate';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
-import {
-  ConsentOptions,
-  ConsentStatus,
-  InitConfigs,
-  WebExperimentConfig,
-} from './types';
+import { ConsentStatus, InitConfigs, WebExperimentConfig } from './types';
 import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { isPreviewMode } from './util/url';
 
@@ -39,24 +35,6 @@ const bufferAnalyticsEvent = (event: {
   }
   eventBuffer.push(event);
 };
-
-const resolveConsentOptions = (
-  config: WebExperimentConfig,
-  globalScope: ReturnType<typeof getGlobalScope>,
-): ConsentOptions => ({
-  ...config.consentOptions,
-  ...globalScope?.experimentConfig?.consentOptions, // window wins (existing precedence)
-});
-
-// Mirrors the client's own `{ ...Defaults, ...config, ...window.experimentConfig }`
-// merge (Defaults sets no instanceName). Denial cleanup runs with no client, so it
-// has to repeat the merge — reading only the initialize() argument would rebuild
-// keys under '$default_instance' and leave the real instance-scoped data on disk.
-const resolveInstanceName = (
-  config: WebExperimentConfig,
-  globalScope: ReturnType<typeof getGlobalScope>,
-): string | undefined =>
-  ({ ...config, ...globalScope?.experimentConfig }.instanceName);
 
 // Release a consent-gated start. Both grant paths (a later setConsentStatus or a
 // re-init that resolves to granted) funnel through here so they mark started and
@@ -147,7 +125,8 @@ export const initialize = (
   // consentRequired=false, so a later initialize can't bypass a start that a
   // prior one parked on consent. Denied also stashes — a later grant
   // (preference-center re-opt-in) starts the client in-session with fresh state.
-  const consent = resolveConsentOptions(config, globalScope);
+  const effectiveConfig = mergeWithWindowConfig(config, globalScope);
+  const consent = effectiveConfig.consentOptions;
   const gated = consent.consentRequired || consentGate.deferredStart !== null;
   if (gated) {
     // A runtime status (setConsentStatus) wins over the declarative config;
@@ -175,7 +154,9 @@ export const initialize = (
     if (!consentGate.cleanupListener) {
       const clearData = () =>
         clearAllPersistedData(apiKey, {
-          instanceName: resolveInstanceName(config, globalScope),
+          // Re-resolved per sweep, not captured, so a revocation later in the
+          // session picks up the window config as it stands at that point.
+          instanceName: mergeWithWindowConfig(config, globalScope).instanceName,
         });
       if (consentGate.manager.getStatus() === 'denied') {
         clearData();
