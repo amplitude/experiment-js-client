@@ -84,6 +84,13 @@ export const getPersistedDataKeys = (
  * predates the customer enabling consent gating — and on mid-session
  * revocation.
  *
+ * How much a sweep buys differs between the two. Denied at load, no client is
+ * ever constructed, so nothing rewrites what this removes. On a mid-session
+ * revocation the running client is unaware of consent — nothing outside
+ * `index.ts` reads the status — so it keeps evaluating and tracking and can
+ * re-persist some of these keys before the page is reloaded. The sweep clears
+ * what earlier sessions left behind; it does not stop the current one.
+ *
  * Cookies are deleted at the host scope and at every candidate root domain,
  * because the writers choose between them based on a writability probe whose
  * result can differ from the one that applied when the cookie was written.

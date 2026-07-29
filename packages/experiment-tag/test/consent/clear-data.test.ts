@@ -125,10 +125,15 @@ describe('clearAllPersistedData', () => {
 
     clearAllPersistedData(API_KEY);
 
-    // Only the shared instance-scoped keys overlap between the two apiKeys.
     expect(
       globalScope.localStorage.getItem(`EXP_${otherApiKey.slice(0, 10)}`),
     ).toBe('"other-slice"');
+    // The instance-scoped exposure keys are the one overlap between apiKeys, and
+    // they are cleared on purpose: a visitor who denied consent shouldn't have
+    // queued exposures left by any SDK on the page.
+    expect(
+      globalScope.localStorage.getItem('EXP_unsent_$default_instance'),
+    ).toBeNull();
     expect(globalScope.localStorage.getItem(`AMP_MKTG_${SLICE}`)).toBe(
       '"analytics"',
     );

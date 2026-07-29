@@ -154,9 +154,7 @@ export const initialize = (
     if (!consentGate.cleanupListener) {
       const clearData = () =>
         clearAllPersistedData(apiKey, {
-          // Re-resolved per sweep, not captured, so a revocation later in the
-          // session picks up the window config as it stands at that point.
-          instanceName: mergeWithWindowConfig(config, globalScope).instanceName,
+          instanceName: effectiveConfig.instanceName,
         });
       if (consentGate.manager.getStatus() === 'denied') {
         clearData();
