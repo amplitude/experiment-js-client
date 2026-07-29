@@ -187,11 +187,12 @@ describe('denial cleanup wiring', () => {
     behavioralTargetingRules: '{}',
   };
   let clearData: jest.SpyInstance;
+  let globalScope: ReturnType<typeof createMockGlobal>;
 
   beforeEach(() => {
     jest.restoreAllMocks();
     consentGate.reset();
-    const globalScope = createMockGlobal({ experimentConfig: {} });
+    globalScope = createMockGlobal({ experimentConfig: {} });
     jest
       .spyOn(experimentCore, 'getGlobalScope')
       .mockReturnValue(globalScope as never);
@@ -247,6 +248,34 @@ describe('denial cleanup wiring', () => {
 
     expect(clearData).toHaveBeenCalledWith(API_KEY, {
       instanceName: 'my-instance',
+    });
+  });
+
+  // The client merges window.experimentConfig over the initialize() argument, so
+  // the sweep has to resolve the instance name the same way or it clears the
+  // default namespace and leaves the real keys behind.
+  it('uses an instance name set only on window.experimentConfig', () => {
+    globalScope.experimentConfig = { instanceName: 'window-instance' };
+
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
+    });
+
+    expect(clearData).toHaveBeenCalledWith(API_KEY, {
+      instanceName: 'window-instance',
+    });
+  });
+
+  it('prefers the window instance name over the initialize argument', () => {
+    globalScope.experimentConfig = { instanceName: 'window-instance' };
+
+    init({
+      instanceName: 'arg-instance',
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
+    });
+
+    expect(clearData).toHaveBeenCalledWith(API_KEY, {
+      instanceName: 'window-instance',
     });
   });
 

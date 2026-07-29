@@ -48,6 +48,16 @@ const resolveConsentOptions = (
   ...globalScope?.experimentConfig?.consentOptions, // window wins (existing precedence)
 });
 
+// Mirrors the client's own `{ ...Defaults, ...config, ...window.experimentConfig }`
+// merge (Defaults sets no instanceName). Denial cleanup runs with no client, so it
+// has to repeat the merge — reading only the initialize() argument would rebuild
+// keys under '$default_instance' and leave the real instance-scoped data on disk.
+const resolveInstanceName = (
+  config: WebExperimentConfig,
+  globalScope: ReturnType<typeof getGlobalScope>,
+): string | undefined =>
+  ({ ...config, ...globalScope?.experimentConfig }.instanceName);
+
 // Release a consent-gated start. Both grant paths (a later setConsentStatus or a
 // re-init that resolves to granted) funnel through here so they mark started and
 // drop the stashed args. If a start was actually parked while consent was
@@ -164,7 +174,9 @@ export const initialize = (
     // transition that just happened.
     if (!consentGate.cleanupListener) {
       const clearData = () =>
-        clearAllPersistedData(apiKey, { instanceName: config.instanceName });
+        clearAllPersistedData(apiKey, {
+          instanceName: resolveInstanceName(config, globalScope),
+        });
       if (consentGate.manager.getStatus() === 'denied') {
         clearData();
       }
