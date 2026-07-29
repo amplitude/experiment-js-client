@@ -2,7 +2,7 @@ import * as experimentCore from '@amplitude/experiment-core';
 
 import { createMockGlobal, setupGlobalObservers } from '../util/mocks';
 
-import { consentGate } from 'src/consent-gate';
+import { consentGate } from 'src/consent/consent-gate';
 import { initialize, setConsentStatus } from 'src/index';
 import { InitConfigs } from 'src/types';
 import * as antiFlickerUtils from 'src/util/anti-flicker';

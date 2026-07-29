@@ -1,4 +1,6 @@
-import { ConsentStatus, InitConfigs, WebExperimentConfig } from './types';
+import { ConsentStatus, InitConfigs, WebExperimentConfig } from '../types';
+
+import { ConsentManager } from './consent-manager';
 
 /** Returns a known status, or `null` if the value is not recognized. */
 export const parseConsentStatus = (value: unknown): ConsentStatus | null => {
@@ -15,14 +17,10 @@ interface DeferredStart {
 }
 
 interface ConsentGate {
+  /** Tri-state status owner; `index.ts` reads and transitions through it. */
+  manager: ConsentManager;
   /** Args stashed by `initialize` while consent is not yet granted. */
   deferredStart: DeferredStart | null;
-  /**
-   * Latest consent status seen (may be set before `initialize` runs).
-   * 'pending' and 'denied' both defer the start; a later 'granted'
-   * (including a 'denied → granted' re-opt-in) starts the client.
-   */
-  status: ConsentStatus | undefined;
   /** Whether the client has been (or is being) started. */
   started: boolean;
   /** Test-only reset; kept off the public `index` entry point. */
@@ -30,17 +28,17 @@ interface ConsentGate {
 }
 
 /**
- * Module-scoped consent gate state. While consent is pending there is no client
+ * Module-scoped consent state — while consent is unresolved there is no client
  * instance to hold it. Not re-exported from `index.ts`, so `reset` and the raw
  * state stay out of the package's public API.
  */
 export const consentGate: ConsentGate = {
+  manager: new ConsentManager(),
   deferredStart: null,
-  status: undefined,
   started: false,
   reset() {
+    this.manager = new ConsentManager();
     this.deferredStart = null;
-    this.status = undefined;
     this.started = false;
   },
 };

@@ -1,7 +1,7 @@
 import { Event, Plugin } from '@amplitude/analytics-types';
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import { consentGate, parseConsentStatus } from './consent-gate';
+import { consentGate, parseConsentStatus } from './consent/consent-gate';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
@@ -69,9 +69,11 @@ const releaseGate = (
 /**
  * Updates cookie-consent status. Exposed on `window.webExperiment` (incl. the
  * pre-init stub) so a CMP callback can call it before the client exists.
- * `granted` starts the client once — including after `denied` (preference-center
- * re-opt-in); `pending`/`denied` defer the start. A grant recorded before
- * `initialize()` runs is honored on init.
+ * `granted` starts a deferred client once — including after an earlier
+ * `denied` (the preference-center re-opt-in flow). Transitions to `pending`
+ * are ignored: pending is only meaningful as an initial state. Unknown values
+ * warn and are ignored. A grant recorded before `initialize()` runs is
+ * honored on init.
  */
 export const setConsentStatus = (status: ConsentStatus): void => {
   const parsed = parseConsentStatus(status);
@@ -86,12 +88,12 @@ export const setConsentStatus = (status: ConsentStatus): void => {
     );
     return;
   }
-  consentGate.status = parsed;
-  if (parsed !== 'granted' && isConsentDeferred()) {
+  consentGate.manager.setStatus(parsed);
+  if (consentGate.manager.getStatus() !== 'granted' && isConsentDeferred()) {
     clearDeferredAnalyticsBuffer();
   }
   if (
-    parsed === 'granted' &&
+    consentGate.manager.getStatus() === 'granted' &&
     consentGate.deferredStart &&
     !consentGate.started
   ) {
@@ -132,25 +134,28 @@ export const initialize = (
   // return without constructing the client (no storage/eval/tracking/relay).
   // An already-pending deferral keeps the gate closed even if this call resolves
   // consentRequired=false, so a later initialize can't bypass a start that a
-  // prior one parked on consent.
+  // prior one parked on consent. Denied also stashes — a later grant
+  // (preference-center re-opt-in) starts the client in-session with fresh state.
   const consent = resolveConsentOptions(config, globalScope);
   const gated = consent.consentRequired || consentGate.deferredStart !== null;
   if (gated) {
-    // A runtime status (setConsentStatus) wins over the declarative config.
-    // 'pending' and 'denied' both defer; a later 'granted' — including a
-    // 'denied → granted' re-opt-in — starts the client. consentGate.status is
-    // already validated (setConsentStatus warns and ignores unknown values); an
-    // unrecognized config value warns and falls back to 'pending' (fail closed).
-    const configStatus = parseConsentStatus(consent.consentStatus);
-    if (consent.consentStatus !== undefined && configStatus === null) {
-      console.warn(
-        `[experiment-tag] Invalid consentOptions.consentStatus ` +
-          `${JSON.stringify(consent.consentStatus)}; expected ` +
-          `'granted', 'pending', or 'denied'. Treating as pending.`,
-      );
+    // A runtime status (setConsentStatus) wins over the declarative config;
+    // seedFromConfig enforces that, and the guard here keeps a config-validity
+    // warning from firing about a value that can no longer take effect.
+    // setConsentStatus warns and ignores unknown values; an unrecognized
+    // config value warns and falls back to 'pending' (fail closed).
+    if (!consentGate.manager.hasExplicitStatus()) {
+      const configStatus = parseConsentStatus(consent.consentStatus);
+      if (consent.consentStatus !== undefined && configStatus === null) {
+        console.warn(
+          `[experiment-tag] Invalid consentOptions.consentStatus ` +
+            `${JSON.stringify(consent.consentStatus)}; expected ` +
+            `'granted', 'pending', or 'denied'. Treating as pending.`,
+        );
+      }
+      consentGate.manager.seedFromConfig(configStatus ?? 'pending');
     }
-    const status = consentGate.status ?? configStatus ?? 'pending';
-    if (status !== 'granted') {
+    if (consentGate.manager.getStatus() !== 'granted') {
       consentGate.deferredStart = { apiKey, initConfigs, config };
       clearDeferredAnalyticsBuffer();
       return;
