@@ -196,7 +196,14 @@ export class ExperimentClient implements Client {
       ? `${this.config.instanceName}-${String(internalInstanceName)}`
       : this.config.instanceName;
     if (this.isWebExperiment) {
-      storage = new SessionStorage();
+      // Internal: experiment-tag injects an in-memory storage while cookie
+      // consent is not yet granted, so the amp-exp-* caches never touch
+      // sessionStorage pre-consent. Always fall back to SessionStorage when
+      // nothing is injected.
+      const internalCacheStorage = this.config?.['internalCacheStorage'] as
+        | Storage
+        | undefined;
+      storage = internalCacheStorage ?? new SessionStorage();
     } else {
       storage = new LocalStorage();
     }
