@@ -56,6 +56,11 @@ export const getPersistedDataKeys = (
       `EXP_unsent_${instanceName}`,
     ],
     sessionStorage: [
+      // Same key as the localStorage entry above, deliberately: DefaultUserProvider
+      // splits one key across both stores — `first_seen` in localStorage,
+      // `landing_url` in sessionStorage. Clearing only one leaves landing-page
+      // attribution behind.
+      `EXP_${slice}_DEFAULT_USER_PROVIDER`,
       `EXP_${slice}_REDIRECT`,
       cacheNamespace,
       `${cacheNamespace}-flags`,

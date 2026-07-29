@@ -30,6 +30,7 @@ describe('getPersistedDataKeys', () => {
         'EXP_unsent_$default_instance',
       ],
       sessionStorage: [
+        `EXP_${SLICE}_DEFAULT_USER_PROVIDER`,
         `EXP_${SLICE}_REDIRECT`,
         CACHE,
         `${CACHE}-flags`,
@@ -61,8 +62,22 @@ describe('getPersistedDataKeys', () => {
 
     // EXP_* uses the first ten characters; the browser SDK caches use the last
     // six. Conflating them silently leaves data behind.
-    expect(keys.localStorage[0]).toBe('EXP_abcdefghij');
-    expect(keys.sessionStorage[1]).toBe('amp-exp-$default_instance-web-uvwxyz');
+    expect(keys.localStorage).toContain(`EXP_${SLICE}`);
+    const cacheKey = keys.sessionStorage.find((key) =>
+      key.startsWith('amp-exp-'),
+    );
+    expect(cacheKey).toBe(CACHE);
+    expect(cacheKey).not.toContain(SLICE);
+  });
+
+  it('clears DEFAULT_USER_PROVIDER from both stores', () => {
+    // DefaultUserProvider splits one key across two stores: first_seen in
+    // localStorage, landing_url in sessionStorage.
+    const key = `EXP_${SLICE}_DEFAULT_USER_PROVIDER`;
+    const keys = getPersistedDataKeys(API_KEY);
+
+    expect(keys.localStorage).toContain(key);
+    expect(keys.sessionStorage).toContain(key);
   });
 });
 
