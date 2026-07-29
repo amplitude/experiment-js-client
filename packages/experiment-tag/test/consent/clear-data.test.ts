@@ -37,6 +37,7 @@ describe('getPersistedDataKeys', () => {
         `${CACHE}-variants-options`,
         'EXP_sent_v3_$default_instance',
         'EXP_sent_v2_$default_instance',
+        'EXP_sent_$default_instance',
       ],
       cookies: [
         `EXP_${SLICE}_identity`,
@@ -68,6 +69,16 @@ describe('getPersistedDataKeys', () => {
     );
     expect(cacheKey).toBe(CACHE);
     expect(cacheKey).not.toContain(SLICE);
+  });
+
+  it('clears every version of the dedupe cache key', () => {
+    // SessionDedupeCache retires the older keys when it is constructed, which a
+    // denial at load never does — so the sweep has to cover them itself.
+    const keys = getPersistedDataKeys(API_KEY, 'my-instance');
+
+    expect(keys.sessionStorage).toContain('EXP_sent_v3_my-instance');
+    expect(keys.sessionStorage).toContain('EXP_sent_v2_my-instance');
+    expect(keys.sessionStorage).toContain('EXP_sent_my-instance');
   });
 
   it('clears DEFAULT_USER_PROVIDER from both stores', () => {

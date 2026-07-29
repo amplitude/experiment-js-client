@@ -65,9 +65,13 @@ export const getPersistedDataKeys = (
       cacheNamespace,
       `${cacheNamespace}-flags`,
       `${cacheNamespace}-variants-options`,
-      // Shared with co-resident SDK instances, as above.
+      // Shared with co-resident SDK instances, as above. Every version, not just
+      // the current one: SessionDedupeCache drops the older two as it is
+      // constructed, and a denial at load never constructs a client — so an entry
+      // written under an earlier SDK version would outlive the denial for the tab.
       `EXP_sent_v3_${instanceName}`,
       `EXP_sent_v2_${instanceName}`,
+      `EXP_sent_${instanceName}`,
     ],
     cookies: [
       `EXP_${slice}_identity`,
