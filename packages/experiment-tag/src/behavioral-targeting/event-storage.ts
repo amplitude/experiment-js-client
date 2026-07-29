@@ -1,5 +1,11 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+import {
+  consentGate,
+  isConsentPending,
+  isConsentWithheld,
+} from '../consent/consent-gate';
+
 import { RelayClient } from './relay-client';
 import { RelayEventStorage } from './relay-protocol';
 import { SessionManager } from './session-manager';
@@ -72,6 +78,7 @@ export class EventStorageManager {
   private persistedEvents?: Set<string>; // Optional set of event types to persist
   private storageKey: string;
   private relayClient: RelayClient | null = null;
+  private consentFlushArmed = false;
 
   constructor(
     apiKey: string,
@@ -316,6 +323,12 @@ export class EventStorageManager {
    * Loads data from localStorage into memory on initialization.
    */
   private loadFromLocalStorage(): EventStorage {
+    // Without consent the cache starts empty rather than inheriting the events
+    // of an earlier consented visit, which also keeps the uuid backfill below
+    // from writing to a store the visitor has not agreed to.
+    if (isConsentWithheld()) {
+      return { events: [], nextId: 1 };
+    }
     const stored = localStorage.getItem(this.storageKey);
     if (stored) {
       try {
@@ -386,6 +399,16 @@ export class EventStorageManager {
       return; // No changes to persist
     }
 
+    if (isConsentWithheld()) {
+      // Events accumulate in memory and stay targetable for the rest of the
+      // page. `hasPendingWrites` is deliberately left set so a later grant can
+      // persist everything gathered while the banner was up.
+      if (isConsentPending()) {
+        this.armConsentFlush();
+      }
+      return;
+    }
+
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(this.memoryCache));
       this.hasPendingWrites = false;
@@ -398,6 +421,27 @@ export class EventStorageManager {
     } catch (e) {
       // localStorage quota exceeded or unavailable
     }
+  }
+
+  /**
+   * Persists the events gathered while consent was pending, once it is granted.
+   *
+   * Pending resolves only one way or the other, so the subscription is spent on
+   * the first transition either way. Dropping it on refusal is what stops events
+   * collected before that refusal from reaching the device later, should the
+   * visitor return to the banner and opt in.
+   */
+  private armConsentFlush(): void {
+    if (this.consentFlushArmed) {
+      return;
+    }
+    this.consentFlushArmed = true;
+    const unsubscribe = consentGate.manager.onChange((status) => {
+      unsubscribe();
+      if (status === 'granted') {
+        this.flushToLocalStorage();
+      }
+    });
   }
 
   /**
