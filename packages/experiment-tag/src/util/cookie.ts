@@ -1,6 +1,8 @@
 import { CampaignParser, CookieStorage, MKTG } from '@amplitude/analytics-core';
 import type { Campaign } from '@amplitude/analytics-core';
 
+import { consentGate, isConsentPending } from '../consent/consent-gate';
+
 const KNOWN_2LDS = [
   'ac.in',
   'ac.jp',
@@ -299,6 +301,7 @@ export function deleteRawCookie(key: string, domain?: string): void {
 export class SyncJsonCookie<T> {
   private usable?: boolean;
   private memory?: T;
+  private consentFlushArmed = false;
 
   constructor(
     private readonly key: string,
@@ -311,7 +314,10 @@ export class SyncJsonCookie<T> {
   ) {}
 
   read(): T | undefined {
-    if (this.usable !== false) {
+    // While the visitor has yet to decide, the cookie is treated as absent: the
+    // memory tier is the only source, so nothing an earlier consented session
+    // left behind is read back.
+    if (!isConsentPending() && this.usable !== false) {
       const raw = readRawCookie(this.key);
       const parsed = raw !== undefined ? this.parse(raw) : undefined;
       if (parsed !== undefined) return parsed;
@@ -321,6 +327,13 @@ export class SyncJsonCookie<T> {
 
   write(value: T): void {
     this.memory = value;
+    if (isConsentPending()) {
+      // The memory tier already holds the value, and this class degrades to it
+      // whenever the cookie is unavailable — so a pending write needs no buffer
+      // of its own, just a flush once consent arrives.
+      this.armConsentFlush();
+      return;
+    }
     this.usable =
       typeof document !== 'undefined' &&
       this.usable !== false &&
@@ -332,7 +345,29 @@ export class SyncJsonCookie<T> {
 
   clear(): void {
     this.memory = undefined;
+    if (isConsentPending()) {
+      // Nothing of ours is out there to delete, and issuing the expiry would be
+      // a cookie write in its own right.
+      return;
+    }
     deleteRawCookie(this.key, this.getDomain() || undefined);
+  }
+
+  /**
+   * Promotes the deferred value to a cookie on grant. Writing the same value
+   * rather than a fresh one is what keeps the session id the visitor already had
+   * while consent was pending, instead of rotating it at the moment of grant.
+   */
+  private armConsentFlush(): void {
+    if (this.consentFlushArmed) {
+      return;
+    }
+    this.consentFlushArmed = true;
+    consentGate.manager.onChange((status) => {
+      if (status === 'granted' && this.memory !== undefined) {
+        this.write(this.memory);
+      }
+    });
   }
 
   private parse(raw: string): T | undefined {
