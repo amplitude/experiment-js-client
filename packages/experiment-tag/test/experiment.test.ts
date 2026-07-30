@@ -163,6 +163,34 @@ describe('initializeExperiment', () => {
     );
   });
 
+  test('does not seed from a local record left over from a refusal', async () => {
+    const key = stringify(apiKey);
+    const storageKey = 'EXP_' + key;
+    // The state a sibling subdomain is left in by a refusal elsewhere: shared
+    // cookie gone, the marker that refusal left behind, and a pre-refusal record
+    // this origin was never able to sweep. Consent has since been granted again,
+    // which is what lets start() reach identity resolution here at all — the
+    // path where the seeding above would resurrect the refused id.
+    document.cookie = `EXP_${key.slice(0, 10)}_erased=1; path=/`;
+    mockGlobal.localStorage.setItem(
+      storageKey,
+      JSON.stringify({ web_exp_id: 'existing-id' }),
+    );
+
+    await DefaultWebExperimentClient.getInstance(key, {
+      initialFlags: JSON.stringify([]),
+      pageObjects: JSON.stringify({}),
+    }).start();
+
+    expect(ExperimentClient.prototype.setUser).not.toHaveBeenCalledWith(
+      expect.objectContaining({ web_exp_id_v2: 'existing-id' }),
+    );
+    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith(
+      expect.objectContaining({ web_exp_id: 'mock', web_exp_id_v2: 'mock' }),
+    );
+    expect(mockGlobal.localStorage.removeItem).toHaveBeenCalledWith(storageKey);
+  });
+
   test('set web experiment config', () => {
     const mockGlobal = newMockGlobal({
       location: {

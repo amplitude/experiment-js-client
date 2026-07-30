@@ -2,7 +2,10 @@ import { Event, Plugin } from '@amplitude/analytics-types';
 import { getGlobalScope } from '@amplitude/experiment-core';
 
 import { mergeWithWindowConfig } from './config';
-import { clearAllPersistedData } from './consent/clear-data';
+import {
+  clearAllPersistedData,
+  markIdentityErased,
+} from './consent/clear-data';
 import { consentGate, parseConsentStatus } from './consent/consent-gate';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
@@ -152,10 +155,14 @@ export const initialize = (
     // second keeps a single sweep per denial rather than double-firing on the
     // transition that just happened.
     if (!consentGate.cleanupListener) {
-      const clearData = () =>
+      const clearData = () => {
         clearAllPersistedData(apiKey, {
           instanceName: effectiveConfig.instanceName,
         });
+        // The sweep only reaches this origin's storage. The marker is what
+        // carries the erasure to the other subdomains sharing the identity.
+        markIdentityErased(apiKey);
+      };
       if (consentGate.manager.getStatus() === 'denied') {
         clearData();
       }

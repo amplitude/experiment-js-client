@@ -5,7 +5,9 @@ import { createMockGlobal } from '../util/mocks';
 import * as clearDataModule from 'src/consent/clear-data';
 import {
   clearAllPersistedData,
+  clearIfErasedElsewhere,
   getPersistedDataKeys,
+  markIdentityErased,
 } from 'src/consent/clear-data';
 import { consentGate } from 'src/consent/consent-gate';
 import { DefaultWebExperimentClient } from 'src/experiment';
@@ -196,6 +198,130 @@ describe('clearAllPersistedData', () => {
   });
 });
 
+describe('markIdentityErased', () => {
+  let globalScope: ReturnType<typeof createMockGlobal>;
+  let writeRawCookie: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.restoreAllMocks();
+    globalScope = createMockGlobal({
+      location: { hostname: 'app.example.com' },
+    });
+    jest
+      .spyOn(experimentCore, 'getGlobalScope')
+      .mockReturnValue(globalScope as never);
+    writeRawCookie = jest
+      .spyOn(cookieUtils, 'writeRawCookie')
+      .mockReturnValue(true);
+  });
+
+  it('marks the erasure at the root domain, carrying no identifier', () => {
+    markIdentityErased(API_KEY);
+
+    expect(writeRawCookie).toHaveBeenCalledTimes(1);
+    expect(writeRawCookie).toHaveBeenCalledWith(`EXP_${SLICE}_erased`, '1', {
+      domain: '.example.com',
+      maxAgeSeconds: 365 * 24 * 60 * 60,
+    });
+  });
+
+  it('falls back to a narrower domain when the root domain rejects the write', () => {
+    writeRawCookie.mockReturnValueOnce(false);
+
+    markIdentityErased(API_KEY);
+
+    expect(writeRawCookie).toHaveBeenCalledTimes(2);
+    expect(writeRawCookie).toHaveBeenLastCalledWith(
+      `EXP_${SLICE}_erased`,
+      '1',
+      expect.objectContaining({ domain: '.app.example.com' }),
+    );
+  });
+
+  it('writes nothing when no domain can be shared across origins', () => {
+    // Nothing can respawn an identity on a single-label host: there is no
+    // cross-subdomain cookie in the first place.
+    globalScope.location = createMockGlobal({
+      location: { hostname: 'localhost' },
+    }).location;
+
+    markIdentityErased(API_KEY);
+
+    expect(writeRawCookie).not.toHaveBeenCalled();
+  });
+
+  it('survives the sweep that writes it', () => {
+    expect(getPersistedDataKeys(API_KEY).cookies).not.toContain(
+      `EXP_${SLICE}_erased`,
+    );
+  });
+});
+
+describe('clearIfErasedElsewhere', () => {
+  let globalScope: ReturnType<typeof createMockGlobal>;
+
+  /** Stands in for the cookies visible on this origin. */
+  const withCookies = (cookies: Record<string, string>) =>
+    jest
+      .spyOn(cookieUtils, 'readRawCookie')
+      .mockImplementation((key: string) => cookies[key]);
+
+  beforeEach(() => {
+    jest.restoreAllMocks();
+    globalScope = createMockGlobal({
+      location: { hostname: 'www.example.com' },
+    });
+    jest
+      .spyOn(experimentCore, 'getGlobalScope')
+      .mockReturnValue(globalScope as never);
+    // What a subdomain that was never visited since the refusal still holds.
+    globalScope.localStorage.setItem(
+      `EXP_${SLICE}`,
+      JSON.stringify({ web_exp_id: 'v1-id', web_exp_id_v2: 'erased-id' }),
+    );
+  });
+
+  it('sweeps this origin when the identity was erased elsewhere', () => {
+    withCookies({ [`EXP_${SLICE}_erased`]: '1' });
+
+    expect(clearIfErasedElsewhere(API_KEY)).toBe(true);
+    // Gone before identity resolution reads it, so the erased id cannot be
+    // seeded back into a new root-domain cookie.
+    expect(globalScope.localStorage.getItem(`EXP_${SLICE}`)).toBeNull();
+  });
+
+  it('does nothing without a marker', () => {
+    withCookies({});
+
+    expect(clearIfErasedElsewhere(API_KEY)).toBe(false);
+    expect(globalScope.localStorage.getItem(`EXP_${SLICE}`)).not.toBeNull();
+  });
+
+  it('does nothing once a shared identity exists again', () => {
+    // The cookie wins over every local seed, so a record left from before the
+    // erasure can only lose to it — and a visitor who consented again keeps the
+    // identity they were just given.
+    withCookies({
+      [`EXP_${SLICE}_erased`]: '1',
+      [`EXP_${SLICE}_identity`]: '{"web_exp_id_v2":"fresh-id"}',
+    });
+
+    expect(clearIfErasedElsewhere(API_KEY)).toBe(false);
+    expect(globalScope.localStorage.getItem(`EXP_${SLICE}`)).not.toBeNull();
+  });
+
+  it('passes the instance name through to the key builder', () => {
+    withCookies({ [`EXP_${SLICE}_erased`]: '1' });
+    globalScope.localStorage.setItem('EXP_unsent_my-instance', '"queued"');
+
+    clearIfErasedElsewhere(API_KEY, { instanceName: 'my-instance' });
+
+    expect(
+      globalScope.localStorage.getItem('EXP_unsent_my-instance'),
+    ).toBeNull();
+  });
+});
+
 describe('denial cleanup wiring', () => {
   const INIT_CONFIGS: InitConfigs = {
     initialFlags: '[]',
@@ -203,6 +329,7 @@ describe('denial cleanup wiring', () => {
     behavioralTargetingRules: '{}',
   };
   let clearData: jest.SpyInstance;
+  let markErased: jest.SpyInstance;
   let globalScope: ReturnType<typeof createMockGlobal>;
 
   beforeEach(() => {
@@ -222,6 +349,9 @@ describe('denial cleanup wiring', () => {
     clearData = jest
       .spyOn(clearDataModule, 'clearAllPersistedData')
       .mockImplementation(jest.fn());
+    markErased = jest
+      .spyOn(clearDataModule, 'markIdentityErased')
+      .mockImplementation(jest.fn());
   });
 
   const init = (config: WebExperimentConfig) =>
@@ -236,6 +366,27 @@ describe('denial cleanup wiring', () => {
     expect(clearData).toHaveBeenCalledWith(API_KEY, {
       instanceName: undefined,
     });
+  });
+
+  // The sweep can only reach this origin. Without the marker, a sibling
+  // subdomain reseeds the erased identity from the copy it kept.
+  it('marks the identity erased alongside the sweep', () => {
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
+    });
+
+    expect(markErased).toHaveBeenCalledWith(API_KEY);
+  });
+
+  it('marks the identity erased on mid-session revocation', () => {
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'granted' },
+    });
+    expect(markErased).not.toHaveBeenCalled();
+
+    setConsentStatus('denied');
+
+    expect(markErased).toHaveBeenCalledTimes(1);
   });
 
   it('clears data for a denial that arrived before initialize', () => {

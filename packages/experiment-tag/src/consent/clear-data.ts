@@ -1,7 +1,12 @@
 import { MKTG } from '@amplitude/analytics-core';
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import { deleteRawCookie, getCookieDomainLevels } from '../util/cookie';
+import {
+  deleteRawCookie,
+  getCookieDomainLevels,
+  readRawCookie,
+  writeRawCookie,
+} from '../util/cookie';
 import { removeStorageItem } from '../util/storage';
 
 /** Mirrors `Defaults.instanceName` in experiment-browser. */
@@ -21,6 +26,17 @@ export interface PersistedDataKeys {
   cookies: string[];
 }
 
+/** Root-domain cookie holding the cross-subdomain `web_exp_id_v2`. */
+const identityCookieKey = (apiKey: string): string =>
+  `EXP_${apiKey.slice(0, 10)}_identity`;
+
+/** @see markIdentityErased */
+const erasureMarkerKey = (apiKey: string): string =>
+  `EXP_${apiKey.slice(0, 10)}_erased`;
+
+/** A year, matching the identity cookie this marker guards. */
+const ERASURE_MARKER_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
+
 /**
  * Every storage key and cookie experiment-tag (and the browser SDK underneath
  * it) can persist for `apiKey`.
@@ -33,6 +49,9 @@ export interface PersistedDataKeys {
  *
  * The two apiKey slices are not the same: the `EXP_<slice>` family uses the
  * first ten characters, while experiment-browser's caches use the last six.
+ *
+ * The erasure marker is deliberately absent: it is written by the refusal and
+ * has to outlive the sweep that writes it. See {@link markIdentityErased}.
  */
 export const getPersistedDataKeys = (
   apiKey: string,
@@ -74,7 +93,7 @@ export const getPersistedDataKeys = (
       `EXP_sent_${instanceName}`,
     ],
     cookies: [
-      `EXP_${slice}_identity`,
+      identityCookieKey(apiKey),
       `EXP_${slice}_rtbt_session`,
       `EXP_${slice}_REDIRECT`,
       `AMP_${MKTG}_ORIGINAL_${slice}`,
@@ -127,4 +146,77 @@ export const clearAllPersistedData = (
       deleteRawCookie(key, domain);
     }
   }
+};
+
+/**
+ * Records that the shared identity was erased, so no sibling subdomain can seed
+ * a new identity cookie from the copy it still holds.
+ *
+ * `resolveCrossSubdomainObject` treats the root-domain identity cookie as
+ * authoritative and falls back to the per-origin `EXP_<slice>` record as a
+ * migration seed. The sweep above deletes both — but only this origin's
+ * localStorage, which is all it can reach. Consent is shared across subdomains,
+ * so a sibling sweeps itself on its next visit; what it cannot do is sweep
+ * itself while the refusal keeps the client from starting there at all.
+ *
+ * That leaves the re-grant path. A visitor who refuses here, never returns to
+ * `www` in the meantime, then opts back in *on* `www` gives that origin a start
+ * with no shared cookie and a stale local record — which it seeds from, writing
+ * the refused `web_exp_id_v2` back to a root-domain cookie. The identity comes
+ * back, relinked across subdomains, and which origin they happened to return to
+ * decides whether the refusal held. This marker is what stops that.
+ *
+ * It is a cookie written *after* a refusal, so it carries no timestamp and no
+ * identifier — `1` is the entire payload, and it earns its place only by making
+ * the refusal effective, the same basis a consent platform records its own
+ * decision under.
+ *
+ * It goes to the first root domain that accepts it, verified by
+ * `writeRawCookie`'s read-back rather than a throwaway probe cookie, which would
+ * be a second write. Hosts with no writable root domain (single-label hosts, IPs)
+ * share no cookie across origins, so there is nothing to respawn from and no
+ * marker is written.
+ */
+export const markIdentityErased = (apiKey: string): void => {
+  const hostname = getGlobalScope()?.location?.hostname ?? '';
+  for (const domain of getCookieDomainLevels(hostname)) {
+    const written = writeRawCookie(erasureMarkerKey(apiKey), '1', {
+      domain: `.${domain}`,
+      maxAgeSeconds: ERASURE_MARKER_MAX_AGE_SECONDS,
+    });
+    if (written) {
+      return;
+    }
+  }
+};
+
+/**
+ * Carries an erasure across to this origin, so a refusal on one subdomain is not
+ * undone by what another kept. Runs before identity is read; reports whether it
+ * swept.
+ *
+ * Both halves of the guard matter. With no marker there is nothing to carry
+ * over. With a shared identity cookie present there is nothing to carry over
+ * either — that cookie already wins over every local seed, so an identity
+ * established since the erasure is the one in use and the stale local records
+ * can only lose to it. What remains is exactly the case a respawn needs: marker
+ * set, cookie gone. There, the local records are worth nothing anyway, because
+ * this origin is about to mint a fresh identity either way.
+ *
+ * Consent gating being switched off is not consulted. The marker only ever
+ * exists because a visitor refused, and that refusal has to outlive a customer
+ * turning the feature off.
+ */
+export const clearIfErasedElsewhere = (
+  apiKey: string,
+  options: { instanceName?: string } = {},
+): boolean => {
+  if (readRawCookie(erasureMarkerKey(apiKey)) === undefined) {
+    return false;
+  }
+  if (readRawCookie(identityCookieKey(apiKey)) !== undefined) {
+    return false;
+  }
+  clearAllPersistedData(apiKey, options);
+  return true;
 };
