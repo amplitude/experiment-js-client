@@ -501,14 +501,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    // A refusal on another subdomain can only erase its own origin's storage, so
-    // this origin may still hold a copy of the identity that was erased. It has to
-    // be swept before resolveCrossSubdomainObject below, which would otherwise
-    // seed web_exp_id_v2 from that copy and rewrite the erased identity to a
-    // root-domain cookie. Cost is a cold variant cache for this one load, the same
-    // as a first-ever visit; variants are applied further down, after identity is
-    // resolved, so none is ever computed from pre-erasure state. Visual editor and
-    // mobile-mode sessions returned above, so their state is never swept.
+    // A refusal on another subdomain erases only its own origin's storage, so
+    // this origin may still hold a copy of the erased identity. Must run before
+    // resolveCrossSubdomainObject below, which would otherwise seed web_exp_id_v2
+    // from that copy and rewrite the erased identity to a root-domain cookie.
+    // Variants are applied further down, after identity resolves, so none is
+    // computed from pre-erasure state; the cost is a cold variant cache for this
+    // load. Visual editor and mobile-mode sessions returned above, unswept.
     clearIfErasedElsewhere(this.apiKey, {
       instanceName: this.config.instanceName,
     });
