@@ -25,7 +25,6 @@ import type { MutationController } from 'dom-mutator/dist/types';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
-import { mergeWithWindowConfig } from './config';
 import {
   clearIfErasedElsewhere,
   identityCookieKey,
@@ -58,6 +57,7 @@ import type {
 } from './types/debug';
 import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
+import { mergeWithWindowConfig } from './util/config';
 import {
   getTopLevelDomain,
   resolveCrossSubdomainObject,

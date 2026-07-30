@@ -1,7 +1,6 @@
 import { Event, Plugin } from '@amplitude/analytics-types';
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import { mergeWithWindowConfig } from './config';
 import {
   clearAllPersistedData,
   markIdentityErased,
@@ -12,6 +11,7 @@ import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
 import { ConsentStatus, InitConfigs, WebExperimentConfig } from './types';
 import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
+import { mergeWithWindowConfig } from './util/config';
 import { isPreviewMode } from './util/url';
 
 const eventBuffer: Array<{

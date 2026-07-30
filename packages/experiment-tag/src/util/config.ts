@@ -1,6 +1,6 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import { ConsentOptions, Defaults, WebExperimentConfig } from './types';
+import { ConsentOptions, Defaults, WebExperimentConfig } from '../types';
 
 /**
  * Resolves the config the client actually runs on: `window.experimentConfig`

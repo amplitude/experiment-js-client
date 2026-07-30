@@ -1,5 +1,5 @@
-import { mergeWithWindowConfig } from '../src/config';
-import { Defaults, WebExperimentConfig } from '../src/types';
+import { Defaults, WebExperimentConfig } from '../../src/types';
+import { mergeWithWindowConfig } from '../../src/util/config';
 
 const scopeWith = (experimentConfig?: WebExperimentConfig) =>
   ({ experimentConfig } as never);
