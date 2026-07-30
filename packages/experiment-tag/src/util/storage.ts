@@ -4,6 +4,7 @@ import {
   consentGate,
   isConsentPending,
   isConsentWithheld,
+  onConsentDecision,
 } from '../consent/consent-gate';
 import { ConsentManager } from '../consent/consent-manager';
 
@@ -37,8 +38,8 @@ const armConsentListener = (): void => {
   }
   armedManager = consentGate.manager;
   pendingWrites.clear();
-  consentGate.manager.onChange((status) => {
-    if (status === 'granted') {
+  onConsentDecision((granted) => {
+    if (granted) {
       for (const { storageType, key, json } of pendingWrites.values()) {
         writeThrough(storageType, key, json);
       }
@@ -53,11 +54,13 @@ const bufferKey = (storageType: StorageType, key: string): string =>
   `${storageType}:${key}`;
 
 /**
- * Whether a key is subject to the gate at all. Amplitude's own tooling state is
- * exempt — see {@link CONSENT_EXEMPT_STORAGE_KEYS}.
+ * Amplitude's own tooling state is exempt from the gate — see
+ * {@link CONSENT_EXEMPT_STORAGE_KEYS}.
  */
-const isGated = (key: string): boolean =>
-  isConsentWithheld() && !CONSENT_EXEMPT_STORAGE_KEYS.has(key);
+const isExempt = (key: string): boolean => CONSENT_EXEMPT_STORAGE_KEYS.has(key);
+
+/** Whether a key is subject to the gate at all. */
+const isGated = (key: string): boolean => isConsentWithheld() && !isExempt(key);
 
 /**
  * Get a JSON value from storage and parse it
@@ -161,7 +164,7 @@ export const removeStorageItem = (
   // would be a write to the device while the visitor is still deciding. Refusal
   // deliberately falls through to real storage, because that is the path denial
   // cleanup uses to erase what a previously consented visit left behind.
-  if (isConsentPending() && !CONSENT_EXEMPT_STORAGE_KEYS.has(key)) {
+  if (isConsentPending() && !isExempt(key)) {
     armConsentListener();
     pendingWrites.delete(bufferKey(storageType, key));
     return;

@@ -1,11 +1,14 @@
 import { CampaignParser, CookieStorage, MKTG } from '@amplitude/analytics-core';
 import type { Campaign } from '@amplitude/analytics-core';
 
-import type { AsyncCookieStore } from '../consent/consent-cookie-storage';
 import {
-  consentGate,
+  type AsyncCookieStore,
+  createCookieStorage,
+} from '../consent/consent-cookie-storage';
+import {
   isConsentPending,
   isConsentWithheld,
+  onConsentDecision,
 } from '../consent/consent-gate';
 
 const KNOWN_2LDS = [
@@ -366,20 +369,14 @@ export class SyncJsonCookie<T> {
    * Promotes the deferred value to a cookie on grant. Writing the same value
    * rather than a fresh one is what keeps the session id the visitor already had
    * while consent was pending, instead of rotating it at the moment of grant.
-   *
-   * Pending only ever resolves one way or the other, so the subscription is spent
-   * on the first transition either way. Dropping it on refusal is what stops a
-   * value gathered before the refusal from being written out later, should the
-   * visitor return to the banner and opt in.
    */
   private armConsentFlush(): void {
     if (this.consentFlushArmed) {
       return;
     }
     this.consentFlushArmed = true;
-    const unsubscribe = consentGate.manager.onChange((status) => {
-      unsubscribe();
-      if (status === 'granted' && this.memory !== undefined) {
+    onConsentDecision((granted) => {
+      if (granted && this.memory !== undefined) {
         this.write(this.memory);
       }
     });
@@ -397,7 +394,7 @@ export class SyncJsonCookie<T> {
 
 export async function setMarketingCookie(apiKey: string, hostname: string) {
   const domain = await getTopLevelDomain(hostname);
-  const storage = new CookieStorage<Campaign>({
+  const storage = createCookieStorage<Campaign>({
     sameSite: 'Lax',
     ...(domain && { domain }),
   });

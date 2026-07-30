@@ -1,9 +1,9 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
 import {
-  consentGate,
   isConsentPending,
   isConsentWithheld,
+  onConsentDecision,
 } from '../consent/consent-gate';
 
 import { RelayClient } from './relay-client';
@@ -425,20 +425,14 @@ export class EventStorageManager {
 
   /**
    * Persists the events gathered while consent was pending, once it is granted.
-   *
-   * Pending resolves only one way or the other, so the subscription is spent on
-   * the first transition either way. Dropping it on refusal is what stops events
-   * collected before that refusal from reaching the device later, should the
-   * visitor return to the banner and opt in.
    */
   private armConsentFlush(): void {
     if (this.consentFlushArmed) {
       return;
     }
     this.consentFlushArmed = true;
-    const unsubscribe = consentGate.manager.onChange((status) => {
-      unsubscribe();
-      if (status === 'granted') {
+    onConsentDecision((granted) => {
+      if (granted) {
         this.flushToLocalStorage();
       }
     });

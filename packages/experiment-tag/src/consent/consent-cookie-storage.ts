@@ -1,9 +1,9 @@
 import { CookieStorage } from '@amplitude/analytics-core';
 
 import {
-  consentGate,
   isConsentPending,
   isConsentWithheld,
+  onConsentDecision,
 } from './consent-gate';
 
 /**
@@ -71,21 +71,15 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
     return this.delegate.remove(key);
   }
 
-  /**
-   * Pending resolves once and only once, so the subscription is spent on the
-   * first transition either way — which is also what stops values gathered before
-   * a refusal from being written out if the visitor later opts in.
-   */
   private armFlush(): void {
     if (this.flushArmed) {
       return;
     }
     this.flushArmed = true;
-    const unsubscribe = consentGate.manager.onChange((status) => {
-      unsubscribe();
+    onConsentDecision((granted) => {
       const entries = [...this.buffered];
       this.buffered.clear();
-      if (status !== 'granted') {
+      if (!granted) {
         return;
       }
       this.flush = (async () => {

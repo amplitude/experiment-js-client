@@ -10,6 +10,8 @@ import {
 import { removeStorageItem } from '../util/storage';
 import { identityCookieKey } from '../util/storage-keys';
 
+import { consentGate } from './consent-gate';
+
 /** Mirrors `Defaults.instanceName` in experiment-browser. */
 const DEFAULT_INSTANCE_NAME = '$default_instance';
 
@@ -236,4 +238,41 @@ export const clearIfErasedElsewhere = (
   if (readRawCookie(erasureMarkerKey(apiKey)) === undefined) return;
   if (readRawCookie(identityCookieKey(apiKey)) !== undefined) return;
   clearAllPersistedData(apiKey, instanceName);
+};
+
+/**
+ * Arms the denial cleanup against the current manager, once. Called from
+ * `initialize` because the sweep needs the apiKey that call supplies.
+ *
+ * Lives here rather than in `consent-gate.ts` so that module stays a leaf the
+ * storage utilities can import — this file depends on those utilities, and
+ * routing the sweep through the gate module would close the loop.
+ *
+ * Ordering matters: the immediate sweep covers a denial that resolved before
+ * this point (config value, or a setConsentStatus call against the pre-init
+ * stub), and the listener registered after it covers every later revocation.
+ * Registering second keeps a single sweep per denial rather than double-firing
+ * on the transition that just happened.
+ */
+export const armDenialCleanup = (
+  apiKey: string,
+  instanceName?: string,
+): void => {
+  if (consentGate.cleanupArmedManager === consentGate.manager) {
+    return;
+  }
+  consentGate.cleanupArmedManager = consentGate.manager;
+  const clearData = () => {
+    clearAllPersistedData(apiKey, instanceName);
+    // The sweep is origin-local; the marker is what crosses subdomains.
+    markIdentityErased(apiKey);
+  };
+  if (consentGate.manager.getStatus() === 'denied') {
+    clearData();
+  }
+  consentGate.manager.onChange((status) => {
+    if (status === 'denied') {
+      clearData();
+    }
+  });
 };

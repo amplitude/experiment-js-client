@@ -1,11 +1,8 @@
 import { Event, Plugin } from '@amplitude/analytics-types';
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import {
-  armDenialCleanup,
-  consentGate,
-  parseConsentStatus,
-} from './consent/consent-gate';
+import { armDenialCleanup } from './consent/clear-data';
+import { consentGate, parseConsentStatus } from './consent/consent-gate';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';

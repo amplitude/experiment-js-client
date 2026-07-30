@@ -1,5 +1,4 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { CookieStorage } from '@amplitude/analytics-core';
 import { Event, Plugin } from '@amplitude/analytics-types';
 import {
   EvaluationFlag,
@@ -26,6 +25,10 @@ import type { MutationController } from 'dom-mutator/dist/types';
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
 import { clearIfErasedElsewhere } from './consent/clear-data';
+import {
+  type AsyncCookieStore,
+  createCookieStorage,
+} from './consent/consent-cookie-storage';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -544,7 +547,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // cross-subdomain identity before getVariants() so anti-flicker and local
     // evaluation use the shared first_seen, not a subdomain-local mint. The
     // domain was resolved early in start() (this.rootDomain).
-    const crossSubdomainCookieStorage = new CookieStorage<string>({
+    const crossSubdomainCookieStorage = createCookieStorage<string>({
       ...(this.rootDomain && { domain: this.rootDomain }),
       sameSite: 'Lax',
       expirationDays: 365,
@@ -1590,7 +1593,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       const domain = await getTopLevelDomain(
         this.globalScope.location.hostname,
       );
-      const storage = new CookieStorage<
+      const storage = createCookieStorage<
         Record<string, StoredRedirectImpression>
       >({
         ...(domain && { domain }),
@@ -1645,13 +1648,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Read cookie impressions (lowest priority) when opted in
     let cookieImpressions: Record<string, StoredRedirectImpression> = {};
     let cookieStorage:
-      | CookieStorage<Record<string, StoredRedirectImpression>>
+      | AsyncCookieStore<Record<string, StoredRedirectImpression>>
       | undefined;
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
       const domain = await getTopLevelDomain(
         this.globalScope.location.hostname,
       );
-      cookieStorage = new CookieStorage<
+      cookieStorage = createCookieStorage<
         Record<string, StoredRedirectImpression>
       >({
         ...(domain && { domain }),

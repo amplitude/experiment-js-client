@@ -340,7 +340,9 @@ describe('campaign utilities', () => {
 
       expect(CampaignParser).toHaveBeenCalledWith();
       expect(mockCampaignParser.parse).toHaveBeenCalledWith();
-      expect(CookieStorage).toHaveBeenCalledWith();
+      // Constructed through createCookieStorage, which forwards its (absent)
+      // options argument.
+      expect(CookieStorage).toHaveBeenCalledWith(undefined);
       expect(getStorageKey).toHaveBeenCalledWith(apiKey, 'MKTG');
       expect(mockCookieStorage.get).toHaveBeenCalledWith('test-storage-key');
     });

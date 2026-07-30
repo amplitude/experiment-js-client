@@ -1,6 +1,5 @@
 import { ConsentStatus, InitConfigs, WebExperimentConfig } from '../types';
 
-import { clearAllPersistedData, markIdentityErased } from './clear-data';
 import { ConsentManager } from './consent-manager';
 
 /** Returns a known status, or `null` if the value is not recognized. */
@@ -37,9 +36,10 @@ interface ConsentGate {
   /**
    * The manager the denial-cleanup listener is attached to, or null before the
    * first gated `initialize` — the listener needs the apiKey that call
-   * supplies. Tracking the instance rather than a boolean means a replaced
-   * manager (only `reset` does that) re-arms on the next initialize instead of
-   * leaving the cleanup wired to a manager nothing transitions any more.
+   * supplies (see `armDenialCleanup` in `clear-data.ts`). Tracking the instance
+   * rather than a boolean means a replaced manager (only `reset` does that)
+   * re-arms on the next initialize instead of leaving the cleanup wired to a
+   * manager nothing transitions any more.
    */
   cleanupArmedManager: ConsentManager | null;
   /** Test-only reset; kept off the public `index` entry point. */
@@ -70,35 +70,19 @@ export const consentGate: ConsentGate = {
 };
 
 /**
- * Arms the denial cleanup against the current manager, once. Called from
- * `initialize` because the sweep needs the apiKey that call supplies.
- *
- * Ordering matters: the immediate sweep covers a denial that resolved before
- * this point (config value, or a setConsentStatus call against the pre-init
- * stub), and the listener registered after it covers every later revocation.
- * Registering second keeps a single sweep per denial rather than double-firing
- * on the transition that just happened.
+ * Runs `handler` on the first status transition of the current manager and
+ * unsubscribes. Pending only ever resolves one way or the other, so a buffer
+ * armed while consent is undecided is settled by that single transition:
+ * flushed on grant, dropped on refusal. Spending the subscription there is also
+ * what stops data gathered before a refusal from being written out later,
+ * should the visitor return to the banner and opt in.
  */
-export const armDenialCleanup = (
-  apiKey: string,
-  instanceName?: string,
+export const onConsentDecision = (
+  handler: (granted: boolean) => void,
 ): void => {
-  if (consentGate.cleanupArmedManager === consentGate.manager) {
-    return;
-  }
-  consentGate.cleanupArmedManager = consentGate.manager;
-  const clearData = () => {
-    clearAllPersistedData(apiKey, instanceName);
-    // The sweep is origin-local; the marker is what crosses subdomains.
-    markIdentityErased(apiKey);
-  };
-  if (consentGate.manager.getStatus() === 'denied') {
-    clearData();
-  }
-  consentGate.manager.onChange((status) => {
-    if (status === 'denied') {
-      clearData();
-    }
+  const unsubscribe = consentGate.manager.onChange((status) => {
+    unsubscribe();
+    handler(status === 'granted');
   });
 };
 
