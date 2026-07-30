@@ -8,6 +8,7 @@ import {
   writeRawCookie,
 } from '../util/cookie';
 import { removeStorageItem } from '../util/storage';
+import { identityCookieKey } from '../util/storage-keys';
 
 /** Mirrors `Defaults.instanceName` in experiment-browser. */
 const DEFAULT_INSTANCE_NAME = '$default_instance';
@@ -24,13 +25,6 @@ export interface PersistedDataKeys {
   sessionStorage: string[];
   cookies: string[];
 }
-
-/**
- * Root-domain cookie holding the cross-subdomain `web_exp_id_v2`. Shared with
- * its writer in `experiment.ts`.
- */
-export const identityCookieKey = (apiKey: string): string =>
-  `EXP_${apiKey.slice(0, 10)}_identity`;
 
 /** @see markIdentityErased */
 const erasureMarkerKey = (apiKey: string): string =>

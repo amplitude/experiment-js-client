@@ -25,10 +25,7 @@ import type { MutationController } from 'dom-mutator/dist/types';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
-import {
-  clearIfErasedElsewhere,
-  identityCookieKey,
-} from './consent/clear-data';
+import { clearIfErasedElsewhere } from './consent/clear-data';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -81,7 +78,10 @@ import {
   setStorageItem,
   removeStorageItem,
 } from './util/storage';
-import { PREVIEW_MODE_SESSION_KEY } from './util/storage-keys';
+import {
+  identityCookieKey,
+  PREVIEW_MODE_SESSION_KEY,
+} from './util/storage-keys';
 import {
   getUrlParams,
   removeQueryParams,

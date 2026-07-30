@@ -1,7 +1,15 @@
 /**
- * Session keys declared here rather than beside their users so the consent gate
- * in `./storage` can name them without importing the modules that call it.
+ * Storage keys declared here rather than beside their users so the consent
+ * modules can name them without importing the modules that call them.
  */
+
+/**
+ * Root-domain cookie holding the cross-subdomain `web_exp_id_v2`. Written by
+ * identity resolution in `experiment.ts`; the denial sweep and erasure guard in
+ * `consent/clear-data.ts` delete and probe it.
+ */
+export const identityCookieKey = (apiKey: string): string =>
+  `EXP_${apiKey.slice(0, 10)}_identity`;
 
 /** Preview mode's flag overrides, carried across the URL-param cleanup. */
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
