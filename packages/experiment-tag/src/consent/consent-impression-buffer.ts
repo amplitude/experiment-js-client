@@ -126,11 +126,13 @@ class ImpressionBuffer {
  * the variant was shown for a visitor who leaves the banner up.
  */
 function stampTime(event: ExperimentEvent): ExperimentEvent {
-  const properties = event.eventProperties;
-  if (!properties || properties.time !== undefined) {
+  if (event.eventProperties?.time !== undefined) {
     return event;
   }
-  return { ...event, eventProperties: { ...properties, time: Date.now() } };
+  return {
+    ...event,
+    eventProperties: { ...event.eventProperties, time: Date.now() },
+  };
 }
 
 /**
