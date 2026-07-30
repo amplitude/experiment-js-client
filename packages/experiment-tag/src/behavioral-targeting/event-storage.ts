@@ -1,10 +1,6 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import {
-  isConsentPending,
-  isConsentWithheld,
-  onConsentDecision,
-} from '../consent/consent-gate';
+import { getStorageItem, setStorageItem } from '../util/storage';
 
 import { RelayClient } from './relay-client';
 import { RelayEventStorage } from './relay-protocol';
@@ -78,7 +74,6 @@ export class EventStorageManager {
   private persistedEvents?: Set<string>; // Optional set of event types to persist
   private storageKey: string;
   private relayClient: RelayClient | null = null;
-  private consentFlushArmed = false;
 
   constructor(
     apiKey: string,
@@ -321,54 +316,42 @@ export class EventStorageManager {
 
   /**
    * Loads data from localStorage into memory on initialization.
+   *
+   * Storage access goes through the consent-gated helpers in `util/storage`:
+   * without consent this reads as absent (the cache starts empty rather than
+   * inheriting an earlier consented visit's events), and the uuid backfill
+   * below cannot write to a store the visitor has not agreed to.
    */
   private loadFromLocalStorage(): EventStorage {
-    // Without consent the cache starts empty rather than inheriting the events
-    // of an earlier consented visit, which also keeps the uuid backfill below
-    // from writing to a store the visitor has not agreed to.
-    if (isConsentWithheld()) {
-      return { events: [], nextId: 1 };
-    }
-    const stored = localStorage.getItem(this.storageKey);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        // Validate structure to prevent crashes from malformed data
-        if (
-          parsed &&
-          typeof parsed === 'object' &&
-          Array.isArray(parsed.events) &&
-          typeof parsed.nextId === 'number'
-        ) {
-          // Backfill a uuid for any record persisted before uuid existed, so
-          // each keeps a distinct dedup identity (see eventDedupKey). Without
-          // this, uuid-less records share an undefined key and all but one
-          // collapse on the next mergeFromRelay.
-          let backfilled = false;
-          for (const event of parsed.events as EventRecord[]) {
-            if (typeof event.uuid !== 'string' || event.uuid.length === 0) {
-              event.uuid = generateEventUuid();
-              backfilled = true;
-            }
-          }
-          // Persist the minted uuids immediately so they are stable across
-          // reloads and other tabs. Otherwise each load would mint fresh uuids
-          // for the same events and relay sync would push duplicates.
-          if (backfilled) {
-            try {
-              localStorage.setItem(this.storageKey, JSON.stringify(parsed));
-            } catch (e) {
-              // quota/unavailable — a later mutating flush will retry.
-            }
-          }
-          return parsed;
+    const parsed = getStorageItem<EventStorage>(
+      'localStorage',
+      this.storageKey,
+    );
+    // Validate structure to prevent crashes from malformed data
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      Array.isArray(parsed.events) &&
+      typeof parsed.nextId === 'number'
+    ) {
+      // Backfill a uuid for any record persisted before uuid existed, so
+      // each keeps a distinct dedup identity (see eventDedupKey). Without
+      // this, uuid-less records share an undefined key and all but one
+      // collapse on the next mergeFromRelay.
+      let backfilled = false;
+      for (const event of parsed.events) {
+        if (typeof event.uuid !== 'string' || event.uuid.length === 0) {
+          event.uuid = generateEventUuid();
+          backfilled = true;
         }
-        // Invalid structure, return empty
-        return { events: [], nextId: 1 };
-      } catch (e) {
-        // Invalid JSON, return empty
-        return { events: [], nextId: 1 };
       }
+      // Persist the minted uuids immediately so they are stable across
+      // reloads and other tabs. Otherwise each load would mint fresh uuids
+      // for the same events and relay sync would push duplicates.
+      if (backfilled) {
+        setStorageItem('localStorage', this.storageKey, parsed);
+      }
+      return parsed;
     }
     return { events: [], nextId: 1 };
   }
@@ -393,49 +376,25 @@ export class EventStorageManager {
 
   /**
    * Immediately writes in-memory cache to localStorage.
+   *
+   * The write goes through the consent-gated `setStorageItem`: while consent is
+   * pending the snapshot is held in that module's buffer (and written out on
+   * grant), and after a refusal it is dropped — the events accumulate in memory
+   * and stay targetable for the rest of the page either way.
    */
   private flushToLocalStorage(): void {
     if (!this.hasPendingWrites) {
       return; // No changes to persist
     }
 
-    if (isConsentWithheld()) {
-      // Events accumulate in memory and stay targetable for the rest of the
-      // page. `hasPendingWrites` is deliberately left set so a later grant can
-      // persist everything gathered while the banner was up.
-      if (isConsentPending()) {
-        this.armConsentFlush();
-      }
-      return;
-    }
+    setStorageItem('localStorage', this.storageKey, this.memoryCache);
+    this.hasPendingWrites = false;
 
-    try {
-      localStorage.setItem(this.storageKey, JSON.stringify(this.memoryCache));
-      this.hasPendingWrites = false;
-
-      // Clear debounce timeout since we just flushed
-      if (this.debouncedWriteTimeout) {
-        clearTimeout(this.debouncedWriteTimeout);
-        this.debouncedWriteTimeout = null;
-      }
-    } catch (e) {
-      // localStorage quota exceeded or unavailable
+    // Clear debounce timeout since we just flushed
+    if (this.debouncedWriteTimeout) {
+      clearTimeout(this.debouncedWriteTimeout);
+      this.debouncedWriteTimeout = null;
     }
-  }
-
-  /**
-   * Persists the events gathered while consent was pending, once it is granted.
-   */
-  private armConsentFlush(): void {
-    if (this.consentFlushArmed) {
-      return;
-    }
-    this.consentFlushArmed = true;
-    onConsentDecision((granted) => {
-      if (granted) {
-        this.flushToLocalStorage();
-      }
-    });
   }
 
   /**
