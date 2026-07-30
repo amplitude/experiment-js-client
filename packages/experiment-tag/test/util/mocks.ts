@@ -68,6 +68,7 @@ export const createMockGlobal = (overrides?: Record<string, unknown>) => {
     document: createDocumentMock(),
     history: { replaceState: jest.fn() },
     addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
     setTimeout: jest.fn((fn: () => void) => fn()),
     clearTimeout: jest.fn(),
     experimentIntegration: {

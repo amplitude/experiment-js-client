@@ -303,6 +303,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     this.config = mergeWithWindowConfig(config, this.globalScope);
 
+    // A refusal on another subdomain erases only its own origin's storage, so
+    // this origin may still hold a copy of the erased identity. Must run before
+    // the hydration below: BehavioralTargetingManager loads persisted events
+    // into memory and Experiment.initialize loads the variant/flag caches, so
+    // clearing the keys afterwards would leave those in-memory copies to be
+    // applied to — and rewritten under — the freshly minted identity. Also
+    // precedes start()'s resolveCrossSubdomainObject, which would otherwise
+    // seed web_exp_id_v2 from the erased copy.
+    clearIfErasedElsewhere(this.apiKey, {
+      instanceName: this.config.instanceName,
+    });
+
     // Initialize behavioral targeting infrastructure only if there are rules
     if (Object.keys(this.behavioralTargetingRules).length > 0) {
       this.behavioralTargetingManager = new BehavioralTargetingManager(
@@ -500,17 +512,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       flushEventBuffer(this);
       return;
     }
-
-    // A refusal on another subdomain erases only its own origin's storage, so
-    // this origin may still hold a copy of the erased identity. Must run before
-    // resolveCrossSubdomainObject below, which would otherwise seed web_exp_id_v2
-    // from that copy and rewrite the erased identity to a root-domain cookie.
-    // Variants are applied further down, after identity resolves, so none is
-    // computed from pre-erasure state; the cost is a cold variant cache for this
-    // load. Visual editor and mobile-mode sessions returned above, unswept.
-    clearIfErasedElsewhere(this.apiKey, {
-      instanceName: this.config.instanceName,
-    });
 
     // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
