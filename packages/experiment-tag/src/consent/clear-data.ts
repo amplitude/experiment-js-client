@@ -27,9 +27,7 @@ export interface PersistedDataKeys {
 
 /**
  * Root-domain cookie holding the cross-subdomain `web_exp_id_v2`. Shared with
- * its writer in `experiment.ts` rather than spelled twice: were the spellings to
- * drift, {@link clearIfErasedElsewhere} would read every start as "identity
- * absent" and sweep the visitor's fresh identity on every load.
+ * its writer in `experiment.ts`.
  */
 export const identityCookieKey = (apiKey: string): string =>
   `EXP_${apiKey.slice(0, 10)}_identity`;
@@ -173,8 +171,10 @@ export const markIdentityErased = (apiKey: string): void => {
 };
 
 /**
- * Carries an erasure across to this origin, so a refusal on one subdomain is not
- * undone by what another kept. Runs before identity is read.
+ * Carries an erasure across to this origin — see {@link markIdentityErased}. Must
+ * run before its caller reads any persisted state: variant/flag caches and
+ * behavioral events hydrate into memory at construction, and copies already
+ * loaded survive this sweep and can be written back under the fresh identity.
  *
  * Both conditions matter. No marker means nothing to carry over; a shared identity
  * cookie means an identity established since the erasure is already in use and

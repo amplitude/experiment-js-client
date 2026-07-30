@@ -164,11 +164,9 @@ export function getCookieDomainLevels(hostname: string): string[] {
 }
 
 /**
- * Synchronous variant of {@link getTopLevelDomain}. Resolves the registrable
- * (root) domain for `hostname` so callers can set a cookie shared across
- * subdomains, without the async `CookieStorage.isDomainWritable` round-trip.
- * Returns a leading-dot domain (e.g. `.example.com`) or `''` when no
- * cross-subdomain domain is writable (single-label hosts, IPs, blocked I/O).
+ * Synchronous variant of {@link getTopLevelDomain} for cross-subdomain cookies:
+ * the first {@link getCookieDomainLevels} entry that accepts one, as a
+ * leading-dot domain (e.g. `.example.com`), or `''` when none does.
  */
 export function getTopLevelDomainSync(hostname: string): string {
   for (const domain of getCookieDomainLevels(hostname)) {

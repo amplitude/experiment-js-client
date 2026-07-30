@@ -303,14 +303,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     this.config = mergeWithWindowConfig(config, this.globalScope);
 
-    // A refusal on another subdomain erases only its own origin's storage, so
-    // this origin may still hold a copy of the erased identity. Must run before
-    // the hydration below: BehavioralTargetingManager loads persisted events
-    // into memory and Experiment.initialize loads the variant/flag caches, so
-    // clearing the keys afterwards would leave those in-memory copies to be
-    // applied to — and rewritten under — the freshly minted identity. Also
-    // precedes start()'s resolveCrossSubdomainObject, which would otherwise
-    // seed web_exp_id_v2 from the erased copy.
+    // Ahead of the hydration below, and of start()'s identity resolution — see
+    // clearIfErasedElsewhere.
     clearIfErasedElsewhere(this.apiKey, {
       instanceName: this.config.instanceName,
     });

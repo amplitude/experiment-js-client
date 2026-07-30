@@ -4,12 +4,9 @@ import { ConsentOptions, Defaults, WebExperimentConfig } from '../types';
 
 /**
  * Resolves the config the client actually runs on: `window.experimentConfig`
- * wins over the `initialize` argument, which wins over {@link Defaults}.
- *
- * The single owner of that precedence: anything needing an effective config value
- * must come through here rather than read the `initialize` argument, which is
- * only half the picture and yields default-instance storage keys for a client
- * whose real data sits under a window-supplied `instanceName`.
+ * wins over the `initialize` argument, which wins over {@link Defaults}. The
+ * single owner of that precedence — anything needing an effective config value
+ * comes through here rather than reading the `initialize` argument.
  *
  * `consentOptions` merges field-wise rather than wholesale, so a consent platform
  * can set `consentStatus` on the window without dropping the `consentRequired`

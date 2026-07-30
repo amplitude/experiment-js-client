@@ -159,8 +159,7 @@ export const initialize = (
         clearAllPersistedData(apiKey, {
           instanceName: effectiveConfig.instanceName,
         });
-        // The sweep only reaches this origin's storage. The marker is what
-        // carries the erasure to the other subdomains sharing the identity.
+        // The sweep is origin-local; the marker is what crosses subdomains.
         markIdentityErased(apiKey);
       };
       if (consentGate.manager.getStatus() === 'denied') {
