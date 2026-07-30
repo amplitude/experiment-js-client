@@ -2,10 +2,10 @@ import { Event, Plugin } from '@amplitude/analytics-types';
 import { getGlobalScope } from '@amplitude/experiment-core';
 
 import {
-  clearAllPersistedData,
-  markIdentityErased,
-} from './consent/clear-data';
-import { consentGate, parseConsentStatus } from './consent/consent-gate';
+  armDenialCleanup,
+  consentGate,
+  parseConsentStatus,
+} from './consent/consent-gate';
 import { DefaultWebExperimentClient } from './experiment';
 import { HttpClient } from './preview/http';
 import { SdkPreviewApi } from './preview/preview-api';
@@ -25,10 +25,6 @@ const MAX_EVENT_BUFFER_SIZE = 500;
 const isConsentDeferred = (): boolean =>
   consentGate.deferredStart !== null && !consentGate.started;
 
-const clearDeferredAnalyticsBuffer = (): void => {
-  eventBuffer.length = 0;
-};
-
 const bufferAnalyticsEvent = (event: {
   event_type: string;
   event_properties?: Record<string, unknown>;
@@ -37,25 +33,6 @@ const bufferAnalyticsEvent = (event: {
     eventBuffer.shift();
   }
   eventBuffer.push(event);
-};
-
-// Release a consent-gated start. Both grant paths (a later setConsentStatus or a
-// re-init that resolves to granted) funnel through here so they mark started and
-// drop the stashed args. If a start was actually parked while consent was
-// withheld, also drop the events that buffered during that window (no tracking
-// before grant). When consent was granted from the start there was no such
-// window, so the buffer is left to replay like the normal (non-consent) path.
-const releaseGate = (
-  apiKey: string,
-  initConfigs: InitConfigs,
-  config: WebExperimentConfig,
-): void => {
-  const hadDeferral = consentGate.deferredStart !== null;
-  consentGate.deferredStart = null;
-  if (hadDeferral) {
-    clearDeferredAnalyticsBuffer();
-  }
-  launchClient(apiKey, initConfigs, config);
 };
 
 /**
@@ -81,16 +58,14 @@ export const setConsentStatus = (status: ConsentStatus): void => {
     return;
   }
   consentGate.manager.setStatus(parsed);
-  if (consentGate.manager.getStatus() !== 'granted' && isConsentDeferred()) {
-    clearDeferredAnalyticsBuffer();
-  }
+  const deferred = consentGate.deferredStart;
   if (
     consentGate.manager.getStatus() === 'granted' &&
-    consentGate.deferredStart &&
+    deferred &&
     !consentGate.started
   ) {
-    const { apiKey, initConfigs, config } = consentGate.deferredStart;
-    releaseGate(apiKey, initConfigs, config);
+    consentGate.deferredStart = null;
+    launchClient(deferred.apiKey, deferred.initConfigs, deferred.config);
   }
 };
 
@@ -148,38 +123,17 @@ export const initialize = (
       }
       consentGate.manager.seedFromConfig(configStatus ?? 'pending');
     }
-    // Denial cleanup, wired here because it needs the apiKey. Ordering matters:
-    // the sweep below covers a denial that resolved before this point (config
-    // value, or a setConsentStatus call against the pre-init stub), and the
-    // listener registered after it covers every later revocation. Registering
-    // second keeps a single sweep per denial rather than double-firing on the
-    // transition that just happened.
-    if (consentGate.cleanupArmedManager !== consentGate.manager) {
-      consentGate.cleanupArmedManager = consentGate.manager;
-      const clearData = () => {
-        clearAllPersistedData(apiKey, {
-          instanceName: effectiveConfig.instanceName,
-        });
-        // The sweep is origin-local; the marker is what crosses subdomains.
-        markIdentityErased(apiKey);
-      };
-      if (consentGate.manager.getStatus() === 'denied') {
-        clearData();
-      }
-      consentGate.manager.onChange((status) => {
-        if (status === 'denied') {
-          clearData();
-        }
-      });
-    }
+    armDenialCleanup(apiKey, effectiveConfig.instanceName);
     if (consentGate.manager.getStatus() !== 'granted') {
       consentGate.deferredStart = { apiKey, initConfigs, config };
-      clearDeferredAnalyticsBuffer();
+      // The one point where pre-grant events are dropped: this clears anything
+      // buffered before the deferral began, and the plugin's execute() refuses
+      // to buffer while it lasts — so nothing tracked pre-grant ever replays.
+      eventBuffer.length = 0;
       return;
     }
-    // Granted: release through the shared path so a prior deferral's stashed
-    // args and pre-grant buffered events are cleared, matching setConsentStatus.
-    releaseGate(apiKey, initConfigs, config);
+    consentGate.deferredStart = null;
+    launchClient(apiKey, initConfigs, config);
     return;
   }
 

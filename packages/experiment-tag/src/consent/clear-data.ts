@@ -123,9 +123,9 @@ export const getPersistedDataKeys = (
  */
 export const clearAllPersistedData = (
   apiKey: string,
-  options: { instanceName?: string } = {},
+  instanceName?: string,
 ): void => {
-  const keys = getPersistedDataKeys(apiKey, options.instanceName);
+  const keys = getPersistedDataKeys(apiKey, instanceName);
 
   for (const key of keys.localStorage) {
     removeStorageItem('localStorage', key);
@@ -188,9 +188,9 @@ export const markIdentityErased = (apiKey: string): void => {
  */
 export const clearIfErasedElsewhere = (
   apiKey: string,
-  options: { instanceName?: string } = {},
+  instanceName?: string,
 ): void => {
   if (readRawCookie(erasureMarkerKey(apiKey)) === undefined) return;
   if (readRawCookie(identityCookieKey(apiKey)) !== undefined) return;
-  clearAllPersistedData(apiKey, options);
+  clearAllPersistedData(apiKey, instanceName);
 };

@@ -317,7 +317,7 @@ describe('clearIfErasedElsewhere', () => {
     withCookies({ [`EXP_${SLICE}_erased`]: '1' });
     globalScope.localStorage.setItem('EXP_unsent_my-instance', '"queued"');
 
-    clearIfErasedElsewhere(API_KEY, { instanceName: 'my-instance' });
+    clearIfErasedElsewhere(API_KEY, 'my-instance');
 
     expect(
       globalScope.localStorage.getItem('EXP_unsent_my-instance'),
@@ -366,9 +366,7 @@ describe('denial cleanup wiring', () => {
     });
 
     expect(clearData).toHaveBeenCalledTimes(1);
-    expect(clearData).toHaveBeenCalledWith(API_KEY, {
-      instanceName: undefined,
-    });
+    expect(clearData).toHaveBeenCalledWith(API_KEY, undefined);
   });
 
   // The sweep can only reach this origin. Without the marker, a sibling
@@ -416,9 +414,7 @@ describe('denial cleanup wiring', () => {
       consentOptions: { consentRequired: true, consentStatus: 'denied' },
     });
 
-    expect(clearData).toHaveBeenCalledWith(API_KEY, {
-      instanceName: 'my-instance',
-    });
+    expect(clearData).toHaveBeenCalledWith(API_KEY, 'my-instance');
   });
 
   // The client merges window.experimentConfig over the initialize() argument, so
@@ -431,9 +427,7 @@ describe('denial cleanup wiring', () => {
       consentOptions: { consentRequired: true, consentStatus: 'denied' },
     });
 
-    expect(clearData).toHaveBeenCalledWith(API_KEY, {
-      instanceName: 'window-instance',
-    });
+    expect(clearData).toHaveBeenCalledWith(API_KEY, 'window-instance');
   });
 
   it('prefers the window instance name over the initialize argument', () => {
@@ -444,9 +438,7 @@ describe('denial cleanup wiring', () => {
       consentOptions: { consentRequired: true, consentStatus: 'denied' },
     });
 
-    expect(clearData).toHaveBeenCalledWith(API_KEY, {
-      instanceName: 'window-instance',
-    });
+    expect(clearData).toHaveBeenCalledWith(API_KEY, 'window-instance');
   });
 
   it.each<[string, WebExperimentConfig]>([

@@ -305,9 +305,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // Ahead of the hydration below, and of start()'s identity resolution — see
     // clearIfErasedElsewhere.
-    clearIfErasedElsewhere(this.apiKey, {
-      instanceName: this.config.instanceName,
-    });
+    clearIfErasedElsewhere(this.apiKey, this.config.instanceName);
 
     // Initialize behavioral targeting infrastructure only if there are rules
     if (Object.keys(this.behavioralTargetingRules).length > 0) {
