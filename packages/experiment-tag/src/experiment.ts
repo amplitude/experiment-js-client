@@ -26,7 +26,10 @@ import type { MutationController } from 'dom-mutator/dist/types';
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
 import { mergeWithWindowConfig } from './config';
-import { clearIfErasedElsewhere } from './consent/clear-data';
+import {
+  clearIfErasedElsewhere,
+  identityCookieKey,
+} from './consent/clear-data';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -564,7 +567,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // web_exp_id is guaranteed above; seed v2 from it when no cookie/local v2 exists.
     const identity = await resolveCrossSubdomainObject(
       crossSubdomainCookieStorage,
-      `${experimentStorageName}_identity`,
+      identityCookieKey(this.apiKey),
       {
         web_exp_id_v2: user.web_exp_id_v2 ?? user.web_exp_id,
         first_seen: defaultUserProviderData.first_seen,

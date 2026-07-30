@@ -26,8 +26,14 @@ export interface PersistedDataKeys {
   cookies: string[];
 }
 
-/** Root-domain cookie holding the cross-subdomain `web_exp_id_v2`. */
-const identityCookieKey = (apiKey: string): string =>
+/**
+ * Root-domain cookie holding the cross-subdomain `web_exp_id_v2`. Shared with
+ * the writer in `experiment.ts` rather than spelled twice: if the two spellings
+ * drifted, {@link clearIfErasedElsewhere} would read a key that never exists,
+ * read every start as "identity absent", and sweep the visitor's fresh identity
+ * on every page load.
+ */
+export const identityCookieKey = (apiKey: string): string =>
   `EXP_${apiKey.slice(0, 10)}_identity`;
 
 /** @see markIdentityErased */
@@ -192,8 +198,7 @@ export const markIdentityErased = (apiKey: string): void => {
 
 /**
  * Carries an erasure across to this origin, so a refusal on one subdomain is not
- * undone by what another kept. Runs before identity is read; reports whether it
- * swept.
+ * undone by what another kept. Runs before identity is read.
  *
  * Both halves of the guard matter. With no marker there is nothing to carry
  * over. With a shared identity cookie present there is nothing to carry over
@@ -210,13 +215,8 @@ export const markIdentityErased = (apiKey: string): void => {
 export const clearIfErasedElsewhere = (
   apiKey: string,
   options: { instanceName?: string } = {},
-): boolean => {
-  if (readRawCookie(erasureMarkerKey(apiKey)) === undefined) {
-    return false;
-  }
-  if (readRawCookie(identityCookieKey(apiKey)) !== undefined) {
-    return false;
-  }
+): void => {
+  if (readRawCookie(erasureMarkerKey(apiKey)) === undefined) return;
+  if (readRawCookie(identityCookieKey(apiKey)) !== undefined) return;
   clearAllPersistedData(apiKey, options);
-  return true;
 };

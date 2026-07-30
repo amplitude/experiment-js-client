@@ -284,7 +284,8 @@ describe('clearIfErasedElsewhere', () => {
   it('sweeps this origin when the identity was erased elsewhere', () => {
     withCookies({ [`EXP_${SLICE}_erased`]: '1' });
 
-    expect(clearIfErasedElsewhere(API_KEY)).toBe(true);
+    clearIfErasedElsewhere(API_KEY);
+
     // Gone before identity resolution reads it, so the erased id cannot be
     // seeded back into a new root-domain cookie.
     expect(globalScope.localStorage.getItem(`EXP_${SLICE}`)).toBeNull();
@@ -293,7 +294,8 @@ describe('clearIfErasedElsewhere', () => {
   it('does nothing without a marker', () => {
     withCookies({});
 
-    expect(clearIfErasedElsewhere(API_KEY)).toBe(false);
+    clearIfErasedElsewhere(API_KEY);
+
     expect(globalScope.localStorage.getItem(`EXP_${SLICE}`)).not.toBeNull();
   });
 
@@ -306,7 +308,8 @@ describe('clearIfErasedElsewhere', () => {
       [`EXP_${SLICE}_identity`]: '{"web_exp_id_v2":"fresh-id"}',
     });
 
-    expect(clearIfErasedElsewhere(API_KEY)).toBe(false);
+    clearIfErasedElsewhere(API_KEY);
+
     expect(globalScope.localStorage.getItem(`EXP_${SLICE}`)).not.toBeNull();
   });
 
