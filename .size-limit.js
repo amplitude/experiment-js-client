@@ -2,11 +2,9 @@ module.exports = [
   {
     name: 'experiment-tag-min (gzipped)',
     path: './packages/experiment-tag/dist/experiment-tag-min.js.gz',
-    // Baseline ~63.9 KB gzipped on main after the consent gate and ConsentManager
-    // work (WEB-165/172). Cap ~+3% (~66 KB) as a bloat guard. Rebaselined from
-    // 62.2 KB / 64 KB: main had drifted to within 84 bytes of that cap, leaving
-    // no room for a feature of any size.
-    limit: '66 KB',
+    // Baseline ~62.2 KB gzipped on main after the cross-subdomain RTBT session
+    // + relay uuid work (WEB-108/129/149). Cap ~+3% (~64 KB) as a bloat guard.
+    limit: '64 KB',
     brotli: false,
   },
 ];
