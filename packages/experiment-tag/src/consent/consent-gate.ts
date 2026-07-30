@@ -24,11 +24,13 @@ interface ConsentGate {
   /** Whether the client has been (or is being) started. */
   started: boolean;
   /**
-   * Unsubscribes the denial-cleanup listener. Also marks that the listener is
-   * registered — it can only be attached once `initialize` supplies the apiKey
-   * the cleanup needs.
+   * The manager the denial-cleanup listener is attached to, or null before the
+   * first gated `initialize` — the listener needs the apiKey that call
+   * supplies. Tracking the instance rather than a boolean means a replaced
+   * manager (only `reset` does that) re-arms on the next initialize instead of
+   * leaving the cleanup wired to a manager nothing transitions any more.
    */
-  cleanupListener: (() => void) | null;
+  cleanupArmedManager: ConsentManager | null;
   /** Test-only reset; kept off the public `index` entry point. */
   reset(): void;
 }
@@ -42,13 +44,14 @@ export const consentGate: ConsentGate = {
   manager: new ConsentManager(),
   deferredStart: null,
   started: false,
-  cleanupListener: null,
+  cleanupArmedManager: null,
   reset() {
+    // Replacing the manager detaches its listeners with it; the armed-manager
+    // comparison in `initialize` re-arms against the replacement on its own,
+    // so the null here is fresh state, not a correctness requirement.
     this.manager = new ConsentManager();
     this.deferredStart = null;
     this.started = false;
-    // The replacement manager carries no listeners, so dropping the reference
-    // is enough to detach the old one.
-    this.cleanupListener = null;
+    this.cleanupArmedManager = null;
   },
 };

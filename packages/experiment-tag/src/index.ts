@@ -154,7 +154,8 @@ export const initialize = (
     // listener registered after it covers every later revocation. Registering
     // second keeps a single sweep per denial rather than double-firing on the
     // transition that just happened.
-    if (!consentGate.cleanupListener) {
+    if (consentGate.cleanupArmedManager !== consentGate.manager) {
+      consentGate.cleanupArmedManager = consentGate.manager;
       const clearData = () => {
         clearAllPersistedData(apiKey, {
           instanceName: effectiveConfig.instanceName,
@@ -165,7 +166,7 @@ export const initialize = (
       if (consentGate.manager.getStatus() === 'denied') {
         clearData();
       }
-      consentGate.cleanupListener = consentGate.manager.onChange((status) => {
+      consentGate.manager.onChange((status) => {
         if (status === 'denied') {
           clearData();
         }
