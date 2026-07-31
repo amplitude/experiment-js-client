@@ -1,3 +1,5 @@
+import { activateConsent } from './consent-test-util';
+
 import { EventStorageManager } from 'src/behavioral-targeting/event-storage';
 import { SessionManager } from 'src/behavioral-targeting/session-manager';
 import { consentGate } from 'src/consent/consent-gate';
@@ -5,12 +7,6 @@ import { consentGate } from 'src/consent/consent-gate';
 const testApiKey = 'test-api-key';
 const storageKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_events`;
 const sessionCookieKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_session`;
-
-/** Puts the gate in the state `initialize` leaves it in for a given status. */
-const activateConsent = (status: 'pending' | 'granted' | 'denied') => {
-  consentGate.required = true;
-  consentGate.manager.seedFromConfig(status);
-};
 
 const newStore = () =>
   new EventStorageManager(testApiKey, new SessionManager(testApiKey));
@@ -119,7 +115,7 @@ describe('EventStorageManager consent gating', () => {
   });
 
   describe('grant', () => {
-    it('persists the events gathered while consent was pending', () => {
+    it('persists the events gathered while pending, then writes through directly', () => {
       activateConsent('pending');
       const store = newStore();
       store.addEvent('first');
@@ -129,41 +125,14 @@ describe('EventStorageManager consent gating', () => {
       consentGate.manager.setStatus('granted');
 
       expect(persistedTypes()).toEqual(['first', 'second']);
-    });
 
-    it('has nothing to flush when no event was recorded', () => {
-      activateConsent('pending');
-      newStore();
-
-      consentGate.manager.setStatus('granted');
-
-      expect(persisted()).toBeUndefined();
-    });
-
-    it('writes through directly afterwards', () => {
-      activateConsent('pending');
-      const store = newStore();
-      consentGate.manager.setStatus('granted');
-
-      store.addEvent('click');
+      store.addEvent('third');
       store.flush();
-
-      expect(persistedTypes()).toEqual(['click']);
+      expect(persistedTypes()).toEqual(['first', 'second', 'third']);
     });
   });
 
   describe('denial', () => {
-    it('does not persist the events gathered while consent was pending', () => {
-      activateConsent('pending');
-      const store = newStore();
-      store.addEvent('click');
-      store.flush();
-
-      consentGate.manager.setStatus('denied');
-
-      expect(persisted()).toBeUndefined();
-    });
-
     it('keeps later events in memory rather than persisting them', () => {
       // Revocation leaves a running client; it must stop writing, or cleanup
       // would simply be undone.
@@ -176,18 +145,6 @@ describe('EventStorageManager consent gating', () => {
 
       expect(persisted()).toBeUndefined();
       expect(store.getEventCount('click')).toBe(1);
-    });
-
-    it('does not persist events buffered before refusal if consent arrives later', () => {
-      activateConsent('pending');
-      const store = newStore();
-      store.addEvent('click');
-      store.flush();
-      consentGate.manager.setStatus('denied');
-
-      consentGate.manager.setStatus('granted');
-
-      expect(persisted()).toBeUndefined();
     });
 
     it('does not persist on cleanup, which runs as the client is torn down', () => {

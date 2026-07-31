@@ -2,6 +2,8 @@ import * as experimentCore from '@amplitude/experiment-core';
 
 import { createMockGlobal } from '../util/mocks';
 
+import { activateConsent } from './consent-test-util';
+
 import { consentGate } from 'src/consent/consent-gate';
 import {
   getStorageItem,
@@ -24,12 +26,6 @@ describe('consent-gated storage helpers', () => {
       .spyOn(experimentCore, 'getGlobalScope')
       .mockReturnValue(globalScope as never);
   });
-
-  /** Puts the gate in the state `initialize` leaves it in for a given status. */
-  const activateConsent = (status: 'pending' | 'granted' | 'denied') => {
-    consentGate.required = true;
-    consentGate.manager.seedFromConfig(status);
-  };
 
   describe('feature off', () => {
     it('writes and reads through when consent gating was never activated', () => {
@@ -119,7 +115,7 @@ describe('consent-gated storage helpers', () => {
   });
 
   describe('grant', () => {
-    it('flushes buffered writes to the store each was destined for', () => {
+    it('flushes buffered writes, then writes through directly', () => {
       activateConsent('pending');
       setStorageItem('localStorage', 'k', { a: 1 });
       setStorageItem('sessionStorage', 's', 'v');
@@ -132,14 +128,8 @@ describe('consent-gated storage helpers', () => {
       expect(globalScope.sessionStorage.getItem('s')).toEqual(
         JSON.stringify('v'),
       );
-    });
-
-    it('writes through directly afterwards', () => {
-      activateConsent('pending');
-      consentGate.manager.setStatus('granted');
 
       setStorageItem('localStorage', 'k2', 2);
-
       expect(globalScope.localStorage.getItem('k2')).toEqual('2');
     });
 

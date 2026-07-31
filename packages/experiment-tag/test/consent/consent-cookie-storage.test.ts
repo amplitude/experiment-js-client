@@ -1,3 +1,5 @@
+import { activateConsent } from './consent-test-util';
+
 import {
   AsyncCookieStore,
   ConsentAwareCookieStorage,
@@ -19,12 +21,6 @@ const fakeStore = (initial: Record<string, string> = {}) => {
       return Promise.resolve();
     }),
   } satisfies AsyncCookieStore<string> & { store: Record<string, string> };
-};
-
-/** Puts the gate in the state `initialize` leaves it in for a given status. */
-const activateConsent = (status: 'pending' | 'granted' | 'denied') => {
-  consentGate.required = true;
-  consentGate.manager.seedFromConfig(status);
 };
 
 describe('ConsentAwareCookieStorage', () => {
@@ -88,7 +84,7 @@ describe('ConsentAwareCookieStorage', () => {
   });
 
   describe('grant', () => {
-    it('hands buffered writes to the real storage', async () => {
+    it('hands buffered writes to the real storage, then writes through directly', async () => {
       activateConsent('pending');
       const delegate = fakeStore();
       const storage = new ConsentAwareCookieStorage(delegate);
@@ -100,6 +96,9 @@ describe('ConsentAwareCookieStorage', () => {
       // The read joins the in-flight flush, so both writes have landed by now.
       expect(await storage.get('a')).toEqual('1');
       expect(delegate.store).toEqual({ a: '1', b: '2' });
+
+      await storage.set('ck', 'after');
+      expect(delegate.store).toEqual({ a: '1', b: '2', ck: 'after' });
     });
 
     it('does not expose a half-flushed store to a read that races the flush', async () => {
@@ -123,17 +122,6 @@ describe('ConsentAwareCookieStorage', () => {
       releaseFirstWrite();
 
       expect(await read).toEqual('2');
-    });
-
-    it('writes through directly afterwards', async () => {
-      activateConsent('pending');
-      const delegate = fakeStore();
-      const storage = new ConsentAwareCookieStorage(delegate);
-      consentGate.manager.setStatus('granted');
-
-      await storage.set('ck', 'after');
-
-      expect(delegate.store).toEqual({ ck: 'after' });
     });
 
     it('reads a cookie written before the visit', async () => {

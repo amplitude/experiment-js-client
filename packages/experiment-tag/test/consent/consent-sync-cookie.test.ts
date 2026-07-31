@@ -1,3 +1,5 @@
+import { activateConsent } from './consent-test-util';
+
 import { consentGate } from 'src/consent/consent-gate';
 import {
   deleteRawCookie,
@@ -12,12 +14,6 @@ const clearAllCookies = () => {
     const key = eq === -1 ? cookie : cookie.slice(0, eq);
     if (key) deleteRawCookie(key);
   }
-};
-
-/** Puts the gate in the state `initialize` leaves it in for a given status. */
-const activateConsent = (status: 'pending' | 'granted' | 'denied') => {
-  consentGate.required = true;
-  consentGate.manager.seedFromConfig(status);
 };
 
 describe('SyncJsonCookie consent gating', () => {
@@ -91,7 +87,7 @@ describe('SyncJsonCookie consent gating', () => {
   });
 
   describe('grant', () => {
-    it('promotes the deferred value to a cookie, keeping the same id', () => {
+    it('promotes the deferred value to a cookie, then writes through directly', () => {
       activateConsent('pending');
       const store = new SyncJsonCookie<{ sessionId: string }>(
         'sjc_flush',
@@ -101,10 +97,16 @@ describe('SyncJsonCookie consent gating', () => {
 
       consentGate.manager.setStatus('granted');
 
+      // The deferred value lands with the same id it had in memory.
       expect(readRawCookie('sjc_flush')).toEqual(
         JSON.stringify({ sessionId: 'abc' }),
       );
       expect(store.read()).toEqual({ sessionId: 'abc' });
+
+      store.write({ sessionId: 'def' });
+      expect(readRawCookie('sjc_flush')).toEqual(
+        JSON.stringify({ sessionId: 'def' }),
+      );
     });
 
     it('flushes the latest value when several writes were deferred', () => {
@@ -116,16 +118,6 @@ describe('SyncJsonCookie consent gating', () => {
       consentGate.manager.setStatus('granted');
 
       expect(readRawCookie('sjc_latest')).toEqual('2');
-    });
-
-    it('writes through directly afterwards', () => {
-      activateConsent('pending');
-      const store = new SyncJsonCookie<number>('sjc_after', () => '');
-      consentGate.manager.setStatus('granted');
-
-      store.write(5);
-
-      expect(readRawCookie('sjc_after')).toEqual('5');
     });
 
     it('has nothing to flush when no write was deferred', () => {
