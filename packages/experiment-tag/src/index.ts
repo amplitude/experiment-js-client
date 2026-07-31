@@ -35,11 +35,13 @@ const bufferAnalyticsEvent = (event: {
 /**
  * Updates cookie-consent status. Exposed on `window.webExperiment` (incl. the
  * pre-init stub) so a CMP callback can call it before the client exists.
- * `granted` starts a deferred client once — including after an earlier
- * `denied` (the preference-center re-opt-in flow). Transitions to `pending`
- * are ignored: pending is only meaningful as an initial state. Unknown values
- * warn and are ignored. A grant recorded before `initialize()` runs is
- * honored on init.
+ * `granted` starts a deferred client once — the client only defers when
+ * consent was denied at load (the preference-center re-opt-in flow). With a
+ * client already running under pending, `granted` instead resolves the gates
+ * armed below it: buffered storage flushes, buffered impressions replay, and
+ * the relay iframe is injected. Transitions to `pending` are ignored: pending
+ * is only meaningful as an initial state. Unknown values warn and are
+ * ignored. A grant recorded before `initialize()` runs is honored on init.
  */
 export const setConsentStatus = (status: ConsentStatus): void => {
   const parsed = parseConsentStatus(status);
@@ -94,12 +96,15 @@ export const initialize = (
     return;
   }
 
-  // Consent gate: while consent is required and not granted, stash the args and
-  // return without constructing the client (no storage/eval/tracking/relay).
-  // An already-pending deferral keeps the gate closed even if this call resolves
+  // Consent gate: only a denial defers the start. Under pending the client
+  // runs normally — everything it would persist or send is held back by the
+  // layers below (storage and cookies buffer in memory, impressions buffer,
+  // the relay iframe stays out), so experiments apply without flicker while
+  // nothing lands on the device or leaves for a third-party origin.
+  // An already-denied deferral keeps the gate closed even if this call resolves
   // consentRequired=false, so a later initialize can't bypass a start that a
-  // prior one parked on consent. Denied also stashes — a later grant
-  // (preference-center re-opt-in) starts the client in-session with fresh state.
+  // prior one parked on consent. A later grant (preference-center re-opt-in)
+  // starts the deferred client in-session with fresh state.
   const effectiveConfig = mergeWithWindowConfig(config, globalScope);
   const consent = effectiveConfig.consentOptions;
   const gated = consent.consentRequired || consentGate.deferredStart !== null;
@@ -125,11 +130,11 @@ export const initialize = (
       consentGate.manager.seedFromConfig(configStatus ?? 'pending');
     }
     armDenialCleanup(apiKey, effectiveConfig.instanceName);
-    if (consentGate.manager.getStatus() !== 'granted') {
+    if (consentGate.manager.getStatus() === 'denied') {
       consentGate.deferredStart = { apiKey, initConfigs, config };
-      // The one point where pre-grant events are dropped: this clears anything
+      // The one point where denied-era events are dropped: this clears anything
       // buffered before the deferral began, and the plugin's execute() refuses
-      // to buffer while it lasts — so nothing tracked pre-grant ever replays.
+      // to buffer while it lasts — so nothing tracked while denied ever replays.
       eventBuffer.length = 0;
       return;
     }
@@ -238,7 +243,9 @@ export const createPlugin = (): Plugin => ({
         context.event_properties as Record<string, unknown>,
       );
     } else if (isConsentDeferred()) {
-      // Consent withheld: do not buffer — pre-grant events are not replayed.
+      // Start deferred on denied consent: do not buffer — events tracked
+      // while denied are never replayed. (A pending client runs; its events
+      // flow through and are gated at the storage layer instead.)
     } else {
       bufferAnalyticsEvent({
         event_type: context.event_type,

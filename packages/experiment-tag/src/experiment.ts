@@ -12,6 +12,7 @@ import {
   Variant,
   AmplitudeIntegrationPlugin,
   ExperimentClient,
+  MemoryStorage,
   Variants,
 } from '@amplitude/experiment-js-client';
 import * as FeatureExperiment from '@amplitude/experiment-js-client';
@@ -29,7 +30,12 @@ import {
   type AsyncCookieStore,
   createCookieStorage,
 } from './consent/consent-cookie-storage';
-import { consentGate } from './consent/consent-gate';
+import {
+  consentGate,
+  isConsentPending,
+  isConsentWithheld,
+  onConsentDecision,
+} from './consent/consent-gate';
 import { wrapIntegrationTrack } from './consent/consent-impression-buffer';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
@@ -374,6 +380,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       fetchOnStart: false,
       automaticExposureTracking: false,
       ...this.config,
+      // While consent is withheld, keep the amp-exp-* variant/flag caches in
+      // memory instead of sessionStorage. Chosen once, here: after a
+      // mid-session grant the cache stays in memory for this page and reverts
+      // to sessionStorage on the next load — fine for a cache that
+      // repopulates on every fetch.
+      ...(isConsentWithheld() && {
+        internalCacheStorage: new MemoryStorage(),
+      }),
     });
     // Get all the locally available flag keys from the SDK.
     // Exclude flags promoted to remoteFlagKeys via the dependency loop above —
@@ -956,9 +970,27 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
+    // Third-party surface: the relay iframe stores events in the CDN origin's
+    // localStorage, so it must not exist before consent. Deferred rather than
+    // skipped — a grant re-runs this with the same user, and by then the
+    // storage-gate flush listeners (armed earlier, on the buffered writes)
+    // have already run, so the merge reads a complete local event store. A
+    // refusal spends the one-shot subscription without injecting and the
+    // relay stays out for the rest of the page — a later re-opt-in gets it on
+    // the next load.
+    if (isConsentWithheld()) {
+      onConsentDecision((granted) => {
+        if (granted) {
+          this.scheduleRelaySync(user);
+        }
+      });
+      return;
+    }
+
     // Single-shot: scheduleRelaySync runs exactly once per start() (the two
-    // call sites are mutually exclusive and start() is re-entry guarded). If a
-    // future identity-change re-sync needs to re-run this, add ownership
+    // call sites are mutually exclusive and start() is re-entry guarded; the
+    // consent deferral above re-enters at most once). If a future
+    // identity-change re-sync needs to re-run this, add ownership
     // tracking that also covers reapplyVariantsAfterRelaySync's awaits — a
     // guard checked only here would leave the re-apply fetch/apply tail
     // unguarded.
@@ -968,6 +1000,20 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       getRelayUrl(this.apiKey, this.config.serverZone, this.config.relayUrl),
     );
     this.relayClient = relayClient;
+
+    if (consentGate.required) {
+      // Withdrawal must stop requests to the third-party CDN origin, not just
+      // ignore its responses: destroy the iframe and detach the dual-write so
+      // no further events are posted to the relay after a revocation. Armed
+      // here because this is the only place a relay comes into being, and it
+      // only does so while consent is granted — the next applied transition
+      // can only be a revocation.
+      onConsentDecision((granted) => {
+        if (!granted) {
+          this.teardownRelay(relayClient);
+        }
+      });
+    }
 
     void this.behavioralTargetingManager
       .beginRelaySync(relayClient)
@@ -1317,7 +1363,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       isCrossSubdomain,
     );
 
-    if (this.config.redirectConfig?.encodeRedirectInUrl && isCrossSubdomain) {
+    // While consent is pending the sessionStorage/cookie copies written above
+    // are buffered in memory and die with this page, so the URL param is the
+    // only transport that survives the navigation. Forced on for any redirect
+    // (same-subdomain too, and regardless of the encodeRedirectInUrl opt-in) —
+    // it stores nothing on the device. Deliberately pending-only: a redirect
+    // after a mid-session revocation drops its impression, like every other
+    // post-denial event.
+    if (
+      (this.config.redirectConfig?.encodeRedirectInUrl && isCrossSubdomain) ||
+      isConsentPending()
+    ) {
       // Embed impression data in redirect URL for cross-domain and
       // cookie-blocked environments. Merge with any existing param in case
       // multiple redirect experiments fire in sequence.
@@ -1625,9 +1681,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private async fireStoredRedirectImpressions() {
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
 
-    // Read URL param impressions (highest priority)
+    // Read URL param impressions (highest priority). A consent-gated source
+    // page forces the URL transport while consent is pending (see
+    // handleRedirect), so a gated destination must consume the param — and
+    // clean the URL — even when the customer never opted into
+    // encodeRedirectInUrl, including when consent has been granted by the
+    // time this page loads.
     let urlImpressions: Record<string, StoredRedirectImpression> = {};
-    if (this.config.redirectConfig?.encodeRedirectInUrl) {
+    if (
+      this.config.redirectConfig?.encodeRedirectInUrl ||
+      consentGate.required
+    ) {
       const urlParams = getUrlParams();
       const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
       if (encoded) {
