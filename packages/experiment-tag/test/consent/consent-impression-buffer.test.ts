@@ -4,14 +4,10 @@ import type {
   IntegrationPlugin,
 } from '@amplitude/experiment-js-client';
 
+import { activateConsent } from './consent-test-util';
+
 import { consentGate } from 'src/consent/consent-gate';
 import { wrapIntegrationTrack } from 'src/consent/consent-impression-buffer';
-
-/** Puts the gate in the state `initialize` leaves it in for a given status. */
-const activateConsent = (status: 'pending' | 'granted' | 'denied') => {
-  consentGate.required = true;
-  consentGate.manager.seedFromConfig(status);
-};
 
 interface FakeIntegration extends IntegrationPlugin {
   tracked: ExperimentEvent[];
