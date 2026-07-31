@@ -6,7 +6,7 @@ import {
   isConsentWithheld,
   onConsentDecision,
 } from '../consent/consent-gate';
-import { ConsentManager } from '../consent/consent-manager';
+import type { ConsentManager } from '../consent/consent-manager';
 
 import { CONSENT_EXEMPT_STORAGE_KEYS } from './storage-keys';
 
