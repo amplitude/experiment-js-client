@@ -149,6 +149,61 @@ describe('DefaultUserProvider', () => {
     };
     expect(actualUser).toEqual(expectedUser);
   });
+
+  describe('persistenceAllowed guard', () => {
+    test('gated: user fields populated, nothing read or written', async () => {
+      mockLocalStorage['EXP_apikey_DEFAULT_USER_PROVIDER'] =
+        '{"first_seen": 99}';
+      mockSessionStorage['EXP_apikey_DEFAULT_USER_PROVIDER'] =
+        '{"landing_url": "http://testtest.com"}';
+
+      const defaultUserProvider = mockProvider(
+        new DefaultUserProvider(undefined, 'apikey', () => false),
+      );
+      const actualUser = defaultUserProvider.getUser();
+      // Stored values are ignored; both fields come from the current page/time.
+      expect(actualUser.first_seen).toEqual('1000');
+      expect(actualUser.landing_url).toEqual(mockGlobal.location.href);
+      // Stored values are left exactly as they were.
+      expect(mockLocalStorage).toEqual({
+        EXP_apikey_DEFAULT_USER_PROVIDER: '{"first_seen": 99}',
+      });
+      expect(mockSessionStorage).toEqual({
+        EXP_apikey_DEFAULT_USER_PROVIDER:
+          '{"landing_url": "http://testtest.com"}',
+      });
+    });
+
+    test('gated with empty storage: no keys are created', async () => {
+      const defaultUserProvider = mockProvider(
+        new DefaultUserProvider(undefined, 'apikey', () => false),
+      );
+      const actualUser = defaultUserProvider.getUser();
+      expect(actualUser.first_seen).toEqual('1000');
+      expect(actualUser.landing_url).toEqual(mockGlobal.location.href);
+      expect(mockLocalStorage).toEqual({});
+      expect(mockSessionStorage).toEqual({});
+    });
+
+    test('guard reopening resumes normal persistence', async () => {
+      let allowed = false;
+      const defaultUserProvider = mockProvider(
+        new DefaultUserProvider(undefined, 'apikey', () => allowed),
+      );
+      defaultUserProvider.getUser();
+      expect(mockLocalStorage).toEqual({});
+      expect(mockSessionStorage).toEqual({});
+
+      allowed = true;
+      defaultUserProvider.getUser();
+      expect(mockLocalStorage).toEqual({
+        EXP_apikey_DEFAULT_USER_PROVIDER: '{"first_seen":"1000"}',
+      });
+      expect(mockSessionStorage).toEqual({
+        EXP_apikey_DEFAULT_USER_PROVIDER: `{"landing_url":"${mockGlobal.location.href}"}`,
+      });
+    });
+  });
 });
 
 const mockProvider = (provider: DefaultUserProvider): DefaultUserProvider => {

@@ -76,7 +76,13 @@ const newExperimentClient = (
 ): ExperimentClient => {
   return new ExperimentClient(apiKey, {
     ...config,
-    userProvider: new DefaultUserProvider(config?.userProvider, apiKey),
+    userProvider: new DefaultUserProvider(
+      config?.userProvider,
+      apiKey,
+      // Internal option set by experiment-tag: suppresses this provider's
+      // web-storage reads/writes while cookie consent is withheld.
+      config?.['internalPersistenceAllowed'],
+    ),
   });
 };
 
