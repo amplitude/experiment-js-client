@@ -76,7 +76,12 @@ export class ConsentManager {
     }
     const previous = this.currentStatus;
     this.currentStatus = status;
-    for (const listener of this.listeners) {
+    // Snapshot before notifying: a listener can arm another listener while
+    // this loop runs (the relay teardown is armed inside the pending-grant
+    // deferral), and live Set iteration would visit — and, for a one-shot,
+    // spend — the new listener on the very transition it was armed during,
+    // instead of the next one.
+    for (const listener of [...this.listeners]) {
       try {
         listener(status, previous);
       } catch (error) {

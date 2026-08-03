@@ -215,6 +215,52 @@ describe('pending-run wiring', () => {
       await flushAsync();
       expect(mockRelayDestroy).toHaveBeenCalled();
     });
+
+    test('revocation tears down a relay that was injected by a grant', async () => {
+      // Regression: the teardown listener is armed inside the pending-grant
+      // deferral callback, i.e. while the manager is still notifying grant
+      // listeners. Live-Set iteration would spend the one-shot on the grant
+      // itself, leaving the relay alive through the revocation.
+      activateConsent('pending');
+      mockRelayState.available = true;
+      mockGlobal = createMockGlobal({
+        location: { origin: 'http://test.com' },
+      });
+      mockGetGlobalScope.mockReturnValue(
+        mockGlobal as unknown as typeof globalThis,
+      );
+
+      await newBehavioralClient().start();
+      await flushAsync();
+      expect(RelayClient).not.toHaveBeenCalled();
+
+      consentGate.manager.setStatus('granted');
+      await flushAsync();
+      expect(RelayClient).toHaveBeenCalledTimes(1);
+      expect(mockRelayDestroy).not.toHaveBeenCalled();
+
+      consentGate.manager.setStatus('denied');
+      await flushAsync();
+      expect(mockRelayDestroy).toHaveBeenCalled();
+    });
+
+    test('a denial racing start() keeps the relay out for the page, even across a re-opt-in', async () => {
+      // Regression: when the denial lands before scheduleRelaySync runs, the
+      // status is already 'denied' at the withheld check. Arming the deferral
+      // there would hand the relay to a same-page re-opt-in — unlike the
+      // pending path, where the refusal spends the subscription and the relay
+      // waits for the next load.
+      activateConsent('pending');
+      const startPromise = newBehavioralClient().start();
+      consentGate.manager.setStatus('denied');
+      await startPromise;
+      await flushAsync();
+      expect(RelayClient).not.toHaveBeenCalled();
+
+      consentGate.manager.setStatus('granted');
+      await flushAsync();
+      expect(RelayClient).not.toHaveBeenCalled();
+    });
   });
 
   describe('memory-backed amp-exp-* caches', () => {
