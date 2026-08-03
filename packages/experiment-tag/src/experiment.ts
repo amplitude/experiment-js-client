@@ -977,13 +977,18 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // have already run, so the merge reads a complete local event store. A
     // refusal spends the one-shot subscription without injecting and the
     // relay stays out for the rest of the page — a later re-opt-in gets it on
-    // the next load.
+    // the next load. A refusal that already landed (a denial racing start())
+    // arms nothing for the same reason: the decision for this page is made,
+    // and an armed one-shot would let a same-page re-opt-in inject what the
+    // spent-subscription path holds until the next load.
     if (isConsentWithheld()) {
-      onConsentDecision((granted) => {
-        if (granted) {
-          this.scheduleRelaySync(user);
-        }
-      });
+      if (isConsentPending()) {
+        onConsentDecision((granted) => {
+          if (granted) {
+            this.scheduleRelaySync(user);
+          }
+        });
+      }
       return;
     }
 
