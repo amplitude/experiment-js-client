@@ -40,63 +40,112 @@ const erasureMarkerKey = (apiKey: string): string =>
 const ERASURE_MARKER_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
 /**
- * Every storage key and cookie experiment-tag (and the browser SDK underneath
- * it) can persist for `apiKey`.
+ * One feature's persisted footprint: every key it writes, per store. The
+ * `feature` label names the writer — the groups exist so that each key is
+ * explained by what persists it, not to drive any logic.
+ */
+interface PersistedDataGroup {
+  feature: string;
+  localStorage?: string[];
+  sessionStorage?: string[];
+  cookies?: string[];
+}
+
+/**
+ * Everything experiment-tag (and the browser SDK underneath it) can persist
+ * for `apiKey`, grouped by the feature that writes it.
  *
  * Keys are reconstructed from their writers' inputs rather than matched by
  * prefix: an `EXP_*` or `amp-exp-*` sweep would also take a second apiKey's
  * data, another Amplitude product's, or analytics-browser's `AMP_MKTG_*` cookie,
  * which experiment-tag only ever reads.
  *
- * Note the two apiKey slices differ — the `EXP_<slice>` family uses the first
- * ten characters, experiment-browser's caches the last six.
- *
  * The erasure marker is deliberately absent; it has to outlive the sweep that
  * writes it. See {@link markIdentityErased}.
+ */
+const getPersistedDataGroups = (
+  apiKey: string,
+  instanceName: string,
+): PersistedDataGroup[] => {
+  const slice = apiKey.slice(0, 10);
+  // Note the two apiKey slices differ — the `EXP_<slice>` family uses the
+  // first ten characters, experiment-browser's caches the last six.
+  const cacheNamespace = `amp-exp-${instanceName}-${WEB_INSTANCE_SUFFIX}-${apiKey.slice(
+    -6,
+  )}`;
+  return [
+    {
+      // Per-origin localStorage seed + cross-subdomain root-domain cookie.
+      feature: 'identity',
+      localStorage: [`EXP_${slice}`],
+      cookies: [identityCookieKey(apiKey)],
+    },
+    {
+      // One key split across both stores: `first_seen` in localStorage,
+      // `landing_url` in sessionStorage. Clearing one leaves landing-page
+      // attribution behind.
+      feature: 'default user provider',
+      localStorage: [`EXP_${slice}_DEFAULT_USER_PROVIDER`],
+      sessionStorage: [`EXP_${slice}_DEFAULT_USER_PROVIDER`],
+    },
+    {
+      feature: 'behavioral targeting',
+      localStorage: [`EXP_${slice}_rtbt_events`],
+      cookies: [`EXP_${slice}_rtbt_session`],
+    },
+    {
+      feature: 'marketing attribution',
+      localStorage: [`EXP_${MKTG}_${slice}`],
+      cookies: [`AMP_${MKTG}_ORIGINAL_${slice}`],
+    },
+    {
+      // In-flight redirect impressions; the cookie copy is the cross-subdomain
+      // transport.
+      feature: 'redirect impressions',
+      sessionStorage: [`EXP_${slice}_REDIRECT`],
+      cookies: [`EXP_${slice}_REDIRECT`],
+    },
+    {
+      feature: 'experiment-browser variant/flag caches',
+      sessionStorage: [
+        cacheNamespace,
+        `${cacheNamespace}-flags`,
+        `${cacheNamespace}-variants-options`,
+      ],
+    },
+    {
+      // Namespaced by the bare instanceName, so shared with any non-web
+      // Experiment SDK on the page under the same name. Deleting the queue
+      // discards that instance's queued exposures too — accepted: a visitor
+      // who denied consent shouldn't have queued exposures from any SDK on
+      // the page. Dedupe keys cover every version, not just the current one:
+      // SessionDedupeCache drops the older two when constructed, and a denial
+      // at load never constructs a client — so an entry from an earlier SDK
+      // version would outlive the denial for the tab.
+      feature: 'exposure queue and dedupe',
+      localStorage: [`EXP_unsent_${instanceName}`],
+      sessionStorage: [
+        `EXP_sent_v3_${instanceName}`,
+        `EXP_sent_v2_${instanceName}`,
+        `EXP_sent_${instanceName}`,
+      ],
+    },
+  ];
+};
+
+/**
+ * The per-feature groups from {@link getPersistedDataGroups}, flattened to one
+ * key list per store for the sweep.
  */
 export const getPersistedDataKeys = (
   apiKey: string,
   instanceName: string = DEFAULT_INSTANCE_NAME,
 ): PersistedDataKeys => {
-  const slice = apiKey.slice(0, 10);
-  const cacheNamespace = `amp-exp-${instanceName}-${WEB_INSTANCE_SUFFIX}-${apiKey.slice(
-    -6,
-  )}`;
+  const groups = getPersistedDataGroups(apiKey, instanceName);
   return {
-    localStorage: [
-      `EXP_${slice}`,
-      `EXP_${slice}_DEFAULT_USER_PROVIDER`,
-      `EXP_${slice}_rtbt_events`,
-      `EXP_${MKTG}_${slice}`,
-      // Namespaced by the bare instanceName, so it is shared with any non-web
-      // Experiment SDK on the page under the same name. Deleting it discards
-      // that instance's queued exposures too — accepted: a visitor who denied
-      // consent shouldn't have queued exposures from any SDK on the page.
-      `EXP_unsent_${instanceName}`,
-    ],
-    sessionStorage: [
-      // Repeated from localStorage deliberately: DefaultUserProvider splits one
-      // key across both stores, `landing_url` here and `first_seen` there.
-      // Clearing one leaves landing-page attribution behind.
-      `EXP_${slice}_DEFAULT_USER_PROVIDER`,
-      `EXP_${slice}_REDIRECT`,
-      cacheNamespace,
-      `${cacheNamespace}-flags`,
-      `${cacheNamespace}-variants-options`,
-      // Shared with co-resident instances, as above. Every version, not just the
-      // current one: SessionDedupeCache drops the older two when constructed, and
-      // a denial at load never constructs a client — so an entry from an earlier
-      // SDK version would outlive the denial for the tab.
-      `EXP_sent_v3_${instanceName}`,
-      `EXP_sent_v2_${instanceName}`,
-      `EXP_sent_${instanceName}`,
-    ],
-    cookies: [
-      identityCookieKey(apiKey),
-      `EXP_${slice}_rtbt_session`,
-      `EXP_${slice}_REDIRECT`,
-      `AMP_${MKTG}_ORIGINAL_${slice}`,
-    ],
+    localStorage: groups.flatMap((group) => group.localStorage ?? []),
+    sessionStorage: groups.flatMap((group) => group.sessionStorage ?? []),
+    cookies: groups.flatMap((group) => group.cookies ?? []),
   };
 };
 

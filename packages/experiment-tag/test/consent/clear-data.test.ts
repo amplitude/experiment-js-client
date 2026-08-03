@@ -44,8 +44,8 @@ describe('getPersistedDataKeys', () => {
       cookies: [
         `EXP_${SLICE}_identity`,
         `EXP_${SLICE}_rtbt_session`,
-        `EXP_${SLICE}_REDIRECT`,
         `AMP_MKTG_ORIGINAL_${SLICE}`,
+        `EXP_${SLICE}_REDIRECT`,
       ],
     });
   });
