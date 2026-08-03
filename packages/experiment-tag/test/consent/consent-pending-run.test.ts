@@ -178,7 +178,7 @@ describe('pending-run wiring', () => {
       expect(mockRelayInit).toHaveBeenCalled();
     });
 
-    test('refusal never injects the relay, and a same-page re-opt-in gets it', async () => {
+    test('refusal never injects the relay, even after a same-page re-opt-in', async () => {
       activateConsent('pending');
       await newBehavioralClient().start();
       await flushAsync();
@@ -188,7 +188,8 @@ describe('pending-run wiring', () => {
       expect(RelayClient).not.toHaveBeenCalled();
 
       // The refusal spent the deferral's one-shot subscription without
-      // injecting; a later re-opt-in re-defers through the same gate.
+      // injecting, and nothing re-arms it — a re-opt-in gets the relay on
+      // the next page load, never this one.
       consentGate.manager.setStatus('granted');
       await flushAsync();
       expect(RelayClient).not.toHaveBeenCalled();
