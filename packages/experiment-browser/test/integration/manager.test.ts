@@ -262,24 +262,28 @@ describe('SessionDedupeCache', () => {
   beforeEach(() => {
     safeGlobal.sessionStorage.clear();
   });
-  test('old v1 storage is cleared', () => {
+  test('old v1 storage is cleared on first use', () => {
     const instanceName = '$default_instance';
     safeGlobal.sessionStorage.setItem(
       'EXP_sent_$default_instance',
       `{"flag-key":"variant"}`,
     );
-    new SessionDedupeCache(instanceName);
+    const cache = new SessionDedupeCache(instanceName);
+    // Cleanup is deferred to the first storage operation so a persistence
+    // guard can suppress it entirely.
+    cache.shouldTrack({ flag_key: 'flag-key', variant: 'on' });
     expect(
       safeGlobal.sessionStorage.getItem('EXP_sent_$default_instance'),
     ).toBeNull();
   });
-  test('old v2 storage is cleared', () => {
+  test('old v2 storage is cleared on first use', () => {
     const instanceName = '$default_instance';
     safeGlobal.sessionStorage.setItem(
       'EXP_sent_v2_$default_instance',
       `{"flag-key":{"flag_key":"flag-key","variant":"on"}}`,
     );
-    new SessionDedupeCache(instanceName);
+    const cache = new SessionDedupeCache(instanceName);
+    cache.shouldTrack({ flag_key: 'flag-key', variant: 'on' });
     expect(
       safeGlobal.sessionStorage.getItem('EXP_sent_v2_$default_instance'),
     ).toBeNull();
@@ -441,6 +445,62 @@ describe('SessionDedupeCache', () => {
     expect(cache.shouldTrack(exposure)).toEqual(false); // In-memory cache still works
     // Restore original setItem
     safeGlobal.sessionStorage.setItem = originalSetItem;
+  });
+
+  describe('persistenceAllowed guard', () => {
+    const exposure = { flag_key: 'flag-key', variant: 'on' };
+    const v3Key = 'EXP_sent_v3_$default_instance';
+
+    test('gated: dedupes in memory without touching sessionStorage', () => {
+      // A legacy key that ungated construction would have cleaned up.
+      safeGlobal.sessionStorage.setItem(
+        'EXP_sent_$default_instance',
+        '{"old":"v"}',
+      );
+      const cache = new SessionDedupeCache('$default_instance', () => false);
+      expect(cache.shouldTrack(exposure)).toEqual(true);
+      expect(cache.shouldTrack(exposure)).toEqual(false);
+      expect(safeGlobal.sessionStorage.getItem(v3Key)).toBeNull();
+      expect(
+        safeGlobal.sessionStorage.getItem('EXP_sent_$default_instance'),
+      ).toEqual('{"old":"v"}');
+    });
+
+    test('entries recorded while gated survive the guard reopening', () => {
+      let allowed = false;
+      const cache = new SessionDedupeCache('$default_instance', () => allowed);
+      expect(cache.shouldTrack(exposure)).toEqual(true);
+
+      allowed = true;
+      // Still deduped: the stored (empty) copy must not clobber the entry
+      // recorded in memory while the guard was closed.
+      expect(cache.shouldTrack(exposure)).toEqual(false);
+      expect(safeGlobal.sessionStorage.getItem(v3Key)).toEqual(
+        JSON.stringify({ 'flag-key': 'on' }),
+      );
+    });
+
+    test('an identity change while gated drops the pre-gate stored cache on reopen', () => {
+      safeGlobal.sessionStorage.setItem(
+        v3Key,
+        JSON.stringify({ 'other-flag': 'on' }),
+      );
+      let allowed = false;
+      const cache = new SessionDedupeCache('$default_instance', () => allowed);
+      // First call with a user is an identity change from {}, which clears
+      // the cache — while gated, the stored copy can't be removed yet.
+      cache.shouldTrack(exposure, { user_id: 'user-1' });
+
+      allowed = true;
+      // On reopen the stored pre-gate cache is dropped before being read, so
+      // it cannot suppress the new identity's exposures.
+      expect(
+        cache.shouldTrack(
+          { flag_key: 'other-flag', variant: 'on' },
+          { user_id: 'user-1' },
+        ),
+      ).toEqual(true);
+    });
   });
 
   // User-aware deduplication tests
@@ -752,6 +812,30 @@ describe('PersistentTrackingQueue', () => {
       expect(safeGlobal.localStorage.getItem(storageKey)).toEqual(
         JSON.stringify(stale),
       );
+      queue['poller'] = undefined;
+    });
+
+    test('gated events merge with a stale stored copy on reopen', () => {
+      const stale: ExperimentEvent = { eventType: 'stale' };
+      safeGlobal.localStorage.setItem(storageKey, JSON.stringify([stale]));
+      let allowed = false;
+      const queue = new PersistentTrackingQueue(
+        '$default_instance',
+        512,
+        () => allowed,
+      );
+      queue.push(event);
+
+      allowed = true;
+      const trackedEvents: ExperimentEvent[] = [];
+      queue.setTracker((e) => {
+        trackedEvents.push(e);
+        return true;
+      });
+      // Neither copy clobbers the other: stored (older) first, then the
+      // event held in memory while the guard was closed.
+      expect(trackedEvents).toEqual([stale, event]);
+      expect(safeGlobal.localStorage.getItem(storageKey)).toBeNull();
       queue['poller'] = undefined;
     });
 

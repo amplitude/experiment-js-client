@@ -174,11 +174,27 @@ export function getCookieDomainLevels(hostname: string): string[] {
 }
 
 /**
+ * The registrable-domain guess used while consent is withheld: probing
+ * writability writes a throwaway cookie, which is itself a device write. The
+ * guess is what the probe would confirm on any host whose public suffix is in
+ * {@link KNOWN_2LDS} (or is a plain TLD); on the rare host where it is wrong,
+ * writes carrying it fail closed — read-back-verified writers degrade to
+ * memory. Not cached, so the first post-grant caller probes for real.
+ */
+function unprobedDomainGuess(hostname: string): string {
+  const levels = getCookieDomainLevels(hostname);
+  return levels.length > 0 ? '.' + levels[0] : '';
+}
+
+/**
  * Synchronous variant of {@link getTopLevelDomain} for cross-subdomain cookies:
  * the first {@link getCookieDomainLevels} entry that accepts one, as a
  * leading-dot domain (e.g. `.example.com`), or `''` when none does.
  */
 export function getTopLevelDomainSync(hostname: string): string {
+  if (isConsentWithheld()) {
+    return unprobedDomainGuess(hostname);
+  }
   for (const domain of getCookieDomainLevels(hostname)) {
     if (isDomainWritableSync(domain)) {
       return '.' + domain;
@@ -189,6 +205,9 @@ export function getTopLevelDomainSync(hostname: string): string {
 
 export async function getTopLevelDomain(hostname: string): Promise<string> {
   if (cachedDomain !== undefined) return cachedDomain;
+  if (isConsentWithheld()) {
+    return unprobedDomainGuess(hostname);
+  }
   for (const domain of getCookieDomainLevels(hostname)) {
     if (await CookieStorage.isDomainWritable(domain)) {
       return (cachedDomain = '.' + domain);
