@@ -35,9 +35,19 @@ export const patchDOMParser = () => {
     const parseFromString = DOMParser.prototype.parseFromString;
     globalScope['__domParserParseFromString'] = parseFromString;
 
+    const nonce = globalScope.document
+      .querySelector('meta[name="csp-nonce"]')
+      ?.getAttribute('content');
+
     DOMParser.prototype.parseFromString = function (content, contentType) {
       const doc = parseFromString.apply(this, [content, contentType]);
       if (contentType === 'text/html') {
+        if (nonce) {
+          doc.body.querySelectorAll('style:not([nonce])').forEach((el) => {
+            el.setAttribute('nonce', nonce);
+          });
+        }
+
         doc.body.querySelectorAll('[style]').forEach((el) => {
           (el as HTMLElement).style.cssText = el.getAttribute(
             'style',
