@@ -407,6 +407,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       internalInstanceNameSuffix: 'web',
+      // The SDK's own direct-to-device writers — DefaultUserProvider
+      // (landing_url/first_seen) and the unsent-exposure queue — sit below
+      // this tag's gated storage helpers, so they get the gate as a callback.
+      // Checked per call: a mid-session grant reopens persistence
+      // immediately, and when gating was never enabled this always allows.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      internalPersistenceAllowed: () => !isConsentWithheld(),
       initialFlags: initialFlagsString,
       // timeout for fetching remote flags
       fetchTimeoutMillis: 1000,

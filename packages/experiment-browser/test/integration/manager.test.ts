@@ -652,16 +652,13 @@ describe('PersistentTrackingQueue', () => {
 
     queue.push(event);
     expect(queue['inMemoryQueue']).toEqual([]);
-    expect(safeGlobal.localStorage.getItem(queue['storageKey'])).toEqual(
-      JSON.stringify([]),
-    );
+    // A fully drained queue leaves no key behind rather than a stored `[]`.
+    expect(safeGlobal.localStorage.getItem(queue['storageKey'])).toBeNull();
     expect(trackedEvents).toEqual([event]);
 
     queue.push(event);
     expect(queue['inMemoryQueue']).toEqual([]);
-    expect(safeGlobal.localStorage.getItem(queue['storageKey'])).toEqual(
-      JSON.stringify([]),
-    );
+    expect(safeGlobal.localStorage.getItem(queue['storageKey'])).toBeNull();
     expect(trackedEvents).toEqual([event, event]);
   });
 
@@ -690,9 +687,7 @@ describe('PersistentTrackingQueue', () => {
 
     queue.push(event);
     expect(queue['inMemoryQueue']).toEqual([]);
-    expect(safeGlobal.localStorage.getItem(queue['storageKey'])).toEqual(
-      JSON.stringify([]),
-    );
+    expect(safeGlobal.localStorage.getItem(queue['storageKey'])).toBeNull();
     expect(trackedEvents).toEqual([event, event]);
   });
 
@@ -710,6 +705,90 @@ describe('PersistentTrackingQueue', () => {
       { eventType: '4' },
       { eventType: '5' },
     ]);
+  });
+
+  describe('persistenceAllowed guard', () => {
+    const storageKey = 'EXP_unsent_$default_instance';
+    const event: ExperimentEvent = {
+      eventType: '$exposure',
+      eventProperties: { flag_key: 'flag-key', variant: 'on' },
+    };
+
+    test('gated: events stay in memory and never touch localStorage', () => {
+      const queue = new PersistentTrackingQueue(
+        '$default_instance',
+        512,
+        () => false,
+      );
+      queue.push(event);
+      expect(queue['inMemoryQueue']).toEqual([event]);
+      expect(safeGlobal.localStorage.getItem(storageKey)).toBeNull();
+
+      const trackedEvents: ExperimentEvent[] = [];
+      queue.setTracker((e) => {
+        trackedEvents.push(e);
+        return true;
+      });
+      expect(trackedEvents).toEqual([event]);
+      expect(safeGlobal.localStorage.getItem(storageKey)).toBeNull();
+      queue['poller'] = undefined;
+    });
+
+    test('gated: a stored copy from an earlier session is not read', () => {
+      const stale = [{ eventType: 'stale' }];
+      safeGlobal.localStorage.setItem(storageKey, JSON.stringify(stale));
+      const queue = new PersistentTrackingQueue(
+        '$default_instance',
+        512,
+        () => false,
+      );
+      const trackedEvents: ExperimentEvent[] = [];
+      queue.setTracker((e) => {
+        trackedEvents.push(e);
+        return true;
+      });
+      expect(trackedEvents).toEqual([]);
+      // Untouched, not deleted: removal is cleanup's job, not the queue's.
+      expect(safeGlobal.localStorage.getItem(storageKey)).toEqual(
+        JSON.stringify(stale),
+      );
+      queue['poller'] = undefined;
+    });
+
+    test('events pushed while gated survive the guard reopening', () => {
+      let allowed = false;
+      const queue = new PersistentTrackingQueue(
+        '$default_instance',
+        512,
+        () => allowed,
+      );
+      queue.push(event);
+      expect(safeGlobal.localStorage.getItem(storageKey)).toBeNull();
+
+      allowed = true;
+      const trackedEvents: ExperimentEvent[] = [];
+      queue.setTracker((e) => {
+        trackedEvents.push(e);
+        return true;
+      });
+      // loadQueue must not let the (empty) device copy clobber the in-memory
+      // events that were held back while the guard was closed.
+      expect(trackedEvents).toEqual([event]);
+      expect(safeGlobal.localStorage.getItem(storageKey)).toBeNull();
+      queue['poller'] = undefined;
+    });
+
+    test('guard returning true behaves like no guard', () => {
+      const queue = new PersistentTrackingQueue(
+        '$default_instance',
+        512,
+        () => true,
+      );
+      queue.push(event);
+      expect(safeGlobal.localStorage.getItem(storageKey)).toEqual(
+        JSON.stringify([event]),
+      );
+    });
   });
 
   test('no duplicate for partial success', () => {

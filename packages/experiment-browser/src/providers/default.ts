@@ -19,11 +19,28 @@ export class DefaultUserProvider implements ExperimentUserProvider {
 
   public readonly userProvider: ExperimentUserProvider | undefined;
   private readonly apiKey?: string;
+  /**
+   * When provided and returning false, `landing_url` and `first_seen` are
+   * computed for the current call without reading or writing web storage.
+   * Used by experiment-tag while cookie consent is withheld — it supplies its
+   * own consent-managed `first_seen` via the user object (which wins the
+   * merge), so nothing is lost by not persisting here.
+   */
+  private readonly persistenceAllowed?: () => boolean;
 
-  constructor(userProvider?: ExperimentUserProvider, apiKey?: string) {
+  constructor(
+    userProvider?: ExperimentUserProvider,
+    apiKey?: string,
+    persistenceAllowed?: () => boolean,
+  ) {
     this.userProvider = userProvider;
     this.apiKey = apiKey;
+    this.persistenceAllowed = persistenceAllowed;
     this.storageKey = `EXP_${this.apiKey?.slice(0, 10)}_DEFAULT_USER_PROVIDER`;
+  }
+
+  private canPersist(): boolean {
+    return this.persistenceAllowed ? this.persistenceAllowed() : true;
   }
 
   getUser(): ExperimentUser {
@@ -85,6 +102,11 @@ export class DefaultUserProvider implements ExperimentUserProvider {
   }
 
   private getLandingUrl(): string | undefined {
+    if (!this.canPersist()) {
+      // Storage is gated (reads included): report this page as the landing
+      // page without consulting or extending the per-session record.
+      return this.globalScope?.location?.href.replace(/\/$/, '');
+    }
     try {
       const sessionUser = JSON.parse(
         this.sessionStorage.get(this.storageKey) || '{}',
@@ -103,6 +125,12 @@ export class DefaultUserProvider implements ExperimentUserProvider {
   }
 
   private getFirstSeen(): string | undefined {
+    if (!this.canPersist()) {
+      // Storage is gated: mint a per-call value rather than persist one. A
+      // caller that manages first_seen itself (experiment-tag does, behind
+      // its consent gate) overrides this via the user-object merge.
+      return (Date.now() / 1000).toString();
+    }
     try {
       const localUser = JSON.parse(
         this.localStorage.get(this.storageKey) || '{}',

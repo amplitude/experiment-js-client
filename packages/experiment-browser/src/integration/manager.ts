@@ -39,7 +39,11 @@ export class IntegrationManager {
     this.config = config;
     this.client = client;
     const instanceName = config.instanceName ?? Defaults.instanceName;
-    this.queue = new PersistentTrackingQueue(instanceName);
+    this.queue = new PersistentTrackingQueue(
+      instanceName,
+      MAX_QUEUE_SIZE,
+      config['internalPersistenceAllowed'],
+    );
     this.cache = new SessionDedupeCache(instanceName);
   }
 
@@ -229,7 +233,17 @@ export class PersistentTrackingQueue {
   private poller: any | undefined;
   private tracker: ((event: ExperimentEvent) => boolean) | undefined;
 
-  constructor(instanceName: string, maxQueueSize: number = MAX_QUEUE_SIZE) {
+  constructor(
+    instanceName: string,
+    maxQueueSize: number = MAX_QUEUE_SIZE,
+    /**
+     * When provided and returning false, the queue neither reads nor writes
+     * localStorage — events live only in memory. Used by experiment-tag while
+     * cookie consent is withheld, so an unsent event can't be parked on the
+     * device before the visitor has agreed to storage.
+     */
+    private readonly persistenceAllowed?: () => boolean,
+  ) {
     this.storageKey = `EXP_unsent_${instanceName}`;
     this.maxQueueSize = maxQueueSize;
   }
@@ -275,17 +289,43 @@ export class PersistentTrackingQueue {
     }
   }
 
+  private canPersist(): boolean {
+    return this.persistenceAllowed ? this.persistenceAllowed() : true;
+  }
+
   private loadQueue(): void {
+    // While persistence is gated the device copy is not consulted (reading is
+    // access to device data too); events pushed in the meantime exist only in
+    // memory and remain the queue.
+    if (!this.canPersist()) return;
     const localStorage = getLocalStorage();
     if (this.isLocalStorageAvailable && localStorage) {
       const storedQueue = localStorage.getItem(this.storageKey);
-      this.inMemoryQueue = storedQueue ? JSON.parse(storedQueue) : [];
+      const stored: ExperimentEvent[] = storedQueue
+        ? JSON.parse(storedQueue)
+        : [];
+      // A non-empty memory with nothing stored only happens when events were
+      // pushed while persistence was gated (ungated flows store on every
+      // push); replacing them with the empty device copy would drop them.
+      if (stored.length > 0 || this.inMemoryQueue.length === 0) {
+        this.inMemoryQueue = stored;
+      }
     }
   }
 
   private storeQueue(): void {
+    if (!this.canPersist()) return;
     const localStorage = getLocalStorage();
     if (this.isLocalStorageAvailable && localStorage) {
+      // An empty queue is represented by the key's absence rather than a
+      // stored `[]` — loadQueue treats both the same, and this keeps the queue
+      // from putting anything on the device when every event was handed to
+      // the tracker immediately (which also matters under consent gating,
+      // where the write itself is the problem).
+      if (this.inMemoryQueue.length === 0) {
+        localStorage.removeItem(this.storageKey);
+        return;
+      }
       // Trim the queue if it is too large.
       if (this.inMemoryQueue.length > this.maxQueueSize) {
         this.inMemoryQueue = this.inMemoryQueue.slice(
