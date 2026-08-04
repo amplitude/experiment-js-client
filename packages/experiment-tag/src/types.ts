@@ -133,8 +133,9 @@ export interface ConsentOptions {
   consentRequired?: boolean;
   /**
    * Initial consent status, set before the script loads. Defaults to
-   * 'pending' when consentRequired is true. Values follow Google Consent
-   * Mode: 'granted' | 'denied' | 'pending'.
+   * 'pending' when consentRequired is true. 'granted' and 'denied' match
+   * Google Consent Mode naming; 'pending' is this script's own undecided
+   * initial state (Consent Mode has no such value).
    *
    * A runtime status set via `setConsentStatus` always wins over this
    * config value. 'denied' at load defers the client start entirely; a later
