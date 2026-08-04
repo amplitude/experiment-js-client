@@ -185,6 +185,26 @@ describe('DefaultUserProvider', () => {
       expect(mockSessionStorage).toEqual({});
     });
 
+    test('gated landing_url survives an SPA navigation and persists on grant', async () => {
+      const landingHref = mockGlobal.location.href;
+      let allowed = false;
+      const defaultUserProvider = mockProvider(
+        new DefaultUserProvider(undefined, 'apikey', () => allowed),
+      );
+      expect(defaultUserProvider.getUser().landing_url).toEqual(landingHref);
+
+      // SPA route change while consent is still undecided.
+      mockGlobal.location.href = 'http://test.com/spa-page';
+      expect(defaultUserProvider.getUser().landing_url).toEqual(landingHref);
+
+      // Grant after the navigation: the true landing page is what persists.
+      allowed = true;
+      expect(defaultUserProvider.getUser().landing_url).toEqual(landingHref);
+      expect(mockSessionStorage).toEqual({
+        EXP_apikey_DEFAULT_USER_PROVIDER: `{"landing_url":"${landingHref}"}`,
+      });
+    });
+
     test('guard reopening resumes normal persistence', async () => {
       let allowed = false;
       const defaultUserProvider = mockProvider(
