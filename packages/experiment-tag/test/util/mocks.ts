@@ -1,5 +1,7 @@
 // Mock helpers for testing
 
+import { WebExperimentConfig } from '../../src/types';
+
 export const createStorageMock = () => {
   let store: Record<string, string> = {};
   return {
@@ -66,6 +68,7 @@ export const createMockGlobal = (overrides?: Record<string, unknown>) => {
     document: createDocumentMock(),
     history: { replaceState: jest.fn() },
     addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
     setTimeout: jest.fn((fn: () => void) => fn()),
     clearTimeout: jest.fn(),
     experimentIntegration: {
@@ -88,7 +91,7 @@ export const createMockGlobal = (overrides?: Record<string, unknown>) => {
         encodeRedirectInCookie: false,
         encodeRedirectInUrl: false,
       },
-    },
+    } as WebExperimentConfig,
   };
 
   // Apply overrides with smart merging for nested objects

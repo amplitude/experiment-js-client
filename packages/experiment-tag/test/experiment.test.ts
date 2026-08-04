@@ -163,6 +163,111 @@ describe('initializeExperiment', () => {
     );
   });
 
+  test('does not seed from a local record left over from a refusal', async () => {
+    const key = stringify(apiKey);
+    const storageKey = 'EXP_' + key;
+    // The state a sibling subdomain is left in by a refusal elsewhere: shared
+    // cookie gone, the marker that refusal left behind, and a pre-refusal record
+    // this origin was never able to sweep. Consent has since been granted again,
+    // which is what lets start() reach identity resolution here at all — the
+    // path where the seeding above would resurrect the refused id.
+    document.cookie = `EXP_${key.slice(0, 10)}_erased=1; path=/`;
+    mockGlobal.localStorage.setItem(
+      storageKey,
+      JSON.stringify({ web_exp_id: 'existing-id' }),
+    );
+
+    await DefaultWebExperimentClient.getInstance(key, {
+      initialFlags: JSON.stringify([]),
+      pageObjects: JSON.stringify({}),
+    }).start();
+
+    expect(ExperimentClient.prototype.setUser).not.toHaveBeenCalledWith(
+      expect.objectContaining({ web_exp_id_v2: 'existing-id' }),
+    );
+    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith(
+      expect.objectContaining({ web_exp_id: 'mock', web_exp_id_v2: 'mock' }),
+    );
+    expect(mockGlobal.localStorage.removeItem).toHaveBeenCalledWith(storageKey);
+  });
+
+  describe.each([
+    ['erased elsewhere', true, new Set<string>()],
+    ['not erased', false, new Set(['behavior_1'])],
+  ])(
+    'behavioral state persisted before a refusal (%s)',
+    (_label, isErased, expectedBehaviors) => {
+      test('hydrates only when no erasure happened', async () => {
+        const key = stringify(apiKey);
+        const eventsKey = `EXP_${key.slice(0, 10)}_rtbt_events`;
+        // EventStorageManager reads the bare global localStorage while the sweep
+        // goes through getGlobalScope().localStorage. Those are one object in a
+        // browser, so point the mock at the real store to match production —
+        // otherwise the sweep can't reach what the manager loads.
+        mockGlobal.localStorage = safeGlobal.localStorage;
+        safeGlobal.localStorage.clear();
+        if (isErased) {
+          document.cookie = `EXP_${key.slice(0, 10)}_erased=1; path=/`;
+        }
+        // What this origin held when consent was refused elsewhere. Enough on
+        // its own to satisfy the rule below, so a hydrated copy is observable.
+        safeGlobal.localStorage.setItem(
+          eventsKey,
+          JSON.stringify({
+            nextId: 2,
+            events: [
+              {
+                uuid: 'refused-event',
+                id: 1,
+                event_type: 'click',
+                timestamp: Date.now(),
+                session_id: 'refused-session',
+                properties: {},
+              },
+            ],
+          }),
+        );
+
+        const client = DefaultWebExperimentClient.getInstance(key, {
+          initialFlags: JSON.stringify([]),
+          pageObjects: JSON.stringify({}),
+          behavioralTargetingRules: JSON.stringify({
+            flag_a: {
+              behavior_1: [
+                [
+                  {
+                    condition: {
+                      type: 'behavior',
+                      event_type: 'click',
+                      op: experimentCore.EvaluationOperator.GREATER_THAN_EQUALS,
+                      value: 1,
+                      time_type: 'rolling',
+                      time_value: 7,
+                      interval: 'day',
+                    },
+                  },
+                ],
+              ],
+            },
+          }),
+        });
+        await client.start();
+
+        // The sweep has to precede construction of the behavioral manager: it
+        // loads persisted events into memory and evaluates them there, so
+        // clearing storage afterwards still leaves a behavior matched from the
+        // refused event.
+        const matched = (
+          client as any
+        ).behavioralTargetingManager.getMatchedBehaviors();
+        expect(matched.get('flag_a') ?? new Set()).toEqual(expectedBehaviors);
+        expect(safeGlobal.localStorage.getItem(eventsKey)).toEqual(
+          isErased ? null : expect.any(String),
+        );
+      });
+    },
+  );
+
   test('set web experiment config', () => {
     const mockGlobal = newMockGlobal({
       location: {

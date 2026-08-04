@@ -139,17 +139,17 @@ function isDomainWritableSync(domain: string): boolean {
 }
 
 /**
- * Synchronous variant of {@link getTopLevelDomain}. Resolves the registrable
- * (root) domain for `hostname` so callers can set a cookie shared across
- * subdomains, without the async `CookieStorage.isDomainWritable` round-trip.
- * Returns a leading-dot domain (e.g. `.example.com`) or `''` when no
- * cross-subdomain domain is writable (single-label hosts, IPs, blocked I/O).
+ * Candidate cross-subdomain cookie domains for `hostname`, registrable domain
+ * first (e.g. `['example.com', 'app.example.com']`). Empty for single-label
+ * hosts and IPs, which can't carry a `.domain` cookie.
+ *
+ * Returned without the leading dot; callers add it.
  */
-export function getTopLevelDomainSync(hostname: string): string {
-  if (!hostname) return '';
+export function getCookieDomainLevels(hostname: string): string[] {
+  if (!hostname) return [];
   const normalizedHostname = hostname.toLowerCase();
   const parts = normalizedHostname.split('.');
-  if (parts.length <= 1) return '';
+  if (parts.length <= 1) return [];
 
   const skipLevel = KNOWN_2LDS.some((tld) =>
     normalizedHostname.endsWith(`.${tld}`),
@@ -160,7 +160,16 @@ export function getTopLevelDomainSync(hostname: string): string {
   for (let i = parts.length - skipLevel - 1; i >= 0; --i) {
     levels.push(parts.slice(i).join('.'));
   }
-  for (const domain of levels) {
+  return levels;
+}
+
+/**
+ * Synchronous variant of {@link getTopLevelDomain} for cross-subdomain cookies:
+ * the first {@link getCookieDomainLevels} entry that accepts one, as a
+ * leading-dot domain (e.g. `.example.com`), or `''` when none does.
+ */
+export function getTopLevelDomainSync(hostname: string): string {
+  for (const domain of getCookieDomainLevels(hostname)) {
     if (isDomainWritableSync(domain)) {
       return '.' + domain;
     }
@@ -170,23 +179,7 @@ export function getTopLevelDomainSync(hostname: string): string {
 
 export async function getTopLevelDomain(hostname: string): Promise<string> {
   if (cachedDomain !== undefined) return cachedDomain;
-  if (!hostname) {
-    return (cachedDomain = '');
-  }
-  const normalizedHostname = hostname.toLowerCase();
-  const parts = normalizedHostname.split('.');
-  if (parts.length === 1) return (cachedDomain = '');
-
-  const skipLevel = KNOWN_2LDS.some((tld) =>
-    normalizedHostname.endsWith(`.${tld}`),
-  )
-    ? 2
-    : 1;
-  const levels: string[] = [];
-  for (let i = parts.length - skipLevel - 1; i >= 0; --i) {
-    levels.push(parts.slice(i).join('.'));
-  }
-  for (const domain of levels) {
+  for (const domain of getCookieDomainLevels(hostname)) {
     if (await CookieStorage.isDomainWritable(domain)) {
       return (cachedDomain = '.' + domain);
     }

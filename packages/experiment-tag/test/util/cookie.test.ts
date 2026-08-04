@@ -1,5 +1,6 @@
 import {
   deleteRawCookie,
+  getCookieDomainLevels,
   readRawCookie,
   resolveCrossSubdomainObject,
   SyncJsonCookie,
@@ -21,6 +22,39 @@ function fakeCookieStorage(initial: Record<string, string> = {}) {
     }),
   };
 }
+
+describe('getCookieDomainLevels', () => {
+  it.each<[string, string[]]>([
+    ['example.com', ['example.com']],
+    ['app.example.com', ['example.com', 'app.example.com']],
+    ['a.b.example.com', ['example.com', 'b.example.com', 'a.b.example.com']],
+    // Registrable domain is the 2LD, so the level list must not offer the
+    // public suffix itself — a cookie on `.co.uk` would be rejected.
+    ['example.co.uk', ['example.co.uk']],
+    ['app.example.co.uk', ['example.co.uk', 'app.example.co.uk']],
+    ['shop.blogspot.com', ['shop.blogspot.com']],
+    // Nothing can carry a cross-subdomain cookie.
+    ['localhost', []],
+    ['', []],
+  ])('resolves levels for %s', (hostname, expected) => {
+    expect(getCookieDomainLevels(hostname)).toEqual(expected);
+  });
+
+  it('normalizes case', () => {
+    expect(getCookieDomainLevels('App.Example.COM')).toEqual([
+      'example.com',
+      'app.example.com',
+    ]);
+  });
+
+  it('returns the registrable domain first', () => {
+    // getTopLevelDomain/Sync take the first writable level, so ordering
+    // determines whether identity is shared across subdomains or pinned to one.
+    expect(getCookieDomainLevels('deep.app.example.com')[0]).toBe(
+      'example.com',
+    );
+  });
+});
 
 describe('resolveCrossSubdomainObject', () => {
   type Identity = { web_exp_id_v2: string; first_seen: string };
