@@ -27,6 +27,13 @@ export class DefaultUserProvider implements ExperimentUserProvider {
    * merge), so nothing is lost by not persisting here.
    */
   private readonly persistenceAllowed?: () => boolean;
+  /**
+   * The first URL seen while persistence was gated. Without it, an SPA
+   * navigation before consent resolves would shift the reported landing page
+   * per call, and a grant after that navigation would persist the page at
+   * grant time rather than where the visitor actually landed.
+   */
+  private gatedLandingUrl?: string;
 
   constructor(
     userProvider?: ExperimentUserProvider,
@@ -103,25 +110,30 @@ export class DefaultUserProvider implements ExperimentUserProvider {
 
   private getLandingUrl(): string | undefined {
     if (!this.canPersist()) {
-      // Storage is gated (reads included): report this page as the landing
-      // page without consulting or extending the per-session record.
-      return this.globalScope?.location?.href.replace(/\/$/, '');
+      // Storage is gated (reads included): report the first URL of this
+      // page's life as the landing page without consulting or extending the
+      // per-session record.
+      this.gatedLandingUrl ??= this.getCurrentUrl();
+      return this.gatedLandingUrl;
     }
     try {
       const sessionUser = JSON.parse(
         this.sessionStorage.get(this.storageKey) || '{}',
       );
       if (!sessionUser.landing_url) {
-        sessionUser.landing_url = this.globalScope?.location?.href.replace(
-          /\/$/,
-          '',
-        );
+        // Prefer the URL remembered from the gated window, so a grant after
+        // an SPA navigation persists where the visitor actually landed.
+        sessionUser.landing_url = this.gatedLandingUrl ?? this.getCurrentUrl();
         this.sessionStorage.put(this.storageKey, JSON.stringify(sessionUser));
       }
       return sessionUser.landing_url;
     } catch {
       return undefined;
     }
+  }
+
+  private getCurrentUrl(): string | undefined {
+    return this.globalScope?.location?.href.replace(/\/$/, '');
   }
 
   private getFirstSeen(): string | undefined {
