@@ -7,7 +7,11 @@ import type {
 import { activateConsent } from './consent-test-util';
 
 import { consentGate } from 'src/consent/consent-gate';
-import { wrapIntegrationTrack } from 'src/consent/consent-impression-buffer';
+import {
+  getImpressionBufferDebugState,
+  resetImpressionBufferRegistry,
+  wrapIntegrationTrack,
+} from 'src/consent/consent-impression-buffer';
 
 interface FakeIntegration extends IntegrationPlugin {
   tracked: ExperimentEvent[];
@@ -46,6 +50,7 @@ const trackedFlagKeys = (integration: FakeIntegration): unknown[] =>
 describe('impression consent buffer', () => {
   beforeEach(() => {
     consentGate.reset();
+    resetImpressionBufferRegistry();
     jest.useRealTimers();
   });
 
@@ -257,5 +262,42 @@ describe('impression consent buffer', () => {
     integration.track(impression('flag-1'));
 
     expect(trackedFlagKeys(integration)).toEqual(['flag-1']);
+  });
+
+  describe('debug state', () => {
+    it('reports one entry per wrapped integration with live counts', () => {
+      activateConsent('pending');
+      const first = fakeIntegration();
+      const second = fakeIntegration();
+      wrapIntegrationTrack(first);
+      wrapIntegrationTrack(second);
+      first.track(impression('flag-1'));
+      first.track(impression('flag-2'));
+
+      expect(getImpressionBufferDebugState()).toEqual([
+        { buffered: 2, flushArmed: true, retrying: false },
+        { buffered: 0, flushArmed: false, retrying: false },
+      ]);
+    });
+
+    it('reflects a drained buffer after a grant, and a live retry poller', () => {
+      jest.useFakeTimers();
+      activateConsent('pending');
+      const integration = fakeIntegration();
+      wrapIntegrationTrack(integration);
+      integration.track(impression('flag-1'));
+      integration.accepts = false;
+
+      consentGate.manager.setStatus('granted');
+      expect(getImpressionBufferDebugState()).toEqual([
+        { buffered: 1, flushArmed: true, retrying: true },
+      ]);
+
+      integration.accepts = true;
+      jest.advanceTimersByTime(1000);
+      expect(getImpressionBufferDebugState()).toEqual([
+        { buffered: 0, flushArmed: true, retrying: false },
+      ]);
+    });
   });
 });

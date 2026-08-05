@@ -4,6 +4,8 @@ import type {
   IntegrationPlugin,
 } from '@amplitude/experiment-js-client';
 
+import type { ImpressionBufferDebugInfo } from '../types/debug';
+
 import {
   isConsentPending,
   isConsentWithheld,
@@ -21,6 +23,14 @@ const RETRY_INTERVAL_MS = 1000;
  */
 const WRAPPED_KEY = '__ampConsentGatedTrack';
 
+/**
+ * The integration's original `track`, captured before the buffer replaces it.
+ * The boolean is `IntegrationPlugin.track`'s contract: whether the downstream
+ * integration accepted the event — the analytics SDK it forwards to may not
+ * have a receiver attached yet. `flush` relies on it: a `false` (or a throw)
+ * stops the replay, keeps the remainder buffered, and hands off to the retry
+ * poller.
+ */
 type Tracker = (event: ExperimentEvent) => boolean;
 
 /**
@@ -37,7 +47,16 @@ class ImpressionBuffer {
   private flushArmed = false;
   private poller: ReturnType<typeof setInterval> | undefined;
 
+  /** @param realTrack The wrapped integration's original `track` — see {@link Tracker}. */
   constructor(private readonly realTrack: Tracker) {}
+
+  getDebugState(): ImpressionBufferDebugInfo {
+    return {
+      buffered: this.buffered.length,
+      flushArmed: this.flushArmed,
+      retrying: this.poller !== undefined,
+    };
+  }
 
   track(event: ExperimentEvent): boolean {
     if (!isConsentWithheld()) {
@@ -124,6 +143,13 @@ class ImpressionBuffer {
  * Records when the impression happened. The analytics SDK timestamps an event
  * as it receives it, which for a replay is the moment of the grant — long after
  * the variant was shown for a visitor who leaves the banner up.
+ *
+ * The `time` key is a cross-SDK contract, not a label: the analytics SDK's
+ * event-bridge receiver destructures `time` out of `eventProperties` and
+ * promotes it to the canonical event timestamp (`setEventReceiver` in
+ * Amplitude-TypeScript's browser-client). The client already stamps it on web
+ * experiment exposures, so this is a fallback for events that arrive without
+ * one.
  */
 function stampTime(event: ExperimentEvent): ExperimentEvent {
   if (event.eventProperties?.time !== undefined) {
@@ -136,6 +162,24 @@ function stampTime(event: ExperimentEvent): ExperimentEvent {
 }
 
 /**
+ * Live buffers, one per wrapped integration, for `getDebugState()`. Buffers
+ * live as long as the integration they wrap (the page), so holding them here
+ * does not extend anything's lifetime.
+ */
+const registry: ImpressionBuffer[] = [];
+
+/** Per-buffer state for the debug snapshot's consent section. */
+export const getImpressionBufferDebugState =
+  (): ImpressionBufferDebugInfo[] => {
+    return registry.map((buffer) => buffer.getDebugState());
+  };
+
+/** Test-only: clears the registry between cases. */
+export const resetImpressionBufferRegistry = (): void => {
+  registry.length = 0;
+};
+
+/**
  * Routes an integration's impressions through a consent buffer, in place. The
  * integration is shared with the customer (they may have supplied it), so the
  * wrapper is applied at most once.
@@ -146,6 +190,7 @@ export function wrapIntegrationTrack(integration: IntegrationPlugin): void {
     return;
   }
   const buffer = new ImpressionBuffer(integration.track.bind(integration));
+  registry.push(buffer);
   integration.track = (event: ExperimentEvent) => buffer.track(event);
   Object.defineProperty(marked, WRAPPED_KEY, { value: true });
 }

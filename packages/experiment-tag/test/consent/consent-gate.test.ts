@@ -389,6 +389,7 @@ describe('index.ts consent gate', () => {
         required: true,
         started: false,
         startDeferred: true,
+        impressionBuffers: [],
       });
 
       setConsentStatus('granted');
@@ -397,6 +398,7 @@ describe('index.ts consent gate', () => {
         required: true,
         started: true,
         startDeferred: false,
+        impressionBuffers: [],
       });
     });
 
@@ -407,6 +409,7 @@ describe('index.ts consent gate', () => {
         required: false,
         started: true,
         startDeferred: false,
+        impressionBuffers: [],
       });
     });
   });

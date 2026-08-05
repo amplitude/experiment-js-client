@@ -74,8 +74,13 @@ export const consentGate: ConsentGate = {
  * Read-only snapshot of the gate for `getDebugState()` — the consent state is
  * module-scoped (it exists before any client does), so this is how it surfaces
  * on the single debug object at `window.webExperiment.getDebugState()`.
+ * `impressionBuffers` is composed in by the recorder: the buffer module
+ * imports this one, so the dependency cannot point the other way.
  */
-export const getConsentDebugState = (): ConsentDebugInfo => ({
+export const getConsentDebugState = (): Omit<
+  ConsentDebugInfo,
+  'impressionBuffers'
+> => ({
   status: consentGate.manager.getStatus(),
   required: consentGate.required,
   started: consentGate.started,
