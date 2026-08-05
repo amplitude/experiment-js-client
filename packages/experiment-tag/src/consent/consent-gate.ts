@@ -1,4 +1,5 @@
 import { ConsentStatus, InitConfigs, WebExperimentConfig } from '../types';
+import type { ConsentDebugInfo } from '../types/debug';
 
 import { ConsentManager } from './consent-manager';
 
@@ -68,6 +69,18 @@ export const consentGate: ConsentGate = {
     this.cleanupArmedManager = null;
   },
 };
+
+/**
+ * Read-only snapshot of the gate for `getDebugState()` — the consent state is
+ * module-scoped (it exists before any client does), so this is how it surfaces
+ * on the single debug object at `window.webExperiment.getDebugState()`.
+ */
+export const getConsentDebugState = (): ConsentDebugInfo => ({
+  status: consentGate.manager.getStatus(),
+  required: consentGate.required,
+  started: consentGate.started,
+  startDeferred: consentGate.deferredStart !== null,
+});
 
 /**
  * Runs `handler` on the first status transition of the current manager and
