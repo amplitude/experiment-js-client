@@ -1,4 +1,5 @@
 import type { MessageType } from '../subscriptions/message-bus';
+import type { ConsentStatus } from '../types';
 
 // --- Top-level debug state ---
 
@@ -8,6 +9,25 @@ export interface DebugState {
   events: DebugEvent[];
   currentUrl: string;
   timestamp: number;
+  consent: ConsentDebugInfo;
+}
+
+// --- Consent gate debug info ---
+
+/**
+ * Snapshot of the consent gate (`consent/consent-gate.ts`). Present in every
+ * debug state; on pages that never enabled consent gating it reads as inert
+ * (`required: false`).
+ */
+export interface ConsentDebugInfo {
+  /** Tri-state status. Only meaningful when `required` is true. */
+  status: ConsentStatus;
+  /** Whether the customer enabled consent gating. */
+  required: boolean;
+  /** Whether the client has been (or is being) started. */
+  started: boolean;
+  /** True while an `initialize` is parked awaiting a grant. */
+  startDeferred: boolean;
 }
 
 // --- Per-flag debug info ---

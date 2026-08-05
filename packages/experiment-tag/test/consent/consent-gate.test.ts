@@ -13,6 +13,7 @@ import {
 import { SdkPreviewApi } from 'src/preview/preview-api';
 import { ConsentStatus, InitConfigs, WebExperimentConfig } from 'src/types';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
+import { DebugRecorder } from 'src/util/debug-recorder';
 import * as urlUtils from 'src/util/url';
 
 const API_KEY = 'test-api-key-1234567890';
@@ -375,6 +376,38 @@ describe('index.ts consent gate', () => {
       await flushAsync();
 
       expect(getInstance).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('debug state', () => {
+    test('getDebugState().consent tracks the gate through pending -> granted', () => {
+      init({
+        consentOptions: { consentRequired: true, consentStatus: 'pending' },
+      });
+      expect(DebugRecorder.getDebugState().consent).toEqual({
+        status: 'pending',
+        required: true,
+        started: false,
+        startDeferred: true,
+      });
+
+      setConsentStatus('granted');
+      expect(DebugRecorder.getDebugState().consent).toEqual({
+        status: 'granted',
+        required: true,
+        started: true,
+        startDeferred: false,
+      });
+    });
+
+    test('without gating the consent section reads inert', () => {
+      init({});
+      expect(DebugRecorder.getDebugState().consent).toEqual({
+        status: 'pending',
+        required: false,
+        started: true,
+        startDeferred: false,
+      });
     });
   });
 
