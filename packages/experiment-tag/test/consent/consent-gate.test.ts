@@ -430,8 +430,31 @@ describe('index.ts consent gate', () => {
       init({
         consentOptions: { consentRequired: true, consentStatus: 'pending' },
       });
+      // Pending runs the client gated (see 'starts under pending' above).
       expect(DebugRecorder.getDebugState().consent).toEqual({
         status: 'pending',
+        required: true,
+        started: true,
+        startDeferred: false,
+        impressionBuffers: [],
+      });
+
+      setConsentStatus('granted');
+      expect(DebugRecorder.getDebugState().consent).toEqual({
+        status: 'granted',
+        required: true,
+        started: true,
+        startDeferred: false,
+        impressionBuffers: [],
+      });
+    });
+
+    test('getDebugState().consent reports the parked start under denied-at-load', () => {
+      init({
+        consentOptions: { consentRequired: true, consentStatus: 'denied' },
+      });
+      expect(DebugRecorder.getDebugState().consent).toEqual({
+        status: 'denied',
         required: true,
         started: false,
         startDeferred: true,
