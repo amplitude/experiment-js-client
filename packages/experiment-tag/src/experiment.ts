@@ -327,6 +327,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   // Cross-subdomain cookie domain (leading-dot form or ''); resolved once, early
   // in start(), and reused by every EXP_ cookie path (identity + RTBT session).
   private rootDomain = '';
+  /** Redirect impressions parsed from AMP_REDIRECT before the first url_change. */
+  private preloadedUrlRedirectImpressions: Record<
+    string,
+    StoredRedirectImpression
+  > | null = null;
 
   constructor(
     apiKey: string,
@@ -570,6 +575,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       flushEventBuffer(this);
       return;
     }
+
+    this.consumeRedirectParamFromUrl(urlParams);
 
     // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
@@ -1962,6 +1969,29 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
+  private consumeRedirectParamFromUrl(urlParams: Record<string, string>): void {
+    const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
+    if (!encoded) {
+      return;
+    }
+    if (
+      !this.config.redirectConfig?.encodeRedirectInUrl &&
+      !consentGate.required
+    ) {
+      return;
+    }
+    try {
+      this.preloadedUrlRedirectImpressions = JSON.parse(atob(encoded));
+    } catch {
+      this.preloadedUrlRedirectImpressions = {};
+    }
+    const cleanedUrl = removeQueryParams(this.globalScope.location.href, [
+      REDIRECT_IMPRESSION_PARAM,
+    ]);
+    this.subscriptionManager?.markUrlAsPublished(cleanedUrl);
+    this.globalScope.history.replaceState({}, '', cleanedUrl);
+  }
+
   private async fireStoredRedirectImpressions() {
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
 
@@ -1970,11 +2000,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // handleRedirect), so a gated destination must consume the param — and
     // clean the URL — even when the customer never opted into
     // encodeRedirectInUrl, including when consent has been granted by the
-    // time this page loads.
-    let urlImpressions: Record<string, StoredRedirectImpression> = {};
+    // time this page loads. When start() already consumed the param for page
+    // targeting, use that snapshot here.
+    let urlImpressions: Record<string, StoredRedirectImpression> =
+      this.preloadedUrlRedirectImpressions ?? {};
+    this.preloadedUrlRedirectImpressions = null;
     if (
-      this.config.redirectConfig?.encodeRedirectInUrl ||
-      consentGate.required
+      Object.keys(urlImpressions).length === 0 &&
+      (this.config.redirectConfig?.encodeRedirectInUrl || consentGate.required)
     ) {
       const urlParams = getUrlParams();
       const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
