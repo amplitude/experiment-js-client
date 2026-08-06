@@ -9,7 +9,7 @@ import { SdkPreviewApi } from './preview/preview-api';
 import { ConsentStatus, InitConfigs, WebExperimentConfig } from './types';
 import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { mergeWithWindowConfig } from './util/config';
-import { isPreviewMode } from './util/url';
+import { discardRedirectImpressionParam, isPreviewMode } from './util/url';
 
 const eventBuffer: Array<{
   event_type: string;
@@ -136,6 +136,11 @@ export const initialize = (
       // buffered before the deferral began, and the plugin's execute() refuses
       // to buffer while it lasts — so nothing tracked while denied ever replays.
       eventBuffer.length = 0;
+      // Same for a redirect impression a pending source page put on this URL:
+      // the client that would consume it never constructs, so strip the param
+      // here or the assignment payload outlives the page in the address bar
+      // and replays through the deferred start on a later re-grant.
+      discardRedirectImpressionParam();
       return;
     }
     consentGate.deferredStart = null;

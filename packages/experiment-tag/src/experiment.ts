@@ -115,7 +115,7 @@ const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export { PREVIEW_MODE_SESSION_KEY };
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
-const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
+export const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
 // User actions that mark the interaction boundary for the redirect stick-detector.
 // A user cannot call replaceState; anything they do to leave a page passes through
 // one of these, so their presence between a redirect and the next attempt means a
