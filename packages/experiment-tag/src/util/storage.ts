@@ -25,10 +25,12 @@ const pendingWrites = new Map<
 >();
 
 /**
- * The manager this module's flush/drop listener is attached to. Tracking the
- * instance rather than a boolean means a replaced manager (only `reset` does
- * that) re-arms on the next gated call instead of leaving the buffer wired to a
- * manager nothing transitions any more.
+ * The manager this module's flush/drop listener is attached to. The test-only
+ * `consentGate.reset()` replaces the manager with a fresh instance, which
+ * silently strands any listener subscribed to the old one — its status never
+ * changes again, so a stranded listener would never flush or drop the buffer.
+ * Comparing instances (rather than tracking an "armed" boolean) makes the next
+ * gated call notice the swap and re-subscribe to the live manager.
  */
 let armedManager: ConsentManager | null = null;
 

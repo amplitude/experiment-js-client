@@ -37,10 +37,10 @@ interface ConsentGate {
   /**
    * The manager the denial-cleanup listener is attached to, or null before the
    * first gated `initialize` — the listener needs the apiKey that call
-   * supplies (see `armDenialCleanup` in `clear-data.ts`). Tracking the instance
-   * rather than a boolean means a replaced manager (only `reset` does that)
-   * re-arms on the next initialize instead of leaving the cleanup wired to a
-   * manager nothing transitions any more.
+   * supplies (see `armDenialCleanup` in `clear-data.ts`). The test-only
+   * `reset()` replaces the manager, stranding listeners on the old instance
+   * (its status never changes again). Comparing instances rather than tracking
+   * a boolean makes the next initialize re-arm against the live manager.
    */
   cleanupArmedManager: ConsentManager | null;
   /** Test-only reset; kept off the public `index` entry point. */
