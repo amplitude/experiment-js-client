@@ -1,6 +1,16 @@
 import { CampaignParser, CookieStorage, MKTG } from '@amplitude/analytics-core';
 import type { Campaign } from '@amplitude/analytics-core';
 
+import {
+  type AsyncCookieStore,
+  createCookieStorage,
+} from '../consent/consent-cookie-storage';
+import {
+  isConsentPending,
+  isConsentWithheld,
+  onConsentDecision,
+} from '../consent/consent-gate';
+
 const KNOWN_2LDS = [
   'ac.in',
   'ac.jp',
@@ -197,7 +207,7 @@ export async function getTopLevelDomain(hostname: string): Promise<string> {
 export async function resolveCrossSubdomainObject<
   T extends Record<string, string>,
 >(
-  cookieStorage: CookieStorage<string>,
+  cookieStorage: AsyncCookieStore<string>,
   cookieKey: string,
   fallback: Partial<T>,
   generators: { [K in keyof T]: () => string },
@@ -299,6 +309,7 @@ export function deleteRawCookie(key: string, domain?: string): void {
 export class SyncJsonCookie<T> {
   private usable?: boolean;
   private memory?: T;
+  private consentFlushArmed = false;
 
   constructor(
     private readonly key: string,
@@ -311,7 +322,10 @@ export class SyncJsonCookie<T> {
   ) {}
 
   read(): T | undefined {
-    if (this.usable !== false) {
+    // Without consent the cookie is treated as absent: the memory tier is the
+    // only source, so nothing an earlier consented session left behind is read
+    // back.
+    if (!isConsentWithheld() && this.usable !== false) {
       const raw = readRawCookie(this.key);
       const parsed = raw !== undefined ? this.parse(raw) : undefined;
       if (parsed !== undefined) return parsed;
@@ -321,6 +335,16 @@ export class SyncJsonCookie<T> {
 
   write(value: T): void {
     this.memory = value;
+    if (isConsentWithheld()) {
+      // The memory tier already holds the value, and this class degrades to it
+      // whenever the cookie is unavailable — so a withheld write needs no buffer
+      // of its own. Only a pending one is worth arming a flush for; after refusal
+      // the value simply stays in memory for the life of the page.
+      if (isConsentPending()) {
+        this.armConsentFlush();
+      }
+      return;
+    }
     this.usable =
       typeof document !== 'undefined' &&
       this.usable !== false &&
@@ -332,7 +356,30 @@ export class SyncJsonCookie<T> {
 
   clear(): void {
     this.memory = undefined;
+    if (isConsentPending()) {
+      // Nothing of ours is out there to delete, and issuing the expiry would be
+      // a cookie write in its own right. Refusal deliberately falls through, so
+      // denial cleanup can still erase a cookie from a consented visit.
+      return;
+    }
     deleteRawCookie(this.key, this.getDomain() || undefined);
+  }
+
+  /**
+   * Promotes the deferred value to a cookie on grant. Writing the same value
+   * rather than a fresh one is what keeps the session id the visitor already had
+   * while consent was pending, instead of rotating it at the moment of grant.
+   */
+  private armConsentFlush(): void {
+    if (this.consentFlushArmed) {
+      return;
+    }
+    this.consentFlushArmed = true;
+    onConsentDecision((granted) => {
+      if (granted && this.memory !== undefined) {
+        this.write(this.memory);
+      }
+    });
   }
 
   private parse(raw: string): T | undefined {
@@ -347,7 +394,7 @@ export class SyncJsonCookie<T> {
 
 export async function setMarketingCookie(apiKey: string, hostname: string) {
   const domain = await getTopLevelDomain(hostname);
-  const storage = new CookieStorage<Campaign>({
+  const storage = createCookieStorage<Campaign>({
     sameSite: 'Lax',
     ...(domain && { domain }),
   });

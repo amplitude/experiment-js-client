@@ -1,5 +1,12 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+import {
+  isConsentPending,
+  isConsentWithheld,
+  onConsentDecision,
+} from '../consent/consent-gate';
+import { getStorageItem, setStorageItem } from '../util/storage';
+
 import { RelayClient } from './relay-client';
 import { RelayEventStorage } from './relay-protocol';
 import { SessionManager } from './session-manager';
@@ -84,6 +91,13 @@ export class EventStorageManager {
 
     // Load from localStorage into memory on initialization
     this.memoryCache = this.loadFromLocalStorage();
+
+    // Under pending the load above was gated to empty, so the cache no longer
+    // reflects the device. Arm the decision listener now — not on first write —
+    // so a grant reconciles the two even if it arrives before any event.
+    if (isConsentPending()) {
+      this.armConsentListener();
+    }
 
     // Setup flush handlers to prevent data loss
     this.setupFlushHandlers();
@@ -314,48 +328,42 @@ export class EventStorageManager {
 
   /**
    * Loads data from localStorage into memory on initialization.
+   *
+   * Storage access goes through the consent-gated helpers in `util/storage`:
+   * without consent this reads as absent (the cache starts empty rather than
+   * inheriting an earlier consented visit's events), and the uuid backfill
+   * below cannot write to a store the visitor has not agreed to.
    */
   private loadFromLocalStorage(): EventStorage {
-    const stored = localStorage.getItem(this.storageKey);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        // Validate structure to prevent crashes from malformed data
-        if (
-          parsed &&
-          typeof parsed === 'object' &&
-          Array.isArray(parsed.events) &&
-          typeof parsed.nextId === 'number'
-        ) {
-          // Backfill a uuid for any record persisted before uuid existed, so
-          // each keeps a distinct dedup identity (see eventDedupKey). Without
-          // this, uuid-less records share an undefined key and all but one
-          // collapse on the next mergeFromRelay.
-          let backfilled = false;
-          for (const event of parsed.events as EventRecord[]) {
-            if (typeof event.uuid !== 'string' || event.uuid.length === 0) {
-              event.uuid = generateEventUuid();
-              backfilled = true;
-            }
-          }
-          // Persist the minted uuids immediately so they are stable across
-          // reloads and other tabs. Otherwise each load would mint fresh uuids
-          // for the same events and relay sync would push duplicates.
-          if (backfilled) {
-            try {
-              localStorage.setItem(this.storageKey, JSON.stringify(parsed));
-            } catch (e) {
-              // quota/unavailable — a later mutating flush will retry.
-            }
-          }
-          return parsed;
+    const parsed = getStorageItem<EventStorage>(
+      'localStorage',
+      this.storageKey,
+    );
+    // Validate structure to prevent crashes from malformed data
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      Array.isArray(parsed.events) &&
+      typeof parsed.nextId === 'number'
+    ) {
+      // Backfill a uuid for any record persisted before uuid existed, so
+      // each keeps a distinct dedup identity (see eventDedupKey). Without
+      // this, uuid-less records share an undefined key and all but one
+      // collapse on the next mergeFromRelay.
+      let backfilled = false;
+      for (const event of parsed.events) {
+        if (typeof event.uuid !== 'string' || event.uuid.length === 0) {
+          event.uuid = generateEventUuid();
+          backfilled = true;
         }
-        // Invalid structure, return empty
-        return { events: [], nextId: 1 };
-      } catch (e) {
-        // Invalid JSON, return empty
-        return { events: [], nextId: 1 };
       }
+      // Persist the minted uuids immediately so they are stable across
+      // reloads and other tabs. Otherwise each load would mint fresh uuids
+      // for the same events and relay sync would push duplicates.
+      if (backfilled) {
+        setStorageItem('localStorage', this.storageKey, parsed);
+      }
+      return parsed;
     }
     return { events: [], nextId: 1 };
   }
@@ -380,24 +388,57 @@ export class EventStorageManager {
 
   /**
    * Immediately writes in-memory cache to localStorage.
+   *
+   * While consent is withheld nothing reaches the device: the events stay
+   * targetable in memory, and the listener armed at construction settles them
+   * on the consent decision — persisted on grant, dropped on refusal.
    */
   private flushToLocalStorage(): void {
     if (!this.hasPendingWrites) {
       return; // No changes to persist
     }
 
-    try {
-      localStorage.setItem(this.storageKey, JSON.stringify(this.memoryCache));
-      this.hasPendingWrites = false;
+    if (!isConsentWithheld()) {
+      setStorageItem('localStorage', this.storageKey, this.memoryCache);
+    }
+    this.hasPendingWrites = false;
 
-      // Clear debounce timeout since we just flushed
+    // Clear debounce timeout since we just flushed
+    if (this.debouncedWriteTimeout) {
+      clearTimeout(this.debouncedWriteTimeout);
+      this.debouncedWriteTimeout = null;
+    }
+  }
+
+  /**
+   * Settles the pending window on the consent decision. The gated load at
+   * construction hid whatever an earlier consented visit stored, so a grant
+   * folds the device store back into memory (uuid-dedup via `mergeFromRelay`)
+   * and persists the union before any later write-through could replace it.
+   * Refusal drops the pending-window events so they cannot reach the device
+   * through a later re-grant.
+   */
+  private armConsentListener(): void {
+    onConsentDecision((granted) => {
+      if (granted) {
+        const device = this.loadFromLocalStorage();
+        if (
+          device.events.length === 0 &&
+          this.memoryCache.events.length === 0
+        ) {
+          return;
+        }
+        this.mergeFromRelay(device);
+        this.flushToLocalStorage();
+        return;
+      }
+      this.memoryCache = { events: [], nextId: 1 };
+      this.hasPendingWrites = false;
       if (this.debouncedWriteTimeout) {
         clearTimeout(this.debouncedWriteTimeout);
         this.debouncedWriteTimeout = null;
       }
-    } catch (e) {
-      // localStorage quota exceeded or unavailable
-    }
+    });
   }
 
   /**

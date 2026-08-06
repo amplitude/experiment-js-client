@@ -1,5 +1,4 @@
 import { AnalyticsConnector } from '@amplitude/analytics-connector';
-import { CookieStorage } from '@amplitude/analytics-core';
 import { Event, Plugin } from '@amplitude/analytics-types';
 import {
   EvaluationFlag,
@@ -25,10 +24,11 @@ import type { MutationController } from 'dom-mutator/dist/types';
 
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
+import { clearIfErasedElsewhere } from './consent/clear-data';
 import {
-  clearIfErasedElsewhere,
-  identityCookieKey,
-} from './consent/clear-data';
+  type AsyncCookieStore,
+  createCookieStorage,
+} from './consent/consent-cookie-storage';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -82,6 +82,10 @@ import {
   removeStorageItem,
 } from './util/storage';
 import {
+  identityCookieKey,
+  PREVIEW_MODE_SESSION_KEY,
+} from './util/storage-keys';
+import {
   getUrlParams,
   removeQueryParams,
   urlWithoutParamsAndAnchor,
@@ -100,7 +104,7 @@ const MUTATE_ACTION = 'mutate';
 export const INJECT_ACTION = 'inject';
 const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
-export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
+export { PREVIEW_MODE_SESSION_KEY };
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
 
@@ -543,7 +547,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // cross-subdomain identity before getVariants() so anti-flicker and local
     // evaluation use the shared first_seen, not a subdomain-local mint. The
     // domain was resolved early in start() (this.rootDomain).
-    const crossSubdomainCookieStorage = new CookieStorage<string>({
+    const crossSubdomainCookieStorage = createCookieStorage<string>({
       ...(this.rootDomain && { domain: this.rootDomain }),
       sameSite: 'Lax',
       expirationDays: 365,
@@ -1589,7 +1593,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       const domain = await getTopLevelDomain(
         this.globalScope.location.hostname,
       );
-      const storage = new CookieStorage<
+      const storage = createCookieStorage<
         Record<string, StoredRedirectImpression>
       >({
         ...(domain && { domain }),
@@ -1644,13 +1648,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Read cookie impressions (lowest priority) when opted in
     let cookieImpressions: Record<string, StoredRedirectImpression> = {};
     let cookieStorage:
-      | CookieStorage<Record<string, StoredRedirectImpression>>
+      | AsyncCookieStore<Record<string, StoredRedirectImpression>>
       | undefined;
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
       const domain = await getTopLevelDomain(
         this.globalScope.location.hostname,
       );
-      cookieStorage = new CookieStorage<
+      cookieStorage = createCookieStorage<
         Record<string, StoredRedirectImpression>
       >({
         ...(domain && { domain }),

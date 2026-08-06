@@ -7,6 +7,7 @@ import {
 } from './loading-indicator';
 import { isOpenerChannelBroken } from './opener-channel';
 import { getStorageItem } from './storage';
+import { VISUAL_EDITOR_SESSION_KEY } from './storage-keys';
 import { whenBodyReady } from './when-body-ready';
 
 interface VisualEditorSession {
@@ -14,7 +15,7 @@ interface VisualEditorSession {
   amplitudeWindowUrl: string;
 }
 
-export const VISUAL_EDITOR_SESSION_KEY = 'visual-editor-state';
+export { VISUAL_EDITOR_SESSION_KEY };
 
 export class WindowMessenger {
   static setup() {
