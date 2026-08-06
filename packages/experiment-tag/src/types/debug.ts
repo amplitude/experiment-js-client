@@ -28,6 +28,18 @@ export interface ConsentDebugInfo {
   started: boolean;
   /** True while an `initialize` is parked awaiting a grant. */
   startDeferred: boolean;
+  /** One entry per consent-wrapped integration; empty when gating is off. */
+  impressionBuffers: ImpressionBufferDebugInfo[];
+}
+
+/** State of one integration's consent impression buffer. */
+export interface ImpressionBufferDebugInfo {
+  /** Impressions held in memory awaiting a consent decision. */
+  buffered: number;
+  /** Whether a flush-on-decision listener is armed. */
+  flushArmed: boolean;
+  /** Whether the post-grant retry poller is running. */
+  retrying: boolean;
 }
 
 // --- Per-flag debug info ---

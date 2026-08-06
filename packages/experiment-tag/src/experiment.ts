@@ -29,6 +29,8 @@ import {
   type AsyncCookieStore,
   createCookieStorage,
 } from './consent/consent-cookie-storage';
+import { consentGate } from './consent/consent-gate';
+import { wrapIntegrationTrack } from './consent/consent-impression-buffer';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
 import {
@@ -619,6 +621,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     this.globalScope.experimentIntegration.type = 'integration';
+    if (consentGate.required) {
+      // Must precede addPlugin: the integration manager binds `track` as it
+      // takes the plugin on, so a later wrap would never be seen.
+      wrapIntegrationTrack(this.globalScope.experimentIntegration);
+    }
     this.experimentClient.addPlugin(this.globalScope.experimentIntegration);
     this.experimentClient.setUser(enrichedUser);
     this.updateUserWithBehaviors();
