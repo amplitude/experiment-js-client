@@ -179,7 +179,10 @@ export function getCookieDomainLevels(hostname: string): string[] {
  * guess is what the probe would confirm on any host whose public suffix is in
  * {@link KNOWN_2LDS} (or is a plain TLD); on the rare host where it is wrong,
  * writes carrying it fail closed — read-back-verified writers degrade to
- * memory. Not cached, so the first post-grant caller probes for real.
+ * memory. Not cached, so the first post-grant caller probes for real. The one
+ * long-lived capture is `rootDomain` in `experiment.ts`, resolved once in
+ * start(): a wrong guess there keeps identity-cookie writes in memory for the
+ * rest of the page, and the next page load probes for real and recovers.
  */
 function unprobedDomainGuess(hostname: string): string {
   const levels = getCookieDomainLevels(hostname);
