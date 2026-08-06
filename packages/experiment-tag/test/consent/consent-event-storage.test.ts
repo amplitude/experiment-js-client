@@ -157,5 +157,18 @@ describe('EventStorageManager consent gating', () => {
 
       expect(persisted()).toBeUndefined();
     });
+
+    it('does not resurrect pending-window events after denial and a later re-grant', () => {
+      activateConsent('pending');
+      const store = newStore();
+      store.addEvent('before-denial');
+      consentGate.manager.setStatus('denied');
+      consentGate.manager.setStatus('granted');
+
+      store.addEvent('after-grant');
+      store.flush();
+
+      expect(persistedTypes()).toEqual(['after-grant']);
+    });
   });
 });

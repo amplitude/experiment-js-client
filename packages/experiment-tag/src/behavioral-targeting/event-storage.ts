@@ -1,5 +1,10 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
+import {
+  isConsentPending,
+  isConsentWithheld,
+  onConsentDecision,
+} from '../consent/consent-gate';
 import { getStorageItem, setStorageItem } from '../util/storage';
 
 import { RelayClient } from './relay-client';
@@ -74,6 +79,7 @@ export class EventStorageManager {
   private persistedEvents?: Set<string>; // Optional set of event types to persist
   private storageKey: string;
   private relayClient: RelayClient | null = null;
+  private consentListenerArmed = false;
 
   constructor(
     apiKey: string,
@@ -118,6 +124,10 @@ export class EventStorageManager {
     };
 
     this.memoryCache.events.push(event);
+
+    if (isConsentPending()) {
+      this.armConsentListener();
+    }
 
     // Apply FIFO limit. This bounds local memory only; the relay keeps its own
     // copy (the event was already dual-written below), so no relay
@@ -387,6 +397,18 @@ export class EventStorageManager {
       return; // No changes to persist
     }
 
+    if (isConsentWithheld()) {
+      if (isConsentPending()) {
+        setStorageItem('localStorage', this.storageKey, this.memoryCache);
+      }
+      this.hasPendingWrites = false;
+      if (this.debouncedWriteTimeout) {
+        clearTimeout(this.debouncedWriteTimeout);
+        this.debouncedWriteTimeout = null;
+      }
+      return;
+    }
+
     setStorageItem('localStorage', this.storageKey, this.memoryCache);
     this.hasPendingWrites = false;
 
@@ -395,6 +417,28 @@ export class EventStorageManager {
       clearTimeout(this.debouncedWriteTimeout);
       this.debouncedWriteTimeout = null;
     }
+  }
+
+  /**
+   * Pending-window RTBT events must not reach the device on a later re-grant.
+   * Only armed while consent is still pending at first write.
+   */
+  private armConsentListener(): void {
+    if (this.consentListenerArmed) {
+      return;
+    }
+    this.consentListenerArmed = true;
+    onConsentDecision((granted) => {
+      if (granted) {
+        return;
+      }
+      this.memoryCache = { events: [], nextId: 1 };
+      this.hasPendingWrites = false;
+      if (this.debouncedWriteTimeout) {
+        clearTimeout(this.debouncedWriteTimeout);
+        this.debouncedWriteTimeout = null;
+      }
+    });
   }
 
   /**
