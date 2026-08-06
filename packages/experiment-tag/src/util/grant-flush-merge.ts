@@ -29,33 +29,6 @@ export const mergePendingJsonWithDevice = (
       });
     }
 
-    if (key.endsWith('_rtbt_events')) {
-      const pendingStore = pending as {
-        events?: { uuid: string }[];
-        nextId?: number;
-      };
-      const deviceStore = device as {
-        events?: { uuid: string }[];
-        nextId?: number;
-      };
-      const byUuid = new Map<string, unknown>();
-      for (const event of deviceStore.events ?? []) {
-        byUuid.set(event.uuid, event);
-      }
-      for (const event of pendingStore.events ?? []) {
-        byUuid.set(event.uuid, event);
-      }
-      const events = [...byUuid.values()] as { uuid: string }[];
-      return JSON.stringify({
-        events,
-        nextId: Math.max(
-          pendingStore.nextId ?? 1,
-          deviceStore.nextId ?? 1,
-          events.length + 1,
-        ),
-      });
-    }
-
     if (/^EXP_[^_]+$/.test(key)) {
       return JSON.stringify({
         ...pending,

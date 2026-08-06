@@ -79,7 +79,6 @@ export class EventStorageManager {
   private persistedEvents?: Set<string>; // Optional set of event types to persist
   private storageKey: string;
   private relayClient: RelayClient | null = null;
-  private consentListenerArmed = false;
 
   constructor(
     apiKey: string,
@@ -92,6 +91,13 @@ export class EventStorageManager {
 
     // Load from localStorage into memory on initialization
     this.memoryCache = this.loadFromLocalStorage();
+
+    // Under pending the load above was gated to empty, so the cache no longer
+    // reflects the device. Arm the decision listener now — not on first write —
+    // so a grant reconciles the two even if it arrives before any event.
+    if (isConsentPending()) {
+      this.armConsentListener();
+    }
 
     // Setup flush handlers to prevent data loss
     this.setupFlushHandlers();
@@ -124,10 +130,6 @@ export class EventStorageManager {
     };
 
     this.memoryCache.events.push(event);
-
-    if (isConsentPending()) {
-      this.armConsentListener();
-    }
 
     // Apply FIFO limit. This bounds local memory only; the relay keeps its own
     // copy (the event was already dual-written below), so no relay
@@ -387,29 +389,18 @@ export class EventStorageManager {
   /**
    * Immediately writes in-memory cache to localStorage.
    *
-   * The write goes through the consent-gated `setStorageItem`: while consent is
-   * pending the snapshot is held in that module's buffer (and written out on
-   * grant), and after a refusal it is dropped — the events accumulate in memory
-   * and stay targetable for the rest of the page either way.
+   * While consent is withheld nothing reaches the device: the events stay
+   * targetable in memory, and the listener armed at construction settles them
+   * on the consent decision — persisted on grant, dropped on refusal.
    */
   private flushToLocalStorage(): void {
     if (!this.hasPendingWrites) {
       return; // No changes to persist
     }
 
-    if (isConsentWithheld()) {
-      if (isConsentPending()) {
-        setStorageItem('localStorage', this.storageKey, this.memoryCache);
-      }
-      this.hasPendingWrites = false;
-      if (this.debouncedWriteTimeout) {
-        clearTimeout(this.debouncedWriteTimeout);
-        this.debouncedWriteTimeout = null;
-      }
-      return;
+    if (!isConsentWithheld()) {
+      setStorageItem('localStorage', this.storageKey, this.memoryCache);
     }
-
-    setStorageItem('localStorage', this.storageKey, this.memoryCache);
     this.hasPendingWrites = false;
 
     // Clear debounce timeout since we just flushed
@@ -420,16 +411,25 @@ export class EventStorageManager {
   }
 
   /**
-   * Pending-window RTBT events must not reach the device on a later re-grant.
-   * Only armed while consent is still pending at first write.
+   * Settles the pending window on the consent decision. The gated load at
+   * construction hid whatever an earlier consented visit stored, so a grant
+   * folds the device store back into memory (uuid-dedup via `mergeFromRelay`)
+   * and persists the union before any later write-through could replace it.
+   * Refusal drops the pending-window events so they cannot reach the device
+   * through a later re-grant.
    */
   private armConsentListener(): void {
-    if (this.consentListenerArmed) {
-      return;
-    }
-    this.consentListenerArmed = true;
     onConsentDecision((granted) => {
       if (granted) {
+        const device = this.loadFromLocalStorage();
+        if (
+          device.events.length === 0 &&
+          this.memoryCache.events.length === 0
+        ) {
+          return;
+        }
+        this.mergeFromRelay(device);
+        this.flushToLocalStorage();
         return;
       }
       this.memoryCache = { events: [], nextId: 1 };
