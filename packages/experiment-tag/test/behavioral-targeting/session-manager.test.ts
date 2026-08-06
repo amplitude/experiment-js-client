@@ -1,7 +1,11 @@
+import { activateConsent } from '../consent/consent-test-util';
+
 import {
   DEFAULT_SESSION_TIMEOUT_MS,
   SessionManager,
 } from 'src/behavioral-targeting/session-manager';
+import { consentGate } from 'src/consent/consent-gate';
+import * as cookieUtil from 'src/util/cookie';
 
 const testApiKey = 'test-api-key';
 const cookieKey = `EXP_${testApiKey.slice(0, 10)}_rtbt_session`;
@@ -248,6 +252,33 @@ describe('SessionManager', () => {
       const sessionId2 = sessionManager.getCurrentSessionId();
 
       expect(sessionId1).not.toBe(sessionId2);
+    });
+  });
+
+  describe('cookie domain resolution under consent gating', () => {
+    afterEach(() => {
+      consentGate.reset();
+      jest.restoreAllMocks();
+    });
+
+    test('does not pin the unprobed guess: first post-grant write probes for real', () => {
+      const spy = jest.spyOn(cookieUtil, 'getTopLevelDomainSync');
+      activateConsent('denied');
+      const manager = new SessionManager(testApiKey);
+      // Denial cleanup falls through to a cookie delete, which resolves the
+      // domain while consent is withheld — an unprobed guess.
+      manager.clearSession();
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      // The guess must not be pinned: the first post-grant write re-resolves
+      // with a real writability probe.
+      consentGate.manager.setStatus('granted');
+      manager.recordActivity();
+      expect(spy).toHaveBeenCalledTimes(2);
+
+      // The probed result is pinned; later writes reuse it.
+      manager.recordActivity();
+      expect(spy).toHaveBeenCalledTimes(2);
     });
   });
 
