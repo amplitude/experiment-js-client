@@ -114,7 +114,7 @@ const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export { PREVIEW_MODE_SESSION_KEY };
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
-const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
+export const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
 
 type StoredRedirectImpression = {
   redirectUrl: string;

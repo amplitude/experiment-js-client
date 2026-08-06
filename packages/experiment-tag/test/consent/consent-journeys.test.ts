@@ -150,6 +150,37 @@ describe('consent journeys', () => {
     expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
   });
 
+  test('denied at load: strips the AMP_REDIRECT param a pending source page added', async () => {
+    // A pending-window redirect on the source page forces its impression
+    // payload onto this URL. Denied here means the impression is dropped, so
+    // the payload must not stay in the address bar or replay on re-grant.
+    const encoded = btoa(
+      JSON.stringify({ 'flag-1': { redirectUrl: 'http://test.com/landing' } }),
+    );
+    mockGlobal.location.href = `http://test.com/landing?AMP_REDIRECT=${encoded}`;
+    mockGlobal.location.search = `?AMP_REDIRECT=${encoded}`;
+
+    initialize(API_KEY, INIT_CONFIGS, {
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
+    });
+    await flushAsync();
+
+    expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
+      {},
+      '',
+      'http://test.com/landing',
+    );
+  });
+
+  test('denied at load: leaves the URL alone when no redirect param is present', async () => {
+    initialize(API_KEY, INIT_CONFIGS, {
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
+    });
+    await flushAsync();
+
+    expect(mockGlobal.history.replaceState).not.toHaveBeenCalled();
+  });
+
   test('denied at load -> granted: re-opt-in starts the client and persists identity', async () => {
     initialize(API_KEY, INIT_CONFIGS, {
       consentOptions: { consentRequired: true, consentStatus: 'denied' },
