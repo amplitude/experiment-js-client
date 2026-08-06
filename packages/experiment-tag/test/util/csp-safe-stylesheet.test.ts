@@ -88,7 +88,7 @@ describe('cspSafeStyleSheet', () => {
     document.body.removeChild(host);
   });
 
-  it('falls back to a style element when adoptedStyleSheets is missing', () => {
+  it('adopts onto the owning Document when target lacks adoptedStyleSheets', () => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const shadow = host.attachShadow({ mode: 'open' });
@@ -96,41 +96,21 @@ describe('cspSafeStyleSheet', () => {
       configurable: true,
       get: () => undefined,
     });
+    document.adoptedStyleSheets = [];
 
     const handle = cspSafeStyleSheet(shadow, '.foo { color: green; }');
 
-    const styles = shadow.querySelectorAll('style');
-    expect(styles).toHaveLength(1);
-    expect(styles[0]?.textContent).toBe('.foo { color: green; }');
-
-    handle.revert();
     expect(shadow.querySelectorAll('style')).toHaveLength(0);
-
-    handle.reapply();
-    expect(shadow.querySelectorAll('style')).toHaveLength(1);
-
-    handle.revert();
-    document.body.removeChild(host);
-  });
-
-  it('style-element fallback revert and reapply are idempotent', () => {
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-    const shadow = host.attachShadow({ mode: 'open' });
-    Object.defineProperty(shadow, 'adoptedStyleSheets', {
-      configurable: true,
-      get: () => undefined,
-    });
-
-    const handle = cspSafeStyleSheet(shadow, '.foo {}');
-    handle.reapply();
-    handle.reapply();
-    expect(shadow.querySelectorAll('style')).toHaveLength(1);
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+    expect(document.adoptedStyleSheets[0]).toBeInstanceOf(CSSStyleSheet);
 
     handle.revert();
-    handle.revert();
-    expect(shadow.querySelectorAll('style')).toHaveLength(0);
+    expect(document.adoptedStyleSheets).toHaveLength(0);
 
+    handle.reapply();
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+
+    handle.revert();
     document.body.removeChild(host);
   });
 });
