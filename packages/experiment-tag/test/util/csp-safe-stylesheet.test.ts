@@ -87,4 +87,30 @@ describe('cspSafeStyleSheet', () => {
     expect(shadow.adoptedStyleSheets).toHaveLength(0);
     document.body.removeChild(host);
   });
+
+  it('adopts onto the owning Document when target lacks adoptedStyleSheets', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const shadow = host.attachShadow({ mode: 'open' });
+    Object.defineProperty(shadow, 'adoptedStyleSheets', {
+      configurable: true,
+      get: () => undefined,
+    });
+    document.adoptedStyleSheets = [];
+
+    const handle = cspSafeStyleSheet(shadow, '.foo { color: green; }');
+
+    expect(shadow.querySelectorAll('style')).toHaveLength(0);
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+    expect(document.adoptedStyleSheets[0]).toBeInstanceOf(CSSStyleSheet);
+
+    handle.revert();
+    expect(document.adoptedStyleSheets).toHaveLength(0);
+
+    handle.reapply();
+    expect(document.adoptedStyleSheets).toHaveLength(1);
+
+    handle.revert();
+    document.body.removeChild(host);
+  });
 });
