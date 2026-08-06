@@ -8,6 +8,7 @@ import {
 } from '../consent/consent-gate';
 import type { ConsentManager } from '../consent/consent-manager';
 
+import { mergePendingJsonWithDevice } from './grant-flush-merge';
 import { CONSENT_EXEMPT_STORAGE_KEYS } from './storage-keys';
 
 export type StorageType = 'localStorage' | 'sessionStorage';
@@ -43,7 +44,16 @@ const armConsentListener = (): void => {
   onConsentDecision((granted) => {
     if (granted) {
       for (const { storageType, key, json } of pendingWrites.values()) {
-        writeThrough(storageType, key, json);
+        if (consentGate.manager.getStatus() !== 'granted') {
+          break;
+        }
+        const merged = mergePendingJsonWithDevice(
+          storageType,
+          key,
+          json,
+          readDeviceJson,
+        );
+        writeThrough(storageType, key, merged);
       }
     }
     // Denial discards them: consent was withheld for the whole window in which
@@ -128,6 +138,17 @@ export const setStorageItem = (
     return;
   }
   writeThrough(storageType, key, jsonString);
+};
+
+const readDeviceJson = (
+  storageType: StorageType,
+  key: string,
+): string | null => {
+  try {
+    return getStorage(storageType)?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
 };
 
 const writeThrough = (

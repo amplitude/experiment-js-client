@@ -1,6 +1,9 @@
 import { CookieStorage } from '@amplitude/analytics-core';
 
+import { mergeIdentityCookieJson } from '../util/grant-flush-merge';
+
 import {
+  consentGate,
   isConsentPending,
   isConsentWithheld,
   onConsentDecision,
@@ -16,6 +19,10 @@ export interface AsyncCookieStore<T> {
   set(key: string, value: T): Promise<void>;
   remove(key: string): Promise<void>;
 }
+
+/** Snapshots a buffered value so callers cannot mutate what a grant will flush. */
+const snapshotValue = <T>(value: T): T =>
+  JSON.parse(JSON.stringify(value)) as T;
 
 /**
  * Holds cookie writes in memory until consent arrives, then hands them to the
@@ -41,7 +48,8 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
     if (isConsentWithheld()) {
       // Empty once consent has been refused, so this reads as absent.
       this.armFlush();
-      return this.buffered.get(key);
+      const value = this.buffered.get(key);
+      return value === undefined ? undefined : snapshotValue(value);
     }
     await this.flush;
     return this.delegate.get(key);
@@ -51,7 +59,7 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
     if (isConsentWithheld()) {
       if (isConsentPending()) {
         this.armFlush();
-        this.buffered.set(key, value);
+        this.buffered.set(key, snapshotValue(value));
       }
       return;
     }
@@ -84,8 +92,19 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
       }
       this.flush = (async () => {
         for (const [key, value] of entries) {
+          if (consentGate.manager.getStatus() !== 'granted') {
+            return;
+          }
           try {
-            await this.delegate.set(key, value);
+            const existing = await this.delegate.get(key);
+            const merged =
+              typeof value === 'string'
+                ? (mergeIdentityCookieJson(
+                    existing as string | undefined,
+                    value,
+                  ) as T)
+                : value;
+            await this.delegate.set(key, merged);
           } catch {
             // Blocked cookie I/O degrades silently, as the raw paths do.
           }

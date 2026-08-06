@@ -207,5 +207,27 @@ describe('ConsentAwareCookieStorage', () => {
 
       expect(delegate.set).not.toHaveBeenCalled();
     });
+
+    it('does not flush a mutated in-memory copy', async () => {
+      activateConsent('pending');
+      const delegate = {
+        store: {} as Record<string, { v: number }>,
+        get: jest.fn((key: string) => Promise.resolve(delegate.store[key])),
+        set: jest.fn((key: string, value: { v: number }) => {
+          delegate.store[key] = value;
+          return Promise.resolve();
+        }),
+        remove: jest.fn(async () => undefined),
+      };
+      const storage = new ConsentAwareCookieStorage(delegate);
+      await storage.set('ck', { v: 1 });
+      const cached = await storage.get('ck');
+      (cached as { v: number }).v = 99;
+
+      consentGate.manager.setStatus('granted');
+      await storage.get('ck');
+
+      expect(delegate.store.ck).toEqual({ v: 1 });
+    });
   });
 });

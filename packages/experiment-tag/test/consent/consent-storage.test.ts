@@ -152,6 +152,28 @@ describe('consent-gated storage helpers', () => {
 
       expect(globalScope.localStorage.getItem('k')).toBeNull();
     });
+
+    it('prefers durable identity on the device over a pending-window mint on grant', () => {
+      const key = 'EXP_test-api-k';
+      globalScope.localStorage.setItem(
+        key,
+        JSON.stringify({ web_exp_id: 'old', web_exp_id_v2: 'old-v2' }),
+      );
+      activateConsent('pending');
+      setStorageItem('localStorage', key, {
+        web_exp_id: 'new',
+        web_exp_id_v2: 'new-v2',
+      });
+
+      consentGate.manager.setStatus('granted');
+
+      expect(
+        JSON.parse(globalScope.localStorage.getItem(key) as string),
+      ).toEqual({
+        web_exp_id: 'old',
+        web_exp_id_v2: 'old-v2',
+      });
+    });
   });
 
   describe('denial', () => {
