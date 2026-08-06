@@ -87,9 +87,14 @@ class ImpressionBuffer {
       if (granted) {
         this.flush();
       } else {
-        this.buffered.length = 0;
+        this.discardBuffered();
       }
     });
+  }
+
+  private discardBuffered(): void {
+    this.buffered.length = 0;
+    this.stopRetry();
   }
 
   /**
@@ -99,6 +104,12 @@ class ImpressionBuffer {
    * retries, mirroring how the SDK's own queue drains.
    */
   private flush(): void {
+    if (isConsentWithheld()) {
+      if (!isConsentPending()) {
+        this.discardBuffered();
+      }
+      return;
+    }
     let sent = 0;
     for (; sent < this.buffered.length; sent++) {
       try {

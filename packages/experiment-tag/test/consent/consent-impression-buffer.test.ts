@@ -253,6 +253,24 @@ describe('impression consent buffer', () => {
       expect(integration.track(impression('flag-1'))).toBe(true);
       expect(integration.tracked).toEqual([]);
     });
+
+    it('stops a retry poller when consent is revoked mid-flush', () => {
+      jest.useFakeTimers();
+      activateConsent('pending');
+      const integration = fakeIntegration();
+      wrapIntegrationTrack(integration);
+      integration.track(impression('flag-1'));
+      integration.accepts = false;
+
+      consentGate.manager.setStatus('granted');
+      expect(getImpressionBufferDebugState()[0].retrying).toBe(true);
+
+      consentGate.manager.setStatus('denied');
+      jest.advanceTimersByTime(2000);
+
+      expect(integration.tracked).toEqual([]);
+      expect(getImpressionBufferDebugState()[0].retrying).toBe(false);
+    });
   });
 
   it('tracks through when consent gating was never activated', () => {
