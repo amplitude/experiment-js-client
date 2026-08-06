@@ -130,6 +130,42 @@ describe('EventStorageManager consent gating', () => {
       store.flush();
       expect(persistedTypes()).toEqual(['first', 'second', 'third']);
     });
+
+    it('merges pending-window events with an earlier consented visit instead of replacing it', () => {
+      seedPersistedEvents();
+      activateConsent('pending');
+      const store = newStore();
+      store.addEvent('during-pending');
+      store.flush();
+
+      consentGate.manager.setStatus('granted');
+
+      // The prior visit's store survives the grant and is targetable again.
+      expect(persistedTypes()).toEqual(['prior', 'during-pending']);
+      expect(store.getEventCount('prior')).toBe(1);
+
+      store.addEvent('after-grant');
+      store.flush();
+      expect(persistedTypes()).toEqual([
+        'prior',
+        'during-pending',
+        'after-grant',
+      ]);
+    });
+
+    it('rehydrates the prior store on a grant that arrives before any write', () => {
+      seedPersistedEvents();
+      activateConsent('pending');
+      const store = newStore();
+
+      consentGate.manager.setStatus('granted');
+
+      store.addEvent('after-grant');
+      store.flush();
+
+      expect(persistedTypes()).toEqual(['prior', 'after-grant']);
+      expect(store.getEventCount('prior')).toBe(1);
+    });
   });
 
   describe('denial', () => {
