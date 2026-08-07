@@ -205,6 +205,22 @@ describe('DefaultUserProvider', () => {
       });
     });
 
+    test('gated: cookies are not read into the user context', async () => {
+      let allowed = false;
+      const defaultUserProvider = mockProvider(
+        new DefaultUserProvider(undefined, 'apikey', () => allowed),
+      );
+      // Cookies an earlier consented visit left behind must not enter the
+      // evaluation context while the guard is closed.
+      expect(defaultUserProvider.getUser().cookie).toBeUndefined();
+
+      allowed = true;
+      expect(defaultUserProvider.getUser().cookie).toEqual({
+        c1: 'v1',
+        c2: 'v2',
+      });
+    });
+
     test('guard reopening resumes normal persistence', async () => {
       let allowed = false;
       const defaultUserProvider = mockProvider(

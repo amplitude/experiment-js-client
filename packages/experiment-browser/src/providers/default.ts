@@ -100,6 +100,12 @@ export class DefaultUserProvider implements ExperimentUserProvider {
   }
 
   private getCookie(): Record<string, string> {
+    // Reads are gated with writes: while consent is withheld, cookies an
+    // earlier consented visit left behind (experiment identity, analytics
+    // device ids) must not enter the evaluation context.
+    if (!this.canPersist()) {
+      return undefined;
+    }
     if (!this.globalScope?.document?.cookie) {
       return undefined;
     }
