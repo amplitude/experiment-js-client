@@ -179,10 +179,11 @@ export function getCookieDomainLevels(hostname: string): string[] {
  * guess is what the probe would confirm on any host whose public suffix is in
  * {@link KNOWN_2LDS} (or is a plain TLD); on the rare host where it is wrong,
  * writes carrying it fail closed — read-back-verified writers degrade to
- * memory. Not cached, so the first post-grant caller probes for real. The one
- * long-lived capture is `rootDomain` in `experiment.ts`, resolved once in
- * start(): a wrong guess there keeps identity-cookie writes in memory for the
- * rest of the page, and the next page load probes for real and recovers.
+ * memory. Not cached, so the first post-grant caller probes for real. No
+ * caller may capture this guess past the withheld window: cookie storages
+ * resolve their domain through a lazy options factory (see
+ * createCookieStorage) and the RTBT session re-resolves per write, so the
+ * first post-grant write always sees a real probe.
  */
 function unprobedDomainGuess(hostname: string): string {
   const levels = getCookieDomainLevels(hostname);
@@ -415,10 +416,14 @@ export class SyncJsonCookie<T> {
 }
 
 export async function setMarketingCookie(apiKey: string, hostname: string) {
-  const domain = await getTopLevelDomain(hostname);
-  const storage = createCookieStorage<Campaign>({
-    sameSite: 'Lax',
-    ...(domain && { domain }),
+  // Domain resolved lazily so a pending-time guess is not baked in; see
+  // createCookieStorage.
+  const storage = createCookieStorage<Campaign>(async () => {
+    const domain = await getTopLevelDomain(hostname);
+    return {
+      sameSite: 'Lax',
+      ...(domain && { domain }),
+    };
   });
 
   const parser = new CampaignParser();

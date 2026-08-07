@@ -41,8 +41,26 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
    */
   private flush: Promise<void> | null = null;
   private flushArmed = false;
+  private resolvedDelegate: Promise<AsyncCookieStore<T>> | null = null;
 
-  constructor(private readonly delegate: AsyncCookieStore<T>) {}
+  /**
+   * A factory delegate is resolved lazily, on the first access that actually
+   * reaches real storage. That lets construction-time inputs that cannot be
+   * probed while consent is withheld — the cross-subdomain cookie domain —
+   * be resolved for real once consent is granted, instead of freezing the
+   * unprobed guess a pending-time construction would capture.
+   */
+  constructor(
+    private readonly delegate:
+      | AsyncCookieStore<T>
+      | (() => Promise<AsyncCookieStore<T>> | AsyncCookieStore<T>),
+  ) {}
+
+  private getDelegate(): Promise<AsyncCookieStore<T>> {
+    return (this.resolvedDelegate ??= Promise.resolve(
+      typeof this.delegate === 'function' ? this.delegate() : this.delegate,
+    ));
+  }
 
   async get(key: string): Promise<T | undefined> {
     if (isConsentWithheld()) {
@@ -52,7 +70,7 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
       return value === undefined ? undefined : snapshotValue(value);
     }
     await this.flush;
-    return this.delegate.get(key);
+    return (await this.getDelegate()).get(key);
   }
 
   async set(key: string, value: T): Promise<void> {
@@ -64,7 +82,7 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
       return;
     }
     await this.flush;
-    return this.delegate.set(key, value);
+    return (await this.getDelegate()).set(key, value);
   }
 
   async remove(key: string): Promise<void> {
@@ -76,7 +94,7 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
       return;
     }
     await this.flush;
-    return this.delegate.remove(key);
+    return (await this.getDelegate()).remove(key);
   }
 
   private armFlush(): void {
@@ -91,12 +109,22 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
         return;
       }
       this.flush = (async () => {
+        // Resolved here, after the grant, so a factory delegate probes the
+        // real cookie domain rather than reusing a pending-time guess.
+        let delegate: AsyncCookieStore<T>;
+        try {
+          delegate = await this.getDelegate();
+        } catch {
+          // A failed delegate drops the buffer, like blocked cookie I/O; the
+          // flush itself must not reject or every later access would too.
+          return;
+        }
         for (const [key, value] of entries) {
           if (consentGate.manager.getStatus() !== 'granted') {
             return;
           }
           try {
-            const existing = await this.delegate.get(key);
+            const existing = await delegate.get(key);
             const merged =
               typeof value === 'string'
                 ? (mergeIdentityCookieJson(
@@ -104,7 +132,7 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
                     value,
                   ) as T)
                 : value;
-            await this.delegate.set(key, merged);
+            await delegate.set(key, merged);
           } catch {
             // Blocked cookie I/O degrades silently, as the raw paths do.
           }
@@ -114,11 +142,24 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
   }
 }
 
+type CookieStorageOptions = ConstructorParameters<typeof CookieStorage>[0];
+
 /**
  * Builds the cookie storage every experiment-tag call site should use, so a new
  * one cannot silently bypass the consent gate.
+ *
+ * Pass a function when an option can only be resolved with a device probe —
+ * the cross-subdomain `domain` — so it is evaluated on the first access that
+ * reaches real storage (post-grant for a visitor who started out pending)
+ * rather than frozen at construction while consent is withheld.
  */
 export const createCookieStorage = <T>(
-  options?: ConstructorParameters<typeof CookieStorage>[0],
+  options?:
+    | CookieStorageOptions
+    | (() => Promise<CookieStorageOptions> | CookieStorageOptions),
 ): AsyncCookieStore<T> =>
-  new ConsentAwareCookieStorage<T>(new CookieStorage<T>(options));
+  new ConsentAwareCookieStorage<T>(
+    typeof options === 'function'
+      ? async () => new CookieStorage<T>(await options())
+      : new CookieStorage<T>(options),
+  );
