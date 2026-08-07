@@ -287,6 +287,53 @@ describe('pending-run wiring', () => {
       );
     });
 
+    test('grant restores durable localStorage identity when no durable cookie existed', async () => {
+      // Cookie expired (or was cleared) but localStorage survived: the grant
+      // flush writes the pending-time mint into the cookie (no durable cookie
+      // wins the merge), so a plain re-read returns this page's own mint. An
+      // ungated start() would have seeded the cookie from localStorage — the
+      // refresh must converge to that, not let the mint become permanent.
+      activateConsent('pending');
+      const expKey = `EXP_${stringify(apiKey).slice(0, 10)}`;
+      mockGlobal.localStorage.setItem(
+        expKey,
+        JSON.stringify({
+          web_exp_id: 'durable-id',
+          web_exp_id_v2: 'durable-v2',
+        }),
+      );
+      mockGlobal.localStorage.setItem(
+        `${expKey}_DEFAULT_USER_PROVIDER`,
+        JSON.stringify({ first_seen: '1000' }),
+      );
+
+      await newBehavioralClient().start();
+      await flushAsync();
+
+      consentGate.manager.setStatus('granted');
+      await flushAsync();
+
+      expect(RelayClient).toHaveBeenCalledTimes(1);
+      expect((RelayClient as unknown as jest.Mock).mock.calls[0][1]).toEqual(
+        'durable-v2',
+      );
+      const setUserCalls = (ExperimentClient.prototype.setUser as jest.Mock)
+        .mock.calls;
+      expect(setUserCalls[setUserCalls.length - 1][0]).toEqual(
+        expect.objectContaining({
+          web_exp_id: 'durable-id',
+          web_exp_id_v2: 'durable-v2',
+          first_seen: '1000',
+        }),
+      );
+      // The cookie was rewritten with the durable values, so later loads
+      // resolve the same identity instead of the pending-time mint.
+      expect(JSON.parse(cookieStore[`${expKey}_identity`])).toEqual({
+        web_exp_id_v2: 'durable-v2',
+        first_seen: '1000',
+      });
+    });
+
     test('a denial racing start() keeps the relay out for the page, even across a re-opt-in', async () => {
       // Regression: when the denial lands before scheduleRelaySync runs, the
       // status is already 'denied' at the withheld check. Arming the deferral
