@@ -293,6 +293,20 @@ describe('pending-run wiring', () => {
     });
   });
 
+  describe('constructor localStorage probe', () => {
+    test('skipped while consent is withheld (the probe writes a throwaway key)', () => {
+      activateConsent('pending');
+      newBehavioralClient();
+      expect(experimentCore.isLocalStorageAvailable).not.toHaveBeenCalled();
+    });
+
+    test('runs as usual once consent is granted', () => {
+      activateConsent('granted');
+      newBehavioralClient();
+      expect(experimentCore.isLocalStorageAvailable).toHaveBeenCalled();
+    });
+  });
+
   describe('redirect impressions under pending', () => {
     test('forces the AMP_REDIRECT URL transport without the encodeRedirectInUrl opt-in', async () => {
       activateConsent('pending');

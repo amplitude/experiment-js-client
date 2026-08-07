@@ -305,7 +305,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
-    if (!globalScope || !isLocalStorageAvailable()) {
+    // While consent is withheld nothing may touch localStorage — including the
+    // availability probe, which writes a throwaway key. Storage is gated to
+    // memory until a grant, and every post-grant path degrades on failure, so
+    // deferring the probe to an unlucky consented construction loses nothing.
+    if (!globalScope || (!isConsentWithheld() && !isLocalStorageAvailable())) {
       throw new Error(
         'Amplitude Web Experiment Client could not be initialized.',
       );
