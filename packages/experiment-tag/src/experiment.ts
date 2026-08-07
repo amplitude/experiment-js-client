@@ -329,6 +329,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     string,
     StoredRedirectImpression
   > | null = null;
+  /**
+   * Settles once the post-grant identity refresh has finished (or right away on
+   * refusal). Armed only by a pending start(), whose gated reads may have
+   * minted an ephemeral identity; the deferred relay sync awaits it so the
+   * relay binds to the durable identity the grant flush restored.
+   */
+  private identityRefreshOnGrant: Promise<void> | null = null;
 
   constructor(
     apiKey: string,
@@ -664,6 +671,70 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     user.first_seen = identity.first_seen;
+
+    // Under pending, the gated reads above hid any durable identity an earlier
+    // consented visit stored, so the ids resolved here may be an ephemeral
+    // mint. The grant flush restores the durable identity on disk
+    // (grant-flush-merge), but this running client would otherwise keep the
+    // ephemeral one for the rest of the page — fragmenting sticky bucketing
+    // and cross-subdomain behavioral data across the grant boundary. Re-read
+    // the reconciled identity after the flush and move the client onto it, so
+    // post-grant evaluation and the deferred relay sync bind to the identity
+    // every later page load will use. Variants already painted stay as
+    // applied; a mid-page repaint at the moment of grant would be worse than
+    // one page of drift on the exposures already queued.
+    if (isConsentPending()) {
+      this.identityRefreshOnGrant = new Promise<void>((resolve) => {
+        onConsentDecision((granted) => {
+          if (!granted) {
+            resolve();
+            return;
+          }
+          void (async () => {
+            try {
+              // The localStorage gate flushed synchronously when this listener's
+              // predecessors ran (they were armed earlier, on the buffered
+              // writes); the cookie read below joins the cookie gate's flush.
+              const durableUser =
+                getStorageItem<WebExperimentUser>(
+                  'localStorage',
+                  experimentStorageName,
+                ) || {};
+              const refreshed = await resolveCrossSubdomainObject(
+                crossSubdomainCookieStorage,
+                identityCookieKey(this.apiKey),
+                {
+                  web_exp_id_v2:
+                    durableUser.web_exp_id_v2 ?? user.web_exp_id_v2,
+                  first_seen: user.first_seen,
+                },
+                {
+                  web_exp_id_v2: UUID,
+                  first_seen: () => (Date.now() / 1000).toString(),
+                },
+              );
+              user.web_exp_id = durableUser.web_exp_id ?? user.web_exp_id;
+              user.web_exp_id_v2 = refreshed.web_exp_id_v2;
+              user.first_seen = refreshed.first_seen;
+              const refreshedUser: WebExperimentUser = {
+                ...((this.experimentClient.getUser() ??
+                  {}) as WebExperimentUser),
+                web_exp_id: user.web_exp_id,
+                web_exp_id_v2: user.web_exp_id_v2,
+                first_seen: user.first_seen,
+              };
+              this.experimentClient.setUser(refreshedUser);
+            } catch {
+              // A failed refresh keeps the ephemeral identity — the same state
+              // the page was already in; the next load reads the durable one.
+            } finally {
+              resolve();
+            }
+          })();
+        });
+      });
+    }
+
     this.experimentClient.setUser(user);
 
     // evaluate variants for page targeting
@@ -1034,9 +1105,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // Third-party surface: the relay iframe stores events in the CDN origin's
     // localStorage, so it must not exist before consent. Deferred rather than
-    // skipped — a grant re-runs this with the same user, and by then the
-    // storage-gate flush listeners (armed earlier, on the buffered writes)
-    // have already run, so the merge reads a complete local event store. A
+    // skipped — a grant re-runs this, and by then the storage-gate flush
+    // listeners (armed earlier, on the buffered writes) have already run, so
+    // the merge reads a complete local event store. The re-entry awaits the
+    // identity refresh (also armed earlier in start(), so its listener fires
+    // first) and re-reads the client's user, so the relay binds to the
+    // durable identity the grant restored rather than a pending-time mint. A
     // refusal spends the one-shot subscription without injecting and the
     // relay stays out for the rest of the page — a later re-opt-in gets it on
     // the next load. A refusal that already landed (a denial racing start())
@@ -1047,7 +1121,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       if (isConsentPending()) {
         onConsentDecision((granted) => {
           if (granted) {
-            this.scheduleRelaySync(user);
+            void (async () => {
+              await this.identityRefreshOnGrant;
+              this.scheduleRelaySync({
+                ...user,
+                ...(this.experimentClient.getUser() as WebExperimentUser),
+              });
+            })();
           }
         });
       }
