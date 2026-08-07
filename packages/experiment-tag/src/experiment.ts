@@ -646,6 +646,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // applied; a mid-page repaint at the moment of grant would be worse than
     // one page of drift on the exposures already queued.
     if (isConsentPending()) {
+      // The pending-time resolution, snapshotted before the grant handler
+      // mutates `user`: any post-flush cookie field still equal to one of
+      // these can only be this page's own buffered write (gated reads saw no
+      // cookie, so these values were minted or subdomain-local), and a
+      // durable value that survived elsewhere on disk should win over it.
+      const pendingWebExpIdV2 = user.web_exp_id_v2;
+      const pendingFirstSeen = user.first_seen;
       this.identityRefreshOnGrant = new Promise<void>((resolve) => {
         onConsentDecision((granted) => {
           if (!granted) {
@@ -662,22 +669,62 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
                   'localStorage',
                   experimentStorageName,
                 ) || {};
+              const durableProvider =
+                getStorageItem<{ first_seen?: string }>(
+                  'localStorage',
+                  defaultUserProviderStorageKey,
+                ) || {};
               const refreshed = await resolveCrossSubdomainObject(
                 crossSubdomainCookieStorage,
                 identityCookieKey(this.apiKey),
                 {
                   web_exp_id_v2:
                     durableUser.web_exp_id_v2 ?? user.web_exp_id_v2,
-                  first_seen: user.first_seen,
+                  first_seen: durableProvider.first_seen ?? user.first_seen,
                 },
                 {
                   web_exp_id_v2: UUID,
                   first_seen: () => (Date.now() / 1000).toString(),
                 },
               );
+              // When no durable cookie existed the flush merge wrote the
+              // pending-time values into it, so the re-read above returns this
+              // page's own mint. An ungated start() would have seeded the
+              // cookie from the durable localStorage values instead — converge
+              // to that: restore them over any field still at its pending-time
+              // value and rewrite the cookie, so the mint does not become the
+              // visitor's permanent identity.
+              const restored = { ...refreshed };
+              if (
+                durableUser.web_exp_id_v2 &&
+                refreshed.web_exp_id_v2 === pendingWebExpIdV2 &&
+                durableUser.web_exp_id_v2 !== pendingWebExpIdV2
+              ) {
+                restored.web_exp_id_v2 = durableUser.web_exp_id_v2;
+              }
+              if (
+                durableProvider.first_seen &&
+                refreshed.first_seen === pendingFirstSeen &&
+                durableProvider.first_seen !== pendingFirstSeen
+              ) {
+                restored.first_seen = durableProvider.first_seen;
+              }
+              if (
+                restored.web_exp_id_v2 !== refreshed.web_exp_id_v2 ||
+                restored.first_seen !== refreshed.first_seen
+              ) {
+                try {
+                  await crossSubdomainCookieStorage.set(
+                    identityCookieKey(this.apiKey),
+                    JSON.stringify(restored),
+                  );
+                } catch {
+                  /* write blocked: carry the restored values in memory only */
+                }
+              }
               user.web_exp_id = durableUser.web_exp_id ?? user.web_exp_id;
-              user.web_exp_id_v2 = refreshed.web_exp_id_v2;
-              user.first_seen = refreshed.first_seen;
+              user.web_exp_id_v2 = restored.web_exp_id_v2;
+              user.first_seen = restored.first_seen;
               const refreshedUser: WebExperimentUser = {
                 ...((this.experimentClient.getUser() ??
                   {}) as WebExperimentUser),
