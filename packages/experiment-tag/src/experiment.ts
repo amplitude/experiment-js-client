@@ -324,9 +324,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, string> = {};
-  // Cross-subdomain cookie domain (leading-dot form or ''); resolved once, early
-  // in start(), and reused by every EXP_ cookie path (identity + RTBT session).
-  private rootDomain = '';
   /** Redirect impressions parsed from AMP_REDIRECT before the first url_change. */
   private preloadedUrlRedirectImpressions: Record<
     string,
@@ -586,15 +583,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
-    // Resolve the cross-subdomain cookie domain as early as possible — but after
-    // the synchronous url_change above, whose subscribers apply anti-flicker
-    // variants/redirects before this first await. Every EXP_ cookie needs it:
-    // identity just below, and the RTBT session (behavioral-targeting plugin)
-    // whose sync writes resolve it via getTopLevelDomainSync(). The
-    // writability probe is async, so it must complete before any cookie write.
-    this.rootDomain = await getTopLevelDomain(
-      this.globalScope.location.hostname,
-    );
+    // Warm the cross-subdomain cookie-domain cache as early as possible — but
+    // after the synchronous url_change above, whose subscribers apply
+    // anti-flicker variants/redirects before this first await. Under withheld
+    // consent this returns an uncached guess (probing writes a cookie), so
+    // every consumer resolves the domain lazily at write time instead of
+    // capturing this result: the identity storage below via its options
+    // factory, the RTBT session via getTopLevelDomainSync().
+    await getTopLevelDomain(this.globalScope.location.hostname);
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     const user =
@@ -619,12 +615,21 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Resolve web_exp_id_v2 and first_seen as a single root-domain cookie for
     // cross-subdomain identity before getVariants() so anti-flicker and local
     // evaluation use the shared first_seen, not a subdomain-local mint. The
-    // domain was resolved early in start() (this.rootDomain).
-    const crossSubdomainCookieStorage = createCookieStorage<string>({
-      ...(this.rootDomain && { domain: this.rootDomain }),
-      sameSite: 'Lax',
-      expirationDays: 365,
-    });
+    // domain is resolved when the storage first reaches real cookies — for a
+    // pending start that is the grant flush, when a real writability probe is
+    // allowed, so the cookie is not pinned to an unprobed pending-time guess.
+    const crossSubdomainCookieStorage = createCookieStorage<string>(
+      async () => {
+        const domain = await getTopLevelDomain(
+          this.globalScope.location.hostname,
+        );
+        return {
+          ...(domain && { domain }),
+          sameSite: 'Lax',
+          expirationDays: 365,
+        };
+      },
+    );
 
     const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
     const defaultUserProviderData =
@@ -1948,15 +1953,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.config.redirectConfig?.encodeRedirectInCookie &&
       isCrossSubdomain
     ) {
-      const domain = await getTopLevelDomain(
-        this.globalScope.location.hostname,
-      );
       const storage = createCookieStorage<
         Record<string, StoredRedirectImpression>
-      >({
-        ...(domain && { domain }),
-        sameSite: 'Lax',
-        expirationDays: 1 / 1440, // 1 minute
+      >(async () => {
+        const domain = await getTopLevelDomain(
+          this.globalScope.location.hostname,
+        );
+        return {
+          ...(domain && { domain }),
+          sameSite: 'Lax',
+          expirationDays: 1 / 1440, // 1 minute
+        };
       });
 
       try {
@@ -2043,14 +2050,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       | AsyncCookieStore<Record<string, StoredRedirectImpression>>
       | undefined;
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
-      const domain = await getTopLevelDomain(
-        this.globalScope.location.hostname,
-      );
       cookieStorage = createCookieStorage<
         Record<string, StoredRedirectImpression>
-      >({
-        ...(domain && { domain }),
-        sameSite: 'Lax',
+      >(async () => {
+        const domain = await getTopLevelDomain(
+          this.globalScope.location.hostname,
+        );
+        return {
+          ...(domain && { domain }),
+          sameSite: 'Lax',
+        };
       });
       try {
         cookieImpressions = (await cookieStorage.get(storageKey)) || {};
