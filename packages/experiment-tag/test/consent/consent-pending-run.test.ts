@@ -245,6 +245,48 @@ describe('pending-run wiring', () => {
       expect(mockRelayDestroy).toHaveBeenCalled();
     });
 
+    test('grant moves the client onto the durable identity before the relay binds', async () => {
+      // Pending gated reads hide the identity an earlier consented visit
+      // stored, so start() mints an ephemeral one. The grant flush restores
+      // the durable identity on disk; the refresh must move the running
+      // client onto it and the deferred relay must bind to it — otherwise
+      // this page's behavioral data fragments under an id that never
+      // appears again.
+      activateConsent('pending');
+      const expKey = `EXP_${stringify(apiKey).slice(0, 10)}`;
+      mockGlobal.localStorage.setItem(
+        expKey,
+        JSON.stringify({
+          web_exp_id: 'durable-id',
+          web_exp_id_v2: 'durable-v2',
+        }),
+      );
+      cookieStore[`${expKey}_identity`] = JSON.stringify({
+        web_exp_id_v2: 'durable-v2',
+        first_seen: '100',
+      });
+
+      await newBehavioralClient().start();
+      await flushAsync();
+      expect(RelayClient).not.toHaveBeenCalled();
+
+      consentGate.manager.setStatus('granted');
+      await flushAsync();
+
+      expect(RelayClient).toHaveBeenCalledTimes(1);
+      expect((RelayClient as unknown as jest.Mock).mock.calls[0][1]).toEqual(
+        'durable-v2',
+      );
+      const setUserCalls = (ExperimentClient.prototype.setUser as jest.Mock)
+        .mock.calls;
+      expect(setUserCalls[setUserCalls.length - 1][0]).toEqual(
+        expect.objectContaining({
+          web_exp_id: 'durable-id',
+          web_exp_id_v2: 'durable-v2',
+        }),
+      );
+    });
+
     test('a denial racing start() keeps the relay out for the page, even across a re-opt-in', async () => {
       // Regression: when the denial lands before scheduleRelaySync runs, the
       // status is already 'denied' at the withheld check. Arming the deferral
