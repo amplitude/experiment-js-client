@@ -21,11 +21,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ${{ github.actor }} permission check
-        uses: 'lannonbr/repo-permission-check-action@2bb8c89ba8bf115c4bfab344d6a6f442b24c9a1f' # 2.0.2
-        with:
-          permission: 'write'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PERMISSION=$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${GITHUB_ACTOR}/permission" --jq '.permission')
+          echo "${GITHUB_ACTOR} has '${PERMISSION}' permission"
+          if [ "$PERMISSION" != "admin" ] && [ "$PERMISSION" != "write" ]; then
+            echo "::error::${GITHUB_ACTOR} needs write permission to run a release"
+            exit 1
+          fi
 
   release:
     name: Release
@@ -52,7 +56,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Set up SSH for deploy key
