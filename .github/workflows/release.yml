@@ -21,15 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ${{ github.actor }} permission check
+        uses: amplitude/actions/repo-permission-check-action@main
+        with:
+          permission: 'write'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PERMISSION=$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${GITHUB_ACTOR}/permission" --jq '.permission')
-          echo "${GITHUB_ACTOR} has '${PERMISSION}' permission"
-          if [ "$PERMISSION" != "admin" ] && [ "$PERMISSION" != "write" ]; then
-            echo "::error::${GITHUB_ACTOR} needs write permission to run a release"
-            exit 1
-          fi
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release:
     name: Release
