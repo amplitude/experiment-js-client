@@ -1,4 +1,5 @@
 dist/
+docs/
 example/
 .eslintrc.js
 **/rollup.config.js
