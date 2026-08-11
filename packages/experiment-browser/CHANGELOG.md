@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.22.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.21.4...@amplitude/experiment-js-client@1.22.0) (2026-08-11)
+
+
+### Features
+
+* **experiment-browser:** support injectable in-memory cache storage for web experiment ([#355](https://github.com/amplitude/experiment-js-client/issues/355)) ([6acec43](https://github.com/amplitude/experiment-js-client/commit/6acec437e93281cfc3aac15753bfdd071263b89e))
+
+
+
+
+
 ## [1.21.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.21.3...@amplitude/experiment-js-client@1.21.4) (2026-07-29)
 
 **Note:** Version bump only for package @amplitude/experiment-js-client
