@@ -263,7 +263,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.isRunning) {
       return;
     }
-    patchDOMParser();
     patchRemoveChild();
     patchDOMParser(this.config.nonce);
     installSpaLinkInterceptor();
