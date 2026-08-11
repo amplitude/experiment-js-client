@@ -39,12 +39,12 @@ export const patchDOMParser = (nonce?: string) => {
       const doc = parseFromString.apply(this, [content, contentType]);
       if (contentType === 'text/html') {
         if (nonce) {
-          doc.body
+          doc
             .querySelectorAll('style:not([nonce])')
             .forEach((el) => el.setAttribute('nonce', nonce));
         }
 
-        doc.body.querySelectorAll('[style]').forEach((el) => {
+        doc.querySelectorAll('[style]').forEach((el) => {
           (el as HTMLElement).style.cssText = el.getAttribute(
             'style',
           ) as string;
