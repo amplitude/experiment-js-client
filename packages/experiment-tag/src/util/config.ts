@@ -28,7 +28,9 @@ export const mergeWithWindowConfig = (
   };
 
   // Attempt to find CSP nonce from the DOM when the config doesn't set one
-  merged.nonce ??= (document?.querySelector('[nonce]') as HTMLElement)?.nonce;
+  merged.nonce ??= (
+    globalScope?.document?.querySelector('[nonce]') as HTMLElement
+  )?.nonce;
 
   return merged;
 };
