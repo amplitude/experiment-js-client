@@ -26,10 +26,14 @@ const detectStyleCSP = () => {
  */
 export const patchDOMParser = (nonce?: string) => {
   const globalScope = getGlobalScope();
+  const getNonce = () =>
+    nonce ??
+    (globalScope?.document.querySelector('[nonce]') as HTMLElement | null)
+      ?.nonce;
   if (
     globalScope &&
     !globalScope['__domParserParseFromString'] &&
-    (nonce || detectStyleCSP())
+    (getNonce() || detectStyleCSP())
   ) {
     // eslint-disable-next-line @typescript-eslint/unbound-method -- original is always re-invoked via .apply(this, ...) below
     const parseFromString = DOMParser.prototype.parseFromString;
@@ -38,10 +42,11 @@ export const patchDOMParser = (nonce?: string) => {
     DOMParser.prototype.parseFromString = function (content, contentType) {
       const doc = parseFromString.apply(this, [content, contentType]);
       if (contentType === 'text/html') {
-        if (nonce) {
+        const styleNonce = getNonce();
+        if (styleNonce) {
           doc
             .querySelectorAll('style:not([nonce])')
-            .forEach((el) => el.setAttribute('nonce', nonce));
+            .forEach((el) => el.setAttribute('nonce', styleNonce));
         }
 
         doc.querySelectorAll('[style]').forEach((el) => {
