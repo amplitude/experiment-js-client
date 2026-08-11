@@ -397,6 +397,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     patchDOMParser();
     patchRemoveChild();
+    patchDOMParser(this.config.nonce);
     installSpaLinkInterceptor();
     const urlParams = getUrlParams();
 
@@ -490,7 +491,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         // React 18 concurrent render is in-flight.
         await buildShell(this.globalScope);
       }
-      WindowMessenger.setup();
+      WindowMessenger.setup(this.config.nonce);
       this.globalScope.history.replaceState(
         {},
         '',
@@ -1761,7 +1762,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         ),
       );
       // if in preview mode, listen for ForceVariant messages
-      WindowMessenger.setup();
+      WindowMessenger.setup(this.config.nonce);
     } else {
       const previewState: PreviewState | null = getStorageItem(
         'sessionStorage',

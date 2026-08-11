@@ -18,7 +18,7 @@ interface VisualEditorSession {
 export { VISUAL_EDITOR_SESSION_KEY };
 
 export class WindowMessenger {
-  static setup() {
+  static setup(nonce?: string) {
     let state: 'closed' | 'opening' | 'open' = 'closed';
 
     // Surface a diagnostic so `getDebugState().events` exposes the opener
@@ -40,7 +40,7 @@ export class WindowMessenger {
       DebugRecorder.setMessengerState('loading');
       state = 'opening';
       showLoadingIndicator();
-      asyncLoadScript(existingSession.injectSrc)
+      asyncLoadScript(existingSession.injectSrc, nonce)
         .then(() => {
           state = 'open';
           DebugRecorder.setMessengerState('loaded');
@@ -124,7 +124,7 @@ export class WindowMessenger {
           DebugRecorder.setMessengerState('loading');
           state = 'opening';
           showLoadingIndicator();
-          asyncLoadScript(e.data.context.injectSrc)
+          asyncLoadScript(e.data.context.injectSrc, nonce)
             .then(() => {
               state = 'open';
               DebugRecorder.setMessengerState('loaded');
@@ -171,7 +171,7 @@ export class WindowMessenger {
   }
 }
 
-export const asyncLoadScript = (url: string) => {
+export const asyncLoadScript = (url: string, nonce?: string) => {
   return new Promise((resolve, reject) => {
     DebugRecorder.push('script_load_start', `loading ${url}`);
 
@@ -183,12 +183,7 @@ export const asyncLoadScript = (url: string) => {
         scriptElement.src = url;
 
         // Set the script nonce if it exists
-        const nonceElem = document.querySelector('[nonce]');
-        if (nonceElem) {
-          const nonce =
-            nonceElem['nonce'] ||
-            (nonceElem as any).nonce ||
-            nonceElem.getAttribute('nonce');
+        if (nonce) {
           scriptElement.setAttribute('nonce', nonce);
           DebugRecorder.push('nonce_check', `found: ${String(nonce)}`);
         } else {
