@@ -134,8 +134,8 @@ export function buildShell(globalScope: GlobalScope): Promise<void> {
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: #fff;
-      background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABZSURBVHgB7dG7DYBADANQJxexAiXSTXw9uyExBih34SOxQhr83Li2ASIiIiIiIpo7QbLW1tms1zijq9puSDaGLxhhuBPaqyKZTFK+/r6AZOJlg8shqv5ccAGZWRnaKiSy9QAAAABJRU5ErkJggg==");
+      background: #fdfdfd radial-gradient(rgba(0, 23, 253, 0.5) 1px, transparent 1px);
+      background-size: 32px 32px;
     `;
 
     const container = doc.createElement('div');
