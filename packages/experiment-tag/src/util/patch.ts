@@ -29,7 +29,7 @@ export const patchDOMParser = (nonce?: string) => {
   if (
     globalScope &&
     !globalScope['__domParserParseFromString'] &&
-    detectStyleCSP()
+    (nonce || detectStyleCSP())
   ) {
     // eslint-disable-next-line @typescript-eslint/unbound-method -- original is always re-invoked via .apply(this, ...) below
     const parseFromString = DOMParser.prototype.parseFromString;
