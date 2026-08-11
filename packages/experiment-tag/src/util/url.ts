@@ -1,6 +1,10 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import { PREVIEW_MODE_PARAM, PREVIEW_MODE_SESSION_KEY } from '../experiment';
+import {
+  PREVIEW_MODE_PARAM,
+  PREVIEW_MODE_SESSION_KEY,
+  REDIRECT_IMPRESSION_PARAM,
+} from '../experiment';
 import { PreviewState } from '../types';
 
 import { getStorageItem } from './storage';
@@ -34,6 +38,27 @@ export const removeQueryParams = (
     urlObj.searchParams.delete(param);
   }
   return urlObj.toString();
+};
+
+/**
+ * Strips the redirect-impression transport param without consuming it. A
+ * pending-window redirect forces its impression payload onto the destination
+ * URL (see handleRedirect) because nothing else survives the navigation; when
+ * that destination loads denied, the impression is dropped like every other
+ * denied-era event, and the payload must not linger in the address bar,
+ * history, or referrers — or replay through the deferred start on a later
+ * re-grant.
+ */
+export const discardRedirectImpressionParam = (): void => {
+  const globalScope = getGlobalScope();
+  if (!globalScope || !getUrlParams()[REDIRECT_IMPRESSION_PARAM]) {
+    return;
+  }
+  globalScope.history.replaceState(
+    {},
+    '',
+    removeQueryParams(globalScope.location.href, [REDIRECT_IMPRESSION_PARAM]),
+  );
 };
 
 export const matchesUrl = (urlArray: string[], urlString: string): boolean => {

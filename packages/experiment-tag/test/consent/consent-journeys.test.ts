@@ -95,35 +95,90 @@ describe('consent journeys', () => {
     );
   });
 
-  test('pending: nothing is constructed and no storage is written', async () => {
+  test('pending: client runs, but nothing reaches storage', async () => {
     initialize(API_KEY, INIT_CONFIGS, {
       consentOptions: { consentRequired: true, consentStatus: 'pending' },
     });
     await flushAsync();
 
-    expect(mockGlobal.webExperiment.isStub).toBe(true);
+    // The client is real and running — experiments are live under pending —
+    // while every persistence surface stays untouched.
+    expect(mockGlobal.webExperiment.isStub).toBeFalsy();
+    expect(mockGlobal.webExperiment.isRunning).toBe(true);
     expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
     expect(mockGlobal.sessionStorage.setItem).not.toHaveBeenCalled();
     expect(Object.keys(cookieStore)).toHaveLength(0);
   });
 
-  test('pending -> granted: client starts and identity is persisted', async () => {
+  test('pending -> granted: the running client flushes identity to storage', async () => {
     initialize(API_KEY, INIT_CONFIGS, {
       consentOptions: { consentRequired: true, consentStatus: 'pending' },
     });
     await flushAsync();
+    expect(mockGlobal.webExperiment.isRunning).toBe(true);
     expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
 
-    // Customer CMP grants consent via the stub.
+    // Customer CMP grants consent on the already-running client: no relaunch,
+    // the buffered identity write flushes out.
     mockGlobal.webExperiment.setConsentStatus('granted');
     await flushAsync();
 
-    expect(mockGlobal.webExperiment.isStub).toBeFalsy();
     expect(mockGlobal.webExperiment.isRunning).toBe(true);
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       IDENTITY_LS_KEY,
       expect.any(String),
     );
+  });
+
+  test('pending -> denied: nothing is written, and a later re-opt-in does not resurrect pre-denial data', async () => {
+    initialize(API_KEY, INIT_CONFIGS, {
+      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+    });
+    await flushAsync();
+    expect(mockGlobal.webExperiment.isRunning).toBe(true);
+
+    mockGlobal.webExperiment.setConsentStatus('denied');
+    await flushAsync();
+    expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
+    expect(mockGlobal.sessionStorage.setItem).not.toHaveBeenCalled();
+    expect(Object.keys(cookieStore)).toHaveLength(0);
+
+    // The denial dropped the buffers and spent the one-shot flush listeners,
+    // so a preference-center re-opt-in must not write out pre-denial data.
+    mockGlobal.webExperiment.setConsentStatus('granted');
+    await flushAsync();
+    expect(mockGlobal.localStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  test('denied at load: strips the AMP_REDIRECT param a pending source page added', async () => {
+    // A pending-window redirect on the source page forces its impression
+    // payload onto this URL. Denied here means the impression is dropped, so
+    // the payload must not stay in the address bar or replay on re-grant.
+    const encoded = btoa(
+      JSON.stringify({ 'flag-1': { redirectUrl: 'http://test.com/landing' } }),
+    );
+    mockGlobal.location.href = `http://test.com/landing?AMP_REDIRECT=${encoded}`;
+    mockGlobal.location.search = `?AMP_REDIRECT=${encoded}`;
+
+    initialize(API_KEY, INIT_CONFIGS, {
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
+    });
+    await flushAsync();
+
+    expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
+      {},
+      '',
+      'http://test.com/landing',
+    );
+  });
+
+  test('denied at load: leaves the URL alone when no redirect param is present', async () => {
+    initialize(API_KEY, INIT_CONFIGS, {
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
+    });
+    await flushAsync();
+
+    expect(mockGlobal.history.replaceState).not.toHaveBeenCalled();
   });
 
   test('denied at load -> granted: re-opt-in starts the client and persists identity', async () => {

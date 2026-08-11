@@ -19,11 +19,35 @@ export class DefaultUserProvider implements ExperimentUserProvider {
 
   public readonly userProvider: ExperimentUserProvider | undefined;
   private readonly apiKey?: string;
+  /**
+   * When provided and returning false, `landing_url` and `first_seen` are
+   * computed for the current call without reading or writing web storage.
+   * Used by experiment-tag while cookie consent is withheld — it supplies its
+   * own consent-managed `first_seen` via the user object (which wins the
+   * merge), so nothing is lost by not persisting here.
+   */
+  private readonly persistenceAllowed?: () => boolean;
+  /**
+   * The first URL seen while persistence was gated. Without it, an SPA
+   * navigation before consent resolves would shift the reported landing page
+   * per call, and a grant after that navigation would persist the page at
+   * grant time rather than where the visitor actually landed.
+   */
+  private gatedLandingUrl?: string;
 
-  constructor(userProvider?: ExperimentUserProvider, apiKey?: string) {
+  constructor(
+    userProvider?: ExperimentUserProvider,
+    apiKey?: string,
+    persistenceAllowed?: () => boolean,
+  ) {
     this.userProvider = userProvider;
     this.apiKey = apiKey;
+    this.persistenceAllowed = persistenceAllowed;
     this.storageKey = `EXP_${this.apiKey?.slice(0, 10)}_DEFAULT_USER_PROVIDER`;
+  }
+
+  private canPersist(): boolean {
+    return this.persistenceAllowed ? this.persistenceAllowed() : true;
   }
 
   getUser(): ExperimentUser {
@@ -76,6 +100,12 @@ export class DefaultUserProvider implements ExperimentUserProvider {
   }
 
   private getCookie(): Record<string, string> {
+    // Reads are gated with writes: while consent is withheld, cookies an
+    // earlier consented visit left behind (experiment identity, analytics
+    // device ids) must not enter the evaluation context.
+    if (!this.canPersist()) {
+      return undefined;
+    }
     if (!this.globalScope?.document?.cookie) {
       return undefined;
     }
@@ -85,15 +115,21 @@ export class DefaultUserProvider implements ExperimentUserProvider {
   }
 
   private getLandingUrl(): string | undefined {
+    if (!this.canPersist()) {
+      // Storage is gated (reads included): report the first URL of this
+      // page's life as the landing page without consulting or extending the
+      // per-session record.
+      this.gatedLandingUrl ??= this.getCurrentUrl();
+      return this.gatedLandingUrl;
+    }
     try {
       const sessionUser = JSON.parse(
         this.sessionStorage.get(this.storageKey) || '{}',
       );
       if (!sessionUser.landing_url) {
-        sessionUser.landing_url = this.globalScope?.location?.href.replace(
-          /\/$/,
-          '',
-        );
+        // Prefer the URL remembered from the gated window, so a grant after
+        // an SPA navigation persists where the visitor actually landed.
+        sessionUser.landing_url = this.gatedLandingUrl ?? this.getCurrentUrl();
         this.sessionStorage.put(this.storageKey, JSON.stringify(sessionUser));
       }
       return sessionUser.landing_url;
@@ -102,7 +138,17 @@ export class DefaultUserProvider implements ExperimentUserProvider {
     }
   }
 
+  private getCurrentUrl(): string | undefined {
+    return this.globalScope?.location?.href.replace(/\/$/, '');
+  }
+
   private getFirstSeen(): string | undefined {
+    if (!this.canPersist()) {
+      // Storage is gated: mint a per-call value rather than persist one. A
+      // caller that manages first_seen itself (experiment-tag does, behind
+      // its consent gate) overrides this via the user-object merge.
+      return (Date.now() / 1000).toString();
+    }
     try {
       const localUser = JSON.parse(
         this.localStorage.get(this.storageKey) || '{}',
