@@ -32,7 +32,6 @@ import {
   SubscriptionManager,
 } from './subscriptions/subscriptions';
 import {
-  Defaults,
   InitConfigs,
   WebExperimentClient,
   WebExperimentConfig,
@@ -48,6 +47,7 @@ import {
 import type { AudienceEvaluationDebugInfo, DebugState } from './types/debug';
 import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
+import { mergeWithWindowConfig } from './util/config';
 import {
   getTopLevelDomain,
   resolveCrossSubdomainObject,
@@ -179,11 +179,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       : {};
 
     // merge config with defaults and experimentConfig (if provided)
-    this.config = {
-      ...Defaults,
-      ...config,
-      ...(this.globalScope.experimentConfig ?? {}),
-    };
+    this.config = mergeWithWindowConfig(config, globalScope);
 
     // Initialize behavioral targeting infrastructure only if there are rules
     if (Object.keys(this.behavioralTargetingRules).length > 0) {
@@ -269,6 +265,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     patchDOMParser();
     patchRemoveChild();
+    patchDOMParser(this.config.nonce);
     installSpaLinkInterceptor();
     const urlParams = getUrlParams();
 
@@ -362,7 +359,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         // React 18 concurrent render is in-flight.
         await buildShell(this.globalScope);
       }
-      WindowMessenger.setup();
+      WindowMessenger.setup(this.config.nonce);
       this.globalScope.history.replaceState(
         {},
         '',
@@ -1598,7 +1595,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         ),
       );
       // if in preview mode, listen for ForceVariant messages
-      WindowMessenger.setup();
+      WindowMessenger.setup(this.config.nonce);
     } else {
       const previewState: PreviewState | null = getStorageItem(
         'sessionStorage',

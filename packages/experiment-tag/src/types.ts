@@ -144,6 +144,12 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * zone. Intended for local/staging testing of the relay serving path.
    */
   relayUrl?: string;
+
+  /**
+   * CSP nonce applied to injected elements when the page has a nonce policy.
+   * By default, falls back to first `[nonce]` element's nonce if found.
+   */
+  nonce?: string;
 }
 
 export const Defaults: WebExperimentConfig = {

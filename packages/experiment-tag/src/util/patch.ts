@@ -24,7 +24,7 @@ const detectStyleCSP = () => {
 /**
  * Patch DOMParser to set inline styles programmatically to work around restrictive style CSP
  */
-export const patchDOMParser = () => {
+export const patchDOMParser = (nonce?: string) => {
   const globalScope = getGlobalScope();
   if (
     globalScope &&
@@ -35,17 +35,13 @@ export const patchDOMParser = () => {
     const parseFromString = DOMParser.prototype.parseFromString;
     globalScope['__domParserParseFromString'] = parseFromString;
 
-    const nonce = globalScope.document
-      .querySelector('meta[name="csp-nonce"]')
-      ?.getAttribute('content');
-
     DOMParser.prototype.parseFromString = function (content, contentType) {
       const doc = parseFromString.apply(this, [content, contentType]);
       if (contentType === 'text/html') {
         if (nonce) {
-          doc.querySelectorAll('style:not([nonce])').forEach((el) => {
-            el.setAttribute('nonce', nonce);
-          });
+          doc.body
+            .querySelectorAll('style:not([nonce])')
+            .forEach((el) => el.setAttribute('nonce', nonce));
         }
 
         doc.body.querySelectorAll('[style]').forEach((el) => {
