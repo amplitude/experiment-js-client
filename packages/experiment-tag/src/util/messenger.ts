@@ -178,14 +178,18 @@ export const asyncLoadScript = (url: string, nonce?: string) => {
     const loadScript = () => {
       try {
         const scriptElement = document.createElement('script');
+        const scriptNonce =
+          nonce ??
+          (getGlobalScope()?.document?.querySelector('[nonce]') as HTMLElement)
+            ?.nonce;
         scriptElement.type = 'text/javascript';
         scriptElement.async = true;
         scriptElement.src = url;
 
         // Set the script nonce if it exists
-        if (nonce) {
-          scriptElement.setAttribute('nonce', nonce);
-          DebugRecorder.push('nonce_check', `found: ${String(nonce)}`);
+        if (scriptNonce) {
+          scriptElement.setAttribute('nonce', scriptNonce);
+          DebugRecorder.push('nonce_check', `found: ${String(scriptNonce)}`);
         } else {
           DebugRecorder.push('nonce_check', 'not found, skipping');
         }
