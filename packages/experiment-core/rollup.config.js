@@ -37,9 +37,8 @@ const getOutputConfig = (outputOptions) => ({
 });
 
 const configs = [
-  // legacy build for field "main" - ie8, umd, es5 syntax
   {
-    ...getCommonBrowserConfig('es5'),
+    ...getCommonBrowserConfig('es2017'),
     ...getOutputConfig({
       entryFileNames: 'experiment-core.umd.js',
       exports: 'named',
@@ -48,9 +47,8 @@ const configs = [
     external: [],
   },
 
-  // tree shakable build for field "module" - ie8, esm, es5 syntax
   {
-    ...getCommonBrowserConfig('es5'),
+    ...getCommonBrowserConfig('es2017'),
     ...getOutputConfig({
       entryFileNames: 'experiment-core.esm.js',
       format: 'esm',
@@ -58,7 +56,7 @@ const configs = [
     external: ['unfetch'],
   },
 
-  // modern build for field "es2015" - not ie, esm, es2015 syntax
+  // build for field "es2015"
   {
     ...getCommonBrowserConfig('es2015'),
     ...getOutputConfig({

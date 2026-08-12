@@ -59,7 +59,7 @@ const getOutputConfig = (outputOptions) => ({
   },
 });
 
-const config = getCommonBrowserConfig('es5');
+const config = getCommonBrowserConfig('es2017');
 const configs = [
   {
     ...config,
