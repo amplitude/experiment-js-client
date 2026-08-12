@@ -44,6 +44,7 @@ const getOutputConfig = (outputOptions) => ({
 });
 
 const configs = [
+  // legacy build for field "main"
   {
     ...getCommonBrowserConfig('es6'),
     ...getOutputConfig({
@@ -54,6 +55,7 @@ const configs = [
     external: [],
   },
 
+  // tree shakable build for field "module"
   {
     ...getCommonBrowserConfig('es6'),
     ...getOutputConfig({

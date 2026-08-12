@@ -13,6 +13,7 @@
   "license": "MIT",
   "main": "dist/experiment-core.umd.js",
   "module": "dist/experiment-core.esm.js",
+  "es2015": "dist/experiment-core.esm.js",
   "types": "dist/types/src/index.d.ts",
   "publishConfig": {
     "access": "public"

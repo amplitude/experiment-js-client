@@ -7,6 +7,7 @@
   "license": "MIT",
   "main": "dist/analytics-connector.umd.js",
   "module": "dist/analytics-connector.esm.js",
+  "es2015": "dist/analytics-connector.esm.js",
   "types": "dist/types/src/index.d.ts",
   "publishConfig": {
     "access": "public"

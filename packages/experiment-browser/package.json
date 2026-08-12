@@ -11,6 +11,7 @@
   "license": "MIT",
   "main": "dist/experiment.umd.js",
   "module": "dist/experiment.esm.js",
+  "es2015": "dist/experiment.esm.js",
   "types": "dist/types/src/index.d.ts",
   "publishConfig": {
     "access": "public"
