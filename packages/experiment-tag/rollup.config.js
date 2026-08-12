@@ -37,16 +37,10 @@ const getCommonBrowserConfig = (target) => ({
     commonjs(),
     typescript({
       tsconfig: './tsconfig.build.json',
-      ...(target === 'es2015'
-        ? { target: 'es2015', downlevelIteration: true }
-        : { downlevelIteration: true }),
     }),
     babel({
-      configFile:
-        target === 'es2015'
-          ? pathResolve(__dirname, '../..', 'babel.es2015.config.js')
-          : undefined,
       babelHelpers: 'bundled',
+      extensions: ['.js', '.ts'],
       exclude: ['node_modules/**'],
     }),
     analyze({
@@ -74,7 +68,7 @@ const getOutputConfig = (outputOptions) => ({
   },
 });
 
-const config = getCommonBrowserConfig('es5');
+const config = getCommonBrowserConfig('es6');
 const configs = [
   {
     ...config,

@@ -32,7 +32,6 @@ another with an example for integrating with the amplitude analytics SDK.
 
 ## Browser Compatibility
 
-This SDK works with all major browsers and IE10+. The SDK does make use of
-Promises, so if you are targeting a browser that does not have native support
-for Promise (for example, IE), you should include a polyfill for Promise, (for
-example, [es6-promise](https://github.com/stefanpenner/es6-promise)).
+Published browser builds target browsers that fully support ES6 and async
+functions (Chrome 55+, Firefox 54+,
+Safari 11+, Edge 15+). Internet Explorer is not supported.

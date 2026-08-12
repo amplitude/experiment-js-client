@@ -23,14 +23,10 @@ const getCommonBrowserConfig = (target) => ({
     commonjs(),
     typescript({
       tsconfig: './tsconfig.build.json',
-      ...(target === 'es2015' ? { target: 'es2015' } : {}),
     }),
     babel({
-      configFile:
-        target === 'es2015'
-          ? pathResolve(__dirname, '../..', 'babel.es2015.config.js')
-          : undefined,
       babelHelpers: 'bundled',
+      extensions: ['.js', '.ts'],
       exclude: ['node_modules/**'],
     }),
     analyze({
@@ -48,9 +44,8 @@ const getOutputConfig = (outputOptions) => ({
 });
 
 const configs = [
-  // legacy build for field "main" - ie8, umd, es5 syntax
   {
-    ...getCommonBrowserConfig('es5'),
+    ...getCommonBrowserConfig('es6'),
     ...getOutputConfig({
       entryFileNames: 'analytics-connector.umd.js',
       exports: 'named',
@@ -59,21 +54,10 @@ const configs = [
     external: [],
   },
 
-  // tree shakable build for field "module" - ie8, esm, es5 syntax
   {
-    ...getCommonBrowserConfig('es5'),
+    ...getCommonBrowserConfig('es6'),
     ...getOutputConfig({
       entryFileNames: 'analytics-connector.esm.js',
-      format: 'esm',
-    }),
-    external: [],
-  },
-
-  // modern build for field "es2015" - not ie, esm, es2015 syntax
-  {
-    ...getCommonBrowserConfig('es2015'),
-    ...getOutputConfig({
-      entryFileNames: 'analytics-connector.es2015.js',
       format: 'esm',
     }),
     external: [],
