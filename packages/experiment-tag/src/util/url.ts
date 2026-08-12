@@ -25,6 +25,38 @@ export const urlWithoutParamsAndAnchor = (url: string): string => {
   return urlObj.toString();
 };
 
+/**
+ * Strip only the query string, keeping the path AND hash. Redirect loop
+ * comparisons must stay hash-aware to match the exact destination guard: on a
+ * hash-router site the hash is the route, so `/#/home` and `/#/browse` are
+ * different destinations, not the same one with a stripped anchor.
+ */
+export const urlWithoutQuery = (url: string): string => {
+  if (!url) {
+    return '';
+  }
+  try {
+    const urlObj = new URL(url);
+    urlObj.search = '';
+    return urlObj.toString();
+  } catch {
+    return url;
+  }
+};
+
+export const urlWithoutHash = (url: string): string => {
+  if (!url) {
+    return '';
+  }
+  try {
+    const urlObj = new URL(url);
+    urlObj.hash = '';
+    return urlObj.toString();
+  } catch {
+    return url;
+  }
+};
+
 export const removeQueryParams = (
   url: string,
   paramsToRemove: string[],
