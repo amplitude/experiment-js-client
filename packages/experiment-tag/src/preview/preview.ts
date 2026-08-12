@@ -107,27 +107,26 @@ export class PreviewModeModal {
       return;
     }
 
-    const css = [
+    const css =
       // preview modal
-      `.amp-pv{position:fixed;top:20px;right:20px;z-index:10000;background:#2d3748;border:1px solid #4a5568;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.12);font-family:system-ui,sans-serif;font-size:14px;line-height:1.4;color:#f7fafc;animation:amp-pv-in .3s ease-out;display:flex;gap:8px;padding:12px;max-width:600px}`,
-      `@keyframes amp-pv-in{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}`,
+      `.amp-pv{position:fixed;top:20px;right:20px;z-index:10000;background:#2d3748;border:1px solid #4a5568;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.12);font-family:system-ui,sans-serif;font-size:14px;line-height:1.4;color:#f7fafc;animation:amp-pv-in .3s ease-out;display:flex;gap:8px;padding:12px;max-width:600px}` +
+      `@keyframes amp-pv-in{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}` +
       // preview modal container
-      `.amp-pv-c{flex:1;display:flex;flex-direction:column;gap:8px}`,
+      `.amp-pv-c{flex:1;display:flex;flex-direction:column;gap:8px}` +
       // preview modal row
-      `.amp-pv-r{display:flex;align-items:center;gap:8px}`,
+      `.amp-pv-r{display:flex;align-items:center;gap:8px}` +
       // preview modal title
-      `.amp-pv-t{font-weight:600;max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
+      `.amp-pv-t{font-weight:600;max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
       // preview modal badge
-      `.amp-pv-b{padding:4px 8px;border-radius:12px;font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;border:1px solid #4a5568}`,
+      `.amp-pv-b{padding:4px 8px;border-radius:12px;font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;border:1px solid #4a5568}` +
       // preview modal preview badge
-      `.amp-pv-pb{color:#a0aec0}`,
+      `.amp-pv-pb{color:#a0aec0}` +
       // preview modal variant dot
-      `.amp-pv-d{width:8px;height:8px;border-radius:50%;background:#68d391;flex-shrink:0}`,
+      `.amp-pv-d{width:8px;height:8px;border-radius:50%;background:#68d391;flex-shrink:0}` +
       // preview modal close button
-      `.amp-pv-x{display:flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:6px;color:#718096;font-size:18px;line-height:1;width:24px;height:24px}`,
+      `.amp-pv-x{background:0 0;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:6px;color:#718096;font-size:18px;line-height:1;width:24px;height:24px}` +
       // preview modal close button hover
-      `.amp-pv-x:hover{background:#4a5568;color:#e2e8f0}`,
-    ].join('');
+      `.amp-pv-x:hover{background:#4a5568;color:#e2e8f0}`;
 
     modalStylesHandle = cspSafeStyleSheet(document, css);
   }
