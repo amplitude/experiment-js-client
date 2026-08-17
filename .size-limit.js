@@ -2,12 +2,12 @@ module.exports = [
   {
     name: 'experiment-tag-min (gzipped)',
     path: './packages/experiment-tag/dist/experiment-tag-min.js.gz',
-    // Baseline ~63.5 KB gzipped after consent gate / ConsentManager / clear-data
-    // (WEB-165/172) and the adoptedStyleSheets fallback (WEB-221). Cap ~+3%
-    // (~66 KB) as a bloat guard. Rebaselined from 62.2 KB / 64 KB: main had
-    // drifted to within ~0.7 KB of that cap, so any intentional bugfix was
-    // failing the gate.
-    limit: '66 KB',
+    // Baseline ~65.6 KB gzipped on web/fix-previous-url-on-pushstate after
+    // consent (#357-#359) + SPA redirect fix (WEB-228). Cap ~+3.5% (~68 KB).
+    // Temporary rebaseline so the absolute page-load budget gate works again;
+    // follow-up: reclaim bytes (namespace-import / optional-feature split)
+    // rather than raising this again.
+    limit: '68 KB',
     brotli: false,
   },
 ];
