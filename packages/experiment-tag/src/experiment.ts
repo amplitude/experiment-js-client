@@ -14,7 +14,6 @@ import {
   ExperimentClient,
   Variants,
 } from '@amplitude/experiment-js-client';
-import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate from 'dom-mutator';
 import * as domMutatorExports from 'dom-mutator';
 // `MutationController` (and the rest of the type definitions) moved out
@@ -154,7 +153,7 @@ type StoredRedirectImpression = {
 
 const moduleScope = getGlobalScope();
 if (moduleScope) {
-  moduleScope.Experiment = FeatureExperiment;
+  moduleScope.Experiment = Experiment;
 }
 
 /** Classify a dependency by its flag-key convention. */
