@@ -24,10 +24,7 @@ import type { MutationController } from 'dom-mutator/dist/types';
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
 import { clearIfErasedElsewhere } from './consent/clear-data';
-import {
-  type AsyncCookieStore,
-  createCookieStorage,
-} from './consent/consent-cookie-storage';
+import { type SyncCookieStore } from './consent/consent-cookie-storage';
 import { consentGate } from './consent/consent-gate';
 import { wrapIntegrationTrack } from './consent/consent-impression-buffer';
 import { showPreviewModeModal } from './preview/preview';
@@ -60,7 +57,8 @@ import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { mergeWithWindowConfig } from './util/config';
 import {
-  getTopLevelDomain,
+  createCookieStorage,
+  getTopLevelDomainSync,
   resolveCrossSubdomainObject,
   setMarketingCookie,
 } from './util/cookie';
@@ -553,15 +551,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
-    // Resolve the cross-subdomain cookie domain as early as possible — but after
-    // the synchronous url_change above, whose subscribers apply anti-flicker
-    // variants/redirects before this first await. Every EXP_ cookie needs it:
-    // identity just below, and the RTBT session (behavioral-targeting plugin)
-    // whose sync writes resolve it via getTopLevelDomainSync(). The
-    // writability probe is async, so it must complete before any cookie write.
-    this.rootDomain = await getTopLevelDomain(
-      this.globalScope.location.hostname,
-    );
+    // Resolve the cross-subdomain cookie domain synchronously so identity below
+    // and the RTBT session (behavioral-targeting plugin, also via
+    // getTopLevelDomainSync()) resolve the same domain without an async probe on
+    // the startup critical path. Every EXP_ cookie needs it.
+    this.rootDomain = getTopLevelDomainSync(this.globalScope.location.hostname);
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     const user =
@@ -586,13 +580,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Resolve web_exp_id_v2 and first_seen as a single root-domain cookie for
     // cross-subdomain identity before getVariants() so anti-flicker and local
     // evaluation use the shared first_seen, not a subdomain-local mint. The
-    // domain was resolved early in start() (this.rootDomain).
-    const crossSubdomainCookieStorage = createCookieStorage<string>({
-      ...(this.rootDomain && { domain: this.rootDomain }),
-      sameSite: 'Lax',
-      expirationDays: 365,
-    });
-
+    // domain was resolved synchronously above (this.rootDomain).
     const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
     const defaultUserProviderData =
       getStorageItem<{ first_seen?: string }>(
@@ -601,8 +589,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ) || {};
 
     // web_exp_id is guaranteed above; seed v2 from it when no cookie/local v2 exists.
-    const identity = await resolveCrossSubdomainObject(
-      crossSubdomainCookieStorage,
+    const identity = resolveCrossSubdomainObject(
       identityCookieKey(this.apiKey),
       {
         web_exp_id_v2: user.web_exp_id_v2 ?? user.web_exp_id,
@@ -611,6 +598,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       {
         web_exp_id_v2: UUID,
         first_seen: () => (Date.now() / 1000).toString(),
+      },
+      {
+        ...(this.rootDomain && { domain: this.rootDomain }),
+        expirationDays: 365,
       },
     );
 
@@ -647,7 +638,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
-    const enrichedUser = await enrichUserWithCampaignData(this.apiKey, user);
+    const enrichedUser = enrichUserWithCampaignData(this.apiKey, user);
 
     // If no integration has been set, use an Amplitude integration.
     if (!this.globalScope.experimentIntegration) {
@@ -670,9 +661,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // fire stored redirect impressions upon startup (must run before applyVariants
     // so the current URL is checked before any redirect changes location.href)
-    this.fireStoredRedirectImpressions().catch(() => {
+    try {
+      this.fireStoredRedirectImpressions();
+    } catch {
       // do nothing
-    });
+    }
     // Subscribe directly to url_change events to fire redirect impressions
     this.messageBus.subscribe('url_change', () => {
       // A custom-redirect-handler (SPA soft nav) keeps this JS context alive, so
@@ -686,9 +679,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         this.isRedirecting = false;
         removeAntiFlickerCss();
       }
-      this.fireStoredRedirectImpressions().catch(() => {
+      try {
+        this.fireStoredRedirectImpressions();
+      } catch {
         // do nothing
-      });
+      }
     });
 
     // Holdout/mutex bucketing requires user identity (user_id,
@@ -811,9 +806,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache[currentUrl] = {};
     }
 
-    await this.fireStoredRedirectImpressions().catch(() => {
+    try {
+      this.fireStoredRedirectImpressions();
+    } catch {
       // do nothing
-    });
+    }
+
     for (const key in variants) {
       // preview actions are handled by previewVariants
       if ((flagKeys && !flagKeys.includes(key)) || this.previewFlags[key]) {
@@ -1428,7 +1426,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = from;
     try {
-      await setMarketingCookie(this.apiKey, this.globalScope.location.hostname);
+      setMarketingCookie(this.apiKey, this.globalScope.location.hostname);
       // perform redirection
       if (this.customRedirectHandler) {
         this.customRedirectHandler(targetUrl);
@@ -1868,9 +1866,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.config.redirectConfig?.encodeRedirectInCookie &&
       isCrossSubdomain
     ) {
-      const domain = await getTopLevelDomain(
-        this.globalScope.location.hostname,
-      );
+      const domain = getTopLevelDomainSync(this.globalScope.location.hostname);
       const storage = createCookieStorage<
         Record<string, StoredRedirectImpression>
       >({
@@ -1880,10 +1876,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       });
 
       try {
-        const storedRedirects = await storage.get(storageKey);
-        const redirects = storedRedirects || {};
+        const redirects = storage.get(storageKey) || {};
         redirects[flagKey] = impression;
-        await storage.set(storageKey, redirects);
+        storage.set(storageKey, redirects);
       } catch (error) {
         console.error(
           `Failed to store redirect impression in cookie for ${flagKey}:`,
@@ -1893,7 +1888,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
-  private async fireStoredRedirectImpressions() {
+  private fireStoredRedirectImpressions() {
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
 
     // Read URL param impressions (highest priority)
@@ -1926,12 +1921,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Read cookie impressions (lowest priority) when opted in
     let cookieImpressions: Record<string, StoredRedirectImpression> = {};
     let cookieStorage:
-      | AsyncCookieStore<Record<string, StoredRedirectImpression>>
+      | SyncCookieStore<Record<string, StoredRedirectImpression>>
       | undefined;
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
-      const domain = await getTopLevelDomain(
-        this.globalScope.location.hostname,
-      );
+      const domain = getTopLevelDomainSync(this.globalScope.location.hostname);
       cookieStorage = createCookieStorage<
         Record<string, StoredRedirectImpression>
       >({
@@ -1939,7 +1932,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         sameSite: 'Lax',
       });
       try {
-        cookieImpressions = (await cookieStorage.get(storageKey)) || {};
+        cookieImpressions = cookieStorage.get(storageKey) || {};
       } catch (error) {
         console.error(
           `Failed to retrieve redirect impressions from cookie ${storageKey}:`,
@@ -1975,34 +1968,34 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
-    const cleanup = async () => {
+    const cleanup = () => {
       removeStorageItem('sessionStorage', storageKey);
       if (cookieStorage) {
-        await cookieStorage.remove(storageKey).catch((error) => {
+        try {
+          cookieStorage.remove(storageKey);
+        } catch (error) {
           console.error(
             `Failed to remove redirect impressions from cookie ${storageKey}:`,
             error,
           );
-        });
+        }
       }
     };
 
     if (Object.keys(merged).length > 0) {
       this.globalScope.setTimeout(() => {
-        void (async () => {
-          for (const flagKey in merged) {
-            const { variantKey, expKey, metadata } = merged[flagKey];
-            this.exposureWithDedupe(
-              flagKey,
-              { key: variantKey, expKey, metadata },
-              true,
-            );
-          }
-          await cleanup();
-        })();
+        for (const flagKey in merged) {
+          const { variantKey, expKey, metadata } = merged[flagKey];
+          this.exposureWithDedupe(
+            flagKey,
+            { key: variantKey, expKey, metadata },
+            true,
+          );
+        }
+        cleanup();
       }, 500);
     } else {
-      await cleanup();
+      cleanup();
     }
   }
 
