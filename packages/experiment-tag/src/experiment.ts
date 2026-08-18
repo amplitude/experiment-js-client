@@ -14,7 +14,6 @@ import {
   ExperimentClient,
   Variants,
 } from '@amplitude/experiment-js-client';
-import * as FeatureExperiment from '@amplitude/experiment-js-client';
 import mutate from 'dom-mutator';
 import * as domMutatorExports from 'dom-mutator';
 // `MutationController` (and the rest of the type definitions) moved out
@@ -90,7 +89,9 @@ import {
 import {
   getUrlParams,
   removeQueryParams,
+  urlWithoutHash,
   urlWithoutParamsAndAnchor,
+  urlWithoutQuery,
   concatenateQueryParamsOf,
   matchesUrl,
 } from './util/url';
@@ -109,6 +110,39 @@ export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export { PREVIEW_MODE_SESSION_KEY };
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
 const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
+// User actions that mark the interaction boundary for the redirect stick-detector.
+// A user cannot call replaceState; anything they do to leave a page passes through
+// one of these, so their presence between a redirect and the next attempt means a
+// person — not a self-driving loop — is navigating.
+const USER_INTERACTION_EVENTS = ['pointerdown', 'keydown', 'popstate'];
+
+// Per-flag record of the last redirect fired, written just before navigating.
+// `distinguishingParams` are the query keys the redirect added on top of the
+// source; their disappearance before any user interaction is what identifies a
+// param-stripping loop.
+type RedirectMarker = {
+  from: string;
+  target: string;
+  distinguishingParams: string[];
+  landed?: boolean;
+};
+
+/** Query keys the redirect target adds or changes relative to the source URL. */
+const distinguishingParams = (fromUrl: string, targetUrl: string): string[] => {
+  try {
+    const fromParams = new URL(fromUrl).searchParams;
+    const targetParams = new URL(targetUrl).searchParams;
+    const keys: string[] = [];
+    targetParams.forEach((value, key) => {
+      if (fromParams.get(key) !== value) {
+        keys.push(key);
+      }
+    });
+    return keys;
+  } catch {
+    return [];
+  }
+};
 
 type StoredRedirectImpression = {
   redirectUrl: string;
@@ -119,7 +153,7 @@ type StoredRedirectImpression = {
 
 const moduleScope = getGlobalScope();
 if (moduleScope) {
-  moduleScope.Experiment = FeatureExperiment;
+  moduleScope.Experiment = Experiment;
 }
 
 /** Classify a dependency by its flag-key convention. */
@@ -435,6 +469,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     );
     this.setupPreviewMode(urlParams);
     this.subscriptionManager.initSubscriptions();
+    // Redirect stick-detector: settle any marker left by a prior redirect against
+    // this fresh load, then watch for the user interaction that ends its window.
+    this.reconcileRedirectMarkersOnLoad();
+    this.setupRedirectInteractionReset();
 
     // Register debug state provider so DebugRecorder can assemble full snapshots
     DebugRecorder.registerStateProvider(() => ({
@@ -1273,32 +1311,60 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   }
 
   private async handleRedirect(action, flagKey: string, variant: Variant) {
+    // In-flight redirect: block re-entrant applyVariants on the source page
+    // before navigation commits (replaces the old referrer-equality guard).
+    if (this.isRedirecting) {
+      return;
+    }
+
+    // A prior strip loop for this flag was detected this session; stay put.
+    if (this.isRedirectSuppressed(flagKey)) {
+      return;
+    }
+
     if (!this.isActionActiveOnPage(flagKey, action?.data?.metadata?.scope)) {
       return;
     }
 
-    const referrerUrl = urlWithoutParamsAndAnchor(
-      this.previousUrl || this.globalScope.document.referrer,
-    );
     const redirectUrl = action?.data?.url;
-
-    const currentUrl = urlWithoutParamsAndAnchor(
-      this.globalScope.location.href,
-    );
-
-    // prevent infinite redirection loop
-    if (currentUrl === referrerUrl) {
-      return;
-    }
 
     let targetUrl = concatenateQueryParamsOf(
       this.globalScope.location.href,
       redirectUrl,
     );
 
-    if (this.globalScope.location.href === targetUrl) {
+    // Destination guard: already at the target, nothing to do. The hash counts
+    // only when the redirect names one — hash-router sites route on it, while a
+    // redirect that ignores the hash must not treat an in-page anchor as a
+    // different destination and bounce the user back to the top of the page.
+    if (this.isAtDestination(targetUrl)) {
       return;
     }
+
+    // Soft-nav channel of the stick-detector: a pending marker that puts us back
+    // at the source with the redirect's params gone, and no user interaction
+    // since (interaction clears markers), means the app moved us here itself.
+    // Re-firing would loop, so suppress this flag for the session.
+    const marker = this.getRedirectMarkers()[flagKey];
+    if (
+      marker &&
+      this.markerBackAtSource(this.globalScope.location.href, marker)
+    ) {
+      this.suppressRedirect(
+        flagKey,
+        `channel=soft from=${marker.from} to=${marker.target}`,
+      );
+      this.clearRedirectMarker(flagKey);
+      return;
+    }
+
+    // Clean target before the AMP_REDIRECT param is layered on; the marker's
+    // loop predicate keys off the redirect's real params, not the impression blob.
+    const cleanTarget = targetUrl;
+
+    // Commit before any await so a re-entrant evaluation cannot start another
+    // redirect while impressions / cookies are being written.
+    this.isRedirecting = true;
 
     const isCrossSubdomain = (() => {
       try {
@@ -1348,18 +1414,223 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       targetUrl = targetUrlObj.toString();
     }
 
+    // Record the marker just before navigating: source, clean target, and the
+    // query keys the redirect added. The stick-detector reads these on the next
+    // evaluation (soft nav) or the next document load (hard nav).
+    const from = this.globalScope.location.href;
+    this.writeRedirectMarker(flagKey, {
+      from,
+      target: cleanTarget,
+      distinguishingParams: distinguishingParams(from, cleanTarget),
+      landed: false,
+    });
+
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
-    this.previousUrl = this.globalScope.location.href;
-    await setMarketingCookie(this.apiKey, this.globalScope.location.hostname);
-    // Mark redirect as in-flight so start() skips removeAntiFlickerCss and
-    // further processing after applyVariants returns.
-    this.isRedirecting = true;
-    // perform redirection
-    if (this.customRedirectHandler) {
-      this.customRedirectHandler(targetUrl);
+    this.previousUrl = from;
+    try {
+      await setMarketingCookie(this.apiKey, this.globalScope.location.hostname);
+      // perform redirection
+      if (this.customRedirectHandler) {
+        this.customRedirectHandler(targetUrl);
+        return;
+      }
+      this.globalScope.location.replace(targetUrl);
+    } catch (error) {
+      // Navigation never started, so the marker would read as a loop on the
+      // next evaluation and suppress the flag for the rest of the session.
+      this.clearRedirectMarker(flagKey);
+      this.isRedirecting = false;
+      throw error;
+    }
+  }
+
+  private isAtDestination(targetUrl: string): boolean {
+    const currentUrl = this.globalScope.location.href;
+    if (currentUrl === targetUrl) {
+      return true;
+    }
+    try {
+      if (new URL(targetUrl).hash) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+    return urlWithoutHash(currentUrl) === urlWithoutHash(targetUrl);
+  }
+
+  private redirectMarkerStorageKey(): string {
+    return `EXP_${this.apiKey.slice(0, 10)}_REDIRECT_MARKER`;
+  }
+
+  private redirectSuppressStorageKey(): string {
+    return `EXP_${this.apiKey.slice(0, 10)}_REDIRECT_SUPPRESSED`;
+  }
+
+  private getRedirectMarkers(): Record<string, RedirectMarker> {
+    return (
+      getStorageItem<Record<string, RedirectMarker>>(
+        'sessionStorage',
+        this.redirectMarkerStorageKey(),
+      ) || {}
+    );
+  }
+
+  private writeRedirectMarker(flagKey: string, marker: RedirectMarker): void {
+    const markers = this.getRedirectMarkers();
+    markers[flagKey] = marker;
+    setStorageItem('sessionStorage', this.redirectMarkerStorageKey(), markers);
+  }
+
+  private clearRedirectMarker(flagKey: string): void {
+    const markers = this.getRedirectMarkers();
+    if (flagKey in markers) {
+      delete markers[flagKey];
+      setStorageItem(
+        'sessionStorage',
+        this.redirectMarkerStorageKey(),
+        markers,
+      );
+    }
+  }
+
+  private isRedirectSuppressed(flagKey: string): boolean {
+    const suppressed =
+      getStorageItem<string[]>(
+        'sessionStorage',
+        this.redirectSuppressStorageKey(),
+      ) || [];
+    return suppressed.includes(flagKey);
+  }
+
+  private suppressRedirect(flagKey: string, reason: string): void {
+    const suppressed =
+      getStorageItem<string[]>(
+        'sessionStorage',
+        this.redirectSuppressStorageKey(),
+      ) || [];
+    if (!suppressed.includes(flagKey)) {
+      suppressed.push(flagKey);
+      setStorageItem(
+        'sessionStorage',
+        this.redirectSuppressStorageKey(),
+        suppressed,
+      );
+    }
+    const detail = `flag=${flagKey} ${reason}`;
+    console.warn(
+      `[Experiment] redirect loop detected, suppressing for session: ${detail}`,
+    );
+    DebugRecorder.push('redirect_loop_detected', detail);
+  }
+
+  /**
+   * Current URL is the redirect's target with its distinguishing params intact.
+   * Path+hash compared exactly (hash-aware, matching the destination guard);
+   * extra params the destination or SDK adds — e.g. `AMP_REDIRECT` — are ignored,
+   * only the params the redirect itself contributed must still be present.
+   */
+  private markerMatchesTarget(
+    current: string,
+    marker: RedirectMarker,
+  ): boolean {
+    try {
+      if (urlWithoutQuery(current) !== urlWithoutQuery(marker.target)) {
+        return false;
+      }
+      const currentParams = new URL(current).searchParams;
+      const targetParams = new URL(marker.target).searchParams;
+      return marker.distinguishingParams.every(
+        (key) => currentParams.get(key) === targetParams.get(key),
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Current URL is back at the source (path+hash) with a distinguishing param
+   * dropped. Path+hash compared exactly so a hash-router route change is not
+   * mistaken for a return to the source.
+   */
+  private markerBackAtSource(current: string, marker: RedirectMarker): boolean {
+    try {
+      if (urlWithoutQuery(current) !== urlWithoutQuery(marker.from)) {
+        return false;
+      }
+      if (marker.distinguishingParams.length === 0) {
+        return true;
+      }
+      const currentParams = new URL(current).searchParams;
+      const targetParams = new URL(marker.target).searchParams;
+      return marker.distinguishingParams.some(
+        (key) => currentParams.get(key) !== targetParams.get(key),
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Hard-nav channel of the stick-detector, run once per document load before
+   * variants apply. A redirect uses a full navigation; a user cannot act between
+   * `location.replace(target)` and its landing, so what the fresh document shows
+   * is deterministic:
+   * - at the target → the redirect stuck; mark it landed and keep the marker so
+   *   this document's soft-nav channel can still catch a later client-side strip.
+   *   If it was already landed, this is a user revisiting the target — drop it.
+   * - back at the source without ever having landed → the navigation to target
+   *   was rewritten (server 302 / redirect chain); suppress the flag this session.
+   * - back at the source after having landed → the user left the target and
+   *   returned; not a strip, drop it.
+   */
+  private reconcileRedirectMarkersOnLoad(): void {
+    const markers = this.getRedirectMarkers();
+    if (Object.keys(markers).length === 0) {
       return;
     }
-    this.globalScope.location.replace(targetUrl);
+    const current = this.globalScope.location.href;
+    for (const flagKey of Object.keys(markers)) {
+      const marker = markers[flagKey];
+      if (this.markerMatchesTarget(current, marker)) {
+        if (marker.landed) {
+          delete markers[flagKey];
+        } else {
+          marker.landed = true;
+        }
+      } else if (this.markerBackAtSource(current, marker)) {
+        if (!marker.landed) {
+          this.suppressRedirect(
+            flagKey,
+            `channel=hard from=${marker.from} to=${marker.target}`,
+          );
+        }
+        delete markers[flagKey];
+      } else {
+        delete markers[flagKey];
+      }
+    }
+    setStorageItem('sessionStorage', this.redirectMarkerStorageKey(), markers);
+  }
+
+  /**
+   * The interaction boundary. A user cannot call `replaceState`; anything they do
+   * to leave a page is a pointer/key/history event first. Observing one means a
+   * person is driving, so pending markers are cleared and no later navigation is
+   * mistaken for a strip loop. Captured + passive so it never interferes.
+   */
+  private setupRedirectInteractionReset(): void {
+    if (typeof this.globalScope?.addEventListener !== 'function') {
+      return;
+    }
+    const clearMarkers = () =>
+      setStorageItem('sessionStorage', this.redirectMarkerStorageKey(), {});
+    for (const event of USER_INTERACTION_EVENTS) {
+      this.globalScope.addEventListener(event, clearMarkers, {
+        capture: true,
+        passive: true,
+      });
+    }
   }
 
   private handleMutate(action, flagKey: string, variant: Variant) {
