@@ -1,26 +1,24 @@
 import { activateConsent } from './consent-test-util';
 
 import {
-  AsyncCookieStore,
   ConsentAwareCookieStorage,
+  SyncCookieStore,
 } from 'src/consent/consent-cookie-storage';
 import { consentGate } from 'src/consent/consent-gate';
 
-/** Records what reached the real cookie storage. */
-const fakeStore = (initial: Record<string, string> = {}) => {
-  const store: Record<string, string> = { ...initial };
+/** Records what reached the real (synchronous) cookie storage. */
+const fakeStore = <T = string>(initial: Record<string, T> = {}) => {
+  const store: Record<string, T> = { ...initial };
   return {
     store,
-    get: jest.fn((key: string) => Promise.resolve(store[key])),
-    set: jest.fn((key: string, value: string) => {
+    get: jest.fn((key: string): T | undefined => store[key]),
+    set: jest.fn((key: string, value: T) => {
       store[key] = value;
-      return Promise.resolve();
     }),
     remove: jest.fn((key: string) => {
       delete store[key];
-      return Promise.resolve();
     }),
-  } satisfies AsyncCookieStore<string> & { store: Record<string, string> };
+  } satisfies SyncCookieStore<T> & { store: Record<string, T> };
 };
 
 describe('ConsentAwareCookieStorage', () => {
@@ -28,124 +26,120 @@ describe('ConsentAwareCookieStorage', () => {
     consentGate.reset();
   });
 
-  it('delegates when consent gating was never activated', async () => {
+  it('delegates when consent gating was never activated', () => {
     const delegate = fakeStore();
     const storage = new ConsentAwareCookieStorage(delegate);
 
-    await storage.set('ck', 'value');
+    storage.set('ck', 'value');
 
-    expect(await storage.get('ck')).toEqual('value');
+    expect(storage.get('ck')).toEqual('value');
     expect(delegate.store).toEqual({ ck: 'value' });
   });
 
-  it('delegates when consent was granted from the start', async () => {
+  it('delegates when consent was granted from the start', () => {
     activateConsent('granted');
     const delegate = fakeStore();
     const storage = new ConsentAwareCookieStorage(delegate);
 
-    await storage.set('ck', 'value');
+    storage.set('ck', 'value');
 
     expect(delegate.set).toHaveBeenCalledWith('ck', 'value');
   });
 
   describe('pending', () => {
-    it('buffers writes and serves reads from the buffer', async () => {
+    it('buffers writes and serves reads from the buffer', () => {
       activateConsent('pending');
       const delegate = fakeStore();
       const storage = new ConsentAwareCookieStorage(delegate);
 
-      await storage.set('ck', 'fresh');
+      storage.set('ck', 'fresh');
 
       expect(delegate.set).not.toHaveBeenCalled();
-      expect(await storage.get('ck')).toEqual('fresh');
+      expect(storage.get('ck')).toEqual('fresh');
     });
 
-    it('does not read a cookie from an earlier consented visit', async () => {
+    it('does not read a cookie from an earlier consented visit', () => {
       activateConsent('pending');
       const delegate = fakeStore({ ck: 'stale' });
       const storage = new ConsentAwareCookieStorage(delegate);
 
-      expect(await storage.get('ck')).toBeUndefined();
+      expect(storage.get('ck')).toBeUndefined();
       expect(delegate.get).not.toHaveBeenCalled();
     });
 
-    it('drops a buffered write on remove without expiring the cookie', async () => {
+    it('drops a buffered write on remove without expiring the cookie', () => {
       activateConsent('pending');
       const delegate = fakeStore({ ck: 'stale' });
       const storage = new ConsentAwareCookieStorage(delegate);
-      await storage.set('ck', 'fresh');
+      storage.set('ck', 'fresh');
 
-      await storage.remove('ck');
+      storage.remove('ck');
 
-      expect(await storage.get('ck')).toBeUndefined();
+      expect(storage.get('ck')).toBeUndefined();
       expect(delegate.remove).not.toHaveBeenCalled();
       expect(delegate.store).toEqual({ ck: 'stale' });
     });
   });
 
   describe('grant', () => {
-    it('hands buffered writes to the real storage, then writes through directly', async () => {
+    it('hands buffered writes to the real storage, then writes through directly', () => {
       activateConsent('pending');
       const delegate = fakeStore();
       const storage = new ConsentAwareCookieStorage(delegate);
-      await storage.set('a', '1');
-      await storage.set('b', '2');
+      storage.set('a', '1');
+      storage.set('b', '2');
 
       consentGate.manager.setStatus('granted');
 
-      // The read joins the in-flight flush, so both writes have landed by now.
-      expect(await storage.get('a')).toEqual('1');
+      // The flush runs synchronously as consent is granted.
+      expect(storage.get('a')).toEqual('1');
       expect(delegate.store).toEqual({ a: '1', b: '2' });
 
-      await storage.set('ck', 'after');
+      storage.set('ck', 'after');
       expect(delegate.store).toEqual({ a: '1', b: '2', ck: 'after' });
     });
 
-    it('does not expose a half-flushed store to a read that races the flush', async () => {
-      activateConsent('pending');
-      const delegate = fakeStore();
-      // Stall the first write so the flush is still in flight when we read.
-      let releaseFirstWrite: () => void = () => undefined;
-      const gate = new Promise<void>((resolve) => {
-        releaseFirstWrite = resolve;
-      });
-      delegate.set.mockImplementationOnce(async (key, value) => {
-        await gate;
-        delegate.store[key] = value;
-      });
-      const storage = new ConsentAwareCookieStorage(delegate);
-      await storage.set('a', '1');
-      await storage.set('b', '2');
-
-      consentGate.manager.setStatus('granted');
-      const read = storage.get('b');
-      releaseFirstWrite();
-
-      expect(await read).toEqual('2');
-    });
-
-    it('reads a cookie written before the visit', async () => {
+    it('reads a cookie written before the visit once consent lands', () => {
       activateConsent('pending');
       const delegate = fakeStore({ ck: 'prior' });
       const storage = new ConsentAwareCookieStorage(delegate);
-      expect(await storage.get('ck')).toBeUndefined();
+      expect(storage.get('ck')).toBeUndefined();
 
       consentGate.manager.setStatus('granted');
 
-      expect(await storage.get('ck')).toEqual('prior');
+      expect(storage.get('ck')).toEqual('prior');
     });
 
-    it('survives a delegate whose write is blocked', async () => {
+    it('merges the durable device identity when flushing a buffered write', () => {
       activateConsent('pending');
-      const delegate = fakeStore();
-      delegate.set.mockRejectedValueOnce(new Error('cookies blocked'));
+      const delegate = fakeStore({
+        // Durable identity an earlier consented visit persisted.
+        id: JSON.stringify({ web_exp_id_v2: 'durable-id', first_seen: '100' }),
+      });
       const storage = new ConsentAwareCookieStorage(delegate);
-      await storage.set('a', '1');
-      await storage.set('b', '2');
+      // The gated visit read the cookie as absent, so it minted a fresh id.
+      storage.set('id', JSON.stringify({ web_exp_id_v2: 'fresh-id' }));
 
       consentGate.manager.setStatus('granted');
-      // A read joins the in-flight flush, so this also waits for it to finish.
-      await storage.get('b');
+
+      // The durable id (and first_seen) win over the gated visit's fresh mint.
+      expect(JSON.parse(delegate.store.id)).toEqual({
+        web_exp_id_v2: 'durable-id',
+        first_seen: '100',
+      });
+    });
+
+    it('keeps a write blocked mid-flush from stopping the rest', () => {
+      activateConsent('pending');
+      const delegate = fakeStore();
+      delegate.set.mockImplementationOnce(() => {
+        throw new Error('cookies blocked');
+      });
+      const storage = new ConsentAwareCookieStorage(delegate);
+      storage.set('a', '1');
+      storage.set('b', '2');
+
+      consentGate.manager.setStatus('granted');
 
       // The blocked key is lost, the rest still lands.
       expect(delegate.store).toEqual({ b: '2' });
@@ -153,54 +147,54 @@ describe('ConsentAwareCookieStorage', () => {
   });
 
   describe('denial', () => {
-    it('discards buffered writes instead of flushing them', async () => {
+    it('discards buffered writes instead of flushing them', () => {
       activateConsent('pending');
       const delegate = fakeStore();
       const storage = new ConsentAwareCookieStorage(delegate);
-      await storage.set('ck', 'fresh');
+      storage.set('ck', 'fresh');
 
       consentGate.manager.setStatus('denied');
 
       expect(delegate.set).not.toHaveBeenCalled();
-      expect(await storage.get('ck')).toBeUndefined();
+      expect(storage.get('ck')).toBeUndefined();
     });
 
-    it('drops later writes rather than persisting them', async () => {
+    it('drops later writes rather than persisting them', () => {
       activateConsent('granted');
       const delegate = fakeStore();
       const storage = new ConsentAwareCookieStorage(delegate);
       consentGate.manager.setStatus('denied');
 
-      await storage.set('ck', 'fresh');
+      storage.set('ck', 'fresh');
 
       expect(delegate.set).not.toHaveBeenCalled();
     });
 
-    it('reads as absent rather than returning a persisted cookie', async () => {
+    it('reads as absent rather than returning a persisted cookie', () => {
       activateConsent('granted');
       const delegate = fakeStore({ ck: 'prior' });
       const storage = new ConsentAwareCookieStorage(delegate);
       consentGate.manager.setStatus('denied');
 
-      expect(await storage.get('ck')).toBeUndefined();
+      expect(storage.get('ck')).toBeUndefined();
     });
 
-    it('still removes, which is how cleanup erases the cookie', async () => {
+    it('still removes, which is how cleanup erases the cookie', () => {
       activateConsent('granted');
       const delegate = fakeStore({ ck: 'prior' });
       const storage = new ConsentAwareCookieStorage(delegate);
       consentGate.manager.setStatus('denied');
 
-      await storage.remove('ck');
+      storage.remove('ck');
 
       expect(delegate.store).toEqual({});
     });
 
-    it('does not flush a value buffered before refusal if consent arrives later', async () => {
+    it('does not flush a value buffered before refusal if consent arrives later', () => {
       activateConsent('pending');
       const delegate = fakeStore();
       const storage = new ConsentAwareCookieStorage(delegate);
-      await storage.set('ck', 'fresh');
+      storage.set('ck', 'fresh');
       consentGate.manager.setStatus('denied');
 
       consentGate.manager.setStatus('granted');
@@ -208,24 +202,16 @@ describe('ConsentAwareCookieStorage', () => {
       expect(delegate.set).not.toHaveBeenCalled();
     });
 
-    it('does not flush a mutated in-memory copy', async () => {
+    it('does not flush a mutated in-memory copy', () => {
       activateConsent('pending');
-      const delegate = {
-        store: {} as Record<string, { v: number }>,
-        get: jest.fn((key: string) => Promise.resolve(delegate.store[key])),
-        set: jest.fn((key: string, value: { v: number }) => {
-          delegate.store[key] = value;
-          return Promise.resolve();
-        }),
-        remove: jest.fn(async () => undefined),
-      };
+      const delegate = fakeStore<{ v: number }>();
       const storage = new ConsentAwareCookieStorage(delegate);
-      await storage.set('ck', { v: 1 });
-      const cached = await storage.get('ck');
+      storage.set('ck', { v: 1 });
+      const cached = storage.get('ck');
       (cached as { v: number }).v = 99;
 
       consentGate.manager.setStatus('granted');
-      await storage.get('ck');
+      storage.get('ck');
 
       expect(delegate.store.ck).toEqual({ v: 1 });
     });
