@@ -147,11 +147,12 @@ const cachedDomains: Record<string, string> = {};
 function isDomainWritableSync(domain: string): boolean {
   if (typeof document === 'undefined') return false;
   const testKey = `AMP_TLD_TEST_${Date.now()}`;
+  const secure = location?.protocol === 'https:' ? '; Secure' : '';
   try {
-    document.cookie = `${testKey}=1; domain=.${domain}; path=/; SameSite=Lax`;
+    document.cookie = `${testKey}=1; domain=.${domain}; path=/; SameSite=Lax${secure}`;
     const written = document.cookie.indexOf(`${testKey}=`) !== -1;
     // Clean up the probe cookie regardless of the result.
-    document.cookie = `${testKey}=; domain=.${domain}; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${testKey}=; domain=.${domain}; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT${secure}`;
     return written;
   } catch {
     return false;
@@ -343,6 +344,7 @@ export function writeCookieStorageSync<T>(
     cookie += '; path=/';
     if (options.domain) cookie += `; domain=${options.domain}`;
     if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
+    if (location?.protocol === 'https:') cookie += '; Secure';
     document.cookie = cookie;
   } catch {
     /* blocked cookie I/O degrades silently */
