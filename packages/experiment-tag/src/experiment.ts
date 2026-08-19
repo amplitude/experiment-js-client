@@ -768,23 +768,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache[currentUrl] = {};
     }
 
-    // Firing stored redirect impressions must complete before applying a
-    // variant that can itself redirect: location.replace() unloads the page and
-    // would drop a not-yet-tracked impression from a prior redirect. When the
-    // variants being applied are mutation/inject-only there is no unload risk,
-    // so fire and forget to keep local variant application off the startup
-    // critical path.
-    // const willApplyRedirect = Object.keys(variants).some((key) => {
-    //   if ((flagKeys && !flagKeys.includes(key)) || this.previewFlags[key]) {
-    //     return false;
-    //   }
-    //   const variant = variants[key];
-    //   return (
-    //     variant.metadata?.deliveryMethod === 'web' &&
-    //     Array.isArray(variant.payload) &&
-    //     variant.payload.some((action) => action?.action === REDIRECT_ACTION)
-    //   );
-    // });
     try {
       this.fireStoredRedirectImpressions();
     } catch {
