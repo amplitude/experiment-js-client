@@ -303,9 +303,9 @@ export function deleteRawCookie(key: string, domain?: string): void {
  * Returns `undefined` when the cookie is absent or undecodable.
  */
 export function readCookieStorageSync<T>(key: string): T | undefined {
-  const raw = readRawCookie(key);
-  if (raw === undefined) return undefined;
   try {
+    const raw = readRawCookie(key);
+    if (raw === undefined) return undefined;
     const decoded = decodeCookieValue(raw);
     if (decoded === undefined) return undefined;
     return JSON.parse(decoded) as T;
