@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.7](https://github.com/amplitude/experiment-js-client/compare/@amplitude/analytics-connector@1.6.6...@amplitude/analytics-connector@1.6.7) (2026-08-19)
+
+
+### Bug Fixes
+
+* upgrade target to es6 ([#367](https://github.com/amplitude/experiment-js-client/issues/367)) ([cd04e86](https://github.com/amplitude/experiment-js-client/commit/cd04e86d4d3678be16c990132164d34a3cd89d53))
+
+
+
+
+
 ## [1.6.6](https://github.com/amplitude/experiment-js-client/compare/@amplitude/analytics-connector@1.6.5...@amplitude/analytics-connector@1.6.6) (2026-07-29)
 
 **Note:** Version bump only for package @amplitude/analytics-connector

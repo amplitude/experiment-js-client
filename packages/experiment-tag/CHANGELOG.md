@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.28.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.28.0...@amplitude/experiment-tag@0.28.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* **experiment-tag:** keep SPA soft-nav redirects and stop strip loops [WEB-228] ([#368](https://github.com/amplitude/experiment-js-client/issues/368)) ([36a61ea](https://github.com/amplitude/experiment-js-client/commit/36a61ea4828e139cce5f65f22244cb00e8b306a0))
+* upgrade target to es6 ([#367](https://github.com/amplitude/experiment-js-client/issues/367)) ([cd04e86](https://github.com/amplitude/experiment-js-client/commit/cd04e86d4d3678be16c990132164d34a3cd89d53))
+
+
+
+
+
 # [0.28.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.27.0...@amplitude/experiment-tag@0.28.0) (2026-08-11)
 
 
