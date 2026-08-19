@@ -1,27 +1,15 @@
+import { CookieStorage } from '@amplitude/analytics-core';
+
 import {
   deleteRawCookie,
   getCookieDomainLevels,
+  readCookieStorageSync,
   readRawCookie,
   resolveCrossSubdomainObject,
   SyncJsonCookie,
+  writeCookieStorageSync,
   writeRawCookie,
 } from '../../src/util/cookie';
-
-/**
- * Minimal in-memory stand-in for analytics-core's async CookieStorage<string>,
- * matching the get/set surface resolveCrossSubdomainObject uses.
- */
-function fakeCookieStorage(initial: Record<string, string> = {}) {
-  const store: Record<string, string> = { ...initial };
-  return {
-    store,
-    get: jest.fn((key: string) => Promise.resolve(store[key])),
-    set: jest.fn((key: string, value: string) => {
-      store[key] = value;
-      return Promise.resolve();
-    }),
-  };
-}
 
 describe('getCookieDomainLevels', () => {
   it.each<[string, string[]]>([
@@ -57,26 +45,35 @@ describe('getCookieDomainLevels', () => {
 });
 
 describe('resolveCrossSubdomainObject', () => {
+  afterEach(clearAllCookies);
   type Identity = { web_exp_id_v2: string; first_seen: string };
 
-  it('returns existing cookie fields without rewriting', async () => {
-    const storage = fakeCookieStorage({
-      KEY: JSON.stringify({ web_exp_id_v2: 'abc', first_seen: '123' }),
-    });
-    const resolved = await resolveCrossSubdomainObject<Identity>(
-      storage as never,
+  // The cookie holds the JSON object as a string value, in analytics-core's
+  // wire format, exactly as the async CookieStorage<string> path wrote it.
+  const seed = (key: string, value: object): void =>
+    writeCookieStorageSync<string>(key, JSON.stringify(value));
+  const readIdentity = (key: string): Identity | undefined => {
+    const raw = readCookieStorageSync<string>(key);
+    return raw === undefined ? undefined : JSON.parse(raw);
+  };
+
+  it('returns existing cookie fields', () => {
+    seed('KEY', { web_exp_id_v2: 'abc', first_seen: '123' });
+    const resolved = resolveCrossSubdomainObject<Identity>(
       'KEY',
       { web_exp_id_v2: 'fallback', first_seen: 'fallback' },
       { web_exp_id_v2: () => 'gen', first_seen: () => 'gen' },
     );
     expect(resolved).toEqual({ web_exp_id_v2: 'abc', first_seen: '123' });
-    expect(storage.set).not.toHaveBeenCalled();
+    // Cookie left intact.
+    expect(readIdentity('KEY')).toEqual({
+      web_exp_id_v2: 'abc',
+      first_seen: '123',
+    });
   });
 
-  it('seeds missing fields from fallback, then persists once', async () => {
-    const storage = fakeCookieStorage();
-    const resolved = await resolveCrossSubdomainObject<Identity>(
-      storage as never,
+  it('seeds missing fields from fallback, then persists', () => {
+    const resolved = resolveCrossSubdomainObject<Identity>(
       'KEY',
       { web_exp_id_v2: 'from-fallback' },
       { web_exp_id_v2: () => 'gen', first_seen: () => 'generated' },
@@ -85,39 +82,34 @@ describe('resolveCrossSubdomainObject', () => {
       web_exp_id_v2: 'from-fallback',
       first_seen: 'generated',
     });
-    expect(storage.set).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(storage.store['KEY'])).toEqual(resolved);
+    expect(readIdentity('KEY')).toEqual(resolved);
   });
 
-  it('falls back to generators when no cookie or fallback', async () => {
-    const storage = fakeCookieStorage();
-    const resolved = await resolveCrossSubdomainObject<Identity>(
-      storage as never,
+  it('falls back to generators when no cookie or fallback', () => {
+    const resolved = resolveCrossSubdomainObject<Identity>(
       'KEY',
       {},
       { web_exp_id_v2: () => 'gen-id', first_seen: () => 'gen-ts' },
     );
     expect(resolved).toEqual({ web_exp_id_v2: 'gen-id', first_seen: 'gen-ts' });
+    expect(readIdentity('KEY')).toEqual(resolved);
   });
 
-  it('re-seeds when the cookie holds only some fields', async () => {
-    const storage = fakeCookieStorage({
-      KEY: JSON.stringify({ web_exp_id_v2: 'kept' }),
-    });
-    const resolved = await resolveCrossSubdomainObject<Identity>(
-      storage as never,
+  it('re-seeds when the cookie holds only some fields', () => {
+    seed('KEY', { web_exp_id_v2: 'kept' });
+    const resolved = resolveCrossSubdomainObject<Identity>(
       'KEY',
       { first_seen: 'seed-ts' },
       { web_exp_id_v2: () => 'gen', first_seen: () => 'gen' },
     );
     expect(resolved).toEqual({ web_exp_id_v2: 'kept', first_seen: 'seed-ts' });
-    expect(storage.set).toHaveBeenCalledTimes(1);
+    expect(readIdentity('KEY')).toEqual(resolved);
   });
 
-  it('tolerates malformed cookie json by re-seeding', async () => {
-    const storage = fakeCookieStorage({ KEY: 'not-json{' });
-    const resolved = await resolveCrossSubdomainObject<Identity>(
-      storage as never,
+  it('tolerates malformed cookie json by re-seeding', () => {
+    // A raw (non-base64) value the decoder cannot parse reads as absent.
+    writeRawCookie('KEY', 'not-json{');
+    const resolved = resolveCrossSubdomainObject<Identity>(
       'KEY',
       {},
       { web_exp_id_v2: () => 'fresh', first_seen: () => 'fresh-ts' },
@@ -137,6 +129,38 @@ function clearAllCookies() {
     if (key) deleteRawCookie(key);
   }
 }
+
+describe('cookie storage sync helpers', () => {
+  afterEach(clearAllCookies);
+
+  it('round-trips a value through read/write', () => {
+    writeCookieStorageSync<{ a: number }>('csk', { a: 1 });
+    expect(readCookieStorageSync<{ a: number }>('csk')).toEqual({ a: 1 });
+  });
+
+  it('returns undefined for an absent cookie', () => {
+    expect(readCookieStorageSync('nope')).toBeUndefined();
+  });
+
+  it('returns undefined for an undecodable value', () => {
+    writeRawCookie('bad', 'not-base64{');
+    expect(readCookieStorageSync('bad')).toBeUndefined();
+  });
+
+  // The load-bearing contract: identity/campaign cookies stay interoperable
+  // with values analytics-core's async CookieStorage wrote (base64 wire format).
+  it('reads a value written by analytics-core CookieStorage', async () => {
+    await new CookieStorage<string>().set('fmt', JSON.stringify({ x: 1 }));
+    expect(readCookieStorageSync<string>('fmt')).toBe(JSON.stringify({ x: 1 }));
+  });
+
+  it('writes a value readable by analytics-core CookieStorage', async () => {
+    writeCookieStorageSync<string>('fmt2', JSON.stringify({ y: 2 }));
+    expect(await new CookieStorage<string>().get('fmt2')).toBe(
+      JSON.stringify({ y: 2 }),
+    );
+  });
+});
 
 describe('raw cookie helpers', () => {
   afterEach(clearAllCookies);
