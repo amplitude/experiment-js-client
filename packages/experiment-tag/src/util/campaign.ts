@@ -1,5 +1,4 @@
 import {
-  BASE_CAMPAIGN,
   type Campaign,
   CampaignParser,
   getStorageKey,
@@ -8,9 +7,7 @@ import {
 import { UTMParameters } from '@amplitude/analytics-core/lib/esm/types/campaign';
 import { type ExperimentUser } from '@amplitude/experiment-js-client';
 
-import { isConsentWithheld } from '../consent/consent-gate';
-
-import { readCookieStorageSync } from './cookie';
+import { createCookieStorage } from './cookie';
 import { getStorageItem, setStorageItem } from './storage';
 
 /**
@@ -19,13 +16,14 @@ import { getStorageItem, setStorageItem } from './storage';
  * 2. experiment-tag persisted props (medium priority)
  * 3. analytics-browser persisted props (lowest priority, if using default Amplitude Analytics integration)
  */
-export function enrichUserWithCampaignData(
+export async function enrichUserWithCampaignData(
   apiKey: string,
   user: ExperimentUser,
-): ExperimentUser {
+): Promise<ExperimentUser> {
   const experimentStorageKey = `EXP_${MKTG}_${apiKey.substring(0, 10)}`;
-  const [currentCampaign, persistedAmplitudeCampaign] =
-    fetchCampaignData(apiKey);
+  const [currentCampaign, persistedAmplitudeCampaign] = await fetchCampaignData(
+    apiKey,
+  );
   const persistedExperimentCampaign = getStorageItem<UTMParameters>(
     'localStorage',
     experimentStorageKey,
@@ -70,21 +68,12 @@ export function persistUrlParams(
   setStorageItem('localStorage', experimentStorageKey, campaign);
 }
 
-function fetchCampaignData(apiKey: string): [Campaign, Campaign | undefined] {
+async function fetchCampaignData(
+  apiKey: string,
+): Promise<[Campaign, Campaign | undefined]> {
+  const storage = createCookieStorage<Campaign>();
   const storageKey = getStorageKey(apiKey, MKTG);
-  // CampaignParser.parse() doesn't actually need to be async,
-  // so its result is assembled here without the async wrapper.
-  const parser = new CampaignParser();
-  const currentCampaign: Campaign = {
-    ...BASE_CAMPAIGN,
-    ...parser.getUtmParam(),
-    ...parser.getReferrer(),
-    ...parser.getClickIds(),
-  };
-  // Mirror the async consent gate: a withheld visitor's prior campaign cookie
-  // reads as absent. The cookie uses analytics-core's base64 wire format.
-  const previousCampaign = isConsentWithheld()
-    ? undefined
-    : readCookieStorageSync<Campaign>(storageKey);
+  const currentCampaign = await new CampaignParser().parse();
+  const previousCampaign = await storage.get(storageKey);
   return [currentCampaign, previousCampaign];
 }
