@@ -11,7 +11,6 @@ import { createMockGlobal, setupGlobalObservers } from './util/mocks';
 
 import { DefaultWebExperimentClient } from 'src/experiment';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
-import { readCookieStorageSync } from 'src/util/cookie';
 import * as uuid from 'src/util/uuid';
 
 // Tests run in jsdom so safeGlobal is always defined.
@@ -30,44 +29,30 @@ const flushAsyncWork = async () => {
   }
 };
 
-// Mock CookieStorage to use an in-memory store for testing
+// In-memory stand-in for createCookieStorage (document.cookie is not what
+// these tests inspect).
 const cookieStore: Record<string, any> = {};
 
+const getCookieStore = () => cookieStore;
 const clearCookieStore = () => {
   Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
 };
 
-jest.mock('@amplitude/analytics-core', () => {
-  const actual = jest.requireActual('@amplitude/analytics-core');
-
-  const MockCookieStorage = jest.fn().mockImplementation(() => ({
-    get: jest.fn((key: string) => Promise.resolve(cookieStore[key])),
-    set: jest.fn((key: string, value: any) => {
-      cookieStore[key] = value;
-      return Promise.resolve();
-    }),
-    remove: jest.fn((key: string) => {
-      delete cookieStore[key];
-      return Promise.resolve();
-    }),
-    getRaw: jest.fn((key: string) =>
-      Promise.resolve(JSON.stringify(cookieStore[key])),
-    ),
-    isEnabled: jest.fn(() => Promise.resolve(true)),
-    reset: jest.fn(() => {
-      Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
-      return Promise.resolve();
-    }),
-  }));
-  // Kept for any residual async callers; domain resolution now runs through the
-  // synchronous document.cookie probe in getTopLevelDomainSync.
-  (MockCookieStorage as any).isDomainWritable = jest
-    .fn()
-    .mockResolvedValue(false);
-
+jest.mock('src/util/cookie', () => {
+  const actual = jest.requireActual('src/util/cookie');
   return {
     ...actual,
-    CookieStorage: MockCookieStorage,
+    createCookieStorage: jest.fn(() => ({
+      get: jest.fn((key: string) => Promise.resolve(cookieStore[key])),
+      set: jest.fn((key: string, value: any) => {
+        cookieStore[key] = value;
+        return Promise.resolve();
+      }),
+      remove: jest.fn((key: string) => {
+        delete cookieStore[key];
+        return Promise.resolve();
+      }),
+    })),
   };
 });
 
@@ -156,11 +141,10 @@ describe('initializeExperiment', () => {
         web_exp_id_v2: 'existing-id',
       }),
     );
-    // web_exp_id_v2 and first_seen now share a single _identity cookie object,
-    // written synchronously to document.cookie in analytics-core's wire format.
-    expect(
-      JSON.parse(readCookieStorageSync<string>(identityKey) as string),
-    ).toEqual(expect.objectContaining({ web_exp_id_v2: 'existing-id' }));
+    // web_exp_id_v2 and first_seen now share a single _identity cookie object.
+    expect(JSON.parse(cookieStore[identityKey])).toEqual(
+      expect.objectContaining({ web_exp_id_v2: 'existing-id' }),
+    );
     expect(mockGlobal.localStorage.setItem).toHaveBeenCalledWith(
       storageKey,
       JSON.stringify({
@@ -1473,8 +1457,7 @@ describe('initializeExperiment', () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Check if redirect info was stored in cookies (should use root domain example.com)
-    const storedRedirects =
-      readCookieStorageSync<Record<string, unknown>>(redirectStorageKey);
+    const storedRedirects = getCookieStore()[redirectStorageKey];
     expect(storedRedirects).toBeDefined();
     expect(storedRedirects).toHaveProperty('test');
 
@@ -1579,8 +1562,7 @@ describe('initializeExperiment', () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Check that redirect info was NOT stored in cookies (different domain)
-    const storedRedirects =
-      readCookieStorageSync<Record<string, unknown>>(redirectStorageKey);
+    const storedRedirects = getCookieStore()[redirectStorageKey];
     expect(storedRedirects).toBeUndefined();
   });
 
@@ -1638,8 +1620,7 @@ describe('initializeExperiment', () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Check if redirect info was stored in cookies (should use root domain localhost)
-    const storedRedirects =
-      readCookieStorageSync<Record<string, unknown>>(redirectStorageKey);
+    const storedRedirects = getCookieStore()[redirectStorageKey];
     expect(storedRedirects).toBeDefined();
     expect(storedRedirects).toHaveProperty('test');
   });

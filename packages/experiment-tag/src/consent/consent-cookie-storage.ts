@@ -8,13 +8,13 @@ import {
 } from './consent-gate';
 
 /**
- * The synchronous cookie backend the consent gate wraps. Implemented over
+ * The faux asynchronous cookie backend the consent gate wraps. Implemented over
  * `document.cookie` in `util/cookie.ts`; tests substitute a plain object.
  */
-export interface SyncCookieStore<T> {
-  get(key: string): T | undefined;
-  set(key: string, value: T): void;
-  remove(key: string): void;
+export interface AsyncCookieStore<T> {
+  get(key: string): Promise<T | undefined>;
+  set(key: string, value: T): Promise<void>;
+  remove(key: string): Promise<void>;
 }
 
 /** Snapshots a buffered value so callers cannot mutate what a grant will flush. */
@@ -31,23 +31,29 @@ const snapshotValue = <T>(value: T): T =>
  * Reads are gated with the writes, so a visitor who has not decided is not
  * re-identified from a cookie an earlier consented visit left behind.
  */
-export class ConsentAwareCookieStorage<T> implements SyncCookieStore<T> {
+export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
   private readonly buffered = new Map<string, T>();
+  /**
+   * The in-flight grant flush. Reads and writes join it before touching the
+   * delegate, so nothing observes the store half-populated.
+   */
+  private flush: Promise<void> | null = null;
   private flushArmed = false;
 
-  constructor(private readonly delegate: SyncCookieStore<T>) {}
+  constructor(private readonly delegate: AsyncCookieStore<T>) {}
 
-  get(key: string): T | undefined {
+  async get(key: string): Promise<T | undefined> {
     if (isConsentWithheld()) {
       // Empty once consent has been refused, so this reads as absent.
       this.armFlush();
       const value = this.buffered.get(key);
       return value === undefined ? undefined : snapshotValue(value);
     }
+    await this.flush;
     return this.delegate.get(key);
   }
 
-  set(key: string, value: T): void {
+  async set(key: string, value: T): Promise<void> {
     if (isConsentWithheld()) {
       if (isConsentPending()) {
         this.armFlush();
@@ -55,10 +61,11 @@ export class ConsentAwareCookieStorage<T> implements SyncCookieStore<T> {
       }
       return;
     }
-    this.delegate.set(key, value);
+    await this.flush;
+    return this.delegate.set(key, value);
   }
 
-  remove(key: string): void {
+  async remove(key: string): Promise<void> {
     // Refusal falls through so denial cleanup can erase a cookie from a
     // consented visit; only a still-undecided visitor stops at the buffer, since
     // expiring a cookie is itself a write.
@@ -66,7 +73,8 @@ export class ConsentAwareCookieStorage<T> implements SyncCookieStore<T> {
       this.buffered.delete(key);
       return;
     }
-    this.delegate.remove(key);
+    await this.flush;
+    return this.delegate.remove(key);
   }
 
   private armFlush(): void {
@@ -80,24 +88,26 @@ export class ConsentAwareCookieStorage<T> implements SyncCookieStore<T> {
       if (!granted) {
         return;
       }
-      for (const [key, value] of entries) {
-        if (consentGate.manager.getStatus() !== 'granted') {
-          return;
+      this.flush = (async () => {
+        for (const [key, value] of entries) {
+          if (consentGate.manager.getStatus() !== 'granted') {
+            return;
+          }
+          try {
+            const existing = await this.delegate.get(key);
+            const merged =
+              typeof value === 'string'
+                ? (mergeIdentityCookieJson(
+                    existing as string | undefined,
+                    value,
+                  ) as T)
+                : value;
+            await this.delegate.set(key, merged);
+          } catch {
+            // Blocked cookie I/O degrades silently, as the raw paths do.
+          }
         }
-        try {
-          const existing = this.delegate.get(key);
-          const merged =
-            typeof value === 'string'
-              ? (mergeIdentityCookieJson(
-                  existing as string | undefined,
-                  value,
-                ) as T)
-              : value;
-          this.delegate.set(key, merged);
-        } catch {
-          // Blocked cookie I/O degrades silently, as the raw paths do.
-        }
-      }
+      })();
     });
   }
 }

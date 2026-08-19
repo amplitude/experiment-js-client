@@ -9,21 +9,18 @@ import {
   enrichUserWithCampaignData,
   persistUrlParams,
 } from '../../src/util/campaign';
-import { readCookieStorageSync } from '../../src/util/cookie';
+import { createCookieStorage } from '../../src/util/cookie';
 import * as storageUtils from '../../src/util/storage';
 
 jest.mock('@amplitude/analytics-core', () => ({
   Campaign: jest.fn(),
   CampaignParser: jest.fn(),
-  BASE_CAMPAIGN: {},
   getStorageKey: jest.fn(),
   MKTG: 'MKTG',
 }));
 
-// Campaign resolution now reads the marketing cookie synchronously via
-// readCookieStorageSync rather than the async CookieStorage.
 jest.mock('../../src/util/cookie', () => ({
-  readCookieStorageSync: jest.fn(),
+  createCookieStorage: jest.fn(),
 }));
 
 jest.mock('../../src/util/storage', () => ({
@@ -33,6 +30,10 @@ jest.mock('../../src/util/storage', () => ({
 
 describe('campaign utilities', () => {
   let mockCampaignParser: jest.Mocked<CampaignParser>;
+  let mockCookieStorage: {
+    get: jest.Mock;
+    set: jest.Mock;
+  };
   let mockGetStorageItem: jest.MockedFunction<
     typeof storageUtils.getStorageItem
   >;
@@ -40,18 +41,18 @@ describe('campaign utilities', () => {
     typeof storageUtils.setStorageItem
   >;
   let mockGetStorageKey: jest.MockedFunction<typeof getStorageKey>;
-  let mockReadCookieStorageSync: jest.MockedFunction<
-    typeof readCookieStorageSync
-  >;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockCampaignParser = {
-      getUtmParam: jest.fn().mockReturnValue({}),
-      getReferrer: jest.fn().mockReturnValue({}),
-      getClickIds: jest.fn().mockReturnValue({}),
+      parse: jest.fn(),
     } as any;
+
+    mockCookieStorage = {
+      get: jest.fn(),
+      set: jest.fn(),
+    };
 
     mockGetStorageItem = storageUtils.getStorageItem as jest.MockedFunction<
       typeof storageUtils.getStorageItem
@@ -62,11 +63,9 @@ describe('campaign utilities', () => {
     mockGetStorageKey = getStorageKey as jest.MockedFunction<
       typeof getStorageKey
     >;
-    mockReadCookieStorageSync = readCookieStorageSync as jest.MockedFunction<
-      typeof readCookieStorageSync
-    >;
 
     (CampaignParser as jest.Mock).mockImplementation(() => mockCampaignParser);
+    (createCookieStorage as jest.Mock).mockReturnValue(mockCookieStorage);
   });
 
   describe('enrichUserWithCampaignData', () => {
@@ -83,7 +82,7 @@ describe('campaign utilities', () => {
       mockGetStorageKey.mockReturnValue('AMP_MKTG_test-api-k');
     });
 
-    it('should enrich user with UTM parameters from all sources with correct priority', () => {
+    it('should enrich user with UTM parameters from all sources with correct priority', async () => {
       const currentCampaign: Partial<Campaign> = {
         utm_source: 'current_source',
         utm_medium: 'current_medium',
@@ -103,13 +102,13 @@ describe('campaign utilities', () => {
         utm_id: 'experiment_id',
       };
 
-      mockCampaignParser.getUtmParam.mockReturnValue(currentCampaign as any);
-      mockReadCookieStorageSync.mockReturnValue(
+      mockCampaignParser.parse.mockResolvedValue(currentCampaign as Campaign);
+      mockCookieStorage.get.mockResolvedValue(
         persistedAmplitudeCampaign as Campaign,
       );
       mockGetStorageItem.mockReturnValue(persistedExperimentCampaign);
 
-      const result = enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
       expect(result).toEqual({
         ...baseUser,
@@ -141,7 +140,7 @@ describe('campaign utilities', () => {
       );
     });
 
-    it('should preserve lower priority values when current campaign has undefined values', () => {
+    it('should preserve lower priority values when current campaign has undefined values', async () => {
       const currentCampaign: Partial<Campaign> = {
         utm_source: 'current_source',
         utm_medium: undefined,
@@ -159,13 +158,13 @@ describe('campaign utilities', () => {
         utm_content: 'experiment_content',
       };
 
-      mockCampaignParser.getUtmParam.mockReturnValue(currentCampaign as any);
-      mockReadCookieStorageSync.mockReturnValue(
+      mockCampaignParser.parse.mockResolvedValue(currentCampaign as Campaign);
+      mockCookieStorage.get.mockResolvedValue(
         persistedAmplitudeCampaign as Campaign,
       );
       mockGetStorageItem.mockReturnValue(persistedExperimentCampaign);
 
-      const result = enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
       expect(result.persisted_url_param).toEqual({
         utm_source: 'current_source',
@@ -176,30 +175,30 @@ describe('campaign utilities', () => {
       });
     });
 
-    it('should filter out non-UTM parameters from all sources', () => {
+    it('should filter out non-UTM parameters from all sources', async () => {
       const currentCampaign: Partial<Campaign> = {
         utm_source: 'test_source',
         non_utm_param: 'should_be_filtered',
         random_field: 'also_filtered',
-      } as any;
+      };
 
       const persistedAmplitudeCampaign: Partial<Campaign> = {
         utm_medium: 'amplitude_medium',
         amplitude_specific: 'filtered_out',
-      } as any;
+      };
 
       const persistedExperimentCampaign = {
         utm_term: 'experiment_term',
         experiment_data: 'filtered_out',
       };
 
-      mockCampaignParser.getUtmParam.mockReturnValue(currentCampaign as any);
-      mockReadCookieStorageSync.mockReturnValue(
+      mockCampaignParser.parse.mockResolvedValue(currentCampaign as Campaign);
+      mockCookieStorage.get.mockResolvedValue(
         persistedAmplitudeCampaign as Campaign,
       );
       mockGetStorageItem.mockReturnValue(persistedExperimentCampaign);
 
-      const result = enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
       expect(result.persisted_url_param).toEqual({
         utm_source: 'test_source',
@@ -208,7 +207,7 @@ describe('campaign utilities', () => {
       });
     });
 
-    it('should handle mixed undefined values across all sources', () => {
+    it('should handle mixed undefined values across all sources', async () => {
       const currentCampaign: Partial<Campaign> = {
         utm_source: 'current_source',
         utm_medium: undefined,
@@ -227,13 +226,13 @@ describe('campaign utilities', () => {
         utm_content: undefined,
       };
 
-      mockCampaignParser.getUtmParam.mockReturnValue(currentCampaign as any);
-      mockReadCookieStorageSync.mockReturnValue(
+      mockCampaignParser.parse.mockResolvedValue(currentCampaign as Campaign);
+      mockCookieStorage.get.mockResolvedValue(
         persistedAmplitudeCampaign as Campaign,
       );
       mockGetStorageItem.mockReturnValue(persistedExperimentCampaign);
 
-      const result = enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
       expect(result.persisted_url_param).toEqual({
         utm_source: 'current_source',
@@ -243,12 +242,12 @@ describe('campaign utilities', () => {
       });
     });
 
-    it('should handle empty campaign data gracefully', () => {
-      mockCampaignParser.getUtmParam.mockReturnValue({} as any);
-      mockReadCookieStorageSync.mockReturnValue(undefined);
+    it('should handle empty campaign data gracefully', async () => {
+      mockCampaignParser.parse.mockResolvedValue({} as Campaign);
+      mockCookieStorage.get.mockResolvedValue(undefined);
       mockGetStorageItem.mockReturnValue(null);
 
-      const result = enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
       expect(result).toEqual({
         ...baseUser,
@@ -256,7 +255,7 @@ describe('campaign utilities', () => {
       expect(mockSetStorageItem).not.toHaveBeenCalled();
     });
 
-    it('should handle all UTM parameter types', () => {
+    it('should handle all UTM parameter types', async () => {
       const fullCampaign: Partial<Campaign> = {
         utm_source: 'test_source',
         utm_medium: 'test_medium',
@@ -266,11 +265,11 @@ describe('campaign utilities', () => {
         utm_id: 'test_id',
       };
 
-      mockCampaignParser.getUtmParam.mockReturnValue(fullCampaign as any);
-      mockReadCookieStorageSync.mockReturnValue(undefined);
+      mockCampaignParser.parse.mockResolvedValue(fullCampaign as Campaign);
+      mockCookieStorage.get.mockResolvedValue(undefined);
       mockGetStorageItem.mockReturnValue(null);
 
-      const result = enrichUserWithCampaignData(apiKey, baseUser);
+      const result = await enrichUserWithCampaignData(apiKey, baseUser);
 
       expect(result.persisted_url_param).toMatchObject({
         utm_source: 'test_source',
@@ -282,15 +281,14 @@ describe('campaign utilities', () => {
       });
     });
 
-    it('should propagate errors from campaign parsing', () => {
-      mockCampaignParser.getUtmParam.mockImplementation(() => {
-        throw new Error('Parse error');
-      });
+    it('should handle async errors gracefully', async () => {
+      mockCampaignParser.parse.mockRejectedValue(new Error('Parse error'));
+      mockCookieStorage.get.mockRejectedValue(new Error('Storage error'));
       mockGetStorageItem.mockReturnValue(null);
 
-      expect(() => enrichUserWithCampaignData(apiKey, baseUser)).toThrow(
-        'Parse error',
-      );
+      await expect(
+        enrichUserWithCampaignData(apiKey, baseUser),
+      ).rejects.toThrow();
     });
   });
 
@@ -329,36 +327,36 @@ describe('campaign utilities', () => {
   describe('fetchCampaignData (internal function behavior)', () => {
     const apiKey = 'test-api-key';
 
-    it('should read the current campaign and the persisted marketing cookie', () => {
+    it('should call CampaignParser and createCookieStorage correctly', async () => {
       const expectedCampaign: Partial<Campaign> = { utm_source: 'test' };
       const expectedPreviousCampaign: Partial<Campaign> = {
         utm_medium: 'previous',
       };
 
-      mockCampaignParser.getUtmParam.mockReturnValue(expectedCampaign as any);
-      mockReadCookieStorageSync.mockReturnValue(
+      mockCampaignParser.parse.mockResolvedValue(expectedCampaign as Campaign);
+      mockCookieStorage.get.mockResolvedValue(
         expectedPreviousCampaign as Campaign,
       );
       mockGetStorageKey.mockReturnValue('test-storage-key');
       mockGetStorageItem.mockReturnValue(null);
 
-      enrichUserWithCampaignData(apiKey, { user_id: 'test' });
+      await enrichUserWithCampaignData(apiKey, { user_id: 'test' });
 
       expect(CampaignParser).toHaveBeenCalledWith();
+      expect(mockCampaignParser.parse).toHaveBeenCalledWith();
+      expect(createCookieStorage).toHaveBeenCalledWith();
       expect(getStorageKey).toHaveBeenCalledWith(apiKey, 'MKTG');
-      expect(mockReadCookieStorageSync).toHaveBeenCalledWith(
-        'test-storage-key',
-      );
+      expect(mockCookieStorage.get).toHaveBeenCalledWith('test-storage-key');
     });
 
-    it('should handle null previous campaign', () => {
+    it('should handle null previous campaign', async () => {
       const expectedCampaign: Partial<Campaign> = { utm_source: 'test' };
 
-      mockCampaignParser.getUtmParam.mockReturnValue(expectedCampaign as any);
-      mockReadCookieStorageSync.mockReturnValue(undefined);
+      mockCampaignParser.parse.mockResolvedValue(expectedCampaign as Campaign);
+      mockCookieStorage.get.mockResolvedValue(undefined);
       mockGetStorageItem.mockReturnValue(null);
 
-      const result = enrichUserWithCampaignData(apiKey, {
+      const result = await enrichUserWithCampaignData(apiKey, {
         user_id: 'test',
       });
 
