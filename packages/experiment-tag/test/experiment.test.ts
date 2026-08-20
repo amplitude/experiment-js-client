@@ -29,7 +29,8 @@ const flushAsyncWork = async () => {
   }
 };
 
-// Mock CookieStorage to use an in-memory store for testing
+// In-memory stand-in for createCookieStorage (document.cookie is not what
+// these tests inspect).
 const cookieStore: Record<string, any> = {};
 
 const getCookieStore = () => cookieStore;
@@ -37,37 +38,21 @@ const clearCookieStore = () => {
   Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
 };
 
-jest.mock('@amplitude/analytics-core', () => {
-  const actual = jest.requireActual('@amplitude/analytics-core');
-
-  const MockCookieStorage = jest.fn().mockImplementation(() => ({
-    get: jest.fn((key: string) => Promise.resolve(cookieStore[key])),
-    set: jest.fn((key: string, value: any) => {
-      cookieStore[key] = value;
-      return Promise.resolve();
-    }),
-    remove: jest.fn((key: string) => {
-      delete cookieStore[key];
-      return Promise.resolve();
-    }),
-    getRaw: jest.fn((key: string) =>
-      Promise.resolve(JSON.stringify(cookieStore[key])),
-    ),
-    isEnabled: jest.fn(() => Promise.resolve(true)),
-    reset: jest.fn(() => {
-      Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
-      return Promise.resolve();
-    }),
-  }));
-  // isDomainWritable is a static method; return false so getTopLevelDomain
-  // resolves to '' in all tests (consistent cache, no jsdom cookie probing)
-  (MockCookieStorage as any).isDomainWritable = jest
-    .fn()
-    .mockResolvedValue(false);
-
+jest.mock('src/util/cookie', () => {
+  const actual = jest.requireActual('src/util/cookie');
   return {
     ...actual,
-    CookieStorage: MockCookieStorage,
+    createCookieStorage: jest.fn(() => ({
+      get: jest.fn((key: string) => Promise.resolve(cookieStore[key])),
+      set: jest.fn((key: string, value: any) => {
+        cookieStore[key] = value;
+        return Promise.resolve();
+      }),
+      remove: jest.fn((key: string) => {
+        delete cookieStore[key];
+        return Promise.resolve();
+      }),
+    })),
   };
 });
 

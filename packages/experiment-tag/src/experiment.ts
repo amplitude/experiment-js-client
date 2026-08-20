@@ -24,10 +24,7 @@ import type { MutationController } from 'dom-mutator/dist/types';
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
 import { clearIfErasedElsewhere } from './consent/clear-data';
-import {
-  type AsyncCookieStore,
-  createCookieStorage,
-} from './consent/consent-cookie-storage';
+import { AsyncCookieStore } from './consent/consent-cookie-storage';
 import { consentGate } from './consent/consent-gate';
 import { wrapIntegrationTrack } from './consent/consent-impression-buffer';
 import { showPreviewModeModal } from './preview/preview';
@@ -60,7 +57,8 @@ import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { mergeWithWindowConfig } from './util/config';
 import {
-  getTopLevelDomain,
+  createCookieStorage,
+  getTopLevelDomainSync,
   resolveCrossSubdomainObject,
   setMarketingCookie,
 } from './util/cookie';
@@ -553,15 +551,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
-    // Resolve the cross-subdomain cookie domain as early as possible — but after
-    // the synchronous url_change above, whose subscribers apply anti-flicker
-    // variants/redirects before this first await. Every EXP_ cookie needs it:
-    // identity just below, and the RTBT session (behavioral-targeting plugin)
-    // whose sync writes resolve it via getTopLevelDomainSync(). The
-    // writability probe is async, so it must complete before any cookie write.
-    this.rootDomain = await getTopLevelDomain(
-      this.globalScope.location.hostname,
-    );
+    // Resolve the cross-subdomain cookie domain so identity below
+    // and the RTBT session (behavioral-targeting plugin, also via
+    // getTopLevelDomainSync()) resolve the same domain without an async probe on
+    // the startup critical path. Every EXP_ cookie needs it.
+    this.rootDomain = getTopLevelDomainSync(this.globalScope.location.hostname);
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     const user =
@@ -1868,9 +1862,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.config.redirectConfig?.encodeRedirectInCookie &&
       isCrossSubdomain
     ) {
-      const domain = await getTopLevelDomain(
-        this.globalScope.location.hostname,
-      );
+      const domain = getTopLevelDomainSync(this.globalScope.location.hostname);
       const storage = createCookieStorage<
         Record<string, StoredRedirectImpression>
       >({
@@ -1929,9 +1921,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       | AsyncCookieStore<Record<string, StoredRedirectImpression>>
       | undefined;
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
-      const domain = await getTopLevelDomain(
-        this.globalScope.location.hostname,
-      );
+      const domain = getTopLevelDomainSync(this.globalScope.location.hostname);
       cookieStorage = createCookieStorage<
         Record<string, StoredRedirectImpression>
       >({
@@ -1978,12 +1968,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const cleanup = async () => {
       removeStorageItem('sessionStorage', storageKey);
       if (cookieStorage) {
-        await cookieStorage.remove(storageKey).catch((error) => {
+        try {
+          await cookieStorage.remove(storageKey);
+        } catch (error) {
           console.error(
             `Failed to remove redirect impressions from cookie ${storageKey}:`,
             error,
           );
-        });
+        }
       }
     };
 
