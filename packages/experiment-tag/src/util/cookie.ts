@@ -235,7 +235,11 @@ export async function resolveCrossSubdomainObject<
   }
 
   if (changed) {
-    await cookieStorage.set(cookieKey, JSON.stringify(resolved));
+    try {
+      await cookieStorage.set(cookieKey, JSON.stringify(resolved));
+    } catch {
+      /* best-effort persistence */
+    }
   }
   return resolved;
 }

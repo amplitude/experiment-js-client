@@ -131,6 +131,24 @@ describe('resolveCrossSubdomainObject', () => {
       first_seen: 'fresh-ts',
     });
   });
+
+  it('returns the resolved value when cookie persistence throws', async () => {
+    const storage = fakeCookieStorage();
+    storage.set.mockImplementation(() => {
+      throw new Error('cookie access blocked');
+    });
+    await expect(
+      resolveCrossSubdomainObject<Identity>(
+        storage as never,
+        'KEY',
+        {},
+        { web_exp_id_v2: () => 'fresh', first_seen: () => 'fresh-ts' },
+      ),
+    ).resolves.toEqual({
+      web_exp_id_v2: 'fresh',
+      first_seen: 'fresh-ts',
+    });
+  });
 });
 
 // jsdom shares document.cookie across tests in a file; clear between tests.
