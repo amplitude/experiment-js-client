@@ -235,7 +235,11 @@ export async function resolveCrossSubdomainObject<
   }
 
   if (changed) {
-    await cookieStorage.set(cookieKey, JSON.stringify(resolved));
+    try {
+      await cookieStorage.set(cookieKey, JSON.stringify(resolved));
+    } catch {
+      /* write blocked: persist via returned value only */
+    }
   }
   return resolved;
 }
@@ -300,6 +304,8 @@ export function deleteRawCookie(key: string, domain?: string): void {
 /**
  * Synchronous, format-compatible read of a value written by analytics-core's
  * `CookieStorage` (base64 of URL-encoded JSON) without async CookieStore API.
+ * NOTE: CookieStorage filters duplicate cookie names by domain
+ * but this function using document.cookie does not have that ability
  * Returns `undefined` when the cookie is absent or undecodable.
  */
 export function readCookieStorageSync<T>(key: string): T | undefined {
