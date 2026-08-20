@@ -325,6 +325,7 @@ export function writeCookieStorageSync<T>(
     domain?: string;
     sameSite?: string;
     expirationDays?: number;
+    secure?: boolean;
   } = {},
 ): void {
   if (typeof document === 'undefined') return;
@@ -339,6 +340,7 @@ export function writeCookieStorageSync<T>(
     }
     cookie += '; path=/';
     if (options.domain) cookie += `; domain=${options.domain}`;
+    if (options.secure) cookie += '; Secure';
     if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
     document.cookie = cookie;
   } catch {
@@ -351,6 +353,7 @@ type CookieStorageOptions = {
   domain?: string;
   sameSite?: string;
   expirationDays?: number;
+  secure?: boolean;
 };
 
 const documentCookieStore = <T>(
@@ -358,7 +361,11 @@ const documentCookieStore = <T>(
 ): AsyncCookieStore<T> => ({
   get: async (key) => readCookieStorageSync<T>(key),
   set: async (key, value) =>
-    writeCookieStorageSync<T>(key, value, { sameSite: 'Lax', ...options }),
+    writeCookieStorageSync<T>(key, value, {
+      sameSite: 'Lax',
+      secure: location.protocol === 'https:',
+      ...options,
+    }),
   remove: async (key) => deleteRawCookie(key, options.domain),
 });
 

@@ -1,9 +1,13 @@
+import { CookieStorage } from '@amplitude/analytics-core';
+
 import {
   deleteRawCookie,
   getCookieDomainLevels,
+  readCookieStorageSync,
   readRawCookie,
   resolveCrossSubdomainObject,
   SyncJsonCookie,
+  writeCookieStorageSync,
   writeRawCookie,
 } from '../../src/util/cookie';
 
@@ -251,5 +255,22 @@ describe('SyncJsonCookie', () => {
         Object.defineProperty(document, 'cookie', original);
       }
     }
+  });
+});
+
+describe('cookie storage sync helpers', () => {
+  afterEach(clearAllCookies);
+
+  // stay compatible with analytics-core's CookieStorage (base64 wire format).
+  it('reads a value written by analytics-core CookieStorage', async () => {
+    await new CookieStorage<string>().set('fmt', JSON.stringify({ x: 1 }));
+    expect(readCookieStorageSync<string>('fmt')).toBe(JSON.stringify({ x: 1 }));
+  });
+
+  it('writes a value readable by analytics-core CookieStorage', async () => {
+    writeCookieStorageSync<string>('fmt2', JSON.stringify({ y: 2 }));
+    expect(await new CookieStorage<string>().get('fmt2')).toBe(
+      JSON.stringify({ y: 2 }),
+    );
   });
 });
