@@ -12,6 +12,7 @@ import {
   Variant,
   AmplitudeIntegrationPlugin,
   ExperimentClient,
+  MemoryStorage,
   Variants,
 } from '@amplitude/experiment-js-client';
 import mutate from 'dom-mutator';
@@ -25,7 +26,12 @@ import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
 import { clearIfErasedElsewhere } from './consent/clear-data';
 import { type SyncCookieStore } from './consent/consent-cookie-storage';
-import { consentGate } from './consent/consent-gate';
+import {
+  consentGate,
+  isConsentPending,
+  isConsentWithheld,
+  onConsentDecision,
+} from './consent/consent-gate';
 import { wrapIntegrationTrack } from './consent/consent-impression-buffer';
 import { showPreviewModeModal } from './preview/preview';
 import { MessageBus } from './subscriptions/message-bus';
@@ -107,7 +113,7 @@ const REDIRECT_ACTION = 'redirect';
 export const PREVIEW_MODE_PARAM = 'PREVIEW';
 export { PREVIEW_MODE_SESSION_KEY };
 const VISUAL_EDITOR_PARAM = 'VISUAL_EDITOR';
-const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
+export const REDIRECT_IMPRESSION_PARAM = 'AMP_REDIRECT';
 // User actions that mark the interaction boundary for the redirect stick-detector.
 // A user cannot call replaceState; anything they do to leave a page passes through
 // one of these, so their presence between a redirect and the next attempt means a
@@ -316,9 +322,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   // Preview mode is set by url params, postMessage or session storage, not chrome extension
   isPreviewMode = false;
   previewFlags: Record<string, string> = {};
-  // Cross-subdomain cookie domain (leading-dot form or ''); resolved once, early
-  // in start(), and reused by every EXP_ cookie path (identity + RTBT session).
-  private rootDomain = '';
+  /** Redirect impressions parsed from AMP_REDIRECT before the first url_change. */
+  private preloadedUrlRedirectImpressions: Record<
+    string,
+    StoredRedirectImpression
+  > | null = null;
+  /**
+   * Settles once the post-grant identity refresh finishes (immediately on
+   * refusal). Armed only by a pending start(); the deferred relay sync awaits
+   * it so the relay binds to the durable identity, not an ephemeral mint.
+   */
+  private identityRefreshOnGrant: Promise<void> | null = null;
 
   constructor(
     apiKey: string,
@@ -326,7 +340,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
-    if (!globalScope || !isLocalStorageAvailable()) {
+    // While consent is withheld, skip the localStorage availability probe —
+    // it writes a throwaway key. Storage is gated to memory until a grant, and
+    // every post-grant path degrades gracefully if storage turns out unusable.
+    if (!globalScope || (!isConsentWithheld() && !isLocalStorageAvailable())) {
       throw new Error(
         'Amplitude Web Experiment Client could not be initialized.',
       );
@@ -399,6 +416,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       internalInstanceNameSuffix: 'web',
+      // The SDK's own direct-to-device writers — DefaultUserProvider
+      // (landing_url/first_seen) and the unsent-exposure queue — sit below
+      // this tag's gated storage helpers, so they get the gate as a callback.
+      // Checked per call: a mid-session grant reopens persistence
+      // immediately, and when gating was never enabled this always allows.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      internalPersistenceAllowed: () => !isConsentWithheld(),
       initialFlags: initialFlagsString,
       // timeout for fetching remote flags
       fetchTimeoutMillis: 1000,
@@ -406,6 +431,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       fetchOnStart: false,
       automaticExposureTracking: false,
       ...this.config,
+      // While consent is withheld, keep the amp-exp-* variant/flag caches in
+      // memory instead of sessionStorage. Chosen once, here: after a
+      // mid-session grant the cache stays in memory for this page and reverts
+      // to sessionStorage on the next load — fine for a cache that
+      // repopulates on every fetch.
+      ...(isConsentWithheld() && {
+        internalCacheStorage: new MemoryStorage(),
+      }),
     });
     // Get all the locally available flag keys from the SDK.
     // Exclude flags promoted to remoteFlagKeys via the dependency loop above —
@@ -547,15 +580,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
+    this.consumeRedirectParamFromUrl(urlParams);
+
     // fire url_change upon landing on page, set updateActivePagesOnly to not trigger variant actions
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
-    // Resolve the cross-subdomain cookie domain synchronously so identity below
-    // and the RTBT session (behavioral-targeting plugin, also via
-    // getTopLevelDomainSync()) resolve the same domain without an async probe on
-    // the startup critical path. Every EXP_ cookie needs it.
-    this.rootDomain = getTopLevelDomainSync(this.globalScope.location.hostname);
+    // Cross-subdomain cookies (identity, redirect, RTBT) resolve the domain
+    // lazily via getTopLevelDomainSync at write time so a pending-time guess is
+    // not pinned before consent lands.
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     const user =
@@ -577,10 +610,20 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       setStorageItem('localStorage', experimentStorageName, user);
     }
 
-    // Resolve web_exp_id_v2 and first_seen as a single root-domain cookie for
-    // cross-subdomain identity before getVariants() so anti-flicker and local
-    // evaluation use the shared first_seen, not a subdomain-local mint. The
-    // domain was resolved synchronously above (this.rootDomain).
+    // Resolve web_exp_id_v2 and first_seen from the shared root-domain cookie
+    // before getVariants(), so local evaluation uses the cross-subdomain
+    // first_seen rather than a subdomain-local mint. The cookie domain is
+    // resolved when the storage first reaches real cookies (post-grant for a
+    // pending start), so it is never pinned to an unprobed guess.
+    const crossSubdomainCookieStorage = createCookieStorage<string>(() => {
+      const domain = getTopLevelDomainSync(this.globalScope.location.hostname);
+      return {
+        ...(domain && { domain }),
+        sameSite: 'Lax',
+        expirationDays: 365,
+      };
+    });
+
     const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
     const defaultUserProviderData =
       getStorageItem<{ first_seen?: string }>(
@@ -590,6 +633,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // web_exp_id is guaranteed above; seed v2 from it when no cookie/local v2 exists.
     const identity = resolveCrossSubdomainObject(
+      crossSubdomainCookieStorage,
       identityCookieKey(this.apiKey),
       {
         web_exp_id_v2: user.web_exp_id_v2 ?? user.web_exp_id,
@@ -598,10 +642,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       {
         web_exp_id_v2: UUID,
         first_seen: () => (Date.now() / 1000).toString(),
-      },
-      {
-        ...(this.rootDomain && { domain: this.rootDomain }),
-        expirationDays: 365,
       },
     );
 
@@ -617,6 +657,105 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     user.first_seen = identity.first_seen;
+
+    // Under pending, the gated reads above hid any durable identity already on
+    // disk, so the ids resolved here may be an ephemeral mint. The grant flush
+    // reconciles the disk state; on grant, re-read it and move the running
+    // client onto the durable identity — otherwise this page would keep the
+    // ephemeral ids, fragmenting bucketing and behavioral data across the
+    // grant boundary. Variants already painted stay as applied; no mid-page
+    // repaint.
+    if (isConsentPending()) {
+      // Snapshot the pending-time values. After the flush, a cookie field
+      // still equal to one of these is this page's own buffered write, and a
+      // durable value from disk should win over it.
+      const pendingWebExpIdV2 = user.web_exp_id_v2;
+      const pendingFirstSeen = user.first_seen;
+      this.identityRefreshOnGrant = new Promise<void>((resolve) => {
+        onConsentDecision((granted) => {
+          if (!granted) {
+            resolve();
+            return;
+          }
+          try {
+            // The localStorage gate has already flushed (its listener was
+            // armed first); the cookie read below joins the cookie flush.
+            const durableUser =
+              getStorageItem<WebExperimentUser>(
+                'localStorage',
+                experimentStorageName,
+              ) || {};
+            const durableProvider =
+              getStorageItem<{ first_seen?: string }>(
+                'localStorage',
+                defaultUserProviderStorageKey,
+              ) || {};
+            const refreshed = resolveCrossSubdomainObject(
+              crossSubdomainCookieStorage,
+              identityCookieKey(this.apiKey),
+              {
+                web_exp_id_v2:
+                  durableUser.web_exp_id_v2 ?? user.web_exp_id_v2,
+                first_seen: durableProvider.first_seen ?? user.first_seen,
+              },
+              {
+                web_exp_id_v2: UUID,
+                first_seen: () => (Date.now() / 1000).toString(),
+              },
+            );
+            // If no durable cookie existed, the flush wrote this page's mint
+            // into it. Restore durable localStorage values over any field
+            // still at its pending-time value and rewrite the cookie — the
+            // same outcome an ungated start() would have produced.
+            const restored = { ...refreshed };
+            if (
+              durableUser.web_exp_id_v2 &&
+              refreshed.web_exp_id_v2 === pendingWebExpIdV2 &&
+              durableUser.web_exp_id_v2 !== pendingWebExpIdV2
+            ) {
+              restored.web_exp_id_v2 = durableUser.web_exp_id_v2;
+            }
+            if (
+              durableProvider.first_seen &&
+              refreshed.first_seen === pendingFirstSeen &&
+              durableProvider.first_seen !== pendingFirstSeen
+            ) {
+              restored.first_seen = durableProvider.first_seen;
+            }
+            if (
+              restored.web_exp_id_v2 !== refreshed.web_exp_id_v2 ||
+              restored.first_seen !== refreshed.first_seen
+            ) {
+              try {
+                crossSubdomainCookieStorage.set(
+                  identityCookieKey(this.apiKey),
+                  JSON.stringify(restored),
+                );
+              } catch {
+                /* write blocked: carry the restored values in memory only */
+              }
+            }
+            user.web_exp_id = durableUser.web_exp_id ?? user.web_exp_id;
+            user.web_exp_id_v2 = restored.web_exp_id_v2;
+            user.first_seen = restored.first_seen;
+            const refreshedUser: WebExperimentUser = {
+              ...((this.experimentClient.getUser() ??
+                {}) as WebExperimentUser),
+              web_exp_id: user.web_exp_id,
+              web_exp_id_v2: user.web_exp_id_v2,
+              first_seen: user.first_seen,
+            };
+            this.experimentClient.setUser(refreshedUser);
+          } catch {
+            // A failed refresh keeps the ephemeral identity — the same state
+            // the page was already in; the next load reads the durable one.
+          } finally {
+            resolve();
+          }
+        });
+      });
+    }
+
     this.experimentClient.setUser(user);
 
     // evaluate variants for page targeting
@@ -992,18 +1131,53 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
+    // The relay iframe stores events in the CDN origin's localStorage, so it
+    // must not exist before consent. Deferred rather than skipped: a grant
+    // re-runs this after the storage flush and identity refresh (their
+    // listeners were armed earlier, so they fire first), and re-reads the
+    // client's user so the relay binds to the durable identity rather than a
+    // pending-time mint. On refusal — including one that already landed —
+    // nothing is armed and the relay stays out for the rest of the page; a
+    // later re-opt-in gets it on the next load.
+    if (isConsentWithheld()) {
+      if (isConsentPending()) {
+        onConsentDecision((granted) => {
+          if (granted) {
+            void (async () => {
+              await this.identityRefreshOnGrant;
+              this.scheduleRelaySync({
+                ...user,
+                ...(this.experimentClient.getUser() as WebExperimentUser),
+              });
+            })();
+          }
+        });
+      }
+      return;
+    }
+
     // Single-shot: scheduleRelaySync runs exactly once per start() (the two
-    // call sites are mutually exclusive and start() is re-entry guarded). If a
-    // future identity-change re-sync needs to re-run this, add ownership
-    // tracking that also covers reapplyVariantsAfterRelaySync's awaits — a
-    // guard checked only here would leave the re-apply fetch/apply tail
-    // unguarded.
+    // call sites are mutually exclusive; the consent deferral above re-enters
+    // at most once). If a future change needs to re-run this, add ownership
+    // tracking that also covers reapplyVariantsAfterRelaySync's awaits.
     const relayClient = new RelayClient(
       this.apiKey,
       webExpIdV2,
       getRelayUrl(this.apiKey, this.config.serverZone, this.config.relayUrl),
     );
     this.relayClient = relayClient;
+
+    if (consentGate.required) {
+      // Revocation must stop requests to the third-party CDN origin, not just
+      // ignore responses: destroy the iframe and detach the dual-write. Armed
+      // here because a relay only comes into being while consent is granted,
+      // so the next transition can only be a revocation.
+      onConsentDecision((granted) => {
+        if (!granted) {
+          this.teardownRelay(relayClient);
+        }
+      });
+    }
 
     void this.behavioralTargetingManager
       .beginRelaySync(relayClient)
@@ -1381,7 +1555,15 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       isCrossSubdomain,
     );
 
-    if (this.config.redirectConfig?.encodeRedirectInUrl && isCrossSubdomain) {
+    // While consent is pending the sessionStorage/cookie copies written above
+    // are buffered in memory and die with this page, so the URL param is the
+    // only transport that survives the navigation (and it stores nothing on
+    // the device). Pending-only: after a mid-session revocation the redirect
+    // impression is dropped, like every other post-denial event.
+    if (
+      (this.config.redirectConfig?.encodeRedirectInUrl && isCrossSubdomain) ||
+      isConsentPending()
+    ) {
       // Embed impression data in redirect URL for cross-domain and
       // cookie-blocked environments. Merge with any existing param in case
       // multiple redirect experiments fire in sequence.
@@ -1866,13 +2048,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.config.redirectConfig?.encodeRedirectInCookie &&
       isCrossSubdomain
     ) {
-      const domain = getTopLevelDomainSync(this.globalScope.location.hostname);
       const storage = createCookieStorage<
         Record<string, StoredRedirectImpression>
-      >({
-        ...(domain && { domain }),
-        sameSite: 'Lax',
-        expirationDays: 1 / 1440, // 1 minute
+      >(() => {
+        const domain = getTopLevelDomainSync(
+          this.globalScope.location.hostname,
+        );
+        return {
+          ...(domain && { domain }),
+          sameSite: 'Lax',
+          expirationDays: 1 / 1440, // 1 minute
+        };
       });
 
       try {
@@ -1888,12 +2074,44 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
   }
 
+  private consumeRedirectParamFromUrl(urlParams: Record<string, string>): void {
+    const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
+    if (!encoded) {
+      return;
+    }
+    if (
+      !this.config.redirectConfig?.encodeRedirectInUrl &&
+      !consentGate.required
+    ) {
+      return;
+    }
+    try {
+      this.preloadedUrlRedirectImpressions = JSON.parse(atob(encoded));
+    } catch {
+      this.preloadedUrlRedirectImpressions = {};
+    }
+    const cleanedUrl = removeQueryParams(this.globalScope.location.href, [
+      REDIRECT_IMPRESSION_PARAM,
+    ]);
+    this.subscriptionManager?.markUrlAsPublished(cleanedUrl);
+    this.globalScope.history.replaceState({}, '', cleanedUrl);
+  }
+
   private fireStoredRedirectImpressions() {
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
 
-    // Read URL param impressions (highest priority)
-    let urlImpressions: Record<string, StoredRedirectImpression> = {};
-    if (this.config.redirectConfig?.encodeRedirectInUrl) {
+    // Read URL param impressions (highest priority). A pending source page
+    // forces the URL transport (see handleRedirect), so a consent-gated
+    // destination must consume the param — and clean the URL — even when the
+    // customer never opted into encodeRedirectInUrl. When start() already
+    // consumed the param for page targeting, use that snapshot here.
+    let urlImpressions: Record<string, StoredRedirectImpression> =
+      this.preloadedUrlRedirectImpressions ?? {};
+    this.preloadedUrlRedirectImpressions = null;
+    if (
+      Object.keys(urlImpressions).length === 0 &&
+      (this.config.redirectConfig?.encodeRedirectInUrl || consentGate.required)
+    ) {
       const urlParams = getUrlParams();
       const encoded = urlParams[REDIRECT_IMPRESSION_PARAM];
       if (encoded) {
@@ -1924,12 +2142,16 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       | SyncCookieStore<Record<string, StoredRedirectImpression>>
       | undefined;
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
-      const domain = getTopLevelDomainSync(this.globalScope.location.hostname);
       cookieStorage = createCookieStorage<
         Record<string, StoredRedirectImpression>
-      >({
-        ...(domain && { domain }),
-        sameSite: 'Lax',
+      >(() => {
+        const domain = getTopLevelDomainSync(
+          this.globalScope.location.hostname,
+        );
+        return {
+          ...(domain && { domain }),
+          sameSite: 'Lax',
+        };
       });
       try {
         cookieImpressions = cookieStorage.get(storageKey) || {};

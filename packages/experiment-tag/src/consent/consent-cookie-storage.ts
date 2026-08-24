@@ -34,8 +34,28 @@ const snapshotValue = <T>(value: T): T =>
 export class ConsentAwareCookieStorage<T> implements SyncCookieStore<T> {
   private readonly buffered = new Map<string, T>();
   private flushArmed = false;
+  private resolvedDelegate: SyncCookieStore<T> | null = null;
 
-  constructor(private readonly delegate: SyncCookieStore<T>) {}
+  /**
+   * A factory delegate is resolved lazily, on the first access that reaches
+   * real storage. This lets the cross-subdomain cookie domain — unprobeable
+   * while consent is withheld — be resolved for real post-grant instead of
+   * freezing a pending-time guess.
+   */
+  constructor(
+    private readonly delegate:
+      | SyncCookieStore<T>
+      | (() => SyncCookieStore<T>),
+  ) {}
+
+  private getDelegate(): SyncCookieStore<T> {
+    if (this.resolvedDelegate) {
+      return this.resolvedDelegate;
+    }
+    this.resolvedDelegate =
+      typeof this.delegate === 'function' ? this.delegate() : this.delegate;
+    return this.resolvedDelegate;
+  }
 
   get(key: string): T | undefined {
     if (isConsentWithheld()) {
@@ -44,7 +64,7 @@ export class ConsentAwareCookieStorage<T> implements SyncCookieStore<T> {
       const value = this.buffered.get(key);
       return value === undefined ? undefined : snapshotValue(value);
     }
-    return this.delegate.get(key);
+    return this.getDelegate().get(key);
   }
 
   set(key: string, value: T): void {
@@ -55,18 +75,17 @@ export class ConsentAwareCookieStorage<T> implements SyncCookieStore<T> {
       }
       return;
     }
-    this.delegate.set(key, value);
+    this.getDelegate().set(key, value);
   }
 
   remove(key: string): void {
-    // Refusal falls through so denial cleanup can erase a cookie from a
-    // consented visit; only a still-undecided visitor stops at the buffer, since
-    // expiring a cookie is itself a write.
+    // Pending stops at the buffer (expiring a cookie is itself a write);
+    // refusal falls through so denial cleanup can erase real cookies.
     if (isConsentPending()) {
       this.buffered.delete(key);
       return;
     }
-    this.delegate.remove(key);
+    this.getDelegate().remove(key);
   }
 
   private armFlush(): void {
@@ -80,12 +99,18 @@ export class ConsentAwareCookieStorage<T> implements SyncCookieStore<T> {
       if (!granted) {
         return;
       }
+      let delegate: SyncCookieStore<T>;
+      try {
+        delegate = this.getDelegate();
+      } catch {
+        return;
+      }
       for (const [key, value] of entries) {
         if (consentGate.manager.getStatus() !== 'granted') {
           return;
         }
         try {
-          const existing = this.delegate.get(key);
+          const existing = delegate.get(key);
           const merged =
             typeof value === 'string'
               ? (mergeIdentityCookieJson(
@@ -93,7 +118,7 @@ export class ConsentAwareCookieStorage<T> implements SyncCookieStore<T> {
                   value,
                 ) as T)
               : value;
-          this.delegate.set(key, merged);
+          delegate.set(key, merged);
         } catch {
           // Blocked cookie I/O degrades silently, as the raw paths do.
         }

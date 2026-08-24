@@ -146,6 +146,62 @@ describe('ConsentAwareCookieStorage', () => {
     });
   });
 
+  describe('lazy delegate', () => {
+    it('does not resolve the delegate while consent is withheld', () => {
+      activateConsent('pending');
+      const factory = jest.fn(() => fakeStore());
+      const storage = new ConsentAwareCookieStorage(factory);
+
+      storage.set('ck', 'fresh');
+      expect(storage.get('ck')).toEqual('fresh');
+
+      expect(factory).not.toHaveBeenCalled();
+    });
+
+    it('resolves the delegate at grant flush, so it captures post-grant state', () => {
+      activateConsent('pending');
+      const delegate = fakeStore();
+      // Stands in for the cookie-domain probe: real only once granted.
+      const factory = jest.fn(() => {
+        expect(consentGate.manager.getStatus()).toEqual('granted');
+        return delegate;
+      });
+      const storage = new ConsentAwareCookieStorage(factory);
+      storage.set('ck', 'fresh');
+
+      consentGate.manager.setStatus('granted');
+      expect(storage.get('ck')).toEqual('fresh');
+
+      expect(factory).toHaveBeenCalledTimes(1);
+      expect(delegate.store).toEqual({ ck: 'fresh' });
+    });
+
+    it('never resolves the delegate when consent is denied', () => {
+      activateConsent('pending');
+      const factory = jest.fn(() => fakeStore());
+      const storage = new ConsentAwareCookieStorage(factory);
+      storage.set('ck', 'fresh');
+
+      consentGate.manager.setStatus('denied');
+      expect(storage.get('ck')).toBeUndefined();
+
+      expect(factory).not.toHaveBeenCalled();
+    });
+
+    it('drops the buffer without poisoning later access when the factory throws', () => {
+      activateConsent('pending');
+      const factory = (): SyncCookieStore<string> => {
+        throw new Error('probe failed');
+      };
+      const storage = new ConsentAwareCookieStorage(factory);
+      storage.set('ck', 'fresh');
+
+      consentGate.manager.setStatus('granted');
+
+      expect(() => storage.get('ck')).toThrow('probe failed');
+    });
+  });
+
   describe('denial', () => {
     it('discards buffered writes instead of flushing them', () => {
       activateConsent('pending');

@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.13.5](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.13.4...@amplitude/experiment-core@0.13.5) (2026-08-19)
+
+
+### Bug Fixes
+
+* upgrade target to es6 ([#367](https://github.com/amplitude/experiment-js-client/issues/367)) ([cd04e86](https://github.com/amplitude/experiment-js-client/commit/cd04e86d4d3678be16c990132164d34a3cd89d53))
+
+
+
+
+
 ## [0.13.4](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-core@0.13.3...@amplitude/experiment-core@0.13.4) (2026-07-29)
 
 **Note:** Version bump only for package @amplitude/experiment-core

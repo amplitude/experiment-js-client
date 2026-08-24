@@ -1,16 +1,15 @@
 {
   "compilerOptions": {
-    "lib": ["es5", "es6", "dom"],
+    "lib": ["es6", "dom"],
     "module": "es2020",
     "noEmitOnError": true,
     "esModuleInterop": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "target": "es5",
+    "target": "es6",
     "noEmit": true,
     "rootDir": ".",
-    "baseUrl": ".",
-    "downlevelIteration": true
+    "baseUrl": "."
   }
 }

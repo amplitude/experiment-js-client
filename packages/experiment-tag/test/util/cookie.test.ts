@@ -1,8 +1,11 @@
 import { CookieStorage } from '@amplitude/analytics-core';
 
+import { consentGate } from '../../src/consent/consent-gate';
 import {
+  createCookieStorage,
   deleteRawCookie,
   getCookieDomainLevels,
+  getTopLevelDomainSync,
   readCookieStorageSync,
   readRawCookie,
   resolveCrossSubdomainObject,
@@ -10,6 +13,7 @@ import {
   writeCookieStorageSync,
   writeRawCookie,
 } from '../../src/util/cookie';
+import { activateConsent } from '../consent/consent-test-util';
 
 describe('getCookieDomainLevels', () => {
   it.each<[string, string[]]>([
@@ -47,6 +51,7 @@ describe('getCookieDomainLevels', () => {
 describe('resolveCrossSubdomainObject', () => {
   afterEach(clearAllCookies);
   type Identity = { web_exp_id_v2: string; first_seen: string };
+  const storage = () => createCookieStorage<string>();
 
   // The cookie holds the JSON object as a string value, in analytics-core's
   // wire format, exactly as the async CookieStorage<string> path wrote it.
@@ -60,6 +65,7 @@ describe('resolveCrossSubdomainObject', () => {
   it('returns existing cookie fields', () => {
     seed('KEY', { web_exp_id_v2: 'abc', first_seen: '123' });
     const resolved = resolveCrossSubdomainObject<Identity>(
+      storage(),
       'KEY',
       { web_exp_id_v2: 'fallback', first_seen: 'fallback' },
       { web_exp_id_v2: () => 'gen', first_seen: () => 'gen' },
@@ -74,6 +80,7 @@ describe('resolveCrossSubdomainObject', () => {
 
   it('seeds missing fields from fallback, then persists', () => {
     const resolved = resolveCrossSubdomainObject<Identity>(
+      storage(),
       'KEY',
       { web_exp_id_v2: 'from-fallback' },
       { web_exp_id_v2: () => 'gen', first_seen: () => 'generated' },
@@ -87,6 +94,7 @@ describe('resolveCrossSubdomainObject', () => {
 
   it('falls back to generators when no cookie or fallback', () => {
     const resolved = resolveCrossSubdomainObject<Identity>(
+      storage(),
       'KEY',
       {},
       { web_exp_id_v2: () => 'gen-id', first_seen: () => 'gen-ts' },
@@ -98,6 +106,7 @@ describe('resolveCrossSubdomainObject', () => {
   it('re-seeds when the cookie holds only some fields', () => {
     seed('KEY', { web_exp_id_v2: 'kept' });
     const resolved = resolveCrossSubdomainObject<Identity>(
+      storage(),
       'KEY',
       { first_seen: 'seed-ts' },
       { web_exp_id_v2: () => 'gen', first_seen: () => 'gen' },
@@ -110,6 +119,7 @@ describe('resolveCrossSubdomainObject', () => {
     // A raw (non-base64) value the decoder cannot parse reads as absent.
     writeRawCookie('KEY', 'not-json{');
     const resolved = resolveCrossSubdomainObject<Identity>(
+      storage(),
       'KEY',
       {},
       { web_exp_id_v2: () => 'fresh', first_seen: () => 'fresh-ts' },
@@ -118,6 +128,35 @@ describe('resolveCrossSubdomainObject', () => {
       web_exp_id_v2: 'fresh',
       first_seen: 'fresh-ts',
     });
+  });
+});
+
+describe('top-level domain resolution under consent', () => {
+  afterEach(() => {
+    consentGate.reset();
+    jest.restoreAllMocks();
+  });
+
+  it('returns the unprobed guess without probing while consent is pending', () => {
+    activateConsent('pending');
+    const cookieSetter = jest.spyOn(document, 'cookie', 'set');
+    expect(getTopLevelDomainSync('app.example.com')).toBe('.example.com');
+    expect(cookieSetter).not.toHaveBeenCalled();
+  });
+
+  it('sync variant skips the probe cookie while consent is withheld', () => {
+    activateConsent('denied');
+    // In this jsdom page a `.example.com` probe cookie can never be written,
+    // so the ungated path would walk every level and return ''. Getting the
+    // guess back proves the probe never ran.
+    expect(getTopLevelDomainSync('app.example.com')).toBe('.example.com');
+  });
+
+  it('probes for real once consent is granted', () => {
+    activateConsent('granted');
+    const cookieSetter = jest.spyOn(document, 'cookie', 'set');
+    getTopLevelDomainSync('app.example.com');
+    expect(cookieSetter).toHaveBeenCalled();
   });
 });
 

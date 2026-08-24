@@ -1,6 +1,10 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import { PREVIEW_MODE_PARAM, PREVIEW_MODE_SESSION_KEY } from '../experiment';
+import {
+  PREVIEW_MODE_PARAM,
+  PREVIEW_MODE_SESSION_KEY,
+  REDIRECT_IMPRESSION_PARAM,
+} from '../experiment';
 import { PreviewState } from '../types';
 
 import { getStorageItem } from './storage';
@@ -66,6 +70,24 @@ export const removeQueryParams = (
     urlObj.searchParams.delete(param);
   }
   return urlObj.toString();
+};
+
+/**
+ * Strips the redirect-impression transport param without consuming it. When a
+ * destination page loads denied, the impression is dropped like every other
+ * denied-era event, and the payload must not linger in the URL where it could
+ * replay through the deferred start on a later re-grant.
+ */
+export const discardRedirectImpressionParam = (): void => {
+  const globalScope = getGlobalScope();
+  if (!globalScope || !getUrlParams()[REDIRECT_IMPRESSION_PARAM]) {
+    return;
+  }
+  globalScope.history.replaceState(
+    {},
+    '',
+    removeQueryParams(globalScope.location.href, [REDIRECT_IMPRESSION_PARAM]),
+  );
 };
 
 export const matchesUrl = (urlArray: string[], urlString: string): boolean => {

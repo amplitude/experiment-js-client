@@ -6,7 +6,6 @@
     "noImplicitAny": false,
     "declaration": true,
     "declarationDir": "dist/types",
-    "downlevelIteration": true,
     "strict": true,
     "baseUrl": ".",
     "rootDir": ".",
