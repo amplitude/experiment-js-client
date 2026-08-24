@@ -28,10 +28,9 @@ export class DefaultUserProvider implements ExperimentUserProvider {
    */
   private readonly persistenceAllowed?: () => boolean;
   /**
-   * The first URL seen while persistence was gated. Without it, an SPA
-   * navigation before consent resolves would shift the reported landing page
-   * per call, and a grant after that navigation would persist the page at
-   * grant time rather than where the visitor actually landed.
+   * The first URL seen while persistence was gated, so an SPA navigation
+   * before consent resolves doesn't shift the reported (or later persisted)
+   * landing page.
    */
   private gatedLandingUrl?: string;
 
@@ -117,8 +116,7 @@ export class DefaultUserProvider implements ExperimentUserProvider {
   private getLandingUrl(): string | undefined {
     if (!this.canPersist()) {
       // Storage is gated (reads included): report the first URL of this
-      // page's life as the landing page without consulting or extending the
-      // per-session record.
+      // page's life without touching the per-session record.
       this.gatedLandingUrl ??= this.getCurrentUrl();
       return this.gatedLandingUrl;
     }
@@ -144,9 +142,9 @@ export class DefaultUserProvider implements ExperimentUserProvider {
 
   private getFirstSeen(): string | undefined {
     if (!this.canPersist()) {
-      // Storage is gated: mint a per-call value rather than persist one. A
-      // caller that manages first_seen itself (experiment-tag does, behind
-      // its consent gate) overrides this via the user-object merge.
+      // Storage is gated: mint a per-call value rather than persist one.
+      // experiment-tag manages first_seen itself and overrides this via the
+      // user-object merge.
       return (Date.now() / 1000).toString();
     }
     try {

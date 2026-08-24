@@ -33,15 +33,12 @@ const bufferAnalyticsEvent = (event: {
 };
 
 /**
- * Updates cookie-consent status. Exposed on `window.webExperiment` (incl. the
- * pre-init stub) so a CMP callback can call it before the client exists.
- * `granted` starts a deferred client once — the client only defers when
- * consent was denied at load (the preference-center re-opt-in flow). With a
- * client already running under pending, `granted` instead resolves the gates
- * armed below it: buffered storage flushes, buffered impressions replay, and
- * the relay iframe is injected. Transitions to `pending` are ignored: pending
- * is only meaningful as an initial state. Unknown values warn and are
- * ignored. A grant recorded before `initialize()` runs is honored on init.
+ * Updates cookie-consent status. Exposed on `window.webExperiment` (including
+ * the pre-init stub) so a CMP callback can call it before the client exists.
+ * `granted` starts a client deferred by an at-load denial, or — for a client
+ * already running under pending — flushes buffered storage, replays buffered
+ * impressions, and injects the relay iframe. Transitions to `pending` and
+ * unknown values are ignored.
  */
 export const setConsentStatus = (status: ConsentStatus): void => {
   const parsed = parseConsentStatus(status);
@@ -97,14 +94,11 @@ export const initialize = (
   }
 
   // Consent gate: only a denial defers the start. Under pending the client
-  // runs normally — everything it would persist or send is held back by the
-  // layers below (storage and cookies buffer in memory, impressions buffer,
-  // the relay iframe stays out), so experiments apply without flicker while
-  // nothing lands on the device or leaves for a third-party origin.
-  // An already-denied deferral keeps the gate closed even if this call resolves
-  // consentRequired=false, so a later initialize can't bypass a start that a
-  // prior one parked on consent. A later grant (preference-center re-opt-in)
-  // starts the deferred client in-session with fresh state.
+  // runs normally — the storage/cookie/impression/relay layers below hold
+  // everything in memory, so experiments apply without flicker while nothing
+  // lands on the device or leaves for a third-party origin. An existing
+  // denied deferral keeps the gate closed even if this call resolves
+  // consentRequired=false; a later grant starts the deferred client.
   const effectiveConfig = mergeWithWindowConfig(config, globalScope);
   const consent = effectiveConfig.consentOptions;
   const gated = consent.consentRequired || consentGate.deferredStart !== null;
@@ -113,11 +107,9 @@ export const initialize = (
   // second initialize can't reopen storage that a first one closed.
   consentGate.required = consentGate.required || gated;
   if (gated) {
-    // A runtime status (setConsentStatus) wins over the declarative config;
-    // seedFromConfig enforces that, and the guard here keeps a config-validity
-    // warning from firing about a value that can no longer take effect.
-    // setConsentStatus warns and ignores unknown values; an unrecognized
-    // config value warns and falls back to 'pending' (fail closed).
+    // A runtime status (setConsentStatus) wins over the declarative config.
+    // An unrecognized config value warns and falls back to 'pending' (fail
+    // closed).
     if (!consentGate.manager.hasExplicitStatus()) {
       const configStatus = parseConsentStatus(consent.consentStatus);
       if (consent.consentStatus !== undefined && configStatus === null) {
@@ -132,14 +124,11 @@ export const initialize = (
     armDenialCleanup(apiKey, effectiveConfig.instanceName);
     if (consentGate.manager.getStatus() === 'denied') {
       consentGate.deferredStart = { apiKey, initConfigs, config };
-      // The one point where denied-era events are dropped: this clears anything
-      // buffered before the deferral began, and the plugin's execute() refuses
-      // to buffer while it lasts — so nothing tracked while denied ever replays.
+      // Drop denied-era events: clear anything already buffered (the plugin's
+      // execute() refuses to buffer while the deferral lasts).
       eventBuffer.length = 0;
-      // Same for a redirect impression a pending source page put on this URL:
-      // the client that would consume it never constructs, so strip the param
-      // here or the assignment payload outlives the page in the address bar
-      // and replays through the deferred start on a later re-grant.
+      // Also strip a redirect-impression URL param a pending source page put
+      // on this URL, so it can't replay through the deferred start later.
       discardRedirectImpressionParam();
       return;
     }

@@ -18,14 +18,11 @@ export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 export const VISUAL_EDITOR_SESSION_KEY = 'visual-editor-state';
 
 /**
- * Keys that stay readable and writable while consent is pending.
- *
- * Both hold Amplitude's own tooling state, entered deliberately by the person
- * building the experiment through a `PREVIEW`/`VISUAL_EDITOR` URL parameter —
- * they say nothing about the visitor and are not what a consent banner is
- * asking about. Gating them would leave an editor that silently fails to open
- * on any site that has consent gating switched on, since the state has to
- * survive the redirect that strips those parameters from the URL.
+ * Keys that stay readable and writable while consent is pending. Both hold
+ * Amplitude's own tooling state (entered via a `PREVIEW`/`VISUAL_EDITOR` URL
+ * parameter), say nothing about the visitor, and must survive the redirect
+ * that strips those parameters — gating them would break preview mode and the
+ * visual editor on consent-gated sites.
  */
 export const CONSENT_EXEMPT_STORAGE_KEYS: ReadonlySet<string> = new Set([
   PREVIEW_MODE_SESSION_KEY,

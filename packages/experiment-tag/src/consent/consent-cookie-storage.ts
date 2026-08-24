@@ -44,11 +44,10 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
   private resolvedDelegate: Promise<AsyncCookieStore<T>> | null = null;
 
   /**
-   * A factory delegate is resolved lazily, on the first access that actually
-   * reaches real storage. That lets construction-time inputs that cannot be
-   * probed while consent is withheld — the cross-subdomain cookie domain —
-   * be resolved for real once consent is granted, instead of freezing the
-   * unprobed guess a pending-time construction would capture.
+   * A factory delegate is resolved lazily, on the first access that reaches
+   * real storage. This lets the cross-subdomain cookie domain — unprobeable
+   * while consent is withheld — be resolved for real post-grant instead of
+   * freezing a pending-time guess.
    */
   constructor(
     private readonly delegate:
@@ -86,9 +85,8 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
   }
 
   async remove(key: string): Promise<void> {
-    // Refusal falls through so denial cleanup can erase a cookie from a
-    // consented visit; only a still-undecided visitor stops at the buffer, since
-    // expiring a cookie is itself a write.
+    // Pending stops at the buffer (expiring a cookie is itself a write);
+    // refusal falls through so denial cleanup can erase real cookies.
     if (isConsentPending()) {
       this.buffered.delete(key);
       return;
@@ -109,14 +107,14 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
         return;
       }
       this.flush = (async () => {
-        // Resolved here, after the grant, so a factory delegate probes the
-        // real cookie domain rather than reusing a pending-time guess.
+        // Resolved post-grant so a factory delegate probes the real cookie
+        // domain rather than reusing a pending-time guess.
         let delegate: AsyncCookieStore<T>;
         try {
           delegate = await this.getDelegate();
         } catch {
-          // A failed delegate drops the buffer, like blocked cookie I/O; the
-          // flush itself must not reject or every later access would too.
+          // Drop the buffer; the flush must not reject or every later access
+          // (which awaits it) would too.
           return;
         }
         for (const [key, value] of entries) {
@@ -145,13 +143,11 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
 type CookieStorageOptions = ConstructorParameters<typeof CookieStorage>[0];
 
 /**
- * Builds the cookie storage every experiment-tag call site should use, so a new
- * one cannot silently bypass the consent gate.
- *
- * Pass a function when an option can only be resolved with a device probe —
- * the cross-subdomain `domain` — so it is evaluated on the first access that
- * reaches real storage (post-grant for a visitor who started out pending)
- * rather than frozen at construction while consent is withheld.
+ * Builds the cookie storage every experiment-tag call site should use, so a
+ * new one cannot silently bypass the consent gate. Pass a function when an
+ * option needs a device probe (the cross-subdomain `domain`); it is evaluated
+ * on the first access that reaches real storage rather than frozen at
+ * construction while consent is withheld.
  */
 export const createCookieStorage = <T>(
   options?:

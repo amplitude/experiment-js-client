@@ -330,10 +330,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     StoredRedirectImpression
   > | null = null;
   /**
-   * Settles once the post-grant identity refresh has finished (or right away on
-   * refusal). Armed only by a pending start(), whose gated reads may have
-   * minted an ephemeral identity; the deferred relay sync awaits it so the
-   * relay binds to the durable identity the grant flush restored.
+   * Settles once the post-grant identity refresh finishes (immediately on
+   * refusal). Armed only by a pending start(); the deferred relay sync awaits
+   * it so the relay binds to the durable identity, not an ephemeral mint.
    */
   private identityRefreshOnGrant: Promise<void> | null = null;
 
@@ -343,10 +342,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     config: WebExperimentConfig = {},
   ) {
     const globalScope = getGlobalScope();
-    // While consent is withheld nothing may touch localStorage — including the
-    // availability probe, which writes a throwaway key. Storage is gated to
-    // memory until a grant, and every post-grant path degrades on failure, so
-    // deferring the probe to an unlucky consented construction loses nothing.
+    // While consent is withheld, skip the localStorage availability probe —
+    // it writes a throwaway key. Storage is gated to memory until a grant, and
+    // every post-grant path degrades gracefully if storage turns out unusable.
     if (!globalScope || (!isConsentWithheld() && !isLocalStorageAvailable())) {
       throw new Error(
         'Amplitude Web Experiment Client could not be initialized.',
@@ -590,13 +588,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
-    // Warm the cross-subdomain cookie-domain cache as early as possible — but
-    // after the synchronous url_change above, whose subscribers apply
-    // anti-flicker variants/redirects before this first await. Under withheld
-    // consent this returns an uncached guess (probing writes a cookie), so
-    // every consumer resolves the domain lazily at write time instead of
-    // capturing this result: the identity storage below via its options
-    // factory, the RTBT session via getTopLevelDomainSync().
+    // Warm the cross-subdomain cookie-domain cache. Must run after the
+    // synchronous url_change above, whose subscribers apply anti-flicker
+    // variants/redirects before this first await. While consent is withheld
+    // this returns an uncached guess (probing writes a cookie), so consumers
+    // resolve the domain lazily at write time instead of capturing this result.
     await getTopLevelDomain(this.globalScope.location.hostname);
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
@@ -619,12 +615,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       setStorageItem('localStorage', experimentStorageName, user);
     }
 
-    // Resolve web_exp_id_v2 and first_seen as a single root-domain cookie for
-    // cross-subdomain identity before getVariants() so anti-flicker and local
-    // evaluation use the shared first_seen, not a subdomain-local mint. The
-    // domain is resolved when the storage first reaches real cookies — for a
-    // pending start that is the grant flush, when a real writability probe is
-    // allowed, so the cookie is not pinned to an unprobed pending-time guess.
+    // Resolve web_exp_id_v2 and first_seen from the shared root-domain cookie
+    // before getVariants(), so local evaluation uses the cross-subdomain
+    // first_seen rather than a subdomain-local mint. The cookie domain is
+    // resolved when the storage first reaches real cookies (post-grant for a
+    // pending start), so it is never pinned to an unprobed guess.
     const crossSubdomainCookieStorage = createCookieStorage<string>(
       async () => {
         const domain = await getTopLevelDomain(
@@ -672,23 +667,17 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
     user.first_seen = identity.first_seen;
 
-    // Under pending, the gated reads above hid any durable identity an earlier
-    // consented visit stored, so the ids resolved here may be an ephemeral
-    // mint. The grant flush restores the durable identity on disk
-    // (grant-flush-merge), but this running client would otherwise keep the
-    // ephemeral one for the rest of the page — fragmenting sticky bucketing
-    // and cross-subdomain behavioral data across the grant boundary. Re-read
-    // the reconciled identity after the flush and move the client onto it, so
-    // post-grant evaluation and the deferred relay sync bind to the identity
-    // every later page load will use. Variants already painted stay as
-    // applied; a mid-page repaint at the moment of grant would be worse than
-    // one page of drift on the exposures already queued.
+    // Under pending, the gated reads above hid any durable identity already on
+    // disk, so the ids resolved here may be an ephemeral mint. The grant flush
+    // reconciles the disk state; on grant, re-read it and move the running
+    // client onto the durable identity — otherwise this page would keep the
+    // ephemeral ids, fragmenting bucketing and behavioral data across the
+    // grant boundary. Variants already painted stay as applied; no mid-page
+    // repaint.
     if (isConsentPending()) {
-      // The pending-time resolution, snapshotted before the grant handler
-      // mutates `user`: any post-flush cookie field still equal to one of
-      // these can only be this page's own buffered write (gated reads saw no
-      // cookie, so these values were minted or subdomain-local), and a
-      // durable value that survived elsewhere on disk should win over it.
+      // Snapshot the pending-time values. After the flush, a cookie field
+      // still equal to one of these is this page's own buffered write, and a
+      // durable value from disk should win over it.
       const pendingWebExpIdV2 = user.web_exp_id_v2;
       const pendingFirstSeen = user.first_seen;
       this.identityRefreshOnGrant = new Promise<void>((resolve) => {
@@ -699,9 +688,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
           }
           void (async () => {
             try {
-              // The localStorage gate flushed synchronously when this listener's
-              // predecessors ran (they were armed earlier, on the buffered
-              // writes); the cookie read below joins the cookie gate's flush.
+              // The localStorage gate has already flushed (its listener was
+              // armed first); the cookie read below joins the cookie flush.
               const durableUser =
                 getStorageItem<WebExperimentUser>(
                   'localStorage',
@@ -725,13 +713,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
                   first_seen: () => (Date.now() / 1000).toString(),
                 },
               );
-              // When no durable cookie existed the flush merge wrote the
-              // pending-time values into it, so the re-read above returns this
-              // page's own mint. An ungated start() would have seeded the
-              // cookie from the durable localStorage values instead — converge
-              // to that: restore them over any field still at its pending-time
-              // value and rewrite the cookie, so the mint does not become the
-              // visitor's permanent identity.
+              // If no durable cookie existed, the flush wrote this page's mint
+              // into it. Restore durable localStorage values over any field
+              // still at its pending-time value and rewrite the cookie — the
+              // same outcome an ungated start() would have produced.
               const restored = { ...refreshed };
               if (
                 durableUser.web_exp_id_v2 &&
@@ -1150,20 +1135,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
 
-    // Third-party surface: the relay iframe stores events in the CDN origin's
-    // localStorage, so it must not exist before consent. Deferred rather than
-    // skipped — a grant re-runs this, and by then the storage-gate flush
-    // listeners (armed earlier, on the buffered writes) have already run, so
-    // the merge reads a complete local event store. The re-entry awaits the
-    // identity refresh (also armed earlier in start(), so its listener fires
-    // first) and re-reads the client's user, so the relay binds to the
-    // durable identity the grant restored rather than a pending-time mint. A
-    // refusal spends the one-shot subscription without injecting and the
-    // relay stays out for the rest of the page — a later re-opt-in gets it on
-    // the next load. A refusal that already landed (a denial racing start())
-    // arms nothing for the same reason: the decision for this page is made,
-    // and an armed one-shot would let a same-page re-opt-in inject what the
-    // spent-subscription path holds until the next load.
+    // The relay iframe stores events in the CDN origin's localStorage, so it
+    // must not exist before consent. Deferred rather than skipped: a grant
+    // re-runs this after the storage flush and identity refresh (their
+    // listeners were armed earlier, so they fire first), and re-reads the
+    // client's user so the relay binds to the durable identity rather than a
+    // pending-time mint. On refusal — including one that already landed —
+    // nothing is armed and the relay stays out for the rest of the page; a
+    // later re-opt-in gets it on the next load.
     if (isConsentWithheld()) {
       if (isConsentPending()) {
         onConsentDecision((granted) => {
@@ -1182,12 +1161,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     }
 
     // Single-shot: scheduleRelaySync runs exactly once per start() (the two
-    // call sites are mutually exclusive and start() is re-entry guarded; the
-    // consent deferral above re-enters at most once). If a future
-    // identity-change re-sync needs to re-run this, add ownership
-    // tracking that also covers reapplyVariantsAfterRelaySync's awaits — a
-    // guard checked only here would leave the re-apply fetch/apply tail
-    // unguarded.
+    // call sites are mutually exclusive; the consent deferral above re-enters
+    // at most once). If a future change needs to re-run this, add ownership
+    // tracking that also covers reapplyVariantsAfterRelaySync's awaits.
     const relayClient = new RelayClient(
       this.apiKey,
       webExpIdV2,
@@ -1196,12 +1172,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.relayClient = relayClient;
 
     if (consentGate.required) {
-      // Withdrawal must stop requests to the third-party CDN origin, not just
-      // ignore its responses: destroy the iframe and detach the dual-write so
-      // no further events are posted to the relay after a revocation. Armed
-      // here because this is the only place a relay comes into being, and it
-      // only does so while consent is granted — the next applied transition
-      // can only be a revocation.
+      // Revocation must stop requests to the third-party CDN origin, not just
+      // ignore responses: destroy the iframe and detach the dual-write. Armed
+      // here because a relay only comes into being while consent is granted,
+      // so the next transition can only be a revocation.
       onConsentDecision((granted) => {
         if (!granted) {
           this.teardownRelay(relayClient);
@@ -1587,11 +1561,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // While consent is pending the sessionStorage/cookie copies written above
     // are buffered in memory and die with this page, so the URL param is the
-    // only transport that survives the navigation. Forced on for any redirect
-    // (same-subdomain too, and regardless of the encodeRedirectInUrl opt-in) —
-    // it stores nothing on the device. Deliberately pending-only: a redirect
-    // after a mid-session revocation drops its impression, like every other
-    // post-denial event.
+    // only transport that survives the navigation (and it stores nothing on
+    // the device). Pending-only: after a mid-session revocation the redirect
+    // impression is dropped, like every other post-denial event.
     if (
       (this.config.redirectConfig?.encodeRedirectInUrl && isCrossSubdomain) ||
       isConsentPending()
@@ -2133,13 +2105,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
   private async fireStoredRedirectImpressions() {
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
 
-    // Read URL param impressions (highest priority). A consent-gated source
-    // page forces the URL transport while consent is pending (see
-    // handleRedirect), so a gated destination must consume the param — and
-    // clean the URL — even when the customer never opted into
-    // encodeRedirectInUrl, including when consent has been granted by the
-    // time this page loads. When start() already consumed the param for page
-    // targeting, use that snapshot here.
+    // Read URL param impressions (highest priority). A pending source page
+    // forces the URL transport (see handleRedirect), so a consent-gated
+    // destination must consume the param — and clean the URL — even when the
+    // customer never opted into encodeRedirectInUrl. When start() already
+    // consumed the param for page targeting, use that snapshot here.
     let urlImpressions: Record<string, StoredRedirectImpression> =
       this.preloadedUrlRedirectImpressions ?? {};
     this.preloadedUrlRedirectImpressions = null;

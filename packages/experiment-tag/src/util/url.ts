@@ -73,13 +73,10 @@ export const removeQueryParams = (
 };
 
 /**
- * Strips the redirect-impression transport param without consuming it. A
- * pending-window redirect forces its impression payload onto the destination
- * URL (see handleRedirect) because nothing else survives the navigation; when
- * that destination loads denied, the impression is dropped like every other
- * denied-era event, and the payload must not linger in the address bar,
- * history, or referrers — or replay through the deferred start on a later
- * re-grant.
+ * Strips the redirect-impression transport param without consuming it. When a
+ * destination page loads denied, the impression is dropped like every other
+ * denied-era event, and the payload must not linger in the URL where it could
+ * replay through the deferred start on a later re-grant.
  */
 export const discardRedirectImpressionParam = (): void => {
   const globalScope = getGlobalScope();
