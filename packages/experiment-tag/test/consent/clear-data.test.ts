@@ -34,6 +34,8 @@ describe('getPersistedDataKeys', () => {
       sessionStorage: [
         `EXP_${SLICE}_DEFAULT_USER_PROVIDER`,
         `EXP_${SLICE}_REDIRECT`,
+        `EXP_${SLICE}_REDIRECT_MARKER`,
+        `EXP_${SLICE}_REDIRECT_SUPPRESSED`,
         CACHE,
         `${CACHE}-flags`,
         `${CACHE}-variants-options`,
@@ -74,8 +76,8 @@ describe('getPersistedDataKeys', () => {
   });
 
   it('clears every version of the dedupe cache key', () => {
-    // SessionDedupeCache retires the older keys when it is constructed, which a
-    // denial at load never does — so the sweep has to cover them itself.
+    // Denial-at-load never constructs SessionDedupeCache, so the sweep has
+    // to cover the retired keys itself.
     const keys = getPersistedDataKeys(API_KEY, 'my-instance');
 
     expect(keys.sessionStorage).toContain('EXP_sent_v3_my-instance');

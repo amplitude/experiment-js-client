@@ -174,11 +174,27 @@ export function getCookieDomainLevels(hostname: string): string[] {
 }
 
 /**
+ * The registrable-domain guess used while consent is withheld — probing
+ * writability writes a throwaway cookie, which is itself a device write. On
+ * the rare host where the guess is wrong, writes carrying it fail closed
+ * (read-back-verified writers degrade to memory). Never cached, and callers
+ * must not capture it past the withheld window: cookie storages resolve their
+ * domain lazily, so the first post-grant write probes for real.
+ */
+function unprobedDomainGuess(hostname: string): string {
+  const levels = getCookieDomainLevels(hostname);
+  return levels.length > 0 ? '.' + levels[0] : '';
+}
+
+/**
  * Synchronous variant of {@link getTopLevelDomain} for cross-subdomain cookies:
  * the first {@link getCookieDomainLevels} entry that accepts one, as a
  * leading-dot domain (e.g. `.example.com`), or `''` when none does.
  */
 export function getTopLevelDomainSync(hostname: string): string {
+  if (isConsentWithheld()) {
+    return unprobedDomainGuess(hostname);
+  }
   for (const domain of getCookieDomainLevels(hostname)) {
     if (isDomainWritableSync(domain)) {
       return '.' + domain;
@@ -189,6 +205,9 @@ export function getTopLevelDomainSync(hostname: string): string {
 
 export async function getTopLevelDomain(hostname: string): Promise<string> {
   if (cachedDomain !== undefined) return cachedDomain;
+  if (isConsentWithheld()) {
+    return unprobedDomainGuess(hostname);
+  }
   for (const domain of getCookieDomainLevels(hostname)) {
     if (await CookieStorage.isDomainWritable(domain)) {
       return (cachedDomain = '.' + domain);
@@ -336,10 +355,9 @@ export class SyncJsonCookie<T> {
   write(value: T): void {
     this.memory = value;
     if (isConsentWithheld()) {
-      // The memory tier already holds the value, and this class degrades to it
-      // whenever the cookie is unavailable — so a withheld write needs no buffer
-      // of its own. Only a pending one is worth arming a flush for; after refusal
-      // the value simply stays in memory for the life of the page.
+      // The memory tier already holds the value, so no separate buffer is
+      // needed. Only pending arms a flush; after refusal the value just stays
+      // in memory for the life of the page.
       if (isConsentPending()) {
         this.armConsentFlush();
       }
@@ -357,18 +375,17 @@ export class SyncJsonCookie<T> {
   clear(): void {
     this.memory = undefined;
     if (isConsentPending()) {
-      // Nothing of ours is out there to delete, and issuing the expiry would be
-      // a cookie write in its own right. Refusal deliberately falls through, so
-      // denial cleanup can still erase a cookie from a consented visit.
+      // Issuing the expiry would itself be a cookie write. Refusal falls
+      // through so denial cleanup can erase a cookie from a consented visit.
       return;
     }
     deleteRawCookie(this.key, this.getDomain() || undefined);
   }
 
   /**
-   * Promotes the deferred value to a cookie on grant. Writing the same value
-   * rather than a fresh one is what keeps the session id the visitor already had
-   * while consent was pending, instead of rotating it at the moment of grant.
+   * Promotes the in-memory value to a cookie on grant. Writing the same value
+   * (not a fresh one) keeps the session id the visitor already had while
+   * pending, instead of rotating it at the moment of grant.
    */
   private armConsentFlush(): void {
     if (this.consentFlushArmed) {
@@ -393,10 +410,14 @@ export class SyncJsonCookie<T> {
 }
 
 export async function setMarketingCookie(apiKey: string, hostname: string) {
-  const domain = await getTopLevelDomain(hostname);
-  const storage = createCookieStorage<Campaign>({
-    sameSite: 'Lax',
-    ...(domain && { domain }),
+  // Domain resolved lazily so a pending-time guess is not baked in; see
+  // createCookieStorage.
+  const storage = createCookieStorage<Campaign>(async () => {
+    const domain = await getTopLevelDomain(hostname);
+    return {
+      sameSite: 'Lax',
+      ...(domain && { domain }),
+    };
   });
 
   const parser = new CampaignParser();
