@@ -35,6 +35,7 @@ describe('getPersistedDataKeys', () => {
         `EXP_${SLICE}_DEFAULT_USER_PROVIDER`,
         `EXP_${SLICE}_REDIRECT`,
         `EXP_${SLICE}_REDIRECT_MARKER`,
+        `EXP_${SLICE}_REDIRECT_SUPPRESSED`,
         CACHE,
         `${CACHE}-flags`,
         `${CACHE}-variants-options`,

@@ -95,9 +95,14 @@ const getPersistedDataGroups = (
     },
     {
       // In-flight redirect impressions; the cookie copy is the cross-subdomain
-      // transport. REDIRECT_MARKER is the stick-detector record from WEB-228.
+      // transport. MARKER / SUPPRESSED are the WEB-228 stick-detector records
+      // (written even while pending — see isConsentExemptStorageKey).
       feature: 'redirect impressions',
-      sessionStorage: [`EXP_${slice}_REDIRECT`, `EXP_${slice}_REDIRECT_MARKER`],
+      sessionStorage: [
+        `EXP_${slice}_REDIRECT`,
+        `EXP_${slice}_REDIRECT_MARKER`,
+        `EXP_${slice}_REDIRECT_SUPPRESSED`,
+      ],
       cookies: [`EXP_${slice}_REDIRECT`],
     },
     {

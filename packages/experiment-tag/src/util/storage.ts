@@ -9,7 +9,7 @@ import {
 import type { ConsentManager } from '../consent/consent-manager';
 
 import { mergePendingJsonWithDevice } from './grant-flush-merge';
-import { CONSENT_EXEMPT_STORAGE_KEYS } from './storage-keys';
+import { isConsentExemptStorageKey } from './storage-keys';
 
 export type StorageType = 'localStorage' | 'sessionStorage';
 
@@ -62,10 +62,10 @@ const bufferKey = (storageType: StorageType, key: string): string =>
   `${storageType}:${key}`;
 
 /**
- * Amplitude's own tooling state is exempt from the gate — see
- * {@link CONSENT_EXEMPT_STORAGE_KEYS}.
+ * Amplitude tooling state and the redirect stick-detector — see
+ * {@link isConsentExemptStorageKey}.
  */
-const isExempt = (key: string): boolean => CONSENT_EXEMPT_STORAGE_KEYS.has(key);
+const isExempt = (key: string): boolean => isConsentExemptStorageKey(key);
 
 /** Whether a key is subject to the gate at all. */
 const isGated = (key: string): boolean => isConsentWithheld() && !isExempt(key);

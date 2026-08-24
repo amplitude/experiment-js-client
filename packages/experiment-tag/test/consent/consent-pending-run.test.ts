@@ -413,9 +413,15 @@ describe('pending-run wiring', () => {
       });
       await client.start();
 
-      // The gated sessionStorage write is held in memory (it would die with
-      // this page), so the impression must ride the URL instead.
-      expect(mockGlobal.sessionStorage.setItem).not.toHaveBeenCalled();
+      // Impression cookies/sessionStorage stay gated; the stick-detector
+      // marker is exempt so a hard nav can still suppress a strip loop.
+      const sessionKeys = mockGlobal.sessionStorage.setItem.mock.calls.map(
+        ([key]) => key,
+      );
+      expect(sessionKeys.every((key) => key.endsWith('_REDIRECT_MARKER'))).toBe(
+        true,
+      );
+      expect(sessionKeys.length).toBeGreaterThan(0);
       expect(mockGlobal.location.replace).toHaveBeenCalledTimes(1);
       const targetUrl = mockGlobal.location.replace.mock.calls[0][0] as string;
       const encoded = new URL(targetUrl).searchParams.get('AMP_REDIRECT');
@@ -423,6 +429,50 @@ describe('pending-run wiring', () => {
       expect(JSON.parse(atob(encoded as string))).toMatchObject({
         test: { redirectUrl: 'http://test.com/2', variantKey: 'treatment' },
       });
+    });
+
+    test('pending hard-nav marker survives so a server strip is suppressed', async () => {
+      activateConsent('pending');
+      const key = stringify(apiKey);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
+        // swallow expected loop warning
+      });
+      mockGlobal.sessionStorage.setItem(
+        `EXP_${key.slice(0, 10)}_REDIRECT_MARKER`,
+        JSON.stringify({
+          test: {
+            from: 'http://test.com',
+            target: 'http://test.com/2',
+            distinguishingParams: [],
+            landed: false,
+          },
+        }),
+      );
+      mockGetGlobalScope.mockReturnValue(
+        mockGlobal as unknown as typeof globalThis,
+      );
+
+      try {
+        await DefaultWebExperimentClient.getInstance(key, {
+          initialFlags: JSON.stringify([
+            createRedirectFlag(
+              'test',
+              'treatment',
+              'http://test.com/2',
+              undefined,
+              DEFAULT_REDIRECT_SCOPE,
+            ),
+          ]),
+          pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+        }).start();
+
+        expect(mockGlobal.location.replace).not.toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('redirect loop detected'),
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
 
     test('a gated destination consumes the URL param and cleans the URL', async () => {
