@@ -827,8 +827,9 @@ export class SubscriptionManager {
   };
 
   private setupLocationChangePublisher = () => {
-    // Add URL change listener for back/forward navigation
-    this.globalScope.addEventListener('popstate', () => {
+    let urlBeforeNav = this.globalScope.location.href;
+
+    const publishUrlChange = (previousUrl: string) => {
       const currentUrl = this.globalScope.location.href;
       if (currentUrl === this.lastPublishedUrl) {
         return;
@@ -836,45 +837,33 @@ export class SubscriptionManager {
 
       this.lastPublishedUrl = currentUrl;
       this.messageBus.publish('url_change');
+      this.globalScope.webExperiment.previousUrl = previousUrl;
+      urlBeforeNav = currentUrl;
+    };
+
+    this.globalScope.addEventListener('popstate', () => {
+      publishUrlChange(urlBeforeNav);
     });
 
-    const handleUrlChange = () => {
-      const currentUrl = this.globalScope.location.href;
-      if (currentUrl === this.lastPublishedUrl) {
-        return;
-      }
+    const historyObj = this.globalScope.history;
+    const originalPushState = historyObj.pushState.bind(historyObj);
+    const originalReplaceState = historyObj.replaceState.bind(historyObj);
 
-      this.lastPublishedUrl = currentUrl;
-      this.messageBus.publish('url_change');
-      this.globalScope.webExperiment.previousUrl = currentUrl;
+    historyObj.pushState = (...args: Parameters<History['pushState']>) => {
+      const outgoingUrl = this.globalScope.location.href;
+      const result = originalPushState(...args);
+      publishUrlChange(outgoingUrl);
+      return result;
     };
 
-    // Create wrapper functions for pushState and replaceState
-    const wrapHistoryMethods = () => {
-      const originalPushState = history.pushState.bind(history);
-      const originalReplaceState = history.replaceState.bind(history);
-
-      // Wrapper for pushState
-      history.pushState = function (...args) {
-        // Call the original pushState
-        const result = originalPushState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
-        return result;
-      };
-
-      // Wrapper for replaceState
-      history.replaceState = function (...args) {
-        // Call the original replaceState
-        const result = originalReplaceState.apply(this, args);
-        // Revert mutations and apply variants
-        handleUrlChange();
-        return result;
-      };
+    historyObj.replaceState = (
+      ...args: Parameters<History['replaceState']>
+    ) => {
+      const outgoingUrl = this.globalScope.location.href;
+      const result = originalReplaceState(...args);
+      publishUrlChange(outgoingUrl);
+      return result;
     };
-
-    // Initialize the wrapper
-    wrapHistoryMethods();
   };
 
   private setupUserInteractionPublisher = () => {

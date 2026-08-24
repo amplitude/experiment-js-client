@@ -1,10 +1,17 @@
+import { CookieStorage } from '@amplitude/analytics-core';
+
+import { consentGate } from '../../src/consent/consent-gate';
 import {
   deleteRawCookie,
+  getCookieDomainLevels,
+  getTopLevelDomain,
+  getTopLevelDomainSync,
   readRawCookie,
   resolveCrossSubdomainObject,
   SyncJsonCookie,
   writeRawCookie,
 } from '../../src/util/cookie';
+import { activateConsent } from '../consent/consent-test-util';
 
 /**
  * Minimal in-memory stand-in for analytics-core's async CookieStorage<string>,
@@ -21,6 +28,39 @@ function fakeCookieStorage(initial: Record<string, string> = {}) {
     }),
   };
 }
+
+describe('getCookieDomainLevels', () => {
+  it.each<[string, string[]]>([
+    ['example.com', ['example.com']],
+    ['app.example.com', ['example.com', 'app.example.com']],
+    ['a.b.example.com', ['example.com', 'b.example.com', 'a.b.example.com']],
+    // Registrable domain is the 2LD, so the level list must not offer the
+    // public suffix itself — a cookie on `.co.uk` would be rejected.
+    ['example.co.uk', ['example.co.uk']],
+    ['app.example.co.uk', ['example.co.uk', 'app.example.co.uk']],
+    ['shop.blogspot.com', ['shop.blogspot.com']],
+    // Nothing can carry a cross-subdomain cookie.
+    ['localhost', []],
+    ['', []],
+  ])('resolves levels for %s', (hostname, expected) => {
+    expect(getCookieDomainLevels(hostname)).toEqual(expected);
+  });
+
+  it('normalizes case', () => {
+    expect(getCookieDomainLevels('App.Example.COM')).toEqual([
+      'example.com',
+      'app.example.com',
+    ]);
+  });
+
+  it('returns the registrable domain first', () => {
+    // getTopLevelDomain/Sync take the first writable level, so ordering
+    // determines whether identity is shared across subdomains or pinned to one.
+    expect(getCookieDomainLevels('deep.app.example.com')[0]).toBe(
+      'example.com',
+    );
+  });
+});
 
 describe('resolveCrossSubdomainObject', () => {
   type Identity = { web_exp_id_v2: string; first_seen: string };
@@ -92,6 +132,37 @@ describe('resolveCrossSubdomainObject', () => {
       web_exp_id_v2: 'fresh',
       first_seen: 'fresh-ts',
     });
+  });
+});
+
+describe('top-level domain resolution under consent', () => {
+  afterEach(() => {
+    consentGate.reset();
+    jest.restoreAllMocks();
+  });
+
+  it('returns the unprobed guess without probing while consent is pending', async () => {
+    activateConsent('pending');
+    const probe = jest.spyOn(CookieStorage, 'isDomainWritable');
+    expect(await getTopLevelDomain('app.example.com')).toBe('.example.com');
+    expect(probe).not.toHaveBeenCalled();
+  });
+
+  it('sync variant skips the probe cookie while consent is withheld', () => {
+    activateConsent('denied');
+    // In this jsdom page a `.example.com` probe cookie can never be written,
+    // so the ungated path would walk every level and return ''. Getting the
+    // guess back proves the probe never ran.
+    expect(getTopLevelDomainSync('app.example.com')).toBe('.example.com');
+  });
+
+  it('probes for real once consent is granted', async () => {
+    activateConsent('granted');
+    const probe = jest
+      .spyOn(CookieStorage, 'isDomainWritable')
+      .mockResolvedValue(true);
+    expect(await getTopLevelDomain('app.example.com')).toBe('.example.com');
+    expect(probe).toHaveBeenCalled();
   });
 });
 

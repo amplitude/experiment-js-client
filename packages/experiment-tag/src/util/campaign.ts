@@ -1,12 +1,13 @@
 import {
   type Campaign,
   CampaignParser,
-  CookieStorage,
   getStorageKey,
   MKTG,
 } from '@amplitude/analytics-core';
 import { UTMParameters } from '@amplitude/analytics-core/lib/esm/types/campaign';
 import { type ExperimentUser } from '@amplitude/experiment-js-client';
+
+import { createCookieStorage } from '../consent/consent-cookie-storage';
 
 import { getStorageItem, setStorageItem } from './storage';
 
@@ -71,7 +72,7 @@ export function persistUrlParams(
 async function fetchCampaignData(
   apiKey: string,
 ): Promise<[Campaign, Campaign | undefined]> {
-  const storage = new CookieStorage<Campaign>();
+  const storage = createCookieStorage<Campaign>();
   const storageKey = getStorageKey(apiKey, MKTG);
   const currentCampaign = await new CampaignParser().parse();
   const previousCampaign = await storage.get(storageKey);

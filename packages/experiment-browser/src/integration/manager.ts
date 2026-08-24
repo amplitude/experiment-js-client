@@ -39,8 +39,15 @@ export class IntegrationManager {
     this.config = config;
     this.client = client;
     const instanceName = config.instanceName ?? Defaults.instanceName;
-    this.queue = new PersistentTrackingQueue(instanceName);
-    this.cache = new SessionDedupeCache(instanceName);
+    this.queue = new PersistentTrackingQueue(
+      instanceName,
+      MAX_QUEUE_SIZE,
+      config['internalPersistenceAllowed'],
+    );
+    this.cache = new SessionDedupeCache(
+      instanceName,
+      config['internalPersistenceAllowed'],
+    );
   }
 
   /**
@@ -133,18 +140,53 @@ export class IntegrationManager {
 
 export class SessionDedupeCache {
   private readonly storageKey: string;
-  private readonly isSessionStorageAvailable = checkIsSessionStorageAvailable();
+  // Lazy: the availability check writes a probe key, so it must not run
+  // before the persistence guard allows storage access.
+  private isSessionStorageAvailable?: boolean;
+  /** A clearCache() arrived while gated; drop the stored copy on reopen. */
+  private clearStoredOnReopen = false;
+  /** Entries were recorded while gated; merge them into the stored copy on reopen. */
+  private hasGatedEntries = false;
   private inMemoryCache: Record<string, string | null> = {};
   private identity: Identity = {};
 
-  constructor(instanceName: string) {
+  constructor(
+    instanceName: string,
+    /**
+     * When provided and returning false, deduplication runs purely in memory:
+     * no sessionStorage reads, writes, or probes. Used by experiment-tag while
+     * cookie consent is withheld.
+     */
+    private readonly persistenceAllowed?: () => boolean,
+  ) {
     this.storageKey = `EXP_sent_v3_${instanceName}`;
-    // Remove previous versions of storage if they exist.
-    const sessionStorage = getSessionStorage();
-    if (this.isSessionStorageAvailable && sessionStorage) {
-      sessionStorage.removeItem(`EXP_sent_${instanceName}`);
-      sessionStorage.removeItem(`EXP_sent_v2_${instanceName}`);
+  }
+
+  private isGated(): boolean {
+    return this.persistenceAllowed !== undefined && !this.persistenceAllowed();
+  }
+
+  /**
+   * The sessionStorage to use for this operation, or undefined while the
+   * guard is closed or storage is unusable. First allowed call runs the
+   * availability probe.
+   */
+  private usableStorage(): Storage | undefined {
+    if (this.isGated()) {
+      return undefined;
     }
+    if (this.isSessionStorageAvailable === undefined) {
+      this.isSessionStorageAvailable = checkIsSessionStorageAvailable();
+    }
+    const sessionStorage = getSessionStorage();
+    if (!this.isSessionStorageAvailable || !sessionStorage) {
+      return undefined;
+    }
+    if (this.clearStoredOnReopen) {
+      this.clearStoredOnReopen = false;
+      sessionStorage.removeItem(this.storageKey);
+    }
+    return sessionStorage;
   }
 
   shouldTrack(exposure: Exposure, user?: ExperimentUser): boolean {
@@ -174,6 +216,9 @@ export class SessionDedupeCache {
     if (!hasKey || normalizedCachedVariant !== normalizedExposureVariant) {
       shouldTrack = true;
       this.inMemoryCache[exposure.flag_key] = normalizedExposureVariant;
+      if (this.isGated()) {
+        this.hasGatedEntries = true;
+      }
     }
     this.storeCache();
     return shouldTrack;
@@ -181,9 +226,14 @@ export class SessionDedupeCache {
 
   private clearCache(): void {
     this.inMemoryCache = {};
-    const sessionStorage = getSessionStorage();
-    if (this.isSessionStorageAvailable && sessionStorage) {
+    this.hasGatedEntries = false;
+    const sessionStorage = this.usableStorage();
+    if (sessionStorage) {
       sessionStorage.removeItem(this.storageKey);
+    } else if (this.isGated()) {
+      // An identity change while gated must not let a pre-gate stored cache
+      // suppress the new identity's exposures once the guard reopens.
+      this.clearStoredOnReopen = true;
     }
   }
 
@@ -198,16 +248,26 @@ export class SessionDedupeCache {
   }
 
   private loadCache(): void {
-    const sessionStorage = getSessionStorage();
-    if (this.isSessionStorageAvailable && sessionStorage) {
+    const sessionStorage = this.usableStorage();
+    // While gated the in-memory cache is the only tier, so leaving it in
+    // place (rather than resetting to {}) is what keeps dedupe working.
+    if (sessionStorage) {
       const storedCache = sessionStorage.getItem(this.storageKey);
-      this.inMemoryCache = storedCache ? JSON.parse(storedCache) : {};
+      const stored = storedCache ? JSON.parse(storedCache) : {};
+      if (this.hasGatedEntries) {
+        // Entries recorded while the guard was closed exist only in memory;
+        // letting the stored copy replace them would re-track those exposures.
+        this.inMemoryCache = { ...stored, ...this.inMemoryCache };
+        this.hasGatedEntries = false;
+      } else {
+        this.inMemoryCache = stored;
+      }
     }
   }
 
   private storeCache(): void {
-    const sessionStorage = getSessionStorage();
-    if (this.isSessionStorageAvailable && sessionStorage) {
+    const sessionStorage = this.usableStorage();
+    if (sessionStorage) {
       try {
         sessionStorage.setItem(
           this.storageKey,
@@ -224,12 +284,26 @@ export class SessionDedupeCache {
 export class PersistentTrackingQueue {
   private readonly storageKey: string;
   private readonly maxQueueSize: number;
-  private readonly isLocalStorageAvailable = isLocalStorageAvailable();
+  // Lazy: the availability check writes a probe key, so it must not run
+  // before the persistence guard allows storage access.
+  private isLocalStorageAvailable?: boolean;
   private inMemoryQueue: ExperimentEvent[] = [];
+  /** Events were pushed while gated; merge them with the stored copy on reopen. */
+  private holdsGatedEvents = false;
   private poller: any | undefined;
   private tracker: ((event: ExperimentEvent) => boolean) | undefined;
 
-  constructor(instanceName: string, maxQueueSize: number = MAX_QUEUE_SIZE) {
+  constructor(
+    instanceName: string,
+    maxQueueSize: number = MAX_QUEUE_SIZE,
+    /**
+     * When provided and returning false, the queue neither reads nor writes
+     * localStorage — events live only in memory. Used by experiment-tag while
+     * cookie consent is withheld, so an unsent event can't be parked on the
+     * device before the visitor has agreed to storage.
+     */
+    private readonly persistenceAllowed?: () => boolean,
+  ) {
     this.storageKey = `EXP_unsent_${instanceName}`;
     this.maxQueueSize = maxQueueSize;
   }
@@ -237,6 +311,9 @@ export class PersistentTrackingQueue {
   push(event: ExperimentEvent): void {
     this.loadQueue();
     this.inMemoryQueue.push(event);
+    if (!this.canPersist()) {
+      this.holdsGatedEvents = true;
+    }
     this.flush();
     this.storeQueue();
   }
@@ -275,17 +352,52 @@ export class PersistentTrackingQueue {
     }
   }
 
-  private loadQueue(): void {
+  private canPersist(): boolean {
+    return this.persistenceAllowed ? this.persistenceAllowed() : true;
+  }
+
+  private usableStorage(): Storage | undefined {
+    if (!this.canPersist()) return undefined;
+    if (this.isLocalStorageAvailable === undefined) {
+      this.isLocalStorageAvailable = isLocalStorageAvailable();
+    }
     const localStorage = getLocalStorage();
-    if (this.isLocalStorageAvailable && localStorage) {
+    return this.isLocalStorageAvailable && localStorage
+      ? localStorage
+      : undefined;
+  }
+
+  private loadQueue(): void {
+    // While persistence is gated the device copy is not consulted (reads are
+    // gated too); events pushed in the meantime exist only in memory.
+    const localStorage = this.usableStorage();
+    if (localStorage) {
       const storedQueue = localStorage.getItem(this.storageKey);
-      this.inMemoryQueue = storedQueue ? JSON.parse(storedQueue) : [];
+      const stored: ExperimentEvent[] = storedQueue
+        ? JSON.parse(storedQueue)
+        : [];
+      if (this.holdsGatedEvents) {
+        // Events pushed while the guard was closed exist only in memory;
+        // append them after the (older) stored ones rather than letting
+        // either copy clobber the other.
+        this.inMemoryQueue = [...stored, ...this.inMemoryQueue];
+        this.holdsGatedEvents = false;
+      } else {
+        this.inMemoryQueue = stored;
+      }
     }
   }
 
   private storeQueue(): void {
-    const localStorage = getLocalStorage();
-    if (this.isLocalStorageAvailable && localStorage) {
+    const localStorage = this.usableStorage();
+    if (localStorage) {
+      // An empty queue is stored as key absence rather than `[]`, so nothing
+      // lands on the device when every event was handed to the tracker
+      // immediately.
+      if (this.inMemoryQueue.length === 0) {
+        localStorage.removeItem(this.storageKey);
+        return;
+      }
       // Trim the queue if it is too large.
       if (this.inMemoryQueue.length > this.maxQueueSize) {
         this.inMemoryQueue = this.inMemoryQueue.slice(

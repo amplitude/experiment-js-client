@@ -18,6 +18,7 @@ export {
 } from './factory';
 export { StubExperimentClient } from './stubClient';
 export { ExperimentClient } from './experimentClient';
+export { MemoryStorage } from './storage/memory-storage';
 export { Client, FetchOptions } from './types/client';
 export {
   ExperimentAnalyticsProvider,

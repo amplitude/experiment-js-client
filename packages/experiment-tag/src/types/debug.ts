@@ -1,4 +1,5 @@
 import type { MessageType } from '../subscriptions/message-bus';
+import type { ConsentStatus } from '../types';
 
 // --- Top-level debug state ---
 
@@ -8,6 +9,37 @@ export interface DebugState {
   events: DebugEvent[];
   currentUrl: string;
   timestamp: number;
+  consent: ConsentDebugInfo;
+}
+
+// --- Consent gate debug info ---
+
+/**
+ * Snapshot of the consent gate (`consent/consent-gate.ts`). Present in every
+ * debug state; on pages that never enabled consent gating it reads as inert
+ * (`required: false`).
+ */
+export interface ConsentDebugInfo {
+  /** Tri-state status. Only meaningful when `required` is true. */
+  status: ConsentStatus;
+  /** Whether the customer enabled consent gating. */
+  required: boolean;
+  /** Whether the client has been (or is being) started. */
+  started: boolean;
+  /** True while an `initialize` is parked awaiting a grant. */
+  startDeferred: boolean;
+  /** One entry per consent-wrapped integration; empty when gating is off. */
+  impressionBuffers: ImpressionBufferDebugInfo[];
+}
+
+/** State of one integration's consent impression buffer. */
+export interface ImpressionBufferDebugInfo {
+  /** Impressions held in memory awaiting a consent decision. */
+  buffered: number;
+  /** Whether a flush-on-decision listener is armed. */
+  flushArmed: boolean;
+  /** Whether the post-grant retry poller is running. */
+  retrying: boolean;
 }
 
 // --- Per-flag debug info ---
@@ -18,6 +50,34 @@ export interface FlagDebugInfo {
   isActive: boolean;
   pageObjects: PageObjectDebugInfo[];
   audienceEvaluation?: AudienceEvaluationDebugInfo;
+  /** Flag-level config metadata (deployed, evaluationMode, flagType, ...). */
+  flagMetadata?: Record<string, unknown>;
+  /** Prerequisite / holdout / mutex parents this flag depends on. */
+  dependencies?: FlagDependencyDebugInfo[];
+  /**
+   * Human-readable explanation of why the flag did not resolve to a treatment,
+   * when it is off. Undefined when the flag is on.
+   */
+  inactiveReason?: string;
+}
+
+/** How a dependency relates to the flag that depends on it. */
+export type FlagDependencyType = 'prerequisite' | 'holdout' | 'mutex';
+
+/** A single dependency (prerequisite/holdout/mutex parent) of a flag. */
+export interface FlagDependencyDebugInfo {
+  /** The parent flag key this flag depends on. */
+  flagKey: string;
+  type: FlagDependencyType;
+  /** The parent's resolved variant key, or null if it did not resolve. */
+  resolvedVariant: string | null;
+  /**
+   * True when this dependency forced the dependent flag off (its result
+   * condition failed during evaluation). Only determinable for locally
+   * evaluated flags; false for remote flags where per-segment traces are
+   * unavailable.
+   */
+  blocking: boolean;
 }
 
 export interface AudienceEvaluationDebugInfo {

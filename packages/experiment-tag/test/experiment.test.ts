@@ -23,6 +23,12 @@ const DEFAULT_PAGE_OBJECTS = {
 const DEFAULT_REDIRECT_SCOPE = { treatment: ['A'], control: ['A'] };
 const DEFAULT_MUTATE_SCOPE = { metadata: { scope: ['A'] } };
 
+const flushAsyncWork = async () => {
+  for (let i = 0; i < 20; i++) {
+    await Promise.resolve();
+  }
+};
+
 // Mock CookieStorage to use an in-memory store for testing
 const cookieStore: Record<string, any> = {};
 
@@ -162,6 +168,111 @@ describe('initializeExperiment', () => {
       }),
     );
   });
+
+  test('does not seed from a local record left over from a refusal', async () => {
+    const key = stringify(apiKey);
+    const storageKey = 'EXP_' + key;
+    // The state a sibling subdomain is left in by a refusal elsewhere: shared
+    // cookie gone, the marker that refusal left behind, and a pre-refusal record
+    // this origin was never able to sweep. Consent has since been granted again,
+    // which is what lets start() reach identity resolution here at all — the
+    // path where the seeding above would resurrect the refused id.
+    document.cookie = `EXP_${key.slice(0, 10)}_erased=1; path=/`;
+    mockGlobal.localStorage.setItem(
+      storageKey,
+      JSON.stringify({ web_exp_id: 'existing-id' }),
+    );
+
+    await DefaultWebExperimentClient.getInstance(key, {
+      initialFlags: JSON.stringify([]),
+      pageObjects: JSON.stringify({}),
+    }).start();
+
+    expect(ExperimentClient.prototype.setUser).not.toHaveBeenCalledWith(
+      expect.objectContaining({ web_exp_id_v2: 'existing-id' }),
+    );
+    expect(ExperimentClient.prototype.setUser).toHaveBeenCalledWith(
+      expect.objectContaining({ web_exp_id: 'mock', web_exp_id_v2: 'mock' }),
+    );
+    expect(mockGlobal.localStorage.removeItem).toHaveBeenCalledWith(storageKey);
+  });
+
+  describe.each([
+    ['erased elsewhere', true, new Set<string>()],
+    ['not erased', false, new Set(['behavior_1'])],
+  ])(
+    'behavioral state persisted before a refusal (%s)',
+    (_label, isErased, expectedBehaviors) => {
+      test('hydrates only when no erasure happened', async () => {
+        const key = stringify(apiKey);
+        const eventsKey = `EXP_${key.slice(0, 10)}_rtbt_events`;
+        // EventStorageManager reads the bare global localStorage while the sweep
+        // goes through getGlobalScope().localStorage. Those are one object in a
+        // browser, so point the mock at the real store to match production —
+        // otherwise the sweep can't reach what the manager loads.
+        mockGlobal.localStorage = safeGlobal.localStorage;
+        safeGlobal.localStorage.clear();
+        if (isErased) {
+          document.cookie = `EXP_${key.slice(0, 10)}_erased=1; path=/`;
+        }
+        // What this origin held when consent was refused elsewhere. Enough on
+        // its own to satisfy the rule below, so a hydrated copy is observable.
+        safeGlobal.localStorage.setItem(
+          eventsKey,
+          JSON.stringify({
+            nextId: 2,
+            events: [
+              {
+                uuid: 'refused-event',
+                id: 1,
+                event_type: 'click',
+                timestamp: Date.now(),
+                session_id: 'refused-session',
+                properties: {},
+              },
+            ],
+          }),
+        );
+
+        const client = DefaultWebExperimentClient.getInstance(key, {
+          initialFlags: JSON.stringify([]),
+          pageObjects: JSON.stringify({}),
+          behavioralTargetingRules: JSON.stringify({
+            flag_a: {
+              behavior_1: [
+                [
+                  {
+                    condition: {
+                      type: 'behavior',
+                      event_type: 'click',
+                      op: experimentCore.EvaluationOperator.GREATER_THAN_EQUALS,
+                      value: 1,
+                      time_type: 'rolling',
+                      time_value: 7,
+                      interval: 'day',
+                    },
+                  },
+                ],
+              ],
+            },
+          }),
+        });
+        await client.start();
+
+        // The sweep has to precede construction of the behavioral manager: it
+        // loads persisted events into memory and evaluates them there, so
+        // clearing storage afterwards still leaves a behavior matched from the
+        // refused event.
+        const matched = (
+          client as any
+        ).behavioralTargetingManager.getMatchedBehaviors();
+        expect(matched.get('flag_a') ?? new Set()).toEqual(expectedBehaviors);
+        expect(safeGlobal.localStorage.getItem(eventsKey)).toEqual(
+          isErased ? null : expect.any(String),
+        );
+      });
+    },
+  );
 
   test('set web experiment config', () => {
     const mockGlobal = newMockGlobal({
@@ -334,7 +445,767 @@ describe('initializeExperiment', () => {
     expect(removeAntiFlickerSpy).toHaveBeenCalledTimes(1);
   });
 
+  test('SPA pushState to targeted page - should redirect and log exposure', async () => {
+    mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com/y',
+        pathname: '/y',
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const pageObjects = {
+      test: createPageObject('A', 'url_change', undefined, 'http://test.com/x'),
+    };
+
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/x?param=v',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(pageObjects),
+    });
+
+    await client.start();
+
+    // On /y the page object is inactive — no redirect yet.
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+    mockExposureInternal.mockClear();
+
+    mockGlobal.history.pushState({}, '', 'http://test.com/x');
+    await flushAsyncWork();
+
+    expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+      'http://test.com/x?param=v',
+    );
+    expect((client as any).previousUrl).toBe('http://test.com/x');
+  });
+
+  test('SPA redirect does not re-fire after landing on redirect URL', async () => {
+    mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com/y',
+        pathname: '/y',
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const pageObjects = {
+      test: createPageObject('A', 'url_change', undefined, 'http://test.com/x'),
+    };
+
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/x?param=v',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(pageObjects),
+    });
+    client.setRedirectHandler((url) => {
+      mockGlobal.history.pushState({}, '', url);
+    });
+
+    await client.start();
+    mockGlobal.history.pushState({}, '', 'http://test.com/x');
+    await flushAsyncWork();
+
+    expect(mockGlobal.location.href).toBe('http://test.com/x?param=v');
+    const replaceCallsAfterRedirect =
+      mockGlobal.location.replace.mock.calls.length;
+
+    // Post-redirect url_change (already published by the soft-nav pushState)
+    // must not re-apply the redirect.
+    mockGlobal.location.replace.mockClear();
+    (client as any).messageBus.publish('url_change', {});
+    await flushAsyncWork();
+
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+    expect(replaceCallsAfterRedirect).toBe(0);
+  });
+
+  test('hash-router: a different hash route is a different destination and still redirects', async () => {
+    // Regression guard for the removed urlWithoutHash compare, which stripped the
+    // hash before comparing and so treated /#/home and /#/browse as the same
+    // destination — wrongly skipping the redirect on hash-router sites.
+    mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com/#/home',
+        pathname: '/',
+        hash: '#/home',
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/#/browse',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify({
+        test: createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com/#/home',
+        ),
+      }),
+    }).start();
+
+    expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+      'http://test.com/#/browse',
+    );
+  });
+
+  test('anchor on the destination page does not re-fire the redirect', async () => {
+    // The user already landed on the destination and clicked an in-page anchor.
+    // The anchor belongs to the same document, so the target resolves to the
+    // current URL and the destination guard stops the redirect.
+    mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com/browse?rec=demo#section',
+        pathname: '/browse',
+        search: '?rec=demo',
+        hash: '#section',
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/browse?rec=demo',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify({
+        test: createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com/browse*',
+        ),
+      }),
+    }).start();
+
+    expect(mockGlobal.location.replace).not.toHaveBeenCalled();
+  });
+
+  test('hash-router: a hash route is left behind when the redirect names no hash', async () => {
+    // The redirect target carries no hash, so the current route hash must not
+    // be treated as part of the destination — otherwise the user never leaves
+    // the route they are on.
+    mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com/#/home',
+        pathname: '/',
+        hash: '#/home',
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/?exp=1',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify({
+        test: createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com*',
+        ),
+      }),
+    }).start();
+
+    expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+      'http://test.com/?exp=1',
+    );
+  });
+
+  test('hard load onto clean URL from the redirect destination - should redirect', async () => {
+    mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com/x',
+        pathname: '/x',
+      },
+      document: { referrer: 'http://test.com/x?param=v' },
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/x?param=v',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify({
+        test: createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com/x',
+        ),
+      }),
+    }).start();
+
+    expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+      'http://test.com/x?param=v',
+    );
+  });
+
+  test('soft nav onto clean URL from the redirect destination - should redirect', async () => {
+    mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com/x?param=v',
+        pathname: '/x',
+        search: '?param=v',
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/x?param=v',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify({
+        test: createPageObject(
+          'A',
+          'url_change',
+          undefined,
+          'http://test.com/x',
+        ),
+      }),
+    });
+
+    // Already on the destination: the target-URL guard keeps it from firing.
+    await client.start();
+    expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+
+    // Re-entering the clean URL must redirect again.
+    mockGlobal.history.pushState({}, '', 'http://test.com/x');
+    await flushAsyncWork();
+
+    expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+      'http://test.com/x?param=v',
+    );
+  });
+
+  test('stick-detector (soft nav) - app stripping the param without interaction is suppressed', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
+      // swallow expected loop warnings
+    });
+
+    try {
+      mockGlobal = newMockGlobal({
+        location: {
+          href: 'http://test.com/y',
+          pathname: '/y',
+        },
+      });
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+      const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/x?param=v',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify({
+          test: createPageObject(
+            'A',
+            'url_change',
+            undefined,
+            'http://test.com/x',
+          ),
+        }),
+      });
+      const customHandler = jest.fn((url: string) => {
+        mockGlobal.history.pushState({}, '', url);
+      });
+      client.setRedirectHandler(customHandler);
+
+      await client.start();
+
+      // Enter the targeted page: fires the redirect to /x?param=v (call #1).
+      mockGlobal.history.pushState({}, '', 'http://test.com/x');
+      await flushAsyncWork();
+      expect(customHandler).toHaveBeenCalledTimes(1);
+
+      // Adversarial app strips the param straight back to /x with no user
+      // interaction in between — a self-driving loop. It must be suppressed.
+      mockGlobal.history.pushState({}, '', 'http://test.com/x');
+      await flushAsyncWork();
+      mockGlobal.history.pushState({}, '', 'http://test.com/x');
+      await flushAsyncWork();
+
+      expect(customHandler).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('redirect loop detected'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('stick-detector (soft nav) - re-entry after a user interaction is never suppressed', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
+      // fail loudly below instead
+    });
+
+    try {
+      mockGlobal = newMockGlobal({
+        location: {
+          href: 'http://test.com/y',
+          pathname: '/y',
+        },
+      });
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+      const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/x?param=v',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify({
+          test: createPageObject(
+            'A',
+            'url_change',
+            undefined,
+            'http://test.com/x',
+          ),
+        }),
+      });
+      const customHandler = jest.fn((url: string) => {
+        mockGlobal.history.pushState({}, '', url);
+      });
+      client.setRedirectHandler(customHandler);
+
+      await client.start();
+
+      // home -> browse -> back -> browse ... driven by a person. Each leg is
+      // preceded by an interaction (click/back), which clears the marker, so the
+      // redirect must fire every single time no matter how many round trips.
+      for (let i = 0; i < 10; i++) {
+        mockGlobal.dispatchEvent({ type: 'pointerdown' } as Event);
+        mockGlobal.history.pushState({}, '', 'http://test.com/x');
+        await flushAsyncWork();
+        expect(customHandler).toHaveBeenCalledTimes(i + 1);
+
+        mockGlobal.dispatchEvent({ type: 'popstate' } as Event);
+        mockGlobal.history.pushState({}, '', 'http://test.com/y');
+        await flushAsyncWork();
+      }
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('stick-detector (hard nav) - a server strip back to the source is suppressed on the next load', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
+      // swallow expected loop warnings
+    });
+
+    try {
+      // A redirect fired on a prior load and never reached the target: the server
+      // 302'd the param away and we bounced back to the source. The marker it left
+      // (landed:false) is still in sessionStorage.
+      const key = stringify(apiKey);
+      mockGlobal = newMockGlobal({
+        location: {
+          href: 'http://test.com/x',
+          pathname: '/x',
+        },
+      });
+      mockGlobal.sessionStorage.setItem(
+        `EXP_${key.slice(0, 10)}_REDIRECT_MARKER`,
+        JSON.stringify({
+          test: {
+            from: 'http://test.com/x',
+            target: 'http://test.com/x?param=v',
+            distinguishingParams: ['param'],
+            landed: false,
+          },
+        }),
+      );
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+      await DefaultWebExperimentClient.getInstance(key, {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/x?param=v',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify({
+          test: createPageObject(
+            'A',
+            'url_change',
+            undefined,
+            'http://test.com/x',
+          ),
+        }),
+      }).start();
+
+      expect(mockGlobal.location.replace).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('redirect loop detected'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('stick-detector (hard nav) - typing the clean URL after a stuck landing is not a strip', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
+      // fail loudly below instead
+    });
+
+    try {
+      // The redirect previously stuck (marker landed:true). The user then typed
+      // the clean URL into the address bar — a fresh load at the source. That is
+      // user navigation, not a strip: the redirect must fire and nothing warns.
+      const key = stringify(apiKey);
+      mockGlobal = newMockGlobal({
+        location: {
+          href: 'http://test.com/x',
+          pathname: '/x',
+        },
+      });
+      mockGlobal.sessionStorage.setItem(
+        `EXP_${key.slice(0, 10)}_REDIRECT_MARKER`,
+        JSON.stringify({
+          test: {
+            from: 'http://test.com/x',
+            target: 'http://test.com/x?param=v',
+            distinguishingParams: ['param'],
+            landed: true,
+          },
+        }),
+      );
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+      await DefaultWebExperimentClient.getInstance(key, {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/x?param=v',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify({
+          test: createPageObject(
+            'A',
+            'url_change',
+            undefined,
+            'http://test.com/x',
+          ),
+        }),
+      }).start();
+
+      expect(mockGlobal.location.replace).toHaveBeenCalledWith(
+        'http://test.com/x?param=v',
+      );
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('stick-detector (hash router) - a strip back to the source hash route is suppressed', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
+      // swallow expected loop warnings
+    });
+
+    try {
+      // A hash-only redirect (#/home -> #/browse) fired on a prior load and the
+      // app routed straight back to #/home. Because the loop predicate is
+      // hash-aware, #/home is the source (not the target), so this is a strip.
+      const key = stringify(apiKey);
+      mockGlobal = newMockGlobal({
+        location: {
+          href: 'http://test.com/#/home',
+          pathname: '/',
+          hash: '#/home',
+        },
+      });
+      mockGlobal.sessionStorage.setItem(
+        `EXP_${key.slice(0, 10)}_REDIRECT_MARKER`,
+        JSON.stringify({
+          test: {
+            from: 'http://test.com/#/home',
+            target: 'http://test.com/#/browse',
+            distinguishingParams: [],
+            landed: false,
+          },
+        }),
+      );
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+      await DefaultWebExperimentClient.getInstance(key, {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/#/browse',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify({
+          test: createPageObject(
+            'A',
+            'url_change',
+            undefined,
+            'http://test.com/#/home',
+          ),
+        }),
+      }).start();
+
+      expect(mockGlobal.location.replace).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('redirect loop detected'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('stick-detector (hash router) - the stuck target route is not read as a strip', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
+      // fail loudly below instead
+    });
+
+    try {
+      // The hash redirect stuck at #/browse (landed:true). A hash-aware compare
+      // must see #/browse as the target, not the source, so nothing is suppressed
+      // and the destination guard leaves the user in place.
+      const key = stringify(apiKey);
+      mockGlobal = newMockGlobal({
+        location: {
+          href: 'http://test.com/#/browse',
+          pathname: '/',
+          hash: '#/browse',
+        },
+      });
+      mockGlobal.sessionStorage.setItem(
+        `EXP_${key.slice(0, 10)}_REDIRECT_MARKER`,
+        JSON.stringify({
+          test: {
+            from: 'http://test.com/#/home',
+            target: 'http://test.com/#/browse',
+            distinguishingParams: [],
+            landed: false,
+          },
+        }),
+      );
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+      await DefaultWebExperimentClient.getInstance(key, {
+        initialFlags: JSON.stringify([
+          createRedirectFlag(
+            'test',
+            'treatment',
+            'http://test.com/#/browse',
+            undefined,
+            DEFAULT_REDIRECT_SCOPE,
+          ),
+        ]),
+        pageObjects: JSON.stringify({
+          test: createPageObject(
+            'A',
+            'url_change',
+            undefined,
+            'http://test.com/#/browse',
+          ),
+        }),
+      }).start();
+
+      expect(mockGlobal.location.replace).not.toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('SPA popstate sets previousUrl to the genuinely prior URL', async () => {
+    mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com/y',
+        pathname: '/y',
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const pageObjects = {
+      test: createPageObject('A', 'url_change', undefined, 'http://test.com/x'),
+    };
+
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/x?param=v',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(pageObjects),
+    });
+    client.setRedirectHandler((url) => {
+      mockGlobal.history.pushState({}, '', url);
+    });
+
+    await client.start();
+
+    // /y → /x soft nav should redirect to /x?param=v
+    mockGlobal.history.pushState({}, '', 'http://test.com/x');
+    await flushAsyncWork();
+    expect(mockGlobal.location.href).toBe('http://test.com/x?param=v');
+
+    // Simulate back to /y: update location then fire popstate.
+    mockGlobal.location._syncFromHref('http://test.com/y');
+    mockGlobal.dispatchEvent(new Event('popstate'));
+    await flushAsyncWork();
+
+    expect((client as any).previousUrl).toBe('http://test.com/x?param=v');
+
+    // Forward again to /x — previousUrl is /y, so redirect must fire.
+    mockGlobal.location.replace.mockClear();
+    mockGlobal.history.pushState({}, '', 'http://test.com/x');
+    await flushAsyncWork();
+
+    expect(mockGlobal.location.href).toBe('http://test.com/x?param=v');
+  });
+
+  test('custom redirect handler - soft nav then url_change still clears isRedirecting', async () => {
+    mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com/y',
+        pathname: '/y',
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+
+    const removeAntiFlickerSpy = jest.spyOn(
+      antiFlickerUtils,
+      'removeAntiFlickerCss',
+    );
+
+    const pageObjects = {
+      test: createPageObject('A', 'url_change', undefined, 'http://test.com/x'),
+    };
+
+    const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+      initialFlags: JSON.stringify([
+        createRedirectFlag(
+          'test',
+          'treatment',
+          'http://test.com/x?param=v',
+          undefined,
+          DEFAULT_REDIRECT_SCOPE,
+        ),
+      ]),
+      pageObjects: JSON.stringify(pageObjects),
+    });
+    client.setRedirectHandler((url) => {
+      mockGlobal.history.pushState({}, '', url);
+    });
+
+    await client.start();
+    removeAntiFlickerSpy.mockClear();
+
+    mockGlobal.history.pushState({}, '', 'http://test.com/x');
+    await flushAsyncWork();
+
+    // Soft redirect's own pushState publishes url_change, which clears the flag.
+    expect((client as any).isRedirecting).toBe(false);
+    expect(removeAntiFlickerSpy).toHaveBeenCalled();
+  });
+
   test('control variant on control page - should not redirect but call exposure', async () => {
+    // Capture before start(); setupLocationChangePublisher wraps history methods.
+    const replaceStateSpy = mockGlobal.history.replaceState;
+
     await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
       initialFlags: JSON.stringify([
         createRedirectFlag('test', 'control', 'http://test.com/2'),
@@ -349,7 +1220,7 @@ describe('initializeExperiment', () => {
     expect(mockExposure).toHaveBeenCalledWith('test');
 
     // No history manipulation
-    expect(mockGlobal.history.replaceState).toHaveBeenCalledTimes(0);
+    expect(replaceStateSpy).toHaveBeenCalledTimes(0);
 
     // No redirect info should be stored
     const redirectStorageKey = `EXP_${apiKey.toString().slice(0, 10)}_REDIRECT`;
@@ -371,6 +1242,7 @@ describe('initializeExperiment', () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     mockGetGlobalScope.mockReturnValue(mockGlobal);
+    const replaceStateSpy = mockGlobal.history.replaceState;
 
     await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
       initialFlags: JSON.stringify([
@@ -379,11 +1251,7 @@ describe('initializeExperiment', () => {
       pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
     }).start();
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
-    expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
-      {},
-      '',
-      'http://test.com/',
-    );
+    expect(replaceStateSpy).toHaveBeenCalledWith({}, '', 'http://test.com/');
     expect(mockExposureInternal).toHaveBeenCalledWith('test', {
       variant: {
         key: 'control',
@@ -478,16 +1346,13 @@ describe('initializeExperiment', () => {
       ]),
       pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
     });
+    const replaceStateSpy = mockGlobal.history.replaceState;
 
     void client.start();
 
     expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
     expect(mockExposure).toHaveBeenCalledTimes(0);
-    expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
-      {},
-      '',
-      'http://test.com/2',
-    );
+    expect(replaceStateSpy).toHaveBeenCalledWith({}, '', 'http://test.com/2');
   });
 
   test('concatenate query params from original and redirected url', async () => {

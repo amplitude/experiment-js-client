@@ -1,5 +1,7 @@
 import type { GlobalScope } from '@amplitude/experiment-core';
 
+import { getConsentDebugState } from '../consent/consent-gate';
+import { getImpressionBufferDebugState } from '../consent/consent-impression-buffer';
 import type {
   DebugEvent,
   DebugState,
@@ -84,6 +86,10 @@ export const DebugRecorder = {
       events,
       currentUrl: snapshot.currentUrl,
       timestamp: Date.now(),
+      consent: {
+        ...getConsentDebugState(),
+        impressionBuffers: getImpressionBufferDebugState(),
+      },
     };
   },
 };

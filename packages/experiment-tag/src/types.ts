@@ -121,6 +121,27 @@ export interface RedirectConfig {
   encodeRedirectInUrl?: boolean;
 }
 
+export type ConsentStatus = 'granted' | 'pending' | 'denied';
+
+export interface ConsentOptions {
+  /**
+   * When true, device persistence and third-party side effects are gated on
+   * consent: under 'pending' the client runs entirely in memory, and only a
+   * 'granted' status lets data reach the device. Default false — the consent
+   * feature is fully off and behavior is unchanged.
+   */
+  consentRequired?: boolean;
+  /**
+   * Initial consent status, set before the script loads. Defaults to
+   * 'pending' when consentRequired is true.
+   *
+   * A runtime status set via `setConsentStatus` always wins over this
+   * config value. 'denied' at load defers the client start entirely; a later
+   * 'granted' (the preference-center re-opt-in flow) starts it fresh.
+   */
+  consentStatus?: ConsentStatus;
+}
+
 export interface WebExperimentConfig extends ExperimentConfig {
   /**
    * Determines whether the default implementation for handling navigation  will be used
@@ -144,6 +165,26 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * zone. Intended for local/staging testing of the relay serving path.
    */
   relayUrl?: string;
+  /**
+   * Cookie-consent gating for the web experiment script. When
+   * `consentRequired` is true, the client still runs under 'pending' consent —
+   * experiments evaluate and variants apply without flicker — but nothing
+   * lands on the device or leaves for a third-party origin: storage writes are
+   * held in memory, impressions buffer, and the relay iframe is not injected.
+   * Update status at runtime with
+   * `window.webExperiment.setConsentStatus(status)`.
+   *
+   * `granted` resolves the gates: buffered storage flushes, buffered
+   * impressions replay once, and the relay is injected. `denied` at load
+   * defers the client start entirely and erases data persisted by earlier
+   * sessions; a later `granted` (preference-center re-opt-in) starts it
+   * fresh. `denied` at runtime erases all persisted experiment data, writes a
+   * refusal marker, and discards buffered impressions — a subsequent grant
+   * does not replay them. Transitions to `pending` are ignored — it is only
+   * meaningful as an initial state — and unrecognized values warn and leave
+   * the current status in place.
+   */
+  consentOptions?: ConsentOptions;
 }
 
 export const Defaults: WebExperimentConfig = {
@@ -184,6 +225,13 @@ export interface WebExperimentClient {
   addDebugStateSubscriber(
     callback: (state: DebugState) => void,
   ): (() => void) | undefined;
+
+  /**
+   * Updates cookie-consent status (also on the pre-init stub). An unrecognized
+   * status warns and is ignored, leaving the current status in place. See
+   * {@link WebExperimentConfig.consentOptions}.
+   */
+  setConsentStatus(status: ConsentStatus): void;
 }
 
 export type WebExperimentUser = {

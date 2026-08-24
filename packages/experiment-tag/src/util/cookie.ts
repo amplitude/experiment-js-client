@@ -1,6 +1,16 @@
 import { CampaignParser, CookieStorage, MKTG } from '@amplitude/analytics-core';
 import type { Campaign } from '@amplitude/analytics-core';
 
+import {
+  type AsyncCookieStore,
+  createCookieStorage,
+} from '../consent/consent-cookie-storage';
+import {
+  isConsentPending,
+  isConsentWithheld,
+  onConsentDecision,
+} from '../consent/consent-gate';
+
 const KNOWN_2LDS = [
   'ac.in',
   'ac.jp',
@@ -139,17 +149,17 @@ function isDomainWritableSync(domain: string): boolean {
 }
 
 /**
- * Synchronous variant of {@link getTopLevelDomain}. Resolves the registrable
- * (root) domain for `hostname` so callers can set a cookie shared across
- * subdomains, without the async `CookieStorage.isDomainWritable` round-trip.
- * Returns a leading-dot domain (e.g. `.example.com`) or `''` when no
- * cross-subdomain domain is writable (single-label hosts, IPs, blocked I/O).
+ * Candidate cross-subdomain cookie domains for `hostname`, registrable domain
+ * first (e.g. `['example.com', 'app.example.com']`). Empty for single-label
+ * hosts and IPs, which can't carry a `.domain` cookie.
+ *
+ * Returned without the leading dot; callers add it.
  */
-export function getTopLevelDomainSync(hostname: string): string {
-  if (!hostname) return '';
+export function getCookieDomainLevels(hostname: string): string[] {
+  if (!hostname) return [];
   const normalizedHostname = hostname.toLowerCase();
   const parts = normalizedHostname.split('.');
-  if (parts.length <= 1) return '';
+  if (parts.length <= 1) return [];
 
   const skipLevel = KNOWN_2LDS.some((tld) =>
     normalizedHostname.endsWith(`.${tld}`),
@@ -160,7 +170,32 @@ export function getTopLevelDomainSync(hostname: string): string {
   for (let i = parts.length - skipLevel - 1; i >= 0; --i) {
     levels.push(parts.slice(i).join('.'));
   }
-  for (const domain of levels) {
+  return levels;
+}
+
+/**
+ * The registrable-domain guess used while consent is withheld — probing
+ * writability writes a throwaway cookie, which is itself a device write. On
+ * the rare host where the guess is wrong, writes carrying it fail closed
+ * (read-back-verified writers degrade to memory). Never cached, and callers
+ * must not capture it past the withheld window: cookie storages resolve their
+ * domain lazily, so the first post-grant write probes for real.
+ */
+function unprobedDomainGuess(hostname: string): string {
+  const levels = getCookieDomainLevels(hostname);
+  return levels.length > 0 ? '.' + levels[0] : '';
+}
+
+/**
+ * Synchronous variant of {@link getTopLevelDomain} for cross-subdomain cookies:
+ * the first {@link getCookieDomainLevels} entry that accepts one, as a
+ * leading-dot domain (e.g. `.example.com`), or `''` when none does.
+ */
+export function getTopLevelDomainSync(hostname: string): string {
+  if (isConsentWithheld()) {
+    return unprobedDomainGuess(hostname);
+  }
+  for (const domain of getCookieDomainLevels(hostname)) {
     if (isDomainWritableSync(domain)) {
       return '.' + domain;
     }
@@ -170,23 +205,10 @@ export function getTopLevelDomainSync(hostname: string): string {
 
 export async function getTopLevelDomain(hostname: string): Promise<string> {
   if (cachedDomain !== undefined) return cachedDomain;
-  if (!hostname) {
-    return (cachedDomain = '');
+  if (isConsentWithheld()) {
+    return unprobedDomainGuess(hostname);
   }
-  const normalizedHostname = hostname.toLowerCase();
-  const parts = normalizedHostname.split('.');
-  if (parts.length === 1) return (cachedDomain = '');
-
-  const skipLevel = KNOWN_2LDS.some((tld) =>
-    normalizedHostname.endsWith(`.${tld}`),
-  )
-    ? 2
-    : 1;
-  const levels: string[] = [];
-  for (let i = parts.length - skipLevel - 1; i >= 0; --i) {
-    levels.push(parts.slice(i).join('.'));
-  }
-  for (const domain of levels) {
+  for (const domain of getCookieDomainLevels(hostname)) {
     if (await CookieStorage.isDomainWritable(domain)) {
       return (cachedDomain = '.' + domain);
     }
@@ -204,7 +226,7 @@ export async function getTopLevelDomain(hostname: string): Promise<string> {
 export async function resolveCrossSubdomainObject<
   T extends Record<string, string>,
 >(
-  cookieStorage: CookieStorage<string>,
+  cookieStorage: AsyncCookieStore<string>,
   cookieKey: string,
   fallback: Partial<T>,
   generators: { [K in keyof T]: () => string },
@@ -306,6 +328,7 @@ export function deleteRawCookie(key: string, domain?: string): void {
 export class SyncJsonCookie<T> {
   private usable?: boolean;
   private memory?: T;
+  private consentFlushArmed = false;
 
   constructor(
     private readonly key: string,
@@ -318,7 +341,10 @@ export class SyncJsonCookie<T> {
   ) {}
 
   read(): T | undefined {
-    if (this.usable !== false) {
+    // Without consent the cookie is treated as absent: the memory tier is the
+    // only source, so nothing an earlier consented session left behind is read
+    // back.
+    if (!isConsentWithheld() && this.usable !== false) {
       const raw = readRawCookie(this.key);
       const parsed = raw !== undefined ? this.parse(raw) : undefined;
       if (parsed !== undefined) return parsed;
@@ -328,6 +354,15 @@ export class SyncJsonCookie<T> {
 
   write(value: T): void {
     this.memory = value;
+    if (isConsentWithheld()) {
+      // The memory tier already holds the value, so no separate buffer is
+      // needed. Only pending arms a flush; after refusal the value just stays
+      // in memory for the life of the page.
+      if (isConsentPending()) {
+        this.armConsentFlush();
+      }
+      return;
+    }
     this.usable =
       typeof document !== 'undefined' &&
       this.usable !== false &&
@@ -339,7 +374,29 @@ export class SyncJsonCookie<T> {
 
   clear(): void {
     this.memory = undefined;
+    if (isConsentPending()) {
+      // Issuing the expiry would itself be a cookie write. Refusal falls
+      // through so denial cleanup can erase a cookie from a consented visit.
+      return;
+    }
     deleteRawCookie(this.key, this.getDomain() || undefined);
+  }
+
+  /**
+   * Promotes the in-memory value to a cookie on grant. Writing the same value
+   * (not a fresh one) keeps the session id the visitor already had while
+   * pending, instead of rotating it at the moment of grant.
+   */
+  private armConsentFlush(): void {
+    if (this.consentFlushArmed) {
+      return;
+    }
+    this.consentFlushArmed = true;
+    onConsentDecision((granted) => {
+      if (granted && this.memory !== undefined) {
+        this.write(this.memory);
+      }
+    });
   }
 
   private parse(raw: string): T | undefined {
@@ -353,10 +410,14 @@ export class SyncJsonCookie<T> {
 }
 
 export async function setMarketingCookie(apiKey: string, hostname: string) {
-  const domain = await getTopLevelDomain(hostname);
-  const storage = new CookieStorage<Campaign>({
-    sameSite: 'Lax',
-    ...(domain && { domain }),
+  // Domain resolved lazily so a pending-time guess is not baked in; see
+  // createCookieStorage.
+  const storage = createCookieStorage<Campaign>(async () => {
+    const domain = await getTopLevelDomain(hostname);
+    return {
+      sameSite: 'Lax',
+      ...(domain && { domain }),
+    };
   });
 
   const parser = new CampaignParser();
