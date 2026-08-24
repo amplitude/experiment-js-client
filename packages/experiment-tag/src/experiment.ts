@@ -694,8 +694,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
               crossSubdomainCookieStorage,
               identityCookieKey(this.apiKey),
               {
-                web_exp_id_v2:
-                  durableUser.web_exp_id_v2 ?? user.web_exp_id_v2,
+                web_exp_id_v2: durableUser.web_exp_id_v2 ?? user.web_exp_id_v2,
                 first_seen: durableProvider.first_seen ?? user.first_seen,
               },
               {
@@ -739,8 +738,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
             user.web_exp_id_v2 = restored.web_exp_id_v2;
             user.first_seen = restored.first_seen;
             const refreshedUser: WebExperimentUser = {
-              ...((this.experimentClient.getUser() ??
-                {}) as WebExperimentUser),
+              ...((this.experimentClient.getUser() ?? {}) as WebExperimentUser),
               web_exp_id: user.web_exp_id,
               web_exp_id_v2: user.web_exp_id_v2,
               first_seen: user.first_seen,

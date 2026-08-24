@@ -43,9 +43,7 @@ export class ConsentAwareCookieStorage<T> implements SyncCookieStore<T> {
    * freezing a pending-time guess.
    */
   constructor(
-    private readonly delegate:
-      | SyncCookieStore<T>
-      | (() => SyncCookieStore<T>),
+    private readonly delegate: SyncCookieStore<T> | (() => SyncCookieStore<T>),
   ) {}
 
   private getDelegate(): SyncCookieStore<T> {
