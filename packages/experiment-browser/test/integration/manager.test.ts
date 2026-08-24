@@ -262,32 +262,6 @@ describe('SessionDedupeCache', () => {
   beforeEach(() => {
     safeGlobal.sessionStorage.clear();
   });
-  test('old v1 storage is cleared on first use', () => {
-    const instanceName = '$default_instance';
-    safeGlobal.sessionStorage.setItem(
-      'EXP_sent_$default_instance',
-      `{"flag-key":"variant"}`,
-    );
-    const cache = new SessionDedupeCache(instanceName);
-    // Cleanup is deferred to the first storage operation so a persistence
-    // guard can suppress it entirely.
-    cache.shouldTrack({ flag_key: 'flag-key', variant: 'on' });
-    expect(
-      safeGlobal.sessionStorage.getItem('EXP_sent_$default_instance'),
-    ).toBeNull();
-  });
-  test('old v2 storage is cleared on first use', () => {
-    const instanceName = '$default_instance';
-    safeGlobal.sessionStorage.setItem(
-      'EXP_sent_v2_$default_instance',
-      `{"flag-key":{"flag_key":"flag-key","variant":"on"}}`,
-    );
-    const cache = new SessionDedupeCache(instanceName);
-    cache.shouldTrack({ flag_key: 'flag-key', variant: 'on' });
-    expect(
-      safeGlobal.sessionStorage.getItem('EXP_sent_v2_$default_instance'),
-    ).toBeNull();
-  });
   test('storage key', () => {
     const instanceName = '$default_instance';
     const cache = new SessionDedupeCache(instanceName);
@@ -452,18 +426,11 @@ describe('SessionDedupeCache', () => {
     const v3Key = 'EXP_sent_v3_$default_instance';
 
     test('gated: dedupes in memory without touching sessionStorage', () => {
-      // A legacy key that ungated construction would have cleaned up.
-      safeGlobal.sessionStorage.setItem(
-        'EXP_sent_$default_instance',
-        '{"old":"v"}',
-      );
       const cache = new SessionDedupeCache('$default_instance', () => false);
       expect(cache.shouldTrack(exposure)).toEqual(true);
       expect(cache.shouldTrack(exposure)).toEqual(false);
       expect(safeGlobal.sessionStorage.getItem(v3Key)).toBeNull();
-      expect(
-        safeGlobal.sessionStorage.getItem('EXP_sent_$default_instance'),
-      ).toEqual('{"old":"v"}');
+      expect(safeGlobal.sessionStorage.length).toEqual(0);
     });
 
     test('entries recorded while gated survive the guard reopening', () => {

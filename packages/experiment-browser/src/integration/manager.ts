@@ -140,11 +140,9 @@ export class IntegrationManager {
 
 export class SessionDedupeCache {
   private readonly storageKey: string;
-  private readonly instanceName: string;
   // Lazy: the availability check writes a probe key, so it must not run
   // before the persistence guard allows storage access.
   private isSessionStorageAvailable?: boolean;
-  private legacyKeysRemoved = false;
   /** A clearCache() arrived while gated; drop the stored copy on reopen. */
   private clearStoredOnReopen = false;
   /** Entries were recorded while gated; merge them into the stored copy on reopen. */
@@ -156,24 +154,23 @@ export class SessionDedupeCache {
     instanceName: string,
     /**
      * When provided and returning false, deduplication runs purely in memory:
-     * no sessionStorage reads, writes, probes, or legacy-key cleanup. Used by
-     * experiment-tag while cookie consent is withheld.
+     * no sessionStorage reads, writes, or probes. Used by experiment-tag while
+     * cookie consent is withheld.
      */
     private readonly persistenceAllowed?: () => boolean,
   ) {
-    this.instanceName = instanceName;
     this.storageKey = `EXP_sent_v3_${instanceName}`;
+  }
+
+  private isGated(): boolean {
+    return this.persistenceAllowed !== undefined && !this.persistenceAllowed();
   }
 
   /**
    * The sessionStorage to use for this operation, or undefined while the
    * guard is closed or storage is unusable. First allowed call runs the
-   * availability probe and the one-time legacy-key cleanup.
+   * availability probe.
    */
-  private isGated(): boolean {
-    return this.persistenceAllowed !== undefined && !this.persistenceAllowed();
-  }
-
   private usableStorage(): Storage | undefined {
     if (this.isGated()) {
       return undefined;
@@ -184,11 +181,6 @@ export class SessionDedupeCache {
     const sessionStorage = getSessionStorage();
     if (!this.isSessionStorageAvailable || !sessionStorage) {
       return undefined;
-    }
-    if (!this.legacyKeysRemoved) {
-      this.legacyKeysRemoved = true;
-      sessionStorage.removeItem(`EXP_sent_${this.instanceName}`);
-      sessionStorage.removeItem(`EXP_sent_v2_${this.instanceName}`);
     }
     if (this.clearStoredOnReopen) {
       this.clearStoredOnReopen = false;
@@ -376,9 +368,8 @@ export class PersistentTrackingQueue {
   }
 
   private loadQueue(): void {
-    // While persistence is gated the device copy is not consulted (reading is
-    // access to device data too); events pushed in the meantime exist only in
-    // memory and remain the queue.
+    // While persistence is gated the device copy is not consulted (reads are
+    // gated too); events pushed in the meantime exist only in memory.
     const localStorage = this.usableStorage();
     if (localStorage) {
       const storedQueue = localStorage.getItem(this.storageKey);
@@ -400,11 +391,9 @@ export class PersistentTrackingQueue {
   private storeQueue(): void {
     const localStorage = this.usableStorage();
     if (localStorage) {
-      // An empty queue is represented by the key's absence rather than a
-      // stored `[]` — loadQueue treats both the same, and this keeps the queue
-      // from putting anything on the device when every event was handed to
-      // the tracker immediately (which also matters under consent gating,
-      // where the write itself is the problem).
+      // An empty queue is stored as key absence rather than `[]`, so nothing
+      // lands on the device when every event was handed to the tracker
+      // immediately.
       if (this.inMemoryQueue.length === 0) {
         localStorage.removeItem(this.storageKey);
         return;
