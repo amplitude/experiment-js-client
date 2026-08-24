@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.29.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.28.1...@amplitude/experiment-tag@0.29.0) (2026-08-24)
+
+
+### Features
+
+* **experiment-tag:** run web experiment client under pending consent ([#361](https://github.com/amplitude/experiment-js-client/issues/361)) ([8595ab2](https://github.com/amplitude/experiment-js-client/commit/8595ab23b1d8b77b16003ba6da6af9dd78600fde))
+
+
+
+
+
 ## [0.28.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.28.0...@amplitude/experiment-tag@0.28.1) (2026-08-19)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-tag",
-  "version": "0.28.1",
+  "version": "0.29.0",
   "description": "Amplitude Experiment Javascript Snippet",
   "author": "Amplitude",
   "homepage": "https://github.com/amplitude/experiment-js-client",
@@ -31,7 +31,7 @@
     "@amplitude/analytics-core": "^2.21.0",
     "@amplitude/analytics-types": "^2.11.0",
     "@amplitude/experiment-core": "^0.13.5",
-    "@amplitude/experiment-js-client": "^1.22.1",
+    "@amplitude/experiment-js-client": "^1.23.0",
     "dom-mutator": "git+ssh://git@github.com/amplitude/dom-mutator#bb5f4b52273e6a3de39dcf6db6f428d66d988a7b",
     "rollup-plugin-license": "^3.6.0",
     "unfetch": "4.1.0"
