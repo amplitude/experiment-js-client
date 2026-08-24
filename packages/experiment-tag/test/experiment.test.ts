@@ -11,7 +11,7 @@ import { createMockGlobal, setupGlobalObservers } from './util/mocks';
 
 import { DefaultWebExperimentClient } from 'src/experiment';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
-import { readCookieStorageSync } from 'src/util/cookie';
+import { deleteRawCookie, readCookieStorageSync } from 'src/util/cookie';
 import * as uuid from 'src/util/uuid';
 
 // Tests run in jsdom so safeGlobal is always defined.
@@ -35,6 +35,11 @@ const cookieStore: Record<string, any> = {};
 
 const clearCookieStore = () => {
   Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
+  for (const cookie of document.cookie ? document.cookie.split('; ') : []) {
+    const eq = cookie.indexOf('=');
+    const key = eq === -1 ? cookie : cookie.slice(0, eq);
+    if (key) deleteRawCookie(key);
+  }
 };
 
 jest.mock('@amplitude/analytics-core', () => {
