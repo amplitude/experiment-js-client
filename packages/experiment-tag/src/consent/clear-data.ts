@@ -95,9 +95,9 @@ const getPersistedDataGroups = (
     },
     {
       // In-flight redirect impressions; the cookie copy is the cross-subdomain
-      // transport.
+      // transport. REDIRECT_MARKER is the stick-detector record from WEB-228.
       feature: 'redirect impressions',
-      sessionStorage: [`EXP_${slice}_REDIRECT`],
+      sessionStorage: [`EXP_${slice}_REDIRECT`, `EXP_${slice}_REDIRECT_MARKER`],
       cookies: [`EXP_${slice}_REDIRECT`],
     },
     {
@@ -116,7 +116,14 @@ const getPersistedDataGroups = (
       // the page.
       feature: 'exposure queue and dedupe',
       localStorage: [`EXP_unsent_${instanceName}`],
-      sessionStorage: [`EXP_sent_v3_${instanceName}`],
+      // v1/v2 keys: denial-at-load never constructs SessionDedupeCache, so
+      // leftover entries from a tab open across an SDK upgrade would otherwise
+      // survive a refusal.
+      sessionStorage: [
+        `EXP_sent_v3_${instanceName}`,
+        `EXP_sent_v2_${instanceName}`,
+        `EXP_sent_${instanceName}`,
+      ],
     },
   ];
 };

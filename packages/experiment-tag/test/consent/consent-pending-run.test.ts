@@ -446,6 +446,7 @@ describe('pending-run wiring', () => {
         'exposureInternal',
       );
 
+      const replaceStateSpy = mockGlobal.history.replaceState;
       const client = DefaultWebExperimentClient.getInstance(stringify(apiKey), {
         initialFlags: JSON.stringify([]),
         pageObjects: JSON.stringify({}),
@@ -455,11 +456,7 @@ describe('pending-run wiring', () => {
 
       expect(mockExposureInternal).toHaveBeenCalledTimes(1);
       expect(mockExposureInternal.mock.calls[0][0]).toBe('test');
-      expect(mockGlobal.history.replaceState).toHaveBeenCalledWith(
-        {},
-        '',
-        'http://test.com/2',
-      );
+      expect(replaceStateSpy).toHaveBeenCalledWith({}, '', 'http://test.com/2');
     });
   });
 });
