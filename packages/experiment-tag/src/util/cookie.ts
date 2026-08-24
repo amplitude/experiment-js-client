@@ -147,8 +147,8 @@ const cachedDomains: Record<string, string> = {};
 function isDomainWritableSync(domain: string): boolean {
   if (typeof document === 'undefined') return false;
   const testKey = `AMP_TLD_TEST_${Date.now()}`;
-  const secure = location?.protocol === 'https:' ? '; Secure' : '';
   try {
+    const secure = location?.protocol === 'https:' ? '; Secure' : '';
     document.cookie = `${testKey}=1; domain=.${domain}; path=/; SameSite=Lax${secure}`;
     const written = document.cookie.indexOf(`${testKey}=`) !== -1;
     // Clean up the probe cookie regardless of the result.
@@ -254,7 +254,11 @@ export function resolveCrossSubdomainObject<T extends Record<string, string>>(
   }
 
   if (changed) {
-    storage.set(cookieKey, JSON.stringify(resolved));
+    try {
+      storage.set(cookieKey, JSON.stringify(resolved));
+    } catch {
+      /* write blocked: persist via returned value only */
+    }
   }
   return resolved;
 }
