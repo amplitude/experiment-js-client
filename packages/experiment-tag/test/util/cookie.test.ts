@@ -1,11 +1,17 @@
+import { CookieStorage } from '@amplitude/analytics-core';
+
+import { consentGate } from '../../src/consent/consent-gate';
 import {
   deleteRawCookie,
   getCookieDomainLevels,
+  getTopLevelDomain,
+  getTopLevelDomainSync,
   readRawCookie,
   resolveCrossSubdomainObject,
   SyncJsonCookie,
   writeRawCookie,
 } from '../../src/util/cookie';
+import { activateConsent } from '../consent/consent-test-util';
 
 /**
  * Minimal in-memory stand-in for analytics-core's async CookieStorage<string>,
@@ -126,6 +132,37 @@ describe('resolveCrossSubdomainObject', () => {
       web_exp_id_v2: 'fresh',
       first_seen: 'fresh-ts',
     });
+  });
+});
+
+describe('top-level domain resolution under consent', () => {
+  afterEach(() => {
+    consentGate.reset();
+    jest.restoreAllMocks();
+  });
+
+  it('returns the unprobed guess without probing while consent is pending', async () => {
+    activateConsent('pending');
+    const probe = jest.spyOn(CookieStorage, 'isDomainWritable');
+    expect(await getTopLevelDomain('app.example.com')).toBe('.example.com');
+    expect(probe).not.toHaveBeenCalled();
+  });
+
+  it('sync variant skips the probe cookie while consent is withheld', () => {
+    activateConsent('denied');
+    // In this jsdom page a `.example.com` probe cookie can never be written,
+    // so the ungated path would walk every level and return ''. Getting the
+    // guess back proves the probe never ran.
+    expect(getTopLevelDomainSync('app.example.com')).toBe('.example.com');
+  });
+
+  it('probes for real once consent is granted', async () => {
+    activateConsent('granted');
+    const probe = jest
+      .spyOn(CookieStorage, 'isDomainWritable')
+      .mockResolvedValue(true);
+    expect(await getTopLevelDomain('app.example.com')).toBe('.example.com');
+    expect(probe).toHaveBeenCalled();
   });
 });
 

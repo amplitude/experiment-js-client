@@ -152,6 +152,63 @@ describe('ConsentAwareCookieStorage', () => {
     });
   });
 
+  describe('lazy delegate', () => {
+    it('does not resolve the delegate while consent is withheld', async () => {
+      activateConsent('pending');
+      const factory = jest.fn(() => Promise.resolve(fakeStore()));
+      const storage = new ConsentAwareCookieStorage(factory);
+
+      await storage.set('ck', 'fresh');
+      expect(await storage.get('ck')).toEqual('fresh');
+
+      expect(factory).not.toHaveBeenCalled();
+    });
+
+    it('resolves the delegate at grant flush, so it captures post-grant state', async () => {
+      activateConsent('pending');
+      const delegate = fakeStore();
+      // Stands in for the cookie-domain probe: real only once granted.
+      const factory = jest.fn(() => {
+        expect(consentGate.manager.getStatus()).toEqual('granted');
+        return Promise.resolve(delegate);
+      });
+      const storage = new ConsentAwareCookieStorage(factory);
+      await storage.set('ck', 'fresh');
+
+      consentGate.manager.setStatus('granted');
+      expect(await storage.get('ck')).toEqual('fresh');
+
+      expect(factory).toHaveBeenCalledTimes(1);
+      expect(delegate.store).toEqual({ ck: 'fresh' });
+    });
+
+    it('never resolves the delegate when consent is denied', async () => {
+      activateConsent('pending');
+      const factory = jest.fn(() => Promise.resolve(fakeStore()));
+      const storage = new ConsentAwareCookieStorage(factory);
+      await storage.set('ck', 'fresh');
+
+      consentGate.manager.setStatus('denied');
+      expect(await storage.get('ck')).toBeUndefined();
+
+      expect(factory).not.toHaveBeenCalled();
+    });
+
+    it('drops the buffer without poisoning later access when the factory rejects', async () => {
+      activateConsent('pending');
+      const factory = (): Promise<AsyncCookieStore<string>> =>
+        Promise.reject(new Error('probe failed'));
+      const storage = new ConsentAwareCookieStorage(factory);
+      await storage.set('ck', 'fresh');
+
+      consentGate.manager.setStatus('granted');
+
+      // The flush swallows the failure; a later read surfaces it per-call
+      // like any other blocked delegate, without rejecting the flush chain.
+      await expect(storage.get('ck')).rejects.toThrow('probe failed');
+    });
+  });
+
   describe('denial', () => {
     it('discards buffered writes instead of flushing them', async () => {
       activateConsent('pending');

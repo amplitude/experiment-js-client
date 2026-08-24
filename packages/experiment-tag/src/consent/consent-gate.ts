@@ -21,13 +21,11 @@ interface ConsentGate {
   /** Tri-state status owner; `index.ts` reads and transitions through it. */
   manager: ConsentManager;
   /**
-   * Whether the customer asked for consent gating at all. The manager starts at
-   * 'pending' for everyone, so this is what separates a visitor who has yet to
-   * decide from the overwhelming majority of pages that never enabled the
-   * feature — persistence gates must consult {@link isConsentPending}, never the
-   * status alone. Set by `initialize` before the client is constructed, and
-   * sticky once true so a later `initialize` resolving `consentRequired: false`
-   * cannot reopen storage a prior one closed.
+   * Whether the customer enabled consent gating. The manager starts at
+   * 'pending' for everyone, so gates must check this (via
+   * {@link isConsentPending}), never the status alone. Sticky once true, so a
+   * later `initialize` resolving `consentRequired: false` cannot reopen
+   * storage a prior one closed.
    */
   required: boolean;
   /** Args stashed by `initialize` while consent is not yet granted. */
@@ -35,12 +33,10 @@ interface ConsentGate {
   /** Whether the client has been (or is being) started. */
   started: boolean;
   /**
-   * The manager the denial-cleanup listener is attached to, or null before the
-   * first gated `initialize` — the listener needs the apiKey that call
-   * supplies (see `armDenialCleanup` in `clear-data.ts`). The test-only
-   * `reset()` replaces the manager, stranding listeners on the old instance
-   * (its status never changes again). Comparing instances rather than tracking
-   * a boolean makes the next initialize re-arm against the live manager.
+   * The manager the denial-cleanup listener is attached to (see
+   * `armDenialCleanup` in `clear-data.ts`). The test-only `reset()` replaces
+   * the manager, stranding listeners on the old instance; comparing instances
+   * lets the next initialize re-arm against the live one.
    */
   cleanupArmedManager: ConsentManager | null;
   /** Test-only reset; kept off the public `index` entry point. */
@@ -59,9 +55,6 @@ export const consentGate: ConsentGate = {
   started: false,
   cleanupArmedManager: null,
   reset() {
-    // Replacing the manager detaches its listeners with it; the armed-manager
-    // comparison in `armDenialCleanup` re-arms against the replacement on its
-    // own, so the null here is fresh state, not a correctness requirement.
     this.manager = new ConsentManager();
     this.required = false;
     this.deferredStart = null;
@@ -71,11 +64,9 @@ export const consentGate: ConsentGate = {
 };
 
 /**
- * Read-only snapshot of the gate for `getDebugState()` — the consent state is
- * module-scoped (it exists before any client does), so this is how it surfaces
- * on the single debug object at `window.webExperiment.getDebugState()`.
- * `impressionBuffers` is composed in by the recorder: the buffer module
- * imports this one, so the dependency cannot point the other way.
+ * Read-only snapshot of the gate for `getDebugState()`. `impressionBuffers`
+ * is composed in by the recorder — the buffer module imports this one, so the
+ * dependency cannot point the other way.
  */
 export const getConsentDebugState = (): Omit<
   ConsentDebugInfo,
@@ -88,12 +79,10 @@ export const getConsentDebugState = (): Omit<
 });
 
 /**
- * Runs `handler` on the first status transition of the current manager and
- * unsubscribes. Pending only ever resolves one way or the other, so a buffer
- * armed while consent is undecided is settled by that single transition:
- * flushed on grant, dropped on refusal. Spending the subscription there is also
- * what stops data gathered before a refusal from being written out later,
- * should the visitor return to the banner and opt in.
+ * Runs `handler` on the first status transition and unsubscribes. A buffer
+ * armed while pending is settled by that one transition: flushed on grant,
+ * dropped on refusal. The one-shot also stops data gathered before a refusal
+ * from being written out by a later same-page re-opt-in.
  */
 export const onConsentDecision = (
   handler: (granted: boolean) => void,
@@ -105,23 +94,18 @@ export const onConsentDecision = (
 };
 
 /**
- * True while the visitor has yet to decide and gating is active — the condition
- * under which persistence is held in memory instead of written out. False when
- * the feature is off, so every gate built on it is inert for pages that never
- * enabled consent.
+ * True while gating is active and the visitor has yet to decide — the
+ * condition under which writes are buffered in memory (consent may still
+ * arrive). Always false when the feature is off.
  */
 export const isConsentPending = (): boolean =>
   consentGate.required && consentGate.manager.getStatus() === 'pending';
 
 /**
- * True whenever gating is active and consent is not in hand — either not yet
- * given or refused. This is the condition for keeping data off the device;
- * {@link isConsentPending} narrows it to the case where the data is still worth
- * holding on to, because consent may yet arrive.
- *
- * Refusal has to suppress persistence and not merely trigger cleanup: a visitor
- * who withdraws consent mid-visit leaves a client already running, and erasing
- * its data while it carries on writing would put the data straight back.
+ * True while gating is active and consent is not in hand (pending or denied) —
+ * the condition for keeping data off the device. Denial must suppress
+ * persistence, not just trigger cleanup: a client already running after a
+ * mid-session revocation would otherwise write the data straight back.
  */
 export const isConsentWithheld = (): boolean =>
   consentGate.required && consentGate.manager.getStatus() !== 'granted';

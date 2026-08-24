@@ -76,7 +76,10 @@ export class ConsentManager {
     }
     const previous = this.currentStatus;
     this.currentStatus = status;
-    for (const listener of this.listeners) {
+    // Snapshot before notifying: a listener can arm another listener while
+    // this loop runs, and live Set iteration would fire (and spend, for a
+    // one-shot) the new listener on the very transition it was armed during.
+    for (const listener of [...this.listeners]) {
       try {
         listener(status, previous);
       } catch (error) {

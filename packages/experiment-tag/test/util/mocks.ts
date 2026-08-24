@@ -51,24 +51,100 @@ export const createLocationMock = (overrides?: Record<string, unknown>) => {
     ...overrides,
   };
 
+  const syncFromHref = (href: string) => {
+    const parsed = new URL(href);
+    location.href = parsed.href;
+    location.search = parsed.search;
+    location.hostname = parsed.hostname;
+    location.pathname = parsed.pathname;
+    location.protocol = parsed.protocol;
+    location.port = parsed.port;
+    location.host = parsed.host;
+  };
+
   // Ensure replace updates href
   if (!overrides?.replace) {
     location.replace = jest.fn((url: string) => {
-      location.href = url;
+      syncFromHref(new URL(url, location.href).href);
     });
   }
+
+  (location as { _syncFromHref?: (href: string) => void })._syncFromHref =
+    syncFromHref;
 
   return location;
 };
 
+export const createHistoryMock = (location: {
+  href: string;
+  search?: string;
+  hostname?: string;
+  pathname?: string;
+  protocol?: string;
+  port?: string;
+  host?: string;
+  _syncFromHref?: (href: string) => void;
+}) => {
+  const applyUrl = (url: string | URL | null | undefined) => {
+    if (url == null || url === '') {
+      return;
+    }
+    const resolved = new URL(String(url), location.href).href;
+    if (location._syncFromHref) {
+      location._syncFromHref(resolved);
+    } else {
+      location.href = resolved;
+    }
+  };
+
+  return {
+    pushState: jest.fn(
+      (_state: unknown, _title: string, url?: string | URL | null) => {
+        applyUrl(url);
+      },
+    ),
+    // Default replaceState records the call but does not mutate location.
+    // Preview/VE tests rely on href staying put; SPA tests that need mutation
+    // should drive navigation via pushState (or assign a custom impl).
+    replaceState: jest.fn(),
+  };
+};
+
 export const createMockGlobal = (overrides?: Record<string, unknown>) => {
+  const location = createLocationMock(
+    overrides?.location && typeof overrides.location === 'object'
+      ? (overrides.location as Record<string, unknown>)
+      : undefined,
+  );
+
+  const listeners: Record<string, Array<(event?: Event) => void>> = {};
+
   const baseGlobal = {
     localStorage: createStorageMock(),
     sessionStorage: createStorageMock(),
     document: createDocumentMock(),
-    history: { replaceState: jest.fn() },
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
+    history: createHistoryMock(location),
+    addEventListener: jest.fn(
+      (event: string, handler: (event?: Event) => void) => {
+        if (!listeners[event]) {
+          listeners[event] = [];
+        }
+        listeners[event].push(handler);
+      },
+    ),
+    removeEventListener: jest.fn(
+      (event: string, handler: (event?: Event) => void) => {
+        listeners[event] = (listeners[event] || []).filter(
+          (h) => h !== handler,
+        );
+      },
+    ),
+    dispatchEvent: jest.fn((event: Event) => {
+      for (const handler of listeners[event.type] || []) {
+        handler(event);
+      }
+      return true;
+    }),
     setTimeout: jest.fn((fn: () => void) => fn()),
     clearTimeout: jest.fn(),
     experimentIntegration: {
@@ -82,7 +158,7 @@ export const createMockGlobal = (overrides?: Record<string, unknown>) => {
         };
       },
     },
-    location: createLocationMock(),
+    location,
     innerHeight: 768,
     innerWidth: 1024,
     opener: { closed: false },
@@ -97,16 +173,19 @@ export const createMockGlobal = (overrides?: Record<string, unknown>) => {
   // Apply overrides with smart merging for nested objects
   if (overrides) {
     Object.keys(overrides).forEach((key) => {
-      if (key === 'location' && typeof overrides[key] === 'object') {
-        // Merge location properties
-        baseGlobal.location = createLocationMock(
-          overrides[key] as Record<string, unknown>,
-        );
+      if (key === 'location') {
+        // already applied above
+        return;
       } else if (key === 'document' && typeof overrides[key] === 'object') {
         // Merge document properties
         baseGlobal.document = createDocumentMock(
           overrides[key] as Record<string, unknown>,
         );
+      } else if (key === 'history' && typeof overrides[key] === 'object') {
+        baseGlobal.history = {
+          ...baseGlobal.history,
+          ...(overrides[key] as Record<string, unknown>),
+        } as typeof baseGlobal.history;
       } else {
         baseGlobal[key] = overrides[key];
       }

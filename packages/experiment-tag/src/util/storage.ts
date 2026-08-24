@@ -9,16 +9,14 @@ import {
 import type { ConsentManager } from '../consent/consent-manager';
 
 import { mergePendingJsonWithDevice } from './grant-flush-merge';
-import { CONSENT_EXEMPT_STORAGE_KEYS } from './storage-keys';
+import { isConsentExemptStorageKey } from './storage-keys';
 
 export type StorageType = 'localStorage' | 'sessionStorage';
 
 /**
- * Writes made while the visitor has yet to decide, held here instead of in
- * localStorage/sessionStorage. Entries carry the serialized form rather than the
- * live object so a buffered read parses a fresh copy exactly as a real read
- * would, and so a flush is a verbatim handover of what the caller asked to
- * store.
+ * Writes buffered while consent is pending, held here instead of in
+ * localStorage/sessionStorage. Entries hold the serialized form so buffered
+ * reads parse a fresh copy exactly as a real read would.
  */
 const pendingWrites = new Map<
   string,
@@ -27,11 +25,9 @@ const pendingWrites = new Map<
 
 /**
  * The manager this module's flush/drop listener is attached to. The test-only
- * `consentGate.reset()` replaces the manager with a fresh instance, which
- * silently strands any listener subscribed to the old one — its status never
- * changes again, so a stranded listener would never flush or drop the buffer.
- * Comparing instances (rather than tracking an "armed" boolean) makes the next
- * gated call notice the swap and re-subscribe to the live manager.
+ * `consentGate.reset()` replaces the manager, stranding listeners on the old
+ * instance; comparing instances makes the next gated call re-subscribe to the
+ * live one.
  */
 let armedManager: ConsentManager | null = null;
 
@@ -66,10 +62,10 @@ const bufferKey = (storageType: StorageType, key: string): string =>
   `${storageType}:${key}`;
 
 /**
- * Amplitude's own tooling state is exempt from the gate — see
- * {@link CONSENT_EXEMPT_STORAGE_KEYS}.
+ * Amplitude tooling state and the redirect stick-detector — see
+ * {@link isConsentExemptStorageKey}.
  */
-const isExempt = (key: string): boolean => CONSENT_EXEMPT_STORAGE_KEYS.has(key);
+const isExempt = (key: string): boolean => isConsentExemptStorageKey(key);
 
 /** Whether a key is subject to the gate at all. */
 const isGated = (key: string): boolean => isConsentWithheld() && !isExempt(key);
@@ -85,10 +81,9 @@ export const getStorageItem = <T>(
   key: string,
 ): T | null => {
   if (isGated(key)) {
-    // Reads are gated as well as writes — ePrivacy covers access to data already
-    // on the device, so a visitor without consent sees only what this page put in
-    // the buffer, never what an earlier consented session left behind. Once
-    // consent is refused the buffer is empty, so this reads as absent.
+    // Reads are gated too — ePrivacy covers access to data already on the
+    // device — so a visitor without consent sees only this page's buffer,
+    // never what an earlier consented session left behind.
     if (isConsentPending()) {
       armConsentListener();
     }
@@ -183,10 +178,8 @@ export const removeStorageItem = (
   storageType: StorageType,
   key: string,
 ): void => {
-  // Only pending holds removal back, and only to the buffer: issuing the delete
-  // would be a write to the device while the visitor is still deciding. Refusal
-  // deliberately falls through to real storage, because that is the path denial
-  // cleanup uses to erase what a previously consented visit left behind.
+  // Pending stops at the buffer (a delete is itself a device write); refusal
+  // falls through to real storage, which is how denial cleanup erases data.
   if (isConsentPending() && !isExempt(key)) {
     armConsentListener();
     pendingWrites.delete(bufferKey(storageType, key));

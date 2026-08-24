@@ -41,8 +41,25 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
    */
   private flush: Promise<void> | null = null;
   private flushArmed = false;
+  private resolvedDelegate: Promise<AsyncCookieStore<T>> | null = null;
 
-  constructor(private readonly delegate: AsyncCookieStore<T>) {}
+  /**
+   * A factory delegate is resolved lazily, on the first access that reaches
+   * real storage. This lets the cross-subdomain cookie domain — unprobeable
+   * while consent is withheld — be resolved for real post-grant instead of
+   * freezing a pending-time guess.
+   */
+  constructor(
+    private readonly delegate:
+      | AsyncCookieStore<T>
+      | (() => Promise<AsyncCookieStore<T>> | AsyncCookieStore<T>),
+  ) {}
+
+  private getDelegate(): Promise<AsyncCookieStore<T>> {
+    return (this.resolvedDelegate ??= Promise.resolve(
+      typeof this.delegate === 'function' ? this.delegate() : this.delegate,
+    ));
+  }
 
   async get(key: string): Promise<T | undefined> {
     if (isConsentWithheld()) {
@@ -52,7 +69,7 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
       return value === undefined ? undefined : snapshotValue(value);
     }
     await this.flush;
-    return this.delegate.get(key);
+    return (await this.getDelegate()).get(key);
   }
 
   async set(key: string, value: T): Promise<void> {
@@ -64,19 +81,18 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
       return;
     }
     await this.flush;
-    return this.delegate.set(key, value);
+    return (await this.getDelegate()).set(key, value);
   }
 
   async remove(key: string): Promise<void> {
-    // Refusal falls through so denial cleanup can erase a cookie from a
-    // consented visit; only a still-undecided visitor stops at the buffer, since
-    // expiring a cookie is itself a write.
+    // Pending stops at the buffer (expiring a cookie is itself a write);
+    // refusal falls through so denial cleanup can erase real cookies.
     if (isConsentPending()) {
       this.buffered.delete(key);
       return;
     }
     await this.flush;
-    return this.delegate.remove(key);
+    return (await this.getDelegate()).remove(key);
   }
 
   private armFlush(): void {
@@ -91,12 +107,22 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
         return;
       }
       this.flush = (async () => {
+        // Resolved post-grant so a factory delegate probes the real cookie
+        // domain rather than reusing a pending-time guess.
+        let delegate: AsyncCookieStore<T>;
+        try {
+          delegate = await this.getDelegate();
+        } catch {
+          // Drop the buffer; the flush must not reject or every later access
+          // (which awaits it) would too.
+          return;
+        }
         for (const [key, value] of entries) {
           if (consentGate.manager.getStatus() !== 'granted') {
             return;
           }
           try {
-            const existing = await this.delegate.get(key);
+            const existing = await delegate.get(key);
             const merged =
               typeof value === 'string'
                 ? (mergeIdentityCookieJson(
@@ -104,7 +130,7 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
                     value,
                   ) as T)
                 : value;
-            await this.delegate.set(key, merged);
+            await delegate.set(key, merged);
           } catch {
             // Blocked cookie I/O degrades silently, as the raw paths do.
           }
@@ -114,11 +140,22 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
   }
 }
 
+type CookieStorageOptions = ConstructorParameters<typeof CookieStorage>[0];
+
 /**
- * Builds the cookie storage every experiment-tag call site should use, so a new
- * one cannot silently bypass the consent gate.
+ * Builds the cookie storage every experiment-tag call site should use, so a
+ * new one cannot silently bypass the consent gate. Pass a function when an
+ * option needs a device probe (the cross-subdomain `domain`); it is evaluated
+ * on the first access that reaches real storage rather than frozen at
+ * construction while consent is withheld.
  */
 export const createCookieStorage = <T>(
-  options?: ConstructorParameters<typeof CookieStorage>[0],
+  options?:
+    | CookieStorageOptions
+    | (() => Promise<CookieStorageOptions> | CookieStorageOptions),
 ): AsyncCookieStore<T> =>
-  new ConsentAwareCookieStorage<T>(new CookieStorage<T>(options));
+  new ConsentAwareCookieStorage<T>(
+    typeof options === 'function'
+      ? async () => new CookieStorage<T>(await options())
+      : new CookieStorage<T>(options),
+  );

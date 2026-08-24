@@ -1,3 +1,4 @@
+import { isConsentWithheld } from '../consent/consent-gate';
 import { getTopLevelDomainSync, SyncJsonCookie } from '../util/cookie';
 
 /**
@@ -140,12 +141,20 @@ export class SessionManager {
   }
 
   private domain(): string {
-    if (this.resolvedDomain === undefined) {
-      this.resolvedDomain =
-        typeof location !== 'undefined' && location.hostname
-          ? getTopLevelDomainSync(location.hostname)
-          : '';
+    if (this.resolvedDomain !== undefined) {
+      return this.resolvedDomain;
     }
-    return this.resolvedDomain;
+    const resolved =
+      typeof location !== 'undefined' && location.hostname
+        ? getTopLevelDomainSync(location.hostname)
+        : '';
+    // While consent is withheld the resolver returns an unprobed guess (a real
+    // probe writes a throwaway cookie). Don't pin the guess: leaving the cache
+    // empty lets the first post-grant write probe for real, instead of keeping
+    // a possibly-wrong domain for the rest of the page.
+    if (!isConsentWithheld()) {
+      this.resolvedDomain = resolved;
+    }
+    return resolved;
   }
 }

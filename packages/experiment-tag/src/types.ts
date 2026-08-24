@@ -125,17 +125,19 @@ export type ConsentStatus = 'granted' | 'pending' | 'denied';
 
 export interface ConsentOptions {
   /**
-   * When true, the script does not start until consent status is 'granted'.
-   * Default false — the consent feature is fully off and behavior is unchanged.
+   * When true, device persistence and third-party side effects are gated on
+   * consent: under 'pending' the client runs entirely in memory, and only a
+   * 'granted' status lets data reach the device. Default false — the consent
+   * feature is fully off and behavior is unchanged.
    */
   consentRequired?: boolean;
   /**
    * Initial consent status, set before the script loads. Defaults to
-   * 'pending' when consentRequired is true. Values follow Google Consent
-   * Mode: 'granted' | 'denied' | 'pending'.
+   * 'pending' when consentRequired is true.
    *
-   * A later 'granted' at runtime (via `setConsentStatus`) starts the script —
-   * including after 'denied' (the preference-center re-opt-in flow).
+   * A runtime status set via `setConsentStatus` always wins over this
+   * config value. 'denied' at load defers the client start entirely; a later
+   * 'granted' (the preference-center re-opt-in flow) starts it fresh.
    */
   consentStatus?: ConsentStatus;
 }
@@ -166,17 +168,22 @@ export interface WebExperimentConfig extends ExperimentConfig {
 
   /**
    * Cookie-consent gating for the web experiment script. When
-   * `consentRequired` is true, the script does not start (no storage access,
-   * evaluation, variant application, tracking, or relay) until the status is
-   * 'granted'. Update status at runtime with
+   * `consentRequired` is true, the client still runs under 'pending' consent —
+   * experiments evaluate and variants apply without flicker — but nothing
+   * lands on the device or leaves for a third-party origin: storage writes are
+   * held in memory, impressions buffer, and the relay iframe is not injected.
+   * Update status at runtime with
    * `window.webExperiment.setConsentStatus(status)`.
    *
-   * `pending` and `denied` defer the start. `granted` starts the client,
-   * including after `denied` (preference-center re-opt-in). Transitions to
-   * `pending` are ignored — it is only meaningful as an initial state.
-   * Analytics events that arrive while the start is deferred are not kept for
-   * replay after grant. After the client has started, a later `denied` does
-   * not tear down an in-flight start; reload the page to reset.
+   * `granted` resolves the gates: buffered storage flushes, buffered
+   * impressions replay once, and the relay is injected. `denied` at load
+   * defers the client start entirely and erases data persisted by earlier
+   * sessions; a later `granted` (preference-center re-opt-in) starts it
+   * fresh. `denied` at runtime erases all persisted experiment data, writes a
+   * refusal marker, and discards buffered impressions — a subsequent grant
+   * does not replay them. Transitions to `pending` are ignored — it is only
+   * meaningful as an initial state — and unrecognized values warn and leave
+   * the current status in place.
    */
   consentOptions?: ConsentOptions;
 

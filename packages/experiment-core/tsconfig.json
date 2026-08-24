@@ -5,7 +5,6 @@
   "compilerOptions": {
     "declaration": true,
     "declarationDir": "dist/types",
-    "downlevelIteration": true,
     "strict": true,
     "baseUrl": "./src",
     "rootDir": "."
