@@ -3,6 +3,47 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.29.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.28.1...@amplitude/experiment-tag@0.29.0) (2026-08-24)
+
+
+### Features
+
+* **experiment-tag:** run web experiment client under pending consent ([#361](https://github.com/amplitude/experiment-js-client/issues/361)) ([8595ab2](https://github.com/amplitude/experiment-js-client/commit/8595ab23b1d8b77b16003ba6da6af9dd78600fde))
+
+
+
+
+
+## [0.28.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.28.0...@amplitude/experiment-tag@0.28.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* **experiment-tag:** keep SPA soft-nav redirects and stop strip loops [WEB-228] ([#368](https://github.com/amplitude/experiment-js-client/issues/368)) ([36a61ea](https://github.com/amplitude/experiment-js-client/commit/36a61ea4828e139cce5f65f22244cb00e8b306a0))
+* upgrade target to es6 ([#367](https://github.com/amplitude/experiment-js-client/issues/367)) ([cd04e86](https://github.com/amplitude/experiment-js-client/commit/cd04e86d4d3678be16c990132164d34a3cd89d53))
+
+
+
+
+
+# [0.28.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.27.0...@amplitude/experiment-tag@0.28.0) (2026-08-11)
+
+
+### Bug Fixes
+
+* **experiment-tag:** fall back when adoptedStyleSheets is missing [WEB-221] ([#362](https://github.com/amplitude/experiment-js-client/issues/362)) ([0e56084](https://github.com/amplitude/experiment-js-client/commit/0e560842bac483c478cf79dea907b8f86e19fd6e))
+
+
+### Features
+
+* **experiment-tag:** buffer impressions until consent is granted ([#359](https://github.com/amplitude/experiment-js-client/issues/359)) ([90c39bf](https://github.com/amplitude/experiment-js-client/commit/90c39bf34cefe5c65bd9b2edd6d95848422ee0a7)), closes [#357](https://github.com/amplitude/experiment-js-client/issues/357) [#357](https://github.com/amplitude/experiment-js-client/issues/357)
+* **experiment-tag:** clear persisted data when consent is denied ([#357](https://github.com/amplitude/experiment-js-client/issues/357)) ([b3176df](https://github.com/amplitude/experiment-js-client/commit/b3176df82bdf49492c42ef19b112d09b60f84f8e))
+* **experiment-tag:** hold storage in memory while consent is pending ([#358](https://github.com/amplitude/experiment-js-client/issues/358)) ([0cd9564](https://github.com/amplitude/experiment-js-client/commit/0cd95644b1022fbb3f3c02f3ab4f52ce3ccaa9f6)), closes [#357](https://github.com/amplitude/experiment-js-client/issues/357) [#357](https://github.com/amplitude/experiment-js-client/issues/357)
+
+
+
+
+
 # [0.27.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.26.0...@amplitude/experiment-tag@0.27.0) (2026-07-29)
 
 

@@ -76,12 +76,24 @@ describe('index.ts consent gate', () => {
       'no status (defaults to pending)',
       { consentOptions: { consentRequired: true } },
     ],
-    [
-      'denied',
-      { consentOptions: { consentRequired: true, consentStatus: 'denied' } },
-    ],
-  ])('does not construct or start: required + %s', (_label, config) => {
-    init(config);
+  ])(
+    'starts under pending with the persistence gate armed: %s',
+    (_label, config) => {
+      init(config);
+      // The client runs (experiments apply, no flicker); everything it would
+      // persist or send is held back by the gated layers below.
+      expect(getInstance).toHaveBeenCalledTimes(1);
+      expect(start).toHaveBeenCalledTimes(1);
+      expect(consentGate.required).toBe(true);
+      expect(consentGate.manager.getStatus()).toBe('pending');
+      expect(consentGate.deferredStart).toBeNull();
+    },
+  );
+
+  test('does not construct or start: required + denied', () => {
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
+    });
     expect(getInstance).not.toHaveBeenCalled();
   });
 
@@ -111,12 +123,20 @@ describe('index.ts consent gate', () => {
     },
   );
 
-  test('denied without a grant never starts', () => {
+  test('denial after a pending start does not stash a deferral or relaunch', () => {
     init({
       consentOptions: { consentRequired: true, consentStatus: 'pending' },
     });
+    expect(getInstance).toHaveBeenCalledTimes(1);
+
+    // Mid-session refusal: the running client stays up (gated layers drop its
+    // writes); nothing is parked for a later grant to release.
     setConsentStatus('denied');
-    expect(getInstance).not.toHaveBeenCalled();
+    expect(consentGate.deferredStart).toBeNull();
+
+    setConsentStatus('granted');
+    expect(getInstance).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledTimes(1);
   });
 
   test('transition to pending is ignored after grant (no-op)', () => {
@@ -139,9 +159,9 @@ describe('index.ts consent gate', () => {
 
   test('window.experimentConfig.consentOptions wins over the initialize arg', () => {
     globalScope.experimentConfig = {
-      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
     };
-    // initialize arg says granted, but window says pending -> should not start
+    // initialize arg says granted, but window says denied -> should not start
     init({
       consentOptions: { consentRequired: true, consentStatus: 'granted' },
     });
@@ -173,10 +193,10 @@ describe('index.ts consent gate', () => {
     },
   );
 
-  test('a second initialize with consentRequired=false cannot bypass a pending deferral', () => {
+  test('a second initialize with consentRequired=false cannot bypass a denied deferral', () => {
     // First init defers on consent.
     init({
-      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
     });
     expect(getInstance).not.toHaveBeenCalled();
 
@@ -211,7 +231,7 @@ describe('index.ts consent gate', () => {
 
   test('grant via a later initialize starts once and does not relaunch', () => {
     init({
-      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
     });
     expect(getInstance).not.toHaveBeenCalled();
 
@@ -230,13 +250,14 @@ describe('index.ts consent gate', () => {
     expect(start).toHaveBeenCalledTimes(1);
   });
 
-  test('grant via a later initialize drops events buffered while deferred', async () => {
+  test('grant via a later initialize drops events tracked while deferred on denial', async () => {
     const plugin = createPlugin();
     init({
-      consentOptions: { consentRequired: true, consentStatus: 'pending' },
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
     });
 
-    // Analytics during a consent deferral is not buffered (would be discarded on grant).
+    // Analytics during a denied deferral is not buffered (must not replay on
+    // a later re-opt-in).
     await plugin.execute?.({
       event_type: 'pre_grant',
       event_properties: {},
@@ -251,7 +272,7 @@ describe('index.ts consent gate', () => {
     expect(trackEvent).not.toHaveBeenCalled();
   });
 
-  test('invalid consentStatus in config defers like pending', () => {
+  test('invalid consentStatus in config warns and runs gated like pending', () => {
     const warn = jest
       .spyOn(console, 'warn')
       .mockImplementation(() => undefined);
@@ -264,7 +285,10 @@ describe('index.ts consent gate', () => {
     init({
       consentOptions: { consentRequired: true, consentStatus: 'granted' },
     });
-    expect(getInstance).not.toHaveBeenCalled();
+    // Fail closed: the unrecognized value falls back to pending, so the client
+    // runs with persistence gated rather than treating the typo as a grant.
+    expect(getInstance).toHaveBeenCalledTimes(1);
+    expect(consentGate.manager.getStatus()).toBe('pending');
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });
@@ -277,7 +301,9 @@ describe('index.ts consent gate', () => {
       consentOptions: { consentRequired: true, consentStatus: 'pending' },
     });
     setConsentStatus('grantd' as ConsentStatus);
-    expect(getInstance).not.toHaveBeenCalled();
+    // The pending start already ran once; the bad value must not change the
+    // status (which would flush the gated buffers) or relaunch anything.
+    expect(getInstance).toHaveBeenCalledTimes(1);
     expect(consentGate.manager.getStatus()).toBe('pending');
     expect(consentGate.manager.hasExplicitStatus()).toBe(false);
     expect(warn).toHaveBeenCalled();
@@ -300,19 +326,39 @@ describe('index.ts consent gate', () => {
     warn.mockRestore();
   });
 
-  test('setConsentStatus denied while deferred does not retain analytics buffer', async () => {
+  test('events during a denied deferral are not buffered or replayed on re-opt-in', async () => {
+    const plugin = createPlugin();
+    init({
+      consentOptions: { consentRequired: true, consentStatus: 'denied' },
+    });
+    await plugin.execute?.({
+      event_type: 'while_denied',
+      event_properties: {},
+    } as never);
+
+    // Re-opt-in launches the client; the denied-era event must not replay.
+    setConsentStatus('granted');
+    const trackEvent = jest.fn();
+    flushEventBuffer({ trackEvent } as never);
+    expect(trackEvent).not.toHaveBeenCalled();
+  });
+
+  test('a pending start keeps startup-buffered events (gated below, not dropped)', async () => {
     const plugin = createPlugin();
     init({
       consentOptions: { consentRequired: true, consentStatus: 'pending' },
     });
+    // The client is starting (not deferred), so a racing event buffers like
+    // the non-consent path; consent gating happens in the storage/impression
+    // layers it flows into, not here.
     await plugin.execute?.({
       event_type: 'while_pending',
       event_properties: {},
     } as never);
-    setConsentStatus('denied');
+
     const trackEvent = jest.fn();
     flushEventBuffer({ trackEvent } as never);
-    expect(trackEvent).not.toHaveBeenCalled();
+    expect(trackEvent).toHaveBeenCalledTimes(1);
   });
 
   test('grant from the start keeps startup-buffered events (no deferral window)', async () => {
@@ -352,7 +398,7 @@ describe('index.ts consent gate', () => {
 
     test('deferred grant goes through the preview path (anti-flicker + config fetch)', async () => {
       init({
-        consentOptions: { consentRequired: true, consentStatus: 'pending' },
+        consentOptions: { consentRequired: true, consentStatus: 'denied' },
       });
       expect(antiFlickerUtils.applyAntiFlickerCss).not.toHaveBeenCalled();
 
@@ -384,8 +430,31 @@ describe('index.ts consent gate', () => {
       init({
         consentOptions: { consentRequired: true, consentStatus: 'pending' },
       });
+      // Pending runs the client gated (see 'starts under pending' above).
       expect(DebugRecorder.getDebugState().consent).toEqual({
         status: 'pending',
+        required: true,
+        started: true,
+        startDeferred: false,
+        impressionBuffers: [],
+      });
+
+      setConsentStatus('granted');
+      expect(DebugRecorder.getDebugState().consent).toEqual({
+        status: 'granted',
+        required: true,
+        started: true,
+        startDeferred: false,
+        impressionBuffers: [],
+      });
+    });
+
+    test('getDebugState().consent reports the parked start under denied-at-load', () => {
+      init({
+        consentOptions: { consentRequired: true, consentStatus: 'denied' },
+      });
+      expect(DebugRecorder.getDebugState().consent).toEqual({
+        status: 'denied',
         required: true,
         started: false,
         startDeferred: true,

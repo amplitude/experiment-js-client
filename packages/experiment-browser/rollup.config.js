@@ -27,14 +27,10 @@ const getCommonBrowserConfig = (target) => ({
     commonjs(),
     typescript({
       tsconfig: './tsconfig.build.json',
-      ...(target === 'es2015' ? { target: 'es2015' } : {}),
     }),
     babel({
-      configFile:
-        target === 'es2015'
-          ? pathResolve(__dirname, '../..', 'babel.es2015.config.js')
-          : undefined,
       babelHelpers: 'bundled',
+      extensions: ['.js', '.ts'],
       exclude: ['node_modules/**'],
     }),
     analyze({
@@ -53,9 +49,9 @@ const getOutputConfig = (outputOptions) => ({
 });
 
 const configs = [
-  // legacy build for field "main" - ie8, umd, es5 syntax
+  // legacy build for field "main"
   {
-    ...getCommonBrowserConfig('es5'),
+    ...getCommonBrowserConfig('es6'),
     ...getOutputConfig({
       entryFileNames: 'experiment.umd.js',
       exports: 'named',
@@ -64,9 +60,9 @@ const configs = [
     external: [],
   },
 
-  // tree shakable build for field "module" - ie8, esm, es5 syntax
+  // tree shakable build for field "module"
   {
-    ...getCommonBrowserConfig('es5'),
+    ...getCommonBrowserConfig('es6'),
     ...getOutputConfig({
       entryFileNames: 'experiment.esm.js',
       format: 'esm',
@@ -78,28 +74,15 @@ const configs = [
     ],
   },
 
-  // modern build for field "es2015" - not ie, esm, es2015 syntax
   {
-    ...getCommonBrowserConfig('es2015'),
-    ...getOutputConfig({
-      entryFileNames: 'experiment.es2015.js',
-      format: 'esm',
-    }),
-    external: [
-      '@amplitude/ua-parser-js',
-      '@amplitude/analytics-connector',
-      '@amplitude/experiment-core',
-    ],
-  },
-  {
-    ...getCommonBrowserConfig('es5'),
+    ...getCommonBrowserConfig('es6'),
     ...getOutputConfig({
       entryFileNames: 'experiment-browser.min.js',
       exports: 'named',
       format: 'umd',
     }),
     plugins: [
-      ...getCommonBrowserConfig('es5').plugins,
+      ...getCommonBrowserConfig('es6').plugins,
       terser({
         format: {
           comments:

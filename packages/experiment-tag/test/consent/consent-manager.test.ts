@@ -64,6 +64,26 @@ describe('ConsentManager', () => {
     expect(calls).toEqual(['first', 'second']);
   });
 
+  test('a listener armed during notification waits for the next transition', () => {
+    // Regression: the relay teardown is armed inside the pending-grant
+    // deferral callback. Iterating the live Set would visit the new listener
+    // on the in-flight transition, and a one-shot wrapper would spend itself
+    // there — leaving nothing armed for the actual revocation.
+    const manager = new ConsentManager();
+    const armed = jest.fn();
+    manager.onChange((status) => {
+      if (status === 'granted') {
+        manager.onChange(armed);
+      }
+    });
+
+    manager.setStatus('granted');
+    expect(armed).not.toHaveBeenCalled();
+
+    manager.setStatus('denied');
+    expect(armed).toHaveBeenCalledWith('denied', 'granted');
+  });
+
   test('unsubscribe stops notifications', () => {
     const manager = new ConsentManager();
     const listener = jest.fn();

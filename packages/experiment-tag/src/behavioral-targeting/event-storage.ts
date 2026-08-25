@@ -327,12 +327,9 @@ export class EventStorageManager {
   }
 
   /**
-   * Loads data from localStorage into memory on initialization.
-   *
-   * Storage access goes through the consent-gated helpers in `util/storage`:
-   * without consent this reads as absent (the cache starts empty rather than
-   * inheriting an earlier consented visit's events), and the uuid backfill
-   * below cannot write to a store the visitor has not agreed to.
+   * Loads data from localStorage into memory on initialization. Goes through
+   * the consent-gated helpers in `util/storage`: without consent this reads
+   * as absent, and the uuid backfill below cannot write to the device.
    */
   private loadFromLocalStorage(): EventStorage {
     const parsed = getStorageItem<EventStorage>(
@@ -387,11 +384,9 @@ export class EventStorageManager {
   }
 
   /**
-   * Immediately writes in-memory cache to localStorage.
-   *
-   * While consent is withheld nothing reaches the device: the events stay
-   * targetable in memory, and the listener armed at construction settles them
-   * on the consent decision — persisted on grant, dropped on refusal.
+   * Immediately writes in-memory cache to localStorage. While consent is
+   * withheld nothing reaches the device — the events stay targetable in
+   * memory and the consent listener settles them on the decision.
    */
   private flushToLocalStorage(): void {
     if (!this.hasPendingWrites) {
@@ -412,11 +407,9 @@ export class EventStorageManager {
 
   /**
    * Settles the pending window on the consent decision. The gated load at
-   * construction hid whatever an earlier consented visit stored, so a grant
-   * folds the device store back into memory (uuid-dedup via `mergeFromRelay`)
-   * and persists the union before any later write-through could replace it.
-   * Refusal drops the pending-window events so they cannot reach the device
-   * through a later re-grant.
+   * construction hid the device store, so a grant folds it back into memory
+   * (uuid-dedup via `mergeFromRelay`) and persists the union. Refusal drops
+   * the pending-window events.
    */
   private armConsentListener(): void {
     onConsentDecision((granted) => {

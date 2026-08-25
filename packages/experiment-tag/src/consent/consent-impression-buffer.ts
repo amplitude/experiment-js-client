@@ -26,10 +26,8 @@ const WRAPPED_KEY = '__ampConsentGatedTrack';
 /**
  * The integration's original `track`, captured before the buffer replaces it.
  * The boolean is `IntegrationPlugin.track`'s contract: whether the downstream
- * integration accepted the event — the analytics SDK it forwards to may not
- * have a receiver attached yet. `flush` relies on it: a `false` (or a throw)
- * stops the replay, keeps the remainder buffered, and hands off to the retry
- * poller.
+ * integration accepted the event. `flush` relies on it — a `false` (or a
+ * throw) stops the replay and hands off to the retry poller.
  */
 type Tracker = (event: ExperimentEvent) => boolean;
 
@@ -151,16 +149,12 @@ class ImpressionBuffer {
 }
 
 /**
- * Records when the impression happened. The analytics SDK timestamps an event
- * as it receives it, which for a replay is the moment of the grant — long after
- * the variant was shown for a visitor who leaves the banner up.
- *
- * The `time` key is a cross-SDK contract, not a label: the analytics SDK's
- * event-bridge receiver destructures `time` out of `eventProperties` and
- * promotes it to the canonical event timestamp (`setEventReceiver` in
- * Amplitude-TypeScript's browser-client). The client already stamps it on web
- * experiment exposures, so this is a fallback for events that arrive without
- * one.
+ * Records when the impression happened — a replayed event would otherwise be
+ * timestamped at the moment of the grant, long after the variant was shown.
+ * The `time` key is a cross-SDK contract: the analytics SDK's event-bridge
+ * receiver promotes it from `eventProperties` to the canonical event
+ * timestamp. The client already stamps web experiment exposures, so this is a
+ * fallback for events that arrive without one.
  */
 function stampTime(event: ExperimentEvent): ExperimentEvent {
   if (event.eventProperties?.time !== undefined) {

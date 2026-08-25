@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-core",
-  "version": "0.13.4",
+  "version": "0.13.5",
   "private": false,
   "description": "Amplitude Experiment evaluation JavaScript implementation.",
   "keywords": [
@@ -13,7 +13,7 @@
   "license": "MIT",
   "main": "dist/experiment-core.umd.js",
   "module": "dist/experiment-core.esm.js",
-  "es2015": "dist/experiment-core.es2015.js",
+  "es2015": "dist/experiment-core.esm.js",
   "types": "dist/types/src/index.d.ts",
   "publishConfig": {
     "access": "public"
