@@ -4158,9 +4158,9 @@ dom-accessibility-api@^0.5.1:
   resolved "https://registry.yarnpkg.com/dom-accessibility-api/-/dom-accessibility-api-0.5.16.tgz#5a7429e6066eb3664d911e33fb0e45de8eb08453"
   integrity sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==
 
-"dom-mutator@git+ssh://git@github.com/amplitude/dom-mutator#bb5f4b52273e6a3de39dcf6db6f428d66d988a7b":
+"dom-mutator@git+ssh://git@github.com/amplitude/dom-mutator#a0aa60a1bee1f2631e539af364d4711b9cbc7750":
   version "0.7.1"
-  resolved "git+ssh://git@github.com/amplitude/dom-mutator#bb5f4b52273e6a3de39dcf6db6f428d66d988a7b"
+  resolved "git+ssh://git@github.com/amplitude/dom-mutator#a0aa60a1bee1f2631e539af364d4711b9cbc7750"
   dependencies:
     morphdom "^2.7.8"
 
