@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ${{ github.actor }} permission check
-        uses: amplitude/actions/repo-permission-check-action@main
+        uses: amplitude/actions/repo-permission-check-action@v0 # 2.0.2
         with:
           permission: 'write'
         env:
