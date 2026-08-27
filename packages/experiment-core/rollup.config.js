@@ -3,6 +3,7 @@ import { resolve as pathResolve } from 'path';
 import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
+import replace from '@rollup/plugin-replace';
 import typescript from '@rollup/plugin-typescript';
 
 const getCommonBrowserConfig = (target) => ({
@@ -20,6 +21,11 @@ const getCommonBrowserConfig = (target) => ({
       babelHelpers: 'bundled',
       extensions: ['.js', '.ts'],
       exclude: ['node_modules/**'],
+    }),
+    replace({
+      preventAssignment: true,
+      define: '__amplitude__define__',
+      require: '__amplitude__require__',
     }),
   ],
 });
