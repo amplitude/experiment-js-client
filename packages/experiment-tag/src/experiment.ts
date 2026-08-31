@@ -80,7 +80,7 @@ import { hideLoadingIndicator } from './util/loading-indicator';
 import { VISUAL_EDITOR_SESSION_KEY, WindowMessenger } from './util/messenger';
 import { isOpenerChannelBroken } from './util/opener-channel';
 import { showOpenerSeveredBanner } from './util/opener-severed-banner';
-import { patchRemoveChild } from './util/patch';
+import { patchDOMParser, patchRemoveChild } from './util/patch';
 import { DEVICE_IFRAME_ID, buildShell, isMobileModeActive } from './util/shell';
 import { installSpaLinkInterceptor } from './util/spa-link-interceptor';
 import {
@@ -463,6 +463,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       return;
     }
     patchRemoveChild();
+    patchDOMParser(this.config.nonce);
     installSpaLinkInterceptor();
     const urlParams = getUrlParams();
 
@@ -560,7 +561,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         // React 18 concurrent render is in-flight.
         await buildShell(this.globalScope);
       }
-      WindowMessenger.setup();
+      WindowMessenger.setup(this.config.nonce);
       this.globalScope.history.replaceState(
         {},
         '',
@@ -2251,7 +2252,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         ),
       );
       // if in preview mode, listen for ForceVariant messages
-      WindowMessenger.setup();
+      WindowMessenger.setup(this.config.nonce);
     } else {
       const previewState: PreviewState | null = getStorageItem(
         'sessionStorage',

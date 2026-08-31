@@ -165,6 +165,7 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * zone. Intended for local/staging testing of the relay serving path.
    */
   relayUrl?: string;
+
   /**
    * Cookie-consent gating for the web experiment script. When
    * `consentRequired` is true, the client still runs under 'pending' consent —
@@ -185,6 +186,12 @@ export interface WebExperimentConfig extends ExperimentConfig {
    * the current status in place.
    */
   consentOptions?: ConsentOptions;
+
+  /**
+   * CSP nonce applied to injected elements when the page has a nonce policy.
+   * By default, falls back to first `[nonce]` element's nonce if found.
+   */
+  nonce?: string;
 }
 
 export const Defaults: WebExperimentConfig = {
