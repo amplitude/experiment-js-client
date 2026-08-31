@@ -262,7 +262,7 @@ describe('SessionManager', () => {
     });
 
     test('does not pin the unprobed guess: first post-grant write probes for real', () => {
-      const spy = jest.spyOn(cookieUtil, 'getTopLevelDomainSync');
+      const spy = jest.spyOn(cookieUtil, 'getTopLevelDomain');
       activateConsent('denied');
       const manager = new SessionManager(testApiKey);
       // Denial cleanup falls through to a cookie delete, which resolves the

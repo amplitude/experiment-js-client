@@ -1,5 +1,5 @@
 import { isConsentWithheld } from '../consent/consent-gate';
-import { getTopLevelDomainSync, SyncJsonCookie } from '../util/cookie';
+import { getTopLevelDomain, SyncJsonCookie } from '../util/cookie';
 
 /**
  * Default rolling inactivity window before a session rotates, mirroring
@@ -146,7 +146,7 @@ export class SessionManager {
     }
     const resolved =
       typeof location !== 'undefined' && location.hostname
-        ? getTopLevelDomainSync(location.hostname)
+        ? getTopLevelDomain(location.hostname)
         : '';
     // While consent is withheld the resolver returns an unprobed guess (a real
     // probe writes a throwaway cookie). Don't pin the guess: leaving the cache

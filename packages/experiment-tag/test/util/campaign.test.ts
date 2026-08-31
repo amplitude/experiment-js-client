@@ -1,7 +1,6 @@
 import {
   type Campaign,
   CampaignParser,
-  CookieStorage,
   getStorageKey,
 } from '@amplitude/analytics-core';
 import { type ExperimentUser } from '@amplitude/experiment-js-client';
@@ -10,14 +9,18 @@ import {
   enrichUserWithCampaignData,
   persistUrlParams,
 } from '../../src/util/campaign';
+import { createCookieStorage } from '../../src/util/cookie';
 import * as storageUtils from '../../src/util/storage';
 
 jest.mock('@amplitude/analytics-core', () => ({
   Campaign: jest.fn(),
   CampaignParser: jest.fn(),
-  CookieStorage: jest.fn(),
   getStorageKey: jest.fn(),
   MKTG: 'MKTG',
+}));
+
+jest.mock('../../src/util/cookie', () => ({
+  createCookieStorage: jest.fn(),
 }));
 
 jest.mock('../../src/util/storage', () => ({
@@ -27,7 +30,10 @@ jest.mock('../../src/util/storage', () => ({
 
 describe('campaign utilities', () => {
   let mockCampaignParser: jest.Mocked<CampaignParser>;
-  let mockCookieStorage: jest.Mocked<CookieStorage<Campaign>>;
+  let mockCookieStorage: {
+    get: jest.Mock;
+    set: jest.Mock;
+  };
   let mockGetStorageItem: jest.MockedFunction<
     typeof storageUtils.getStorageItem
   >;
@@ -46,7 +52,7 @@ describe('campaign utilities', () => {
     mockCookieStorage = {
       get: jest.fn(),
       set: jest.fn(),
-    } as any;
+    };
 
     mockGetStorageItem = storageUtils.getStorageItem as jest.MockedFunction<
       typeof storageUtils.getStorageItem
@@ -59,9 +65,7 @@ describe('campaign utilities', () => {
     >;
 
     (CampaignParser as jest.Mock).mockImplementation(() => mockCampaignParser);
-    (CookieStorage as unknown as jest.Mock).mockImplementation(
-      () => mockCookieStorage,
-    );
+    (createCookieStorage as jest.Mock).mockReturnValue(mockCookieStorage);
   });
 
   describe('enrichUserWithCampaignData', () => {
@@ -323,7 +327,7 @@ describe('campaign utilities', () => {
   describe('fetchCampaignData (internal function behavior)', () => {
     const apiKey = 'test-api-key';
 
-    it('should call CampaignParser and CookieStorage correctly', async () => {
+    it('should call CampaignParser and createCookieStorage correctly', async () => {
       const expectedCampaign: Partial<Campaign> = { utm_source: 'test' };
       const expectedPreviousCampaign: Partial<Campaign> = {
         utm_medium: 'previous',
@@ -340,9 +344,7 @@ describe('campaign utilities', () => {
 
       expect(CampaignParser).toHaveBeenCalledWith();
       expect(mockCampaignParser.parse).toHaveBeenCalledWith();
-      // Constructed through createCookieStorage, which forwards its (absent)
-      // options argument.
-      expect(CookieStorage).toHaveBeenCalledWith(undefined);
+      expect(createCookieStorage).toHaveBeenCalledWith();
       expect(getStorageKey).toHaveBeenCalledWith(apiKey, 'MKTG');
       expect(mockCookieStorage.get).toHaveBeenCalledWith('test-storage-key');
     });

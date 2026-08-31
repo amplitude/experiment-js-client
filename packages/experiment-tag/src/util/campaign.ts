@@ -7,8 +7,7 @@ import {
 import { UTMParameters } from '@amplitude/analytics-core/lib/esm/types/campaign';
 import { type ExperimentUser } from '@amplitude/experiment-js-client';
 
-import { createCookieStorage } from '../consent/consent-cookie-storage';
-
+import { createCookieStorage } from './cookie';
 import { getStorageItem, setStorageItem } from './storage';
 
 /**

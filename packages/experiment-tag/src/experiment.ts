@@ -25,10 +25,7 @@ import type { MutationController } from 'dom-mutator/dist/types';
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
 import { clearIfErasedElsewhere } from './consent/clear-data';
-import {
-  type AsyncCookieStore,
-  createCookieStorage,
-} from './consent/consent-cookie-storage';
+import { type AsyncCookieStore } from './consent/consent-cookie-storage';
 import {
   consentGate,
   isConsentPending,
@@ -66,6 +63,7 @@ import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { mergeWithWindowConfig } from './util/config';
 import {
+  createCookieStorage,
   getTopLevelDomain,
   resolveCrossSubdomainObject,
   setMarketingCookie,
@@ -589,13 +587,6 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
-    // Warm the cross-subdomain cookie-domain cache. Must run after the
-    // synchronous url_change above, whose subscribers apply anti-flicker
-    // variants/redirects before this first await. While consent is withheld
-    // this returns an uncached guess (probing writes a cookie), so consumers
-    // resolve the domain lazily at write time instead of capturing this result.
-    await getTopLevelDomain(this.globalScope.location.hostname);
-
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     const user =
       getStorageItem<WebExperimentUser>(
@@ -621,18 +612,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // first_seen rather than a subdomain-local mint. The cookie domain is
     // resolved when the storage first reaches real cookies (post-grant for a
     // pending start), so it is never pinned to an unprobed guess.
-    const crossSubdomainCookieStorage = createCookieStorage<string>(
-      async () => {
-        const domain = await getTopLevelDomain(
-          this.globalScope.location.hostname,
-        );
-        return {
-          ...(domain && { domain }),
-          sameSite: 'Lax',
-          expirationDays: 365,
-        };
-      },
-    );
+    const crossSubdomainCookieStorage = createCookieStorage<string>({
+      domain: getTopLevelDomain(this.globalScope.location.hostname),
+      sameSite: 'Lax',
+      expirationDays: 365,
+    });
 
     const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
     const defaultUserProviderData =
@@ -2055,15 +2039,10 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     ) {
       const storage = createCookieStorage<
         Record<string, StoredRedirectImpression>
-      >(async () => {
-        const domain = await getTopLevelDomain(
-          this.globalScope.location.hostname,
-        );
-        return {
-          ...(domain && { domain }),
-          sameSite: 'Lax',
-          expirationDays: 1 / 1440, // 1 minute
-        };
+      >({
+        domain: getTopLevelDomain(this.globalScope.location.hostname),
+        sameSite: 'Lax',
+        expirationDays: 1 / 1440, // 1 minute
       });
 
       try {
@@ -2150,14 +2129,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
       cookieStorage = createCookieStorage<
         Record<string, StoredRedirectImpression>
-      >(async () => {
-        const domain = await getTopLevelDomain(
-          this.globalScope.location.hostname,
-        );
-        return {
-          ...(domain && { domain }),
-          sameSite: 'Lax',
-        };
+      >({
+        domain: getTopLevelDomain(this.globalScope.location.hostname),
+        sameSite: 'Lax',
       });
       try {
         cookieImpressions = (await cookieStorage.get(storageKey)) || {};
@@ -2199,12 +2173,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     const cleanup = async () => {
       removeStorageItem('sessionStorage', storageKey);
       if (cookieStorage) {
-        await cookieStorage.remove(storageKey).catch((error) => {
+        try {
+          await cookieStorage.remove(storageKey);
+        } catch (error) {
           console.error(
             `Failed to remove redirect impressions from cookie ${storageKey}:`,
             error,
           );
-        });
+        }
       }
     };
 
