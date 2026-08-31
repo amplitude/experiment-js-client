@@ -16,11 +16,22 @@ import { activateConsent } from './consent-test-util';
 import { RelayClient } from 'src/behavioral-targeting/relay-client';
 import { consentGate } from 'src/consent/consent-gate';
 import { DefaultWebExperimentClient } from 'src/experiment';
+import {
+  deleteRawCookie,
+  readCookieStorageSync,
+  writeCookieStorageSync,
+} from 'src/util/cookie';
 
 // In-memory cookie store backing the mocked analytics-core CookieStorage.
 const cookieStore: Record<string, any> = {};
-const clearCookieStore = () =>
+const clearCookieStore = () => {
   Object.keys(cookieStore).forEach((key) => delete cookieStore[key]);
+  for (const cookie of document.cookie ? document.cookie.split('; ') : []) {
+    const eq = cookie.indexOf('=');
+    const key = eq === -1 ? cookie : cookie.slice(0, eq);
+    if (key) deleteRawCookie(key);
+  }
+};
 
 jest.mock('@amplitude/analytics-core', () => {
   const actual = jest.requireActual('@amplitude/analytics-core');
@@ -261,10 +272,13 @@ describe('pending-run wiring', () => {
           web_exp_id_v2: 'durable-v2',
         }),
       );
-      cookieStore[`${expKey}_identity`] = JSON.stringify({
-        web_exp_id_v2: 'durable-v2',
-        first_seen: '100',
-      });
+      writeCookieStorageSync(
+        `${expKey}_identity`,
+        JSON.stringify({
+          web_exp_id_v2: 'durable-v2',
+          first_seen: '100',
+        }),
+      );
 
       await newBehavioralClient().start();
       await flushAsync();
@@ -328,7 +342,9 @@ describe('pending-run wiring', () => {
       );
       // The cookie was rewritten with the durable values, so later loads
       // resolve the same identity instead of the pending-time mint.
-      expect(JSON.parse(cookieStore[`${expKey}_identity`])).toEqual({
+      expect(
+        JSON.parse(readCookieStorageSync<string>(`${expKey}_identity`)!),
+      ).toEqual({
         web_exp_id_v2: 'durable-v2',
         first_seen: '1000',
       });

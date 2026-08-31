@@ -25,10 +25,7 @@ import type { MutationController } from 'dom-mutator/dist/types';
 import { BehavioralTargetingManager } from './behavioral-targeting';
 import { getRelayUrl, RelayClient } from './behavioral-targeting/relay-client';
 import { clearIfErasedElsewhere } from './consent/clear-data';
-import {
-  type AsyncCookieStore,
-  createCookieStorage,
-} from './consent/consent-cookie-storage';
+import { type SyncCookieStore } from './consent/consent-cookie-storage';
 import {
   consentGate,
   isConsentPending,
@@ -66,7 +63,8 @@ import { applyAntiFlickerCss, removeAntiFlickerCss } from './util/anti-flicker';
 import { enrichUserWithCampaignData } from './util/campaign';
 import { mergeWithWindowConfig } from './util/config';
 import {
-  getTopLevelDomain,
+  createCookieStorage,
+  getTopLevelDomainSync,
   resolveCrossSubdomainObject,
   setMarketingCookie,
 } from './util/cookie';
@@ -589,12 +587,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.subscriptionManager.markUrlAsPublished(this.globalScope.location.href);
     this.messageBus.publish('url_change', { updateActivePages: true });
 
-    // Warm the cross-subdomain cookie-domain cache. Must run after the
-    // synchronous url_change above, whose subscribers apply anti-flicker
-    // variants/redirects before this first await. While consent is withheld
-    // this returns an uncached guess (probing writes a cookie), so consumers
-    // resolve the domain lazily at write time instead of capturing this result.
-    await getTopLevelDomain(this.globalScope.location.hostname);
+    // Cross-subdomain cookies (identity, redirect, RTBT) resolve the domain
+    // lazily via getTopLevelDomainSync at write time so a pending-time guess is
+    // not pinned before consent lands.
 
     const experimentStorageName = `EXP_${this.apiKey.slice(0, 10)}`;
     const user =
@@ -621,18 +616,14 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // first_seen rather than a subdomain-local mint. The cookie domain is
     // resolved when the storage first reaches real cookies (post-grant for a
     // pending start), so it is never pinned to an unprobed guess.
-    const crossSubdomainCookieStorage = createCookieStorage<string>(
-      async () => {
-        const domain = await getTopLevelDomain(
-          this.globalScope.location.hostname,
-        );
-        return {
-          ...(domain && { domain }),
-          sameSite: 'Lax',
-          expirationDays: 365,
-        };
-      },
-    );
+    const crossSubdomainCookieStorage = createCookieStorage<string>(() => {
+      const domain = getTopLevelDomainSync(this.globalScope.location.hostname);
+      return {
+        ...(domain && { domain }),
+        sameSite: 'Lax',
+        expirationDays: 365,
+      };
+    });
 
     const defaultUserProviderStorageKey = `${experimentStorageName}_DEFAULT_USER_PROVIDER`;
     const defaultUserProviderData =
@@ -642,7 +633,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       ) || {};
 
     // web_exp_id is guaranteed above; seed v2 from it when no cookie/local v2 exists.
-    const identity = await resolveCrossSubdomainObject(
+    const identity = resolveCrossSubdomainObject(
       crossSubdomainCookieStorage,
       identityCookieKey(this.apiKey),
       {
@@ -687,83 +678,79 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
             resolve();
             return;
           }
-          void (async () => {
-            try {
-              // The localStorage gate has already flushed (its listener was
-              // armed first); the cookie read below joins the cookie flush.
-              const durableUser =
-                getStorageItem<WebExperimentUser>(
-                  'localStorage',
-                  experimentStorageName,
-                ) || {};
-              const durableProvider =
-                getStorageItem<{ first_seen?: string }>(
-                  'localStorage',
-                  defaultUserProviderStorageKey,
-                ) || {};
-              const refreshed = await resolveCrossSubdomainObject(
-                crossSubdomainCookieStorage,
-                identityCookieKey(this.apiKey),
-                {
-                  web_exp_id_v2:
-                    durableUser.web_exp_id_v2 ?? user.web_exp_id_v2,
-                  first_seen: durableProvider.first_seen ?? user.first_seen,
-                },
-                {
-                  web_exp_id_v2: UUID,
-                  first_seen: () => (Date.now() / 1000).toString(),
-                },
-              );
-              // If no durable cookie existed, the flush wrote this page's mint
-              // into it. Restore durable localStorage values over any field
-              // still at its pending-time value and rewrite the cookie — the
-              // same outcome an ungated start() would have produced.
-              const restored = { ...refreshed };
-              if (
-                durableUser.web_exp_id_v2 &&
-                refreshed.web_exp_id_v2 === pendingWebExpIdV2 &&
-                durableUser.web_exp_id_v2 !== pendingWebExpIdV2
-              ) {
-                restored.web_exp_id_v2 = durableUser.web_exp_id_v2;
-              }
-              if (
-                durableProvider.first_seen &&
-                refreshed.first_seen === pendingFirstSeen &&
-                durableProvider.first_seen !== pendingFirstSeen
-              ) {
-                restored.first_seen = durableProvider.first_seen;
-              }
-              if (
-                restored.web_exp_id_v2 !== refreshed.web_exp_id_v2 ||
-                restored.first_seen !== refreshed.first_seen
-              ) {
-                try {
-                  await crossSubdomainCookieStorage.set(
-                    identityCookieKey(this.apiKey),
-                    JSON.stringify(restored),
-                  );
-                } catch {
-                  /* write blocked: carry the restored values in memory only */
-                }
-              }
-              user.web_exp_id = durableUser.web_exp_id ?? user.web_exp_id;
-              user.web_exp_id_v2 = restored.web_exp_id_v2;
-              user.first_seen = restored.first_seen;
-              const refreshedUser: WebExperimentUser = {
-                ...((this.experimentClient.getUser() ??
-                  {}) as WebExperimentUser),
-                web_exp_id: user.web_exp_id,
-                web_exp_id_v2: user.web_exp_id_v2,
-                first_seen: user.first_seen,
-              };
-              this.experimentClient.setUser(refreshedUser);
-            } catch {
-              // A failed refresh keeps the ephemeral identity — the same state
-              // the page was already in; the next load reads the durable one.
-            } finally {
-              resolve();
+          try {
+            // The localStorage gate has already flushed (its listener was
+            // armed first); the cookie read below joins the cookie flush.
+            const durableUser =
+              getStorageItem<WebExperimentUser>(
+                'localStorage',
+                experimentStorageName,
+              ) || {};
+            const durableProvider =
+              getStorageItem<{ first_seen?: string }>(
+                'localStorage',
+                defaultUserProviderStorageKey,
+              ) || {};
+            const refreshed = resolveCrossSubdomainObject(
+              crossSubdomainCookieStorage,
+              identityCookieKey(this.apiKey),
+              {
+                web_exp_id_v2: durableUser.web_exp_id_v2 ?? user.web_exp_id_v2,
+                first_seen: durableProvider.first_seen ?? user.first_seen,
+              },
+              {
+                web_exp_id_v2: UUID,
+                first_seen: () => (Date.now() / 1000).toString(),
+              },
+            );
+            // If no durable cookie existed, the flush wrote this page's mint
+            // into it. Restore durable localStorage values over any field
+            // still at its pending-time value and rewrite the cookie — the
+            // same outcome an ungated start() would have produced.
+            const restored = { ...refreshed };
+            if (
+              durableUser.web_exp_id_v2 &&
+              refreshed.web_exp_id_v2 === pendingWebExpIdV2 &&
+              durableUser.web_exp_id_v2 !== pendingWebExpIdV2
+            ) {
+              restored.web_exp_id_v2 = durableUser.web_exp_id_v2;
             }
-          })();
+            if (
+              durableProvider.first_seen &&
+              refreshed.first_seen === pendingFirstSeen &&
+              durableProvider.first_seen !== pendingFirstSeen
+            ) {
+              restored.first_seen = durableProvider.first_seen;
+            }
+            if (
+              restored.web_exp_id_v2 !== refreshed.web_exp_id_v2 ||
+              restored.first_seen !== refreshed.first_seen
+            ) {
+              try {
+                crossSubdomainCookieStorage.set(
+                  identityCookieKey(this.apiKey),
+                  JSON.stringify(restored),
+                );
+              } catch {
+                /* write blocked: carry the restored values in memory only */
+              }
+            }
+            user.web_exp_id = durableUser.web_exp_id ?? user.web_exp_id;
+            user.web_exp_id_v2 = restored.web_exp_id_v2;
+            user.first_seen = restored.first_seen;
+            const refreshedUser: WebExperimentUser = {
+              ...((this.experimentClient.getUser() ?? {}) as WebExperimentUser),
+              web_exp_id: user.web_exp_id,
+              web_exp_id_v2: user.web_exp_id_v2,
+              first_seen: user.first_seen,
+            };
+            this.experimentClient.setUser(refreshedUser);
+          } catch {
+            // A failed refresh keeps the ephemeral identity — the same state
+            // the page was already in; the next load reads the durable one.
+          } finally {
+            resolve();
+          }
         });
       });
     }
@@ -789,7 +776,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
-    const enrichedUser = await enrichUserWithCampaignData(this.apiKey, user);
+    const enrichedUser = enrichUserWithCampaignData(this.apiKey, user);
 
     // If no integration has been set, use an Amplitude integration.
     if (!this.globalScope.experimentIntegration) {
@@ -812,9 +799,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     // fire stored redirect impressions upon startup (must run before applyVariants
     // so the current URL is checked before any redirect changes location.href)
-    this.fireStoredRedirectImpressions().catch(() => {
+    try {
+      this.fireStoredRedirectImpressions();
+    } catch {
       // do nothing
-    });
+    }
     // Subscribe directly to url_change events to fire redirect impressions
     this.messageBus.subscribe('url_change', () => {
       // A custom-redirect-handler (SPA soft nav) keeps this JS context alive, so
@@ -828,9 +817,11 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         this.isRedirecting = false;
         removeAntiFlickerCss();
       }
-      this.fireStoredRedirectImpressions().catch(() => {
+      try {
+        this.fireStoredRedirectImpressions();
+      } catch {
         // do nothing
-      });
+      }
     });
 
     // Holdout/mutex bucketing requires user identity (user_id,
@@ -953,9 +944,12 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       this.urlExposureCache[currentUrl] = {};
     }
 
-    await this.fireStoredRedirectImpressions().catch(() => {
+    try {
+      this.fireStoredRedirectImpressions();
+    } catch {
       // do nothing
-    });
+    }
+
     for (const key in variants) {
       // preview actions are handled by previewVariants
       if ((flagKeys && !flagKeys.includes(key)) || this.previewFlags[key]) {
@@ -1613,7 +1607,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // set previous url - relevant for SPA if redirect happens before push/replaceState is complete
     this.previousUrl = from;
     try {
-      await setMarketingCookie(this.apiKey, this.globalScope.location.hostname);
+      setMarketingCookie(this.apiKey, this.globalScope.location.hostname);
       // perform redirection
       if (this.customRedirectHandler) {
         this.customRedirectHandler(targetUrl);
@@ -2055,8 +2049,8 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     ) {
       const storage = createCookieStorage<
         Record<string, StoredRedirectImpression>
-      >(async () => {
-        const domain = await getTopLevelDomain(
+      >(() => {
+        const domain = getTopLevelDomainSync(
           this.globalScope.location.hostname,
         );
         return {
@@ -2067,10 +2061,9 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       });
 
       try {
-        const storedRedirects = await storage.get(storageKey);
-        const redirects = storedRedirects || {};
+        const redirects = storage.get(storageKey) || {};
         redirects[flagKey] = impression;
-        await storage.set(storageKey, redirects);
+        storage.set(storageKey, redirects);
       } catch (error) {
         console.error(
           `Failed to store redirect impression in cookie for ${flagKey}:`,
@@ -2103,7 +2096,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     this.globalScope.history.replaceState({}, '', cleanedUrl);
   }
 
-  private async fireStoredRedirectImpressions() {
+  private fireStoredRedirectImpressions() {
     const storageKey = `EXP_${this.apiKey.slice(0, 10)}_REDIRECT`;
 
     // Read URL param impressions (highest priority). A pending source page
@@ -2145,13 +2138,13 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
     // Read cookie impressions (lowest priority) when opted in
     let cookieImpressions: Record<string, StoredRedirectImpression> = {};
     let cookieStorage:
-      | AsyncCookieStore<Record<string, StoredRedirectImpression>>
+      | SyncCookieStore<Record<string, StoredRedirectImpression>>
       | undefined;
     if (this.config.redirectConfig?.encodeRedirectInCookie) {
       cookieStorage = createCookieStorage<
         Record<string, StoredRedirectImpression>
-      >(async () => {
-        const domain = await getTopLevelDomain(
+      >(() => {
+        const domain = getTopLevelDomainSync(
           this.globalScope.location.hostname,
         );
         return {
@@ -2160,7 +2153,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         };
       });
       try {
-        cookieImpressions = (await cookieStorage.get(storageKey)) || {};
+        cookieImpressions = cookieStorage.get(storageKey) || {};
       } catch (error) {
         console.error(
           `Failed to retrieve redirect impressions from cookie ${storageKey}:`,
@@ -2196,34 +2189,34 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       }
     }
 
-    const cleanup = async () => {
+    const cleanup = () => {
       removeStorageItem('sessionStorage', storageKey);
       if (cookieStorage) {
-        await cookieStorage.remove(storageKey).catch((error) => {
+        try {
+          cookieStorage.remove(storageKey);
+        } catch (error) {
           console.error(
             `Failed to remove redirect impressions from cookie ${storageKey}:`,
             error,
           );
-        });
+        }
       }
     };
 
     if (Object.keys(merged).length > 0) {
       this.globalScope.setTimeout(() => {
-        void (async () => {
-          for (const flagKey in merged) {
-            const { variantKey, expKey, metadata } = merged[flagKey];
-            this.exposureWithDedupe(
-              flagKey,
-              { key: variantKey, expKey, metadata },
-              true,
-            );
-          }
-          await cleanup();
-        })();
+        for (const flagKey in merged) {
+          const { variantKey, expKey, metadata } = merged[flagKey];
+          this.exposureWithDedupe(
+            flagKey,
+            { key: variantKey, expKey, metadata },
+            true,
+          );
+        }
+        cleanup();
       }, 500);
     } else {
-      await cleanup();
+      cleanup();
     }
   }
 

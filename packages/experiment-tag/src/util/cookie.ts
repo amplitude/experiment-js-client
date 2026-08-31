@@ -1,9 +1,14 @@
-import { CampaignParser, CookieStorage, MKTG } from '@amplitude/analytics-core';
+import {
+  BASE_CAMPAIGN,
+  CampaignParser,
+  MKTG,
+  decodeCookieValue,
+} from '@amplitude/analytics-core';
 import type { Campaign } from '@amplitude/analytics-core';
 
 import {
-  type AsyncCookieStore,
-  createCookieStorage,
+  ConsentAwareCookieStorage,
+  type SyncCookieStore,
 } from '../consent/consent-cookie-storage';
 import {
   isConsentPending,
@@ -128,7 +133,12 @@ const KNOWN_2LDS = [
   'workers.dev',
 ];
 
-let cachedDomain: string | undefined;
+/**
+ * Cross-subdomain cookie domain per hostname, so {@link getTopLevelDomainSync}
+ * probes at most once per host. Keyed by hostname so a page (or a test file)
+ * that touches more than one never crosses them.
+ */
+const cachedDomains: Record<string, string> = {};
 
 /**
  * Synchronously probes whether a cookie can be written to `.<domain>` by
@@ -137,11 +147,12 @@ let cachedDomain: string | undefined;
 function isDomainWritableSync(domain: string): boolean {
   if (typeof document === 'undefined') return false;
   const testKey = `AMP_TLD_TEST_${Date.now()}`;
+  const secure = location?.protocol === 'https:' ? '; Secure' : '';
   try {
-    document.cookie = `${testKey}=1; domain=.${domain}; path=/; SameSite=Lax`;
+    document.cookie = `${testKey}=1; domain=.${domain}; path=/; SameSite=Lax${secure}`;
     const written = document.cookie.indexOf(`${testKey}=`) !== -1;
     // Clean up the probe cookie regardless of the result.
-    document.cookie = `${testKey}=; domain=.${domain}; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${testKey}=; domain=.${domain}; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT${secure}`;
     return written;
   } catch {
     return false;
@@ -187,54 +198,44 @@ function unprobedDomainGuess(hostname: string): string {
 }
 
 /**
- * Synchronous variant of {@link getTopLevelDomain} for cross-subdomain cookies:
- * the first {@link getCookieDomainLevels} entry that accepts one, as a
- * leading-dot domain (e.g. `.example.com`), or `''` when none does.
+ * The cross-subdomain cookie domain for `hostname`: the first
+ * {@link getCookieDomainLevels} entry that accepts one, as a leading-dot domain
+ * (e.g. `.example.com`), or `''` when none does. Resolved synchronously by
+ * probing `document.cookie`, cached per hostname. While consent is withheld,
+ * returns {@link unprobedDomainGuess} without probing.
  */
 export function getTopLevelDomainSync(hostname: string): string {
   if (isConsentWithheld()) {
     return unprobedDomainGuess(hostname);
   }
+  if (hostname in cachedDomains) return cachedDomains[hostname];
   for (const domain of getCookieDomainLevels(hostname)) {
     if (isDomainWritableSync(domain)) {
-      return '.' + domain;
+      return (cachedDomains[hostname] = '.' + domain);
     }
   }
-  return '';
-}
-
-export async function getTopLevelDomain(hostname: string): Promise<string> {
-  if (cachedDomain !== undefined) return cachedDomain;
-  if (isConsentWithheld()) {
-    return unprobedDomainGuess(hostname);
-  }
-  for (const domain of getCookieDomainLevels(hostname)) {
-    if (await CookieStorage.isDomainWritable(domain)) {
-      return (cachedDomain = '.' + domain);
-    }
-  }
-  return (cachedDomain = '');
+  return (cachedDomains[hostname] = '');
 }
 
 /**
- * Resolves several cross-subdomain fields from a single cookie, using cookie
- * storage as the authoritative source. Each field falls back to its `fallback`
- * value (migration path), then its generator. One read + at most one write;
- * cookie I/O failures degrade to the returned value. Callers are responsible
- * for mirroring values back to localStorage if needed.
+ * Resolves several cross-subdomain fields from a single cookie, synchronously,
+ * so identity resolution stays off the async cookie-service round-trip on the
+ * startup critical path. Each field falls back to its `fallback` value
+ * (migration path), then its generator. One read + at most one write; cookie
+ * I/O failures degrade to the returned value. Callers are responsible for
+ * mirroring values back to localStorage if needed.
  */
-export async function resolveCrossSubdomainObject<
-  T extends Record<string, string>,
->(
-  cookieStorage: AsyncCookieStore<string>,
+export function resolveCrossSubdomainObject<T extends Record<string, string>>(
+  cookieStorage: SyncCookieStore<string>,
   cookieKey: string,
   fallback: Partial<T>,
   generators: { [K in keyof T]: () => string },
-): Promise<T> {
+): T {
+  const storage = cookieStorage;
   let current: Partial<T> = {};
   try {
     // Missing cookie (`undefined`) and malformed JSON both fall back to {}.
-    const parsed = JSON.parse((await cookieStorage.get(cookieKey)) || '{}');
+    const parsed = JSON.parse(storage.get(cookieKey) || '{}');
     if (parsed && typeof parsed === 'object') current = parsed;
   } catch {
     /* re-seed below */
@@ -253,11 +254,7 @@ export async function resolveCrossSubdomainObject<
   }
 
   if (changed) {
-    try {
-      await cookieStorage.set(cookieKey, JSON.stringify(resolved));
-    } catch {
-      /* write blocked: persist via returned value only */
-    }
+    storage.set(cookieKey, JSON.stringify(resolved));
   }
   return resolved;
 }
@@ -318,6 +315,89 @@ export function deleteRawCookie(key: string, domain?: string): void {
     /* best-effort */
   }
 }
+
+/**
+ * Synchronous, format-compatible read of a value written by analytics-core's
+ * `CookieStorage` (base64 of URL-encoded JSON). Mirrors `CookieStorage.get`
+ * without the async Cookie Store API round-trip so it can run on the startup
+ * critical path. Returns `undefined` when the cookie is absent or undecodable.
+ */
+export function readCookieStorageSync<T>(key: string): T | undefined {
+  try {
+    const raw = readRawCookie(key);
+    // Base64 has no `%`, so `readRawCookie`'s URL-decode is a no-op on the payload.
+    if (raw === undefined) return undefined;
+    const decoded = decodeCookieValue(raw);
+    if (decoded === undefined) return undefined;
+    return JSON.parse(decoded) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Synchronous write in analytics-core's base64 format of URL-encoded JSON
+ * Copy of its `CookieStorage.prototype.setSync` logic since it's not exported
+ */
+export function writeCookieStorageSync<T>(
+  key: string,
+  value: T,
+  options: {
+    domain?: string;
+    sameSite?: string;
+    expirationDays?: number;
+  } = {},
+): void {
+  if (typeof document === 'undefined') return;
+  try {
+    let cookie = `${key}=${btoa(encodeURIComponent(JSON.stringify(value)))}`;
+    if (options.expirationDays) {
+      const expires = new Date();
+      expires.setTime(
+        expires.getTime() + options.expirationDays * 24 * 60 * 60 * 1000,
+      );
+      cookie += `; expires=${expires.toUTCString()}`;
+    }
+    cookie += '; path=/';
+    if (options.domain) cookie += `; domain=${options.domain}`;
+    if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
+    if (location?.protocol === 'https:') cookie += '; Secure';
+    document.cookie = cookie;
+  } catch {
+    /* blocked cookie I/O degrades silently */
+  }
+}
+
+/** Cookie-backed {@link SyncCookieStore}, in analytics-core's wire format. */
+type CookieStorageOptions = {
+  domain?: string;
+  sameSite?: string;
+  expirationDays?: number;
+};
+
+const documentCookieStore = <T>(
+  options: CookieStorageOptions = {},
+): SyncCookieStore<T> => ({
+  get: (key) => readCookieStorageSync<T>(key),
+  set: (key, value) =>
+    writeCookieStorageSync<T>(key, value, { sameSite: 'Lax', ...options }),
+  remove: (key) => deleteRawCookie(key, options.domain),
+});
+
+/**
+ * The single consent-gated cookie store every experiment-tag call site should
+ * use, so a new one cannot silently bypass the consent gate. Reads and writes
+ * are synchronous (`document.cookie`); the gate buffers pending writes and
+ * flushes them on grant.
+ */
+export const createCookieStorage = <T>(
+  options: CookieStorageOptions | (() => CookieStorageOptions) = {},
+): SyncCookieStore<T> =>
+  new ConsentAwareCookieStorage<T>(
+    typeof options === 'function'
+      ? () => documentCookieStore<T>(options())
+      : documentCookieStore<T>(options),
+  );
 
 /**
  * Synchronous two-tier (cookie → in-memory) JSON store. The cookie is the
@@ -409,11 +489,11 @@ export class SyncJsonCookie<T> {
   }
 }
 
-export async function setMarketingCookie(apiKey: string, hostname: string) {
+export function setMarketingCookie(apiKey: string, hostname: string): void {
   // Domain resolved lazily so a pending-time guess is not baked in; see
   // createCookieStorage.
-  const storage = createCookieStorage<Campaign>(async () => {
-    const domain = await getTopLevelDomain(hostname);
+  const storage = createCookieStorage<Campaign>(() => {
+    const domain = getTopLevelDomainSync(hostname);
     return {
       sameSite: 'Lax',
       ...(domain && { domain }),
@@ -422,6 +502,11 @@ export async function setMarketingCookie(apiKey: string, hostname: string) {
 
   const parser = new CampaignParser();
   const storageKey = `AMP_${MKTG}_ORIGINAL_${apiKey.substring(0, 10)}`;
-  const campaign = await parser.parse();
-  await storage.set(storageKey, campaign);
+  const campaign: Campaign = {
+    ...BASE_CAMPAIGN,
+    ...parser.getUtmParam(),
+    ...parser.getReferrer(),
+    ...parser.getClickIds(),
+  };
+  storage.set(storageKey, campaign);
 }
