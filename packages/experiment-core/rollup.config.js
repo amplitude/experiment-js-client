@@ -1,11 +1,9 @@
-import { resolve as pathResolve } from 'path';
-
 import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
 import typescript from '@rollup/plugin-typescript';
 
-const getCommonBrowserConfig = (target) => ({
+const getCommonBrowserConfig = () => ({
   input: 'src/index.ts',
   treeshake: {
     moduleSideEffects: 'no-external',
@@ -35,7 +33,7 @@ const getOutputConfig = (outputOptions) => ({
 const configs = [
   // legacy build for field "main"
   {
-    ...getCommonBrowserConfig('es6'),
+    ...getCommonBrowserConfig(),
     ...getOutputConfig({
       entryFileNames: 'experiment-core.umd.js',
       exports: 'named',
@@ -46,7 +44,7 @@ const configs = [
 
   // tree shakable build for field "module"
   {
-    ...getCommonBrowserConfig('es6'),
+    ...getCommonBrowserConfig(),
     ...getOutputConfig({
       entryFileNames: 'experiment-core.esm.js',
       format: 'esm',

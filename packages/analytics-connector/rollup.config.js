@@ -1,5 +1,3 @@
-import { resolve as pathResolve } from 'path';
-
 import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
@@ -8,7 +6,7 @@ import replace from '@rollup/plugin-replace';
 import typescript from '@rollup/plugin-typescript';
 import analyze from 'rollup-plugin-analyzer';
 
-const getCommonBrowserConfig = (target) => ({
+const getCommonBrowserConfig = () => ({
   input: 'src/index.ts',
   treeshake: {
     moduleSideEffects: 'no-external',
@@ -46,7 +44,7 @@ const getOutputConfig = (outputOptions) => ({
 const configs = [
   // legacy build for field "main"
   {
-    ...getCommonBrowserConfig('es6'),
+    ...getCommonBrowserConfig(),
     ...getOutputConfig({
       entryFileNames: 'analytics-connector.umd.js',
       exports: 'named',
@@ -57,7 +55,7 @@ const configs = [
 
   // tree shakable build for field "module"
   {
-    ...getCommonBrowserConfig('es6'),
+    ...getCommonBrowserConfig(),
     ...getOutputConfig({
       entryFileNames: 'analytics-connector.esm.js',
       format: 'esm',

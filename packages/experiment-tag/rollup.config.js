@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { join, resolve as pathResolve } from 'path';
+import { join } from 'path';
 
 import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
@@ -26,7 +26,7 @@ try {
   console.warn('Unable to get git branch name:', error.message);
 }
 
-const getCommonBrowserConfig = (target) => ({
+const getCommonBrowserConfig = () => ({
   input: 'src/index.ts',
   treeshake: {
     moduleSideEffects: 'no-external',
@@ -68,7 +68,7 @@ const getOutputConfig = (outputOptions) => ({
   },
 });
 
-const config = getCommonBrowserConfig('es6');
+const config = getCommonBrowserConfig();
 const configs = [
   {
     ...config,
