@@ -1,5 +1,3 @@
-import { resolve as pathResolve } from 'path';
-
 import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
@@ -12,7 +10,7 @@ import gzip from 'rollup-plugin-gzip';
 
 import * as packageJson from './package.json';
 
-const getCommonBrowserConfig = (target) => ({
+const getCommonBrowserConfig = () => ({
   input: 'src/index.ts',
   treeshake: {
     moduleSideEffects: 'no-external',
@@ -51,7 +49,7 @@ const getOutputConfig = (outputOptions) => ({
 const configs = [
   // legacy build for field "main"
   {
-    ...getCommonBrowserConfig('es6'),
+    ...getCommonBrowserConfig(),
     ...getOutputConfig({
       entryFileNames: 'experiment.umd.js',
       exports: 'named',
@@ -62,7 +60,7 @@ const configs = [
 
   // tree shakable build for field "module"
   {
-    ...getCommonBrowserConfig('es6'),
+    ...getCommonBrowserConfig(),
     ...getOutputConfig({
       entryFileNames: 'experiment.esm.js',
       format: 'esm',
@@ -75,14 +73,14 @@ const configs = [
   },
 
   {
-    ...getCommonBrowserConfig('es6'),
+    ...getCommonBrowserConfig(),
     ...getOutputConfig({
       entryFileNames: 'experiment-browser.min.js',
       exports: 'named',
       format: 'umd',
     }),
     plugins: [
-      ...getCommonBrowserConfig('es6').plugins,
+      ...getCommonBrowserConfig().plugins,
       terser({
         format: {
           comments:
