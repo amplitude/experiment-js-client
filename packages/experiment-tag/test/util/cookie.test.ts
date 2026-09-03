@@ -5,10 +5,11 @@ import {
   deleteRawCookie,
   getCookieDomainLevels,
   getTopLevelDomain,
-  getTopLevelDomainSync,
+  readCookieStorageSync,
   readRawCookie,
   resolveCrossSubdomainObject,
   SyncJsonCookie,
+  writeCookieStorageSync,
   writeRawCookie,
 } from '../../src/util/cookie';
 import { activateConsent } from '../consent/consent-test-util';
@@ -139,30 +140,29 @@ describe('top-level domain resolution under consent', () => {
   afterEach(() => {
     consentGate.reset();
     jest.restoreAllMocks();
+    clearAllCookies();
   });
 
-  it('returns the unprobed guess without probing while consent is pending', async () => {
+  it('returns the unprobed guess without probing while consent is pending', () => {
     activateConsent('pending');
-    const probe = jest.spyOn(CookieStorage, 'isDomainWritable');
-    expect(await getTopLevelDomain('app.example.com')).toBe('.example.com');
-    expect(probe).not.toHaveBeenCalled();
+    const setCookie = jest.spyOn(document, 'cookie', 'set');
+    expect(getTopLevelDomain('pending.app.example.com')).toBe('.example.com');
+    expect(setCookie).not.toHaveBeenCalled();
   });
 
-  it('sync variant skips the probe cookie while consent is withheld', () => {
+  it('skips the probe cookie while consent is withheld', () => {
     activateConsent('denied');
     // In this jsdom page a `.example.com` probe cookie can never be written,
     // so the ungated path would walk every level and return ''. Getting the
     // guess back proves the probe never ran.
-    expect(getTopLevelDomainSync('app.example.com')).toBe('.example.com');
+    expect(getTopLevelDomain('denied.app.example.com')).toBe('.example.com');
   });
 
-  it('probes for real once consent is granted', async () => {
+  it('probes for real once consent is granted', () => {
     activateConsent('granted');
-    const probe = jest
-      .spyOn(CookieStorage, 'isDomainWritable')
-      .mockResolvedValue(true);
-    expect(await getTopLevelDomain('app.example.com')).toBe('.example.com');
-    expect(probe).toHaveBeenCalled();
+    const setCookie = jest.spyOn(document, 'cookie', 'set');
+    getTopLevelDomain('writable.app.example.com');
+    expect(setCookie).toHaveBeenCalled();
   });
 });
 
@@ -288,5 +288,22 @@ describe('SyncJsonCookie', () => {
         Object.defineProperty(document, 'cookie', original);
       }
     }
+  });
+});
+
+describe('cookie storage sync helpers', () => {
+  afterEach(clearAllCookies);
+
+  // stay compatible with analytics-core's CookieStorage (base64 wire format).
+  it('reads a value written by analytics-core CookieStorage', async () => {
+    await new CookieStorage<string>().set('fmt', JSON.stringify({ x: 1 }));
+    expect(readCookieStorageSync<string>('fmt')).toBe(JSON.stringify({ x: 1 }));
+  });
+
+  it('writes a value readable by analytics-core CookieStorage', async () => {
+    writeCookieStorageSync<string>('fmt2', JSON.stringify({ y: 2 }));
+    expect(await new CookieStorage<string>().get('fmt2')).toBe(
+      JSON.stringify({ y: 2 }),
+    );
   });
 });

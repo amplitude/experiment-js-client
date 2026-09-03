@@ -1,5 +1,3 @@
-import { CookieStorage } from '@amplitude/analytics-core';
-
 import { mergeIdentityCookieJson } from '../util/grant-flush-merge';
 
 import {
@@ -10,9 +8,8 @@ import {
 } from './consent-gate';
 
 /**
- * The part of analytics-core's `CookieStorage` that experiment-tag actually uses.
- * Naming it lets call sites accept the consent wrapper and the raw storage
- * interchangeably, and lets tests substitute a plain object.
+ * The faux asynchronous cookie backend the consent gate wraps. Implemented over
+ * `document.cookie` in `util/cookie.ts`; tests substitute a plain object.
  */
 export interface AsyncCookieStore<T> {
   get(key: string): Promise<T | undefined>;
@@ -27,8 +24,9 @@ const snapshotValue = <T>(value: T): T =>
 /**
  * Holds cookie writes in memory until consent arrives, then hands them to the
  * real storage. The counterpart to the gate in `util/storage.ts`, for the cookies
- * that go through analytics-core rather than this package's own helpers:
- * cross-subdomain identity, redirect impressions, and marketing attribution.
+ * that go through analytics-core's wire format rather than this package's own
+ * helpers: cross-subdomain identity, redirect impressions, and marketing
+ * attribution.
  *
  * Reads are gated with the writes, so a visitor who has not decided is not
  * re-identified from a cookie an earlier consented visit left behind.
@@ -139,23 +137,3 @@ export class ConsentAwareCookieStorage<T> implements AsyncCookieStore<T> {
     });
   }
 }
-
-type CookieStorageOptions = ConstructorParameters<typeof CookieStorage>[0];
-
-/**
- * Builds the cookie storage every experiment-tag call site should use, so a
- * new one cannot silently bypass the consent gate. Pass a function when an
- * option needs a device probe (the cross-subdomain `domain`); it is evaluated
- * on the first access that reaches real storage rather than frozen at
- * construction while consent is withheld.
- */
-export const createCookieStorage = <T>(
-  options?:
-    | CookieStorageOptions
-    | (() => Promise<CookieStorageOptions> | CookieStorageOptions),
-): AsyncCookieStore<T> =>
-  new ConsentAwareCookieStorage<T>(
-    typeof options === 'function'
-      ? async () => new CookieStorage<T>(await options())
-      : new CookieStorage<T>(options),
-  );
