@@ -34,6 +34,7 @@ import {
 } from './consent/consent-gate';
 import { wrapIntegrationTrack } from './consent/consent-impression-buffer';
 import { showPreviewModeModal } from './preview/preview';
+import { readPreviewState, writePreviewState } from './preview/preview-state';
 import { MessageBus } from './subscriptions/message-bus';
 import {
   PageChangeEvent,
@@ -2212,7 +2213,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
         }
       });
 
-      setStorageItem('sessionStorage', PREVIEW_MODE_SESSION_KEY, {
+      writePreviewState({
         previewFlags: this.previewFlags,
       });
       const previewParamsToRemove = [
@@ -2230,10 +2231,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       // if in preview mode, listen for ForceVariant messages
       WindowMessenger.setup(this.config.nonce);
     } else {
-      const previewState: PreviewState | null = getStorageItem(
-        'sessionStorage',
-        PREVIEW_MODE_SESSION_KEY,
-      );
+      const previewState: PreviewState | null = readPreviewState();
       if (previewState) {
         this.previewFlags = previewState.previewFlags;
       }
