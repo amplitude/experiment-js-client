@@ -41,6 +41,12 @@ describe('DefaultWebExperimentClient relay iframe', () => {
     mockGetGlobalScope.mockReturnValue(
       mockGlobal as unknown as typeof globalThis,
     );
+    for (const part of document.cookie ? document.cookie.split(';') : []) {
+      const name = part.split('=')[0].trim();
+      if (name) {
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      }
+    }
     jest.spyOn(ExperimentClient.prototype, 'setUser').mockImplementation();
     jest.spyOn(ExperimentClient.prototype, 'all').mockReturnValue({});
     jest

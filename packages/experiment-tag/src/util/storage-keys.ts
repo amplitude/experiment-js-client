@@ -11,7 +11,11 @@
 export const identityCookieKey = (apiKey: string): string =>
   `EXP_${apiKey.slice(0, 10)}_identity`;
 
-/** Preview mode's flag overrides, carried across the URL-param cleanup. */
+/**
+ * Preview flag overrides. Dual-written to sessionStorage (same origin) and a
+ * root-domain cookie (sibling subdomains) after PREVIEW query params are
+ * stripped from the URL.
+ */
 export const PREVIEW_MODE_SESSION_KEY = 'amp-preview-mode';
 
 /** The visual editor's handshake state with the opener window. */

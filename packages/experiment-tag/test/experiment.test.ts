@@ -9,7 +9,10 @@ import { createPageObject } from './util/create-page-object';
 import { MockHttpClient } from './util/mock-http-client';
 import { createMockGlobal, setupGlobalObservers } from './util/mocks';
 
-import { DefaultWebExperimentClient } from 'src/experiment';
+import {
+  DefaultWebExperimentClient,
+  PREVIEW_MODE_SESSION_KEY,
+} from 'src/experiment';
 import * as antiFlickerUtils from 'src/util/anti-flicker';
 import * as uuid from 'src/util/uuid';
 
@@ -106,6 +109,12 @@ describe('initializeExperiment', () => {
 
     // Clear cookie store
     clearCookieStore();
+    for (const part of document.cookie ? document.cookie.split(';') : []) {
+      const name = part.split('=')[0].trim();
+      if (name) {
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      }
+    }
 
     // Create fresh mock global for each test
     mockGlobal = newMockGlobal();
@@ -1229,6 +1238,47 @@ describe('initializeExperiment', () => {
         (call) => call[0] === redirectStorageKey,
       );
     expect(storedRedirectsCall).toBeFalsy();
+  });
+
+  test('preview - restores forced variant from cookie across a missing sessionStorage', async () => {
+    const mockGlobal = newMockGlobal({
+      location: {
+        href: 'http://test.com',
+        replace: jest.fn(),
+        search: '',
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    mockGetGlobalScope.mockReturnValue(mockGlobal);
+    const preview = JSON.stringify({ previewFlags: { test: 'control' } });
+    document.cookie = `${PREVIEW_MODE_SESSION_KEY}=${encodeURIComponent(
+      preview,
+    )}; path=/`;
+
+    try {
+      await DefaultWebExperimentClient.getInstance(stringify(apiKey), {
+        initialFlags: JSON.stringify([
+          createRedirectFlag('test', 'treatment', 'http://test.com/2'),
+        ]),
+        pageObjects: JSON.stringify(DEFAULT_PAGE_OBJECTS),
+      }).start();
+      expect(mockGlobal.location.replace).toHaveBeenCalledTimes(0);
+      expect(mockExposureInternal).toHaveBeenCalledWith('test', {
+        variant: {
+          key: 'control',
+          value: 'control',
+          metadata: {
+            deliveryMethod: 'web',
+            url: 'http://localhost/',
+          },
+        },
+        source: 'local-evaluation',
+        hasDefaultVariant: false,
+      });
+    } finally {
+      document.cookie = `${PREVIEW_MODE_SESSION_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    }
   });
 
   test('preview - force control variant', async () => {
