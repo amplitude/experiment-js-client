@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.29.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.29.0...@amplitude/experiment-tag@0.29.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **csp:** Implement patchDOMParser for style CSP workaround ([#338](https://github.com/amplitude/experiment-js-client/issues/338)) ([cb4aa8d](https://github.com/amplitude/experiment-js-client/commit/cb4aa8da06d0336a0487297f8184bf6fe0b53178))
+* swap out CookieStorage with plain sync cookie methods ([#370](https://github.com/amplitude/experiment-js-client/issues/370)) ([b0306f7](https://github.com/amplitude/experiment-js-client/commit/b0306f722ba1773db4315c5f5d3d57a687a194b8))
+* update dom-mutator ([#373](https://github.com/amplitude/experiment-js-client/issues/373)) ([a5527be](https://github.com/amplitude/experiment-js-client/commit/a5527be4b1bcb8b7eb8bfec2cb697dfc447a8586))
+
+
+
+
+
 # [0.29.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.28.1...@amplitude/experiment-tag@0.29.0) (2026-08-24)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@amplitude/experiment-core",
-  "version": "0.13.5",
+  "version": "0.13.6",
   "private": false,
   "description": "Amplitude Experiment evaluation JavaScript implementation.",
   "keywords": [

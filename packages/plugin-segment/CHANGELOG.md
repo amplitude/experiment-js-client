@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.19](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-plugin-segment@0.3.18...@amplitude/experiment-plugin-segment@0.3.19) (2026-09-10)
+
+**Note:** Version bump only for package @amplitude/experiment-plugin-segment
+
+
+
+
+
 ## [0.3.18](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-plugin-segment@0.3.17...@amplitude/experiment-plugin-segment@0.3.18) (2026-08-24)
 
 **Note:** Version bump only for package @amplitude/experiment-plugin-segment
