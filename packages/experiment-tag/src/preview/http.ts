@@ -40,7 +40,12 @@ const makeRequest = async (
   timeout?: number,
 ): Promise<SimpleResponse> => {
   const request = async () => {
-    const response = await fetch(url, { method, headers, body: data });
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: data,
+      cache: 'no-store',
+    });
     return {
       status: response.status,
       body: await response.text(),
