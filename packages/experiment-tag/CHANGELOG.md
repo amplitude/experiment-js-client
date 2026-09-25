@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.29.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.29.1...@amplitude/experiment-tag@0.29.2) (2026-09-25)
+
+
+### Bug Fixes
+
+* update dom-mutator ([#376](https://github.com/amplitude/experiment-js-client/issues/376)) ([4c7425b](https://github.com/amplitude/experiment-js-client/commit/4c7425b4fd5d9ae1030c77418553d930c01a5225))
+
+
+
+
+
 ## [0.29.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.29.0...@amplitude/experiment-tag@0.29.1) (2026-09-10)
 
 
