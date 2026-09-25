@@ -1,13 +1,7 @@
 import { getGlobalScope } from '@amplitude/experiment-core';
 
-import {
-  PREVIEW_MODE_PARAM,
-  PREVIEW_MODE_SESSION_KEY,
-  REDIRECT_IMPRESSION_PARAM,
-} from '../experiment';
-import { PreviewState } from '../types';
-
-import { getStorageItem } from './storage';
+import { PREVIEW_MODE_PARAM, REDIRECT_IMPRESSION_PARAM } from '../experiment';
+import { readPreviewState } from '../preview/preview-state';
 
 export const getUrlParams = (): Record<string, string> => {
   const globalScope = getGlobalScope();
@@ -126,15 +120,9 @@ export const isPreviewMode = (): boolean => {
   if (getUrlParams()[PREVIEW_MODE_PARAM] === 'true') {
     return true;
   }
-  const previewState = getStorageItem(
-    'sessionStorage',
-    PREVIEW_MODE_SESSION_KEY,
-  ) as PreviewState;
-  if (
+  const previewState = readPreviewState();
+  return Boolean(
     previewState?.previewFlags &&
-    Object.keys(previewState.previewFlags).length > 0
-  ) {
-    return true;
-  }
-  return false;
+      Object.keys(previewState.previewFlags).length > 0,
+  );
 };
