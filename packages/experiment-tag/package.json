@@ -32,7 +32,7 @@
     "@amplitude/analytics-types": "^2.11.0",
     "@amplitude/experiment-core": "^0.13.6",
     "@amplitude/experiment-js-client": "^1.23.1",
-    "dom-mutator": "git+ssh://git@github.com/amplitude/dom-mutator#12c98baf791d3f5b803f6f30517512df6f1b0a2a",
+    "dom-mutator": "git+ssh://git@github.com/amplitude/dom-mutator#f58871526413b2c266ce3fa0b0829d001d878111",
     "rollup-plugin-license": "^3.6.0",
     "unfetch": "4.1.0"
   },
