@@ -7,6 +7,7 @@ import {
   safeGlobal,
   TimeoutError,
 } from '@amplitude/experiment-core';
+import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
 import { version as PACKAGE_VERSION } from '../package.json';
 import {
@@ -26,8 +27,6 @@ import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
 
 import { mockClientStorage } from './util/mock';
-
-import { ExperimentEvent, IntegrationPlugin } from 'src/types/plugin';
 
 const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 
@@ -1798,6 +1797,7 @@ describe('exposure groups', () => {
   // Tracks through both the custom provider and the analytics connector.
   const setup = (initialUser: ExperimentUser) => {
     const providerExposures: Exposure[] = [];
+    const providerGroups: (Record<string, string[]> | undefined)[] = [];
     const connectorEvents: AnalyticsEvent[] = [];
     const connector = AnalyticsConnector.getInstance(randomString(16));
     connector.eventBridge.setEventReceiver((e) => connectorEvents.push(e));
@@ -1805,20 +1805,22 @@ describe('exposure groups', () => {
       source: Source.InitialVariants,
       initialVariants: { flag: { key: 'on', value: 'on' } },
       exposureTrackingProvider: {
-        track: (e) => providerExposures.push(e),
+        track: (e, groups) => {
+          providerExposures.push(e);
+          providerGroups.push(groups);
+        },
       },
     });
     client.addPlugin(new AmplitudeIntegrationPlugin(API_KEY, connector, 0));
     client.setUser(initialUser);
     client.exposure('flag');
-    return { client, providerExposures, connectorEvents };
+    return { client, providerExposures, providerGroups, connectorEvents };
   };
 
   test('user groups sent with exposure to provider and connector', () => {
-    const { providerExposures, connectorEvents } = setup(user);
-    expect(providerExposures).toEqual([
-      { flag_key: 'flag', variant: 'on', groups: user.groups },
-    ]);
+    const { providerExposures, providerGroups, connectorEvents } = setup(user);
+    expect(providerExposures).toEqual([{ flag_key: 'flag', variant: 'on' }]);
+    expect(providerGroups).toEqual([user.groups]);
     expect(connectorEvents).toEqual([
       {
         eventType: '$exposure',
@@ -1832,21 +1834,18 @@ describe('exposure groups', () => {
     ['no groups', { user_id: 'user' }],
     ['empty groups', { user_id: 'user', groups: {} }],
   ])('user with %s, exposure has no groups', (_, noGroupsUser) => {
-    const { providerExposures, connectorEvents } = setup(noGroupsUser);
-    expect(providerExposures[0]).not.toHaveProperty('groups');
+    const { providerGroups, connectorEvents } = setup(noGroupsUser);
+    expect(providerGroups).toEqual([undefined]);
     expect(connectorEvents[0]).not.toHaveProperty('groups');
   });
 
   test('group change sends exposure again', () => {
-    const { client, providerExposures, connectorEvents } = setup(user);
+    const { client, providerGroups, connectorEvents } = setup(user);
     const movedUser = { ...user, groups: { org: ['org-2'] } };
     client.setUser(movedUser);
     client.exposure('flag');
     client.exposure('flag');
-    expect(providerExposures.map((e) => e.groups)).toEqual([
-      user.groups,
-      movedUser.groups,
-    ]);
+    expect(providerGroups).toEqual([user.groups, movedUser.groups]);
     expect(connectorEvents.map((e) => e.groups)).toEqual([
       user.groups,
       movedUser.groups,

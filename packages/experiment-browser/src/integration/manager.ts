@@ -12,7 +12,7 @@ import { Client } from '../types/client';
 import { Exposure } from '../types/exposure';
 import { ExperimentEvent, IntegrationPlugin } from '../types/plugin';
 import { ExperimentUser } from '../types/user';
-import { groupsKey } from '../util';
+import { groupsKey, isNullUndefinedOrEmpty } from '../util';
 
 const MAX_QUEUE_SIZE = 512;
 
@@ -113,13 +113,15 @@ export class IntegrationManager {
    */
   track(exposure: Exposure, user?: ExperimentUser): void {
     if (this.cache.shouldTrack(exposure, user)) {
-      const event = this.getExposureEvent(exposure);
+      const event = this.getExposureEvent(exposure, user?.groups);
       this.queue.push(event);
     }
   }
 
-  private getExposureEvent(exposure: Exposure): ExperimentEvent {
-    const { groups, ...eventProperties } = exposure;
+  private getExposureEvent(
+    exposure: Exposure,
+    groups?: Record<string, string[]>,
+  ): ExperimentEvent {
     let eventType = '$exposure';
     if (exposure.metadata?.exposureEvent) {
       // Metadata specifically passes the exposure event definition
@@ -128,7 +130,11 @@ export class IntegrationManager {
       // Web experiments track impression events by default
       eventType = '$impression';
     }
-    return { eventType, eventProperties, ...(groups && { groups }) };
+    const event: ExperimentEvent = { eventType, eventProperties: exposure };
+    if (!isNullUndefinedOrEmpty(groups)) {
+      event.groups = groups;
+    }
+    return event;
   }
 }
 

@@ -1,7 +1,7 @@
 import { Exposure, ExposureTrackingProvider } from '../types/exposure';
 import { ExperimentUser } from '../types/user';
 
-import { groupsKey } from './index';
+import { groupsKey, isNullUndefinedOrEmpty } from './index';
 
 interface Identity {
   userId?: string;
@@ -42,7 +42,11 @@ export class UserSessionExposureTracker {
     }
 
     this.tracked[exposure.flag_key] = exposure.variant;
-    this.exposureTrackingProvider.track(exposure);
+    if (isNullUndefinedOrEmpty(user?.groups)) {
+      this.exposureTrackingProvider.track(exposure);
+    } else {
+      this.exposureTrackingProvider.track(exposure, user.groups);
+    }
   }
 
   private identityEquals(id1: Identity, id2: Identity): boolean {
