@@ -1836,4 +1836,31 @@ describe('exposure groups', () => {
     expect(providerExposures[0]).not.toHaveProperty('groups');
     expect(connectorEvents[0]).not.toHaveProperty('groups');
   });
+
+  test('group change sends exposure again', () => {
+    const { client, providerExposures, connectorEvents } = setup(user);
+    const movedUser = { ...user, groups: { org: ['org-2'] } };
+    client.setUser(movedUser);
+    client.exposure('flag');
+    client.exposure('flag');
+    expect(providerExposures.map((e) => e.groups)).toEqual([
+      user.groups,
+      movedUser.groups,
+    ]);
+    expect(connectorEvents.map((e) => e.groups)).toEqual([
+      user.groups,
+      movedUser.groups,
+    ]);
+  });
+
+  test('same groups in a different order are deduplicated', () => {
+    const { client, providerExposures, connectorEvents } = setup(user);
+    client.setUser({
+      ...user,
+      groups: { team: ['team-2', 'team-1'], org: ['org-1'] },
+    });
+    client.exposure('flag');
+    expect(providerExposures).toHaveLength(1);
+    expect(connectorEvents).toHaveLength(1);
+  });
 });

@@ -12,12 +12,14 @@ import { Client } from '../types/client';
 import { Exposure } from '../types/exposure';
 import { ExperimentEvent, IntegrationPlugin } from '../types/plugin';
 import { ExperimentUser } from '../types/user';
+import { groupsKey } from '../util';
 
 const MAX_QUEUE_SIZE = 512;
 
 interface Identity {
   userId?: string;
   deviceId?: string;
+  groups?: string;
 }
 
 /**
@@ -190,6 +192,7 @@ export class SessionDedupeCache {
     const newIdentity: Identity = {
       userId: user?.user_id,
       deviceId: user?.device_id,
+      groups: groupsKey(user?.groups),
     };
 
     if (!this.identityEquals(this.identity, newIdentity)) {
@@ -230,6 +233,9 @@ export class SessionDedupeCache {
   }
 
   private identityEquals(id1: Identity, id2: Identity): boolean {
+    if (id1.groups !== id2.groups) {
+      return false;
+    }
     if (id1.userId && id2.userId) {
       return id1.userId === id2.userId;
     }

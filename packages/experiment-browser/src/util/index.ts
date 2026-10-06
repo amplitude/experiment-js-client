@@ -28,6 +28,21 @@ export const filterNullUndefined = <T extends object>(obj: T): Partial<T> => {
   return filtered;
 };
 
+/**
+ * Returns a string that is equal for equal groups, regardless of group type or
+ * group name order. Returns undefined if there are no groups.
+ */
+export const groupsKey = (
+  groups: Record<string, string[]> | undefined,
+): string | undefined => {
+  if (isNullUndefinedOrEmpty(groups)) return undefined;
+  return JSON.stringify(
+    Object.keys(groups)
+      .sort()
+      .map((groupType) => [groupType, [...groups[groupType]].sort()]),
+  );
+};
+
 export const isLocalEvaluationMode = (
   flag: EvaluationFlag | undefined,
 ): boolean => {
