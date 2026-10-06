@@ -117,24 +117,16 @@ export class IntegrationManager {
   }
 
   private getExposureEvent(exposure: Exposure): ExperimentEvent {
-    let event: ExperimentEvent = {
-      eventType: '$exposure',
-      eventProperties: exposure,
-    };
+    const { groups, ...eventProperties } = exposure;
+    let eventType = '$exposure';
     if (exposure.metadata?.exposureEvent) {
       // Metadata specifically passes the exposure event definition
-      event = {
-        eventType: exposure.metadata?.exposureEvent as string,
-        eventProperties: exposure,
-      };
+      eventType = exposure.metadata.exposureEvent as string;
     } else if (exposure.metadata?.deliveryMethod === 'web') {
       // Web experiments track impression events by default
-      event = {
-        eventType: '$impression',
-        eventProperties: exposure,
-      };
+      eventType = '$impression';
     }
-    return event;
+    return { eventType, eventProperties, ...(groups && { groups }) };
   }
 }
 

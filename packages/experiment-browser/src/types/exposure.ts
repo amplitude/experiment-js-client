@@ -49,6 +49,12 @@ export type Exposure = {
    * (Optional) The time the exposure occurred.
    */
   time?: number;
+  /**
+   * (Optional) The groups of the user the variant was evaluated for. Omitted
+   * if the user has no groups. Send these as event-level groups, not as event
+   * properties, so group-unit experiments count the exposure.
+   */
+  groups?: Record<string, string[]>;
 };
 
 /**
@@ -78,6 +84,14 @@ export type Exposure = {
  *
  * ```
  * analytics.track('$exposure', exposure)
+ * ```
+ *
+ * If the exposure has {@link Exposure.groups}, send them as event-level
+ * groups. For example, with the Amplitude Analytics SDK:
+ *
+ * ```
+ * const { groups, ...properties } = exposure;
+ * amplitude.track('$exposure', properties, { groups });
  * ```
  */
 export interface ExposureTrackingProvider {

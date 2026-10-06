@@ -1,4 +1,7 @@
-import { AnalyticsConnector } from '@amplitude/analytics-connector';
+import {
+  AnalyticsConnector,
+  AnalyticsEvent,
+} from '@amplitude/analytics-connector';
 import {
   FetchError,
   safeGlobal,
@@ -18,6 +21,7 @@ import {
   Variant,
   Variants,
 } from '../src';
+import { AmplitudeIntegrationPlugin } from '../src/integration/amplitude';
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
 
@@ -1777,5 +1781,59 @@ describe('setTracksAssignment', () => {
         timeoutMillis: expect.any(Number),
       }),
     );
+  });
+});
+
+describe('exposure groups', () => {
+  const user: ExperimentUser = {
+    user_id: 'user',
+    groups: { org: ['org-1'], team: ['team-1', 'team-2'] },
+  };
+
+  beforeEach(() => {
+    safeGlobal.sessionStorage.clear();
+    safeGlobal.localStorage.clear();
+  });
+
+  // Tracks through both the custom provider and the analytics connector.
+  const setup = (initialUser: ExperimentUser) => {
+    const providerExposures: Exposure[] = [];
+    const connectorEvents: AnalyticsEvent[] = [];
+    const connector = AnalyticsConnector.getInstance(randomString(16));
+    connector.eventBridge.setEventReceiver((e) => connectorEvents.push(e));
+    const client = new ExperimentClient(API_KEY, {
+      source: Source.InitialVariants,
+      initialVariants: { flag: { key: 'on', value: 'on' } },
+      exposureTrackingProvider: {
+        track: (e) => providerExposures.push(e),
+      },
+    });
+    client.addPlugin(new AmplitudeIntegrationPlugin(API_KEY, connector, 0));
+    client.setUser(initialUser);
+    client.exposure('flag');
+    return { client, providerExposures, connectorEvents };
+  };
+
+  test('user groups sent with exposure to provider and connector', () => {
+    const { providerExposures, connectorEvents } = setup(user);
+    expect(providerExposures).toEqual([
+      { flag_key: 'flag', variant: 'on', groups: user.groups },
+    ]);
+    expect(connectorEvents).toEqual([
+      {
+        eventType: '$exposure',
+        eventProperties: { flag_key: 'flag', variant: 'on' },
+        groups: user.groups,
+      },
+    ]);
+  });
+
+  test.each([
+    ['no groups', { user_id: 'user' }],
+    ['empty groups', { user_id: 'user', groups: {} }],
+  ])('user with %s, exposure has no groups', (_, noGroupsUser) => {
+    const { providerExposures, connectorEvents } = setup(noGroupsUser);
+    expect(providerExposures[0]).not.toHaveProperty('groups');
+    expect(connectorEvents[0]).not.toHaveProperty('groups');
   });
 });

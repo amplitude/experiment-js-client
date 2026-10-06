@@ -974,6 +974,9 @@ export class ExperimentClient implements Client {
       }
     }
     const user = this.addContext(this.getUser());
+    if (user.groups && Object.keys(user.groups).length > 0) {
+      exposure.groups = user.groups;
+    }
     this.userSessionExposureTracker?.track(exposure, user);
     this.integrationManager.track(exposure, user);
   }
