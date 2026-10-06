@@ -80,7 +80,8 @@ export type Exposure = {
  * analytics.track('$exposure', exposure)
  * ```
  *
- * If the user has groups, they are passed as the second argument to
+ * If the exposure has a variant and the user has groups, the groups are
+ * passed as the second argument to
  * {@link ExposureTrackingProvider.track}. Send them as event-level groups,
  * not as event properties, so group-unit experiments count the exposure.
  * For example, with the Amplitude Analytics SDK:
@@ -118,7 +119,9 @@ export interface ExposureTrackingProvider {
    *
    * @param exposure the exposure to track.
    * @param groups (Optional) the groups of the user the variant was evaluated
-   * for. Omitted if the user has no groups. Send these as event-level groups.
+   * for. Omitted if the user has no groups, if the exposure has no variant,
+   * or if the user has more than 10 group values in total. Send these as
+   * event-level groups.
    */
   track(exposure: Exposure, groups?: Record<string, string[]>): void;
 }

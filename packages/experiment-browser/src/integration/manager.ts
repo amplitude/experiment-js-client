@@ -113,7 +113,10 @@ export class IntegrationManager {
    */
   track(exposure: Exposure, user?: ExperimentUser): void {
     if (this.cache.shouldTrack(exposure, user)) {
-      const event = this.getExposureEvent(exposure, user?.groups);
+      // Analytics turns an exposure without a variant into an identify, which
+      // would write its groups to the user profile.
+      const groups = exposure.variant ? user?.groups : undefined;
+      const event = this.getExposureEvent(exposure, groups);
       this.queue.push(event);
     }
   }

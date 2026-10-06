@@ -77,6 +77,9 @@ const minFlagPollerIntervalMillis = 60000;
 const euServerUrl = 'https://api.lab.eu.amplitude.com';
 const euFlagsServerUrl = 'https://flag.lab.eu.amplitude.com';
 
+// Analytics rejects events with more than this many group values in total.
+const maxExposureGroupValues = 10;
+
 /**
  * The default {@link Client} used to fetch variations from Experiment's
  * servers.
@@ -974,8 +977,30 @@ export class ExperimentClient implements Client {
       }
     }
     const user = this.addContext(this.getUser());
-    this.userSessionExposureTracker?.track(exposure, user);
-    this.integrationManager.track(exposure, user);
+    // Exposures carry and dedupe on these groups, so a group change sends
+    // them again.
+    const exposureUser = { ...user, groups: this.exposureGroups(user) };
+    this.userSessionExposureTracker?.track(exposure, exposureUser);
+    this.integrationManager.track(exposure, exposureUser);
+  }
+
+  private exposureGroups(
+    user: ExperimentUser,
+  ): Record<string, string[]> | undefined {
+    if (isNullUndefinedOrEmpty(user.groups)) {
+      return undefined;
+    }
+    const count = Object.values(user.groups).reduce(
+      (total, names) => total + names.length,
+      0,
+    );
+    if (count > maxExposureGroupValues) {
+      this.logger.warn(
+        `[Experiment] User has ${count} group values, more than the limit of ${maxExposureGroupValues}. Exposures will not include groups.`,
+      );
+      return undefined;
+    }
+    return user.groups;
   }
 
   private legacyExposureInternal(

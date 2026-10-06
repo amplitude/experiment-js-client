@@ -42,7 +42,9 @@ export class UserSessionExposureTracker {
     }
 
     this.tracked[exposure.flag_key] = exposure.variant;
-    if (isNullUndefinedOrEmpty(user?.groups)) {
+    // Analytics turns an exposure without a variant into an identify, which
+    // would write its groups to the user profile.
+    if (!exposure.variant || isNullUndefinedOrEmpty(user?.groups)) {
       this.exposureTrackingProvider.track(exposure);
     } else {
       this.exposureTrackingProvider.track(exposure, user.groups);
