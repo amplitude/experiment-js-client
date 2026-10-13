@@ -91,6 +91,7 @@ export class AmplitudeIntegrationPlugin implements IntegrationPlugin {
     this.eventBridge.logEvent({
       eventType: event.eventType,
       eventProperties: event.eventProperties,
+      ...(event.groups && { groups: event.groups }),
     });
     return true;
   }

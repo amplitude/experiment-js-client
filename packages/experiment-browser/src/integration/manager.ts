@@ -12,12 +12,14 @@ import { Client } from '../types/client';
 import { Exposure } from '../types/exposure';
 import { ExperimentEvent, IntegrationPlugin } from '../types/plugin';
 import { ExperimentUser } from '../types/user';
+import { groupsKey, isNullUndefinedOrEmpty } from '../util';
 
 const MAX_QUEUE_SIZE = 512;
 
 interface Identity {
   userId?: string;
   deviceId?: string;
+  groups?: string;
 }
 
 /**
@@ -111,28 +113,29 @@ export class IntegrationManager {
    */
   track(exposure: Exposure, user?: ExperimentUser): void {
     if (this.cache.shouldTrack(exposure, user)) {
-      const event = this.getExposureEvent(exposure);
+      // Analytics turns an exposure without a variant into an identify, which
+      // would write its groups to the user profile.
+      const groups = exposure.variant ? user?.groups : undefined;
+      const event = this.getExposureEvent(exposure, groups);
       this.queue.push(event);
     }
   }
 
-  private getExposureEvent(exposure: Exposure): ExperimentEvent {
-    let event: ExperimentEvent = {
-      eventType: '$exposure',
-      eventProperties: exposure,
-    };
+  private getExposureEvent(
+    exposure: Exposure,
+    groups?: Record<string, string[]>,
+  ): ExperimentEvent {
+    let eventType = '$exposure';
     if (exposure.metadata?.exposureEvent) {
       // Metadata specifically passes the exposure event definition
-      event = {
-        eventType: exposure.metadata?.exposureEvent as string,
-        eventProperties: exposure,
-      };
+      eventType = exposure.metadata.exposureEvent as string;
     } else if (exposure.metadata?.deliveryMethod === 'web') {
       // Web experiments track impression events by default
-      event = {
-        eventType: '$impression',
-        eventProperties: exposure,
-      };
+      eventType = '$impression';
+    }
+    const event: ExperimentEvent = { eventType, eventProperties: exposure };
+    if (!isNullUndefinedOrEmpty(groups)) {
+      event.groups = groups;
     }
     return event;
   }
@@ -198,6 +201,7 @@ export class SessionDedupeCache {
     const newIdentity: Identity = {
       userId: user?.user_id,
       deviceId: user?.device_id,
+      groups: groupsKey(user?.groups),
     };
 
     if (!this.identityEquals(this.identity, newIdentity)) {
@@ -238,6 +242,9 @@ export class SessionDedupeCache {
   }
 
   private identityEquals(id1: Identity, id2: Identity): boolean {
+    if (id1.groups !== id2.groups) {
+      return false;
+    }
     if (id1.userId && id2.userId) {
       return id1.userId === id2.userId;
     }

@@ -17,6 +17,7 @@ export interface ExperimentPlugin {
 export type ExperimentEvent = {
   eventType: string;
   eventProperties?: Record<string, unknown>;
+  groups?: Record<string, string[]>;
 };
 
 export interface IntegrationPlugin extends ExperimentPlugin {

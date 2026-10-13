@@ -1,4 +1,7 @@
-import { AnalyticsConnector } from '@amplitude/analytics-connector';
+import {
+  AnalyticsConnector,
+  AnalyticsEvent,
+} from '@amplitude/analytics-connector';
 import {
   FetchError,
   safeGlobal,
@@ -14,10 +17,12 @@ import {
   Exposure,
   ExposureTrackingProvider,
   FetchOptions,
+  LogLevel,
   Source,
   Variant,
   Variants,
 } from '../src';
+import { AmplitudeIntegrationPlugin } from '../src/integration/amplitude';
 import { HttpClient, SimpleResponse } from '../src/types/transport';
 import { randomString } from '../src/util/randomstring';
 
@@ -1777,5 +1782,138 @@ describe('setTracksAssignment', () => {
         timeoutMillis: expect.any(Number),
       }),
     );
+  });
+});
+
+describe('exposure groups', () => {
+  const user: ExperimentUser = {
+    user_id: 'user',
+    groups: { org: ['org-1'], team: ['team-1', 'team-2'] },
+  };
+
+  beforeEach(() => {
+    safeGlobal.sessionStorage.clear();
+    safeGlobal.localStorage.clear();
+  });
+
+  // Tracks through both the custom provider and the analytics connector.
+  const setup = (
+    initialUser: ExperimentUser,
+    variant: Variant = { key: 'on', value: 'on' },
+  ) => {
+    const providerExposures: Exposure[] = [];
+    const providerGroups: (Record<string, string[]> | undefined)[] = [];
+    const connectorEvents: AnalyticsEvent[] = [];
+    const warn = jest.fn();
+    const connector = AnalyticsConnector.getInstance(randomString(16));
+    connector.eventBridge.setEventReceiver((e) => connectorEvents.push(e));
+    const client = new ExperimentClient(API_KEY, {
+      source: Source.InitialVariants,
+      initialVariants: { flag: variant },
+      exposureTrackingProvider: {
+        track: (e, groups) => {
+          providerExposures.push(e);
+          providerGroups.push(groups);
+        },
+      },
+      logLevel: LogLevel.Warn,
+      loggerProvider: {
+        error: jest.fn(),
+        warn,
+        info: jest.fn(),
+        debug: jest.fn(),
+        verbose: jest.fn(),
+      },
+    });
+    client.addPlugin(new AmplitudeIntegrationPlugin(API_KEY, connector, 0));
+    client.setUser(initialUser);
+    client.exposure('flag');
+    return { client, providerExposures, providerGroups, connectorEvents, warn };
+  };
+
+  // Groups with the given number of values across two group types.
+  const groupsWithValues = (count: number) => ({
+    org: ['org-1'],
+    team: Array.from({ length: count - 1 }, (_, i) => `team-${i}`),
+  });
+
+  test('user groups sent with exposure to provider and connector', () => {
+    const { providerExposures, providerGroups, connectorEvents } = setup(user);
+    expect(providerExposures).toEqual([{ flag_key: 'flag', variant: 'on' }]);
+    expect(providerGroups).toEqual([user.groups]);
+    expect(connectorEvents).toEqual([
+      {
+        eventType: '$exposure',
+        eventProperties: { flag_key: 'flag', variant: 'on' },
+        groups: user.groups,
+      },
+    ]);
+  });
+
+  test.each([
+    ['no groups', { user_id: 'user' }],
+    ['empty groups', { user_id: 'user', groups: {} }],
+  ])('user with %s, exposure has no groups', (_, noGroupsUser) => {
+    const { providerGroups, connectorEvents } = setup(noGroupsUser);
+    expect(providerGroups).toEqual([undefined]);
+    expect(connectorEvents[0]).not.toHaveProperty('groups');
+  });
+
+  test('default exposure has no groups', () => {
+    const { providerGroups, connectorEvents } = setup(user, {
+      key: 'off',
+      metadata: { default: true },
+    });
+    expect(providerGroups).toEqual([undefined]);
+    expect(connectorEvents).toHaveLength(1);
+    expect(connectorEvents[0]).not.toHaveProperty('groups');
+  });
+
+  test('10 group values are sent with exposure', () => {
+    const groups = groupsWithValues(10);
+    const { providerGroups, connectorEvents, warn } = setup({
+      ...user,
+      groups,
+    });
+    expect(providerGroups).toEqual([groups]);
+    expect(connectorEvents[0].groups).toEqual(groups);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  test('more than 10 group values are omitted from exposure with a warning', () => {
+    const { providerGroups, connectorEvents, warn } = setup({
+      ...user,
+      groups: groupsWithValues(11),
+    });
+    expect(providerGroups).toEqual([undefined]);
+    expect(connectorEvents).toHaveLength(1);
+    expect(connectorEvents[0]).not.toHaveProperty('groups');
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('11 group values'),
+    );
+  });
+
+  test('group change sends exposure again', () => {
+    const { client, providerGroups, connectorEvents } = setup(user);
+    const movedUser = { ...user, groups: { org: ['org-2'] } };
+    client.setUser(movedUser);
+    client.exposure('flag');
+    client.exposure('flag');
+    expect(providerGroups).toEqual([user.groups, movedUser.groups]);
+    expect(connectorEvents.map((e) => e.groups)).toEqual([
+      user.groups,
+      movedUser.groups,
+    ]);
+  });
+
+  test('same groups in a different order are deduplicated', () => {
+    const { client, providerExposures, connectorEvents } = setup(user);
+    client.setUser({
+      ...user,
+      groups: { team: ['team-2', 'team-1'], org: ['org-1'] },
+    });
+    client.exposure('flag');
+    expect(providerExposures).toHaveLength(1);
+    expect(connectorEvents).toHaveLength(1);
   });
 });

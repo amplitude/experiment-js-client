@@ -2,6 +2,7 @@ export type AnalyticsEvent = {
   eventType: string;
   eventProperties?: Record<string, unknown>;
   userProperties?: Record<string, unknown>;
+  groups?: Record<string, string | string[]>;
 };
 
 export type AnalyticsEventReceiver = (event: AnalyticsEvent) => void;
