@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.24.0](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.23.1...@amplitude/experiment-js-client@1.24.0) (2026-10-13)
+
+
+### Features
+
+* **experiment-browser:** send user groups with exposure events ([#379](https://github.com/amplitude/experiment-js-client/issues/379)) ([fe104c8](https://github.com/amplitude/experiment-js-client/commit/fe104c888a07297a72096590c3ec69954a2b4b2d))
+
+
+
+
+
 ## [1.23.1](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-js-client@1.23.0...@amplitude/experiment-js-client@1.23.1) (2026-09-10)
 
 **Note:** Version bump only for package @amplitude/experiment-js-client

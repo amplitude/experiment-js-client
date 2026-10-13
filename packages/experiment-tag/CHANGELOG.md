@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.29.3](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.29.2...@amplitude/experiment-tag@0.29.3) (2026-10-13)
+
+**Note:** Version bump only for package @amplitude/experiment-tag
+
+
+
+
+
 ## [0.29.2](https://github.com/amplitude/experiment-js-client/compare/@amplitude/experiment-tag@0.29.1...@amplitude/experiment-tag@0.29.2) (2026-09-25)
 
 
