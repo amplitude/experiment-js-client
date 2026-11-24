@@ -775,6 +775,7 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
 
     const enrichedUser = await enrichUserWithCampaignData(this.apiKey, user);
 
+    const integration = this.globalScope.experimentIntegration;
     // If no integration has been set, use an Amplitude integration.
     if (!this.globalScope.experimentIntegration) {
       const connector = AnalyticsConnector.getInstance('$default_instance');
@@ -785,6 +786,35 @@ export class DefaultWebExperimentClient implements WebExperimentClient {
       );
     }
     this.globalScope.experimentIntegration.type = 'integration';
+
+    const amp = this.globalScope.amplitude as any;
+    if (amp && integration && !integration.__ampDeviceIdMatchGate) {
+      integration.__ampDeviceIdMatchGate = true;
+      let deviceIdSettled =
+        amp.getDeviceId?.() === integration.getUser().device_id;
+      if (!deviceIdSettled) {
+        amp.add?.({
+          name: '@amplitude/experiment-tag-device-id-match',
+          onIdentityChanged({ deviceId }) {
+            if (deviceId === integration.getUser().device_id) {
+              deviceIdSettled = true;
+            }
+          },
+        });
+      }
+
+      const track = integration.track.bind(integration);
+      integration.track = (event): boolean => {
+        if (event.eventType === '$impression' && !deviceIdSettled) {
+          this.globalScope.setTimeout(() => {
+            deviceIdSettled = true;
+          }, 1000);
+          return false;
+        }
+        return track(event);
+      };
+    }
+
     if (consentGate.required) {
       // Must precede addPlugin: the integration manager binds `track` as it
       // takes the plugin on, so a later wrap would never be seen.
