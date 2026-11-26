@@ -181,8 +181,13 @@ export class SessionDedupeCache {
     if (this.isSessionStorageAvailable === undefined) {
       this.isSessionStorageAvailable = checkIsSessionStorageAvailable();
     }
+    // Reading the property throws when the browser blocks site data, so it
+    // must not happen before the availability check.
+    if (!this.isSessionStorageAvailable) {
+      return undefined;
+    }
     const sessionStorage = getSessionStorage();
-    if (!this.isSessionStorageAvailable || !sessionStorage) {
+    if (!sessionStorage) {
       return undefined;
     }
     if (this.clearStoredOnReopen) {
@@ -368,10 +373,12 @@ export class PersistentTrackingQueue {
     if (this.isLocalStorageAvailable === undefined) {
       this.isLocalStorageAvailable = isLocalStorageAvailable();
     }
-    const localStorage = getLocalStorage();
-    return this.isLocalStorageAvailable && localStorage
-      ? localStorage
-      : undefined;
+    // Reading the property throws when the browser blocks site data, so it
+    // must not happen before the availability check.
+    if (!this.isLocalStorageAvailable) {
+      return undefined;
+    }
+    return getLocalStorage();
   }
 
   private loadQueue(): void {
