@@ -903,3 +903,59 @@ describe('iOS Safari null-globalThis regression', () => {
     }).not.toThrow();
   });
 });
+
+describe('storage blocked by the browser', () => {
+  // When site data is blocked, Chromium throws on the property read itself,
+  // not only on getItem/setItem.
+  const securityError = (name: string) =>
+    new DOMException(
+      `Failed to read the '${name}' property from 'Window': Access is denied for this document.`,
+      'SecurityError',
+    );
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('SessionDedupeCache dedupes in memory when reading sessionStorage throws', () => {
+    const blockedScope = Object.create(safeGlobal, {
+      sessionStorage: {
+        get: () => {
+          throw securityError('sessionStorage');
+        },
+      },
+    });
+    jest.spyOn(core, 'getGlobalScope').mockReturnValue(blockedScope);
+    jest.spyOn(core, 'getSessionStorage').mockImplementation(() => {
+      throw securityError('sessionStorage');
+    });
+    const cache = new SessionDedupeCache('blocked-session-test');
+    const exposure = { flag_key: 'flag-key', variant: 'on' };
+
+    expect(cache.shouldTrack(exposure)).toEqual(true);
+    expect(cache.shouldTrack(exposure)).toEqual(false);
+  });
+
+  test('PersistentTrackingQueue tracks in memory when reading localStorage throws', () => {
+    jest.spyOn(core, 'isLocalStorageAvailable').mockReturnValue(false);
+    jest.spyOn(core, 'getLocalStorage').mockImplementation(() => {
+      throw securityError('localStorage');
+    });
+    const queue = new PersistentTrackingQueue('blocked-local-test');
+    const tracked: ExperimentEvent[] = [];
+    const event: ExperimentEvent = { eventType: '$exposure' };
+    try {
+      queue.push(event);
+      queue.setTracker((e) => {
+        tracked.push(e);
+        return true;
+      });
+
+      expect(tracked).toEqual([event]);
+      expect(queue['inMemoryQueue']).toEqual([]);
+    } finally {
+      clearInterval(queue['poller']);
+      queue['poller'] = undefined;
+    }
+  });
+});
